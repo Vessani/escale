@@ -1,5 +1,4 @@
-// Não esqueça de importar o Turno do Prisma!
-import { StatusIntegracao, Turno } from "@prisma/client";
+import type { StatusIntegracao, Turno } from "@prisma/client";
 import { DefaultSession } from "next-auth";
 
 export type NovoMotoristaInput = {
@@ -17,15 +16,15 @@ export type NovaIntegracaoInput = {
 };
 
 export type NovaEntregaInput = {
-  dataEntrega: string | Date; 
+  dataEntrega: string | Date;
   cliente: string;
   cidade: string;
   uf: string;
-  kg: number; 
+  kg: number;
   m3: number;
   obs: string;
   sapcode: string;
-  codewhite: string;  
+  codewhite: string;
 };
 
 export type NovaViagemInput = {
@@ -34,20 +33,14 @@ export type NovaViagemInput = {
   cavalo: string;
   tanque: string;
   diasViagem: number;
-  
-  inicioPrevisto: string | Date; 
+  inicioPrevisto: string | Date;
   fimPrevisto: string | Date;
-  turno: Turno; 
-  
-
-
-  entregas: NovaEntregaInput[]; 
+  turno: Turno;
+  entregas: NovaEntregaInput[];
 };
 
-
-
 export type EditarEntregaInput = NovaEntregaInput & {
-  id?: number; 
+  id?: number;
 };
 
 export type EditarViagemInput = Omit<NovaViagemInput, 'entregas'> & {
@@ -56,7 +49,7 @@ export type EditarViagemInput = Omit<NovaViagemInput, 'entregas'> & {
 };
 
 export type EditarIntegracaoInput = NovaIntegracaoInput & {
-  id?: number; 
+  id?: number;
 };
 
 export type EditarMotoristaInput = Omit<NovoMotoristaInput, 'integracao'> & {

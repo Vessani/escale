@@ -1,10 +1,11 @@
-import { Turno } from "@prisma/client"
 import * as z from "zod"
 
+const turnoSchema = z.enum(["MANHA", "NOITE"])
+
 const entregaBaseSchema = z.object({
-  dataEntrega: z.string().min(1, "Obrigatório"),
-  cliente: z.string().min(2, "Obrigatório"),
-  cidade: z.string().min(2, "Obrigatório"),
+  dataEntrega: z.string().min(1, "Obrigatorio"),
+  cliente: z.string().min(2, "Obrigatorio"),
+  cidade: z.string().min(2, "Obrigatorio"),
   uf: z.string().length(2, "Use a sigla"),
   kg: z.coerce.number().min(0),
   m3: z.coerce.number().min(0),
@@ -13,7 +14,7 @@ const entregaBaseSchema = z.object({
 })
 
 export const novaEntregaSchema = entregaBaseSchema.extend({
-  obs: z.string().min(2, "Observação muito curta"),
+  obs: z.string().min(2, "Observacao muito curta"),
 })
 
 export const editarEntregaSchema = entregaBaseSchema.extend({
@@ -22,14 +23,14 @@ export const editarEntregaSchema = entregaBaseSchema.extend({
 })
 
 const viagemBaseSchema = z.object({
-  numViagem: z.string().min(1, "Obrigatório"),
-  carreta: z.string().min(1, "Obrigatório"),
-  cavalo: z.string().min(1, "Obrigatório"),
-  tanque: z.string().min(1, "Obrigatório"),
+  numViagem: z.string().min(1, "Obrigatorio"),
+  carreta: z.string().min(1, "Obrigatorio"),
+  cavalo: z.string().min(1, "Obrigatorio"),
+  tanque: z.string().min(1, "Obrigatorio"),
   diasViagem: z.coerce.number().min(1),
-  inicioPrevisto: z.string().min(1, "Obrigatório"),
-  fimPrevisto: z.string().min(1, "Obrigatório"),
-  turno: z.nativeEnum(Turno),
+  inicioPrevisto: z.string().min(1, "Obrigatorio"),
+  fimPrevisto: z.string().min(1, "Obrigatorio"),
+  turno: turnoSchema,
 })
 
 export const novaViagemSchema = viagemBaseSchema.extend({
@@ -38,7 +39,7 @@ export const novaViagemSchema = viagemBaseSchema.extend({
 
 export const editarViagemSchema = viagemBaseSchema.extend({
   motoristaId: z.number().nullable().optional(),
-  entregas: z.array(editarEntregaSchema).min(1, "Mínimo de 1 entrega."),
+  entregas: z.array(editarEntregaSchema).min(1, "Minimo de 1 entrega."),
 })
 
 export type NovaViagemFormValues = z.infer<typeof novaViagemSchema>
