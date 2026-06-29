@@ -1,0 +1,157 @@
+  generator client {
+    provider = "prisma-client-js"
+  }
+
+  datasource db {
+    provider = "postgresql"
+  }
+
+
+  enum StatusIntegracao {
+    ATIVO
+    INATIVO
+    PENDENTE
+  }
+
+  enum StatusViagem {
+    CRIADA      
+    ALOCADA     
+    EM_CURSO    
+    FINALIZADA  
+    CANCELADA 
+  }
+
+  enum Turno {
+    MANHA
+    NOITE
+  }
+
+  model Viagem {
+    id                Int          @id @default(autoincrement())
+    numViagem         String       @unique @db.VarChar(12)
+    
+    carreta           String       @db.VarChar(7)
+    cavalo            String       @db.VarChar(7)
+    tanque            String       @db.VarChar(10)
+    
+    
+    inicioPrevisto    DateTime     @db.Timestamp(6)
+    fimPrevisto       DateTime     @db.Timestamp(6)
+    turno             Turno
+    diasViagem        Int
+    
+
+    integracaoExigida String?      @db.VarChar(50)
+    status            StatusViagem @default(CRIADA)
+    
+    motoristaId       Int?
+    motorista         Motorista?   @relation(fields: [motoristaId], references: [id])
+
+    criadoEm          DateTime     @default(now())
+    atualizadoEm      DateTime     @updatedAt
+    deletadoEm        DateTime?    // Para o Soft Delete
+
+    entregas          Entrega[]
+  }
+
+  model Entrega {
+    id           Int          @id @default(autoincrement())
+    viagemId     Int
+    
+    dataEntrega  DateTime     @db.Timestamp(6)
+    cliente      String       @db.VarChar(30)
+    cidade       String       @db.VarChar(25)
+    uf           String       @db.VarChar(5)
+    
+    kg           Decimal      @db.Decimal(10, 2)
+    m3           Decimal      @db.Decimal(10, 2)
+    
+    obs          String       @db.VarChar(50)
+    sapcode      String       @db.VarChar(12)
+    codewhite    String       @db.VarChar(12)
+    
+    criadoEm     DateTime     @default(now())
+    atualizadoEm DateTime     @updatedAt
+
+    viagem       Viagem       @relation(fields: [viagemId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  }
+
+  model Motorista {
+    id              Int          @id @default(autoincrement())
+    nome            String       @db.VarChar(50)
+    seva            Int
+    diasTrabalhados Int
+    
+
+    turno           Turno        
+    
+    criadoEm        DateTime     @default(now())
+    atualizadoEm    DateTime     @updatedAt
+    deletadoEm      DateTime?   
+
+    integracao      Integracao[]
+    viagens         Viagem[]     
+  }
+
+  model Integracao {
+    id           Int              @id @default(autoincrement())
+    motoristaId  Int?
+    
+    cliente      String           @db.VarChar(50)         
+    status       StatusIntegracao
+    dataValidade DateTime         @db.Date
+    
+    criadoEm     DateTime         @default(now())
+    atualizadoEm DateTime         @updatedAt
+
+    motorista    Motorista?       @relation(fields: [motoristaId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  }
+
+
+  model Usuario {
+    id            String    @id @default(cuid())
+    nome          String?
+    email         String?   @unique
+    senha         String?   
+    role          String    @default("DESPACHANTE") // Ex: ADMIN, DESPACHANTE
+    emailVerified DateTime?
+    image         String?
+    
+    accounts      Account[]
+    sessions      Session[]
+  }
+
+  model Account {
+    id                 String  @id @default(cuid())
+    userId             String
+    type               String
+    provider           String
+    providerAccountId  String
+    refresh_token      String?  @db.Text
+    access_token       String?  @db.Text
+    expires_at         Int?
+    token_type         String?
+    scope              String?
+    id_token           String?  @db.Text
+    session_state      String?
+
+    user Usuario @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+    @@unique([provider, providerAccountId])
+  }
+
+  model Session {
+    id           String   @id @default(cuid())
+    sessionToken String   @unique
+    userId       String
+    expires      DateTime
+    user         Usuario  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  }
+
+  model VerificationToken {
+    identifier String
+    token      String   @unique
+    expires    DateTime
+
+    @@unique([identifier, token])
+  }
