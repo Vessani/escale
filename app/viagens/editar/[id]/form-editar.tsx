@@ -3,7 +3,6 @@
 import { useState } from "react"
 import { useRouter } from "next/navigation"
 import { zodResolver } from "@hookform/resolvers/zod"
-import type { Prisma, Turno } from "@prisma/client"
 import { useFieldArray, useForm, type Path, type Resolver, type SubmitHandler } from "react-hook-form"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -17,20 +16,39 @@ import { PlusCircle, Save, Trash2, UserCheck } from "lucide-react"
 import { formatDateTimeForInput, normalizeFormValue } from "@/lib/form-utils"
 import { editarViagemSchema, type EditarViagemFormValues } from "@/lib/validation/viagens"
 
-type ViagemComRelacionamentos = Prisma.ViagemGetPayload<{
-  include: {
-    entregas: true
-    motorista: true
-  }
-}>
+type EntregaFormModel = {
+  id: number
+  dataEntrega: string | Date
+  cliente: string
+  cidade: string
+  uf: string
+  kg: number
+  m3: number
+  sapcode: string | null
+  codewhite: string | null
+  obs: string | null
+}
 
-type MotoristaParaSelect = Prisma.MotoristaGetPayload<{
-  select: {
-    id: true
-    nome: true
-    turno: true
-  }
-}>
+type MotoristaParaSelect = {
+  id: number
+  nome: string
+  turno: EditarViagemFormValues["turno"]
+}
+
+type ViagemComRelacionamentos = {
+  id: number
+  numViagem: string
+  carreta: string
+  cavalo: string
+  tanque: string
+  diasViagem: number
+  turno: EditarViagemFormValues["turno"]
+  motoristaId: number | null
+  inicioPrevisto: string | Date
+  fimPrevisto: string | Date
+  integracaoExigida: string | null
+  entregas: EntregaFormModel[]
+}
 
 type FormEditarViagemProps = {
   viagem: ViagemComRelacionamentos
@@ -49,7 +67,7 @@ export default function FormEditarViagem({ viagem, motoristas }: FormEditarViage
       cavalo: viagem.cavalo,
       tanque: viagem.tanque,
       diasViagem: viagem.diasViagem,
-      turno: viagem.turno as Turno,
+      turno: viagem.turno,
       motoristaId: viagem.motoristaId,
       inicioPrevisto: formatDateTimeForInput(viagem.inicioPrevisto),
       fimPrevisto: formatDateTimeForInput(viagem.fimPrevisto),

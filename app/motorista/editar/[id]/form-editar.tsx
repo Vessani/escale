@@ -3,7 +3,6 @@
 import { useState } from "react"
 import { useRouter } from "next/navigation"
 import { zodResolver } from "@hookform/resolvers/zod"
-import type { Prisma } from "@prisma/client"
 import { useFieldArray, useForm, type Path, type Resolver, type SubmitHandler } from "react-hook-form"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -16,11 +15,21 @@ import type { EditarMotoristaInput } from "@/lib/types/types"
 import { formatDateForDateInput, normalizeFormValue } from "@/lib/form-utils"
 import { motoristaComIntegracoesSchema, type MotoristaComIntegracoesFormValues } from "@/lib/validation/motoristas"
 
-type MotoristaComIntegracoes = Prisma.MotoristaGetPayload<{
-  include: {
-    integracao: true
-  }
-}>
+type IntegracaoFormModel = {
+  id: number
+  cliente: string
+  dataValidade: string | Date
+  status: MotoristaComIntegracoesFormValues["integracao"][number]["status"]
+}
+
+type MotoristaComIntegracoes = {
+  id: number
+  nome: string
+  seva: number
+  diasTrabalhados: number
+  turno: MotoristaComIntegracoesFormValues["turno"]
+  integracao: IntegracaoFormModel[]
+}
 
 type FormEditarMotoristaProps = {
   motorista: MotoristaComIntegracoes
