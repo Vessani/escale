@@ -75,7 +75,7 @@ function ViagensTabela({ viagens }: { viagens: Viagem[] }) {
           </TableRow>
         </TableHeader>
         <TableBody>
-          {viagens.map((viagem) => (
+          {viagens.map((viagem: Viagem) => (
             <TableRow key={viagem.id} className="hover:bg-slate-50">
               <TableCell className="font-medium">{viagem.numViagem}</TableCell>
               <TableCell>{formatarData(viagem.inicioPrevisto)}</TableCell>
@@ -116,7 +116,7 @@ export default async function ViagensPage() {
   const agora = new Date()
 
   const grupos = viagens.reduce<Record<GrupoStatus, Viagem[]>>(
-    (acumulado, viagem) => {
+    (acumulado: Record<GrupoStatus, Viagem[]>, viagem: Viagem) => {
       acumulado[resolverGrupoStatus(viagem, agora)].push(viagem)
       return acumulado
     },
@@ -156,7 +156,7 @@ export default async function ViagensPage() {
           </div>
         </div>
       ) : (
-        ordemGrupos.map((grupo) => (
+        ordemGrupos.map((grupo: GrupoStatus) => (
           <section key={grupo} className="space-y-3">
             <div className="flex items-center justify-between">
               <h2 className="text-xl font-semibold text-slate-900">{tituloGrupo[grupo]}</h2>

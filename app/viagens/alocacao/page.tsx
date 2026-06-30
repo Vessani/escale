@@ -15,6 +15,7 @@ import AlocacaoViagensClient from "./viagens-alocacao-client"
 
 type ViagemBase = Awaited<ReturnType<typeof buscarViagensSemMotorista>>[number]
 type MotoristaBase = Awaited<ReturnType<typeof buscarMotoristas>>[number]
+type EntregaBase = ViagemBase["entregas"][number]
 
 function serializarViagem(viagem: ViagemBase, motoristas: MotoristaBase[]): ViagemAlocacao | null {
   if (viagem.motoristaId !== null) {
@@ -46,7 +47,7 @@ function serializarViagem(viagem: ViagemBase, motoristas: MotoristaBase[]): Viag
     turno: viagem.turno,
     motoristaId: viagem.motoristaId,
     integracaoExigida,
-    entregas: viagem.entregas.map((entrega) => ({
+    entregas: viagem.entregas.map((entrega: EntregaBase) => ({
       id: entrega.id,
       dataEntrega: new Date(entrega.dataEntrega).toISOString(),
       cliente: entrega.cliente,
@@ -64,7 +65,7 @@ function serializarViagem(viagem: ViagemBase, motoristas: MotoristaBase[]): Viag
           nome: motoristaSugerido.nome,
         }
       : null,
-    motoristasCompativeis: motoristasCompativeis.map((motorista) => ({
+    motoristasCompativeis: motoristasCompativeis.map((motorista: (typeof motoristasCompativeis)[number]) => ({
       id: motorista.id,
       nome: motorista.nome,
       diasTrabalhados: motorista.diasTrabalhados,
@@ -81,8 +82,8 @@ export default async function PaginaAlocacaoViagens() {
   ])
 
   const viagens = viagensBrutas
-    .map((viagem) => serializarViagem(viagem, motoristasBrutos))
-    .filter((viagem): viagem is ViagemAlocacao => viagem !== null)
+    .map((viagem: ViagemBase) => serializarViagem(viagem, motoristasBrutos))
+    .filter((viagem: ViagemAlocacao | null): viagem is ViagemAlocacao => viagem !== null)
 
   return (
     <div className="space-y-6">
