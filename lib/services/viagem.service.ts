@@ -1,52 +1,29 @@
 import { prisma } from "@/lib/prisma";
-import { NovaViagemInput, EditarViagemInput, NovaEntregaInput } from "@/lib/types/types";
+import { NovaViagemInput, EditarViagemInput } from "@/lib/types/types";
+import {
+  calcularIntegracaoExigida,
+  sugerirMotoristaAutomatico,
+} from "./alocacao.service";
 
-
-const REGRAS_INTEGRACAO: Record<string, string> = {
-  "AMBEV": "AMBEV",
-  "WEG": "WEG",  
-};
-
-function calcularIntegracaoExigida(entregas: NovaEntregaInput[]): string | null {
-  for (const entrega of entregas) {
-    const chave = `${entrega.cliente}-${entrega.cidade}`.toUpperCase();
-    if (REGRAS_INTEGRACAO[chave]) {
-      return REGRAS_INTEGRACAO[chave];
-    }
-  }
-  return null;
+function resolverStatusPorAlocacao(motoristaId: number | null) {
+  return motoristaId === null ? "CRIADA" : "ALOCADA";
 }
 
 export async function criarViagemService(dados: NovaViagemInput) {
- 
   const integracaoNecessaria = calcularIntegracaoExigida(dados.entregas);
-  
-  const motoristaCompativel = await prisma.motorista.findFirst({
-    where: {
-      deletadoEm: null,
-      turno: dados.turno,
-      ...(integracaoNecessaria ? {
-        integracao: {
-          some: {
-            cliente: integracaoNecessaria,
-            status: 'ATIVO',
-            dataValidade: {
-              gte: new Date(dados.inicioPrevisto)
-            }
-          }
-        }
-      } : {})
-    },
-    orderBy: {
-      diasTrabalhados: 'asc' 
-    }
-  });
-  let motoristaEscolhidoId = null;
+  const inicioPrevisto = new Date(dados.inicioPrevisto);
 
-  if (motoristaCompativel) {
-    motoristaEscolhidoId = motoristaCompativel.id;
-  }
-    
+  const motoristas = await prisma.motorista.findMany({
+    where: { deletadoEm: null },
+    include: { integracao: true },
+  });
+  const motoristaSugerido = sugerirMotoristaAutomatico(motoristas, {
+    turnoViagem: dados.turno,
+    diasViagem: dados.diasViagem,
+    dataInicioViagem: inicioPrevisto,
+    integracaoExigida: integracaoNecessaria,
+  });
+  const motoristaEscolhidoId = motoristaSugerido?.id ?? null;
 
   return await prisma.viagem.create({
     data: {
@@ -55,11 +32,11 @@ export async function criarViagemService(dados: NovaViagemInput) {
       cavalo: dados.cavalo,
       tanque: dados.tanque,
       diasViagem: dados.diasViagem,
-      inicioPrevisto: new Date(dados.inicioPrevisto),
+      inicioPrevisto,
       fimPrevisto: new Date(dados.fimPrevisto),
       turno: dados.turno,
       integracaoExigida: integracaoNecessaria,
-  
+      status: resolverStatusPorAlocacao(motoristaEscolhidoId),
       motoristaId: motoristaEscolhidoId, 
       
       entregas: {
@@ -105,7 +82,10 @@ export async function editarViagemService(idViagem: number, dados: EditarViagemI
       turno: dados.turno,
       
       integracaoExigida: integracaoNecessaria,
-      
+      status:
+        dados.motoristaId !== undefined
+          ? resolverStatusPorAlocacao(dados.motoristaId ?? null)
+          : undefined,
       motoristaId: dados.motoristaId !== undefined ? dados.motoristaId : undefined,
       
       entregas: {

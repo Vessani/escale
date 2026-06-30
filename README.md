@@ -8,7 +8,11 @@ Sistema de gestão de viagens e alocação de motoristas com autenticação e da
 - ✅ Gestão completa de viagens (criar, editar, listar)
 - ✅ Gestão de motoristas com integrações
 - ✅ Visualização de datas de validade de integrações
-- ✅ Alocação manual de motoristas para viagens
+- ✅ Alocação automática por turno + integração + jornada (até 6 dias consecutivos)
+- ✅ Priorização automática do motorista com maior disponibilidade
+- ✅ Edição manual de alocação para cenários de emergência
+- ✅ Visão de viagens por status (aguardando início, em andamento, finalizada, cancelada)
+- ✅ Calendário operacional de motoristas (motoristas nas colunas e dias nas linhas)
 - ✅ Interface responsiva e moderna (Tailwind CSS)
 - ✅ Validação de dados (Zod)
 - ✅ Banco de dados relacional (Prisma + PostgreSQL)

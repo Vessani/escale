@@ -34,8 +34,37 @@ export async function buscarMotoristasParaSelect(turnoDaViagem?: Turno) {
     select: {
       id: true,
       nome: true,
-      turno: true
+      turno: true,
+      diasTrabalhados: true,
+      integracao: {
+        select: {
+          cliente: true,
+          status: true,
+          dataValidade: true,
+        },
+      },
     },
     orderBy: { nome: 'asc' }
+  });
+}
+
+export async function buscarMotoristasComAgenda(inicio: Date, fim: Date) {
+  return await prisma.motorista.findMany({
+    where: {
+      deletadoEm: null,
+    },
+    orderBy: { nome: "asc" },
+    include: {
+      integracao: true,
+      viagens: {
+        where: {
+          deletadoEm: null,
+          status: { not: "CANCELADA" },
+          inicioPrevisto: { lte: fim },
+          fimPrevisto: { gte: inicio },
+        },
+        orderBy: { inicioPrevisto: "asc" },
+      },
+    },
   });
 }

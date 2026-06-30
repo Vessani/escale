@@ -18,7 +18,7 @@ export default async function EditarViagemPage({ params }: { params: Promise<{ i
     notFound()
   }
 
-  const motoristas = await buscarMotoristasParaSelect(viagem.turno)
+  const motoristas = await buscarMotoristasParaSelect()
   
   const viagemSerializada = serializeData(viagem)
   const motoristasSerializados = serializeData(motoristas)

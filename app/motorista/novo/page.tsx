@@ -2,38 +2,48 @@
 
 import { useState } from "react"
 import { useRouter } from "next/navigation"
-import { useForm, SubmitHandler, Resolver } from "react-hook-form"
+import { useFieldArray, useForm, type Path, type Resolver, type SubmitHandler } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Save, ArrowLeft } from "lucide-react"
+import { Save, ArrowLeft, PlusCircle, Trash2 } from "lucide-react"
 import { criarMotorista } from "@/lib/actions/motoristas" 
 import { normalizeFormValue } from "@/lib/form-utils"
-import { motoristaBaseSchema, type MotoristaFormValues } from "@/lib/validation/motoristas"
+import { motoristaComIntegracoesSchema, type MotoristaComIntegracoesFormValues } from "@/lib/validation/motoristas"
 
 export default function NovoMotoristaPage() {
   const router = useRouter()
   const [erroGlobal, setErroGlobal] = useState("")
 
-  const form = useForm<MotoristaFormValues>({
-   resolver: zodResolver(motoristaBaseSchema) as Resolver<MotoristaFormValues>,
+  const form = useForm<MotoristaComIntegracoesFormValues>({
+   resolver: zodResolver(motoristaComIntegracoesSchema) as Resolver<MotoristaComIntegracoesFormValues>,
    defaultValues: {
      nome: "",
      seva: 0,
-      diasTrabalhados: 0,
+      diasTrabalhados: 1,
       turno: "MANHA",
+      integracao: [],
     },
   })
 
-  const onSubmit: SubmitHandler<MotoristaFormValues> = async (dados) => {
+  const { fields, append, remove } = useFieldArray({
+    control: form.control,
+    name: "integracao",
+  })
+
+  const onSubmit: SubmitHandler<MotoristaComIntegracoesFormValues> = async (dados) => {
     setErroGlobal("")
 
     const pacote = {
       ...dados,
-      integracao: [],
+      integracao: dados.integracao.map((integracao) => ({
+        cliente: integracao.cliente,
+        dataValidade: new Date(integracao.dataValidade),
+        status: integracao.status,
+      })),
     }
 
     try {
@@ -110,9 +120,9 @@ export default function NovoMotoristaPage() {
 
                 <FormField control={form.control} name="diasTrabalhados" render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Dias Trabalhados</FormLabel>
+                    <FormLabel>Dias Trabalhados (1-10)</FormLabel>
                     <FormControl>
-                      <Input type="number" placeholder="Ex: 15" {...field} value={normalizeFormValue(field.value)} />
+                      <Input type="number" min={1} max={10} placeholder="Ex: 1 a 10" {...field} value={normalizeFormValue(field.value)} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -137,6 +147,103 @@ export default function NovoMotoristaPage() {
                 </FormItem>
               )} />
 
+            </CardContent>
+          </Card>
+
+          <Card className="shadow-sm border-slate-200">
+            <CardHeader className="bg-slate-50 border-b flex flex-row items-center justify-between">
+              <div>
+                <CardTitle className="text-lg">Integrações</CardTitle>
+                <CardDescription>Cadastre as integrações ativas do motorista para validação de alocação.</CardDescription>
+              </div>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() =>
+                  append({
+                    cliente: "",
+                    dataValidade: "",
+                    status: "PENDENTE",
+                  })
+                }
+              >
+                <PlusCircle className="w-4 h-4 mr-2" />
+                Nova Integração
+              </Button>
+            </CardHeader>
+            <CardContent className="pt-6 space-y-4">
+              {fields.length === 0 ? (
+                <p className="text-sm text-slate-500">Nenhuma integração cadastrada para este motorista.</p>
+              ) : (
+                fields.map((field, index) => (
+                  <div key={field.id} className="grid grid-cols-1 md:grid-cols-12 gap-4 border rounded-lg p-4 relative">
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon"
+                      className="absolute right-2 top-2 text-red-500"
+                      onClick={() => remove(index)}
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </Button>
+
+                    <FormField
+                      control={form.control}
+                      name={`integracao.${index}.cliente` as Path<MotoristaComIntegracoesFormValues>}
+                      render={({ field }) => (
+                        <FormItem className="md:col-span-5">
+                          <FormLabel>Cliente</FormLabel>
+                          <FormControl>
+                            <Input {...field} value={normalizeFormValue(field.value)} />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+
+                    <FormField
+                      control={form.control}
+                      name={`integracao.${index}.dataValidade` as Path<MotoristaComIntegracoesFormValues>}
+                      render={({ field }) => (
+                        <FormItem className="md:col-span-3">
+                          <FormLabel>Validade</FormLabel>
+                          <FormControl>
+                            <Input type="date" {...field} value={normalizeFormValue(field.value)} />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+
+                    <FormField
+                      control={form.control}
+                      name={`integracao.${index}.status` as Path<MotoristaComIntegracoesFormValues>}
+                      render={({ field }) => (
+                        <FormItem className="md:col-span-4">
+                          <FormLabel>Status</FormLabel>
+                          <Select
+                            value={typeof field.value === "string" ? field.value : ""}
+                            onValueChange={(value) => field.onChange(value as "ATIVO" | "INATIVO" | "PENDENTE")}
+                          >
+                            <FormControl>
+                              <SelectTrigger>
+                                <SelectValue placeholder="Selecione o status" />
+                              </SelectTrigger>
+                            </FormControl>
+                            <SelectContent>
+                              <SelectItem value="ATIVO">Ativo</SelectItem>
+                              <SelectItem value="INATIVO">Inativo</SelectItem>
+                              <SelectItem value="PENDENTE">Pendente</SelectItem>
+                            </SelectContent>
+                          </Select>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                  </div>
+                ))
+              )}
             </CardContent>
           </Card>
 

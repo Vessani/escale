@@ -2,11 +2,11 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import { criarViagemService, editarViagemService } from "./viagem.service";
 import { prisma } from "@/lib/prisma";
 import { NovaViagemInput, EditarViagemInput } from "@/lib/types/types";
-import { Motorista, Viagem } from "@prisma/client"; // 👈 IMPORTAMOS OS TIPOS OFICIAIS AQUI
+import { Motorista, Viagem } from "@prisma/client";
 
 vi.mock("@/lib/prisma", () => ({
   prisma: {
-    motorista: { findFirst: vi.fn() },
+    motorista: { findMany: vi.fn() },
     viagem: { create: vi.fn(), update: vi.fn() },
   },
 }));
@@ -16,7 +16,7 @@ describe("Viagem Service - Sistema Híbrido de Alocação", () => {
     vi.clearAllMocks(); 
   });
 
-  it("Cenário 1: Deve alocar o motorista automaticamente se encontrar alguém perfeito", async () => {
+  it("Cenário 1: Deve alocar automaticamente o motorista com maior disponibilidade", async () => {
     const dadosViagem: NovaViagemInput = {
       numViagem: "1001",
       carreta: "ABC1D23",
@@ -29,11 +29,22 @@ describe("Viagem Service - Sistema Híbrido de Alocação", () => {
       entregas: [], 
     };
 
-    // 👉 ADEUS 'any', OLÁ 'unknown as Motorista'
-    vi.mocked(prisma.motorista.findFirst).mockResolvedValue({ 
-      id: 1, 
-      nome: "João" 
-    } as unknown as Motorista);
+    vi.mocked(prisma.motorista.findMany).mockResolvedValue([
+      {
+        id: 1,
+        nome: "João",
+        turno: "MANHA",
+        diasTrabalhados: 4,
+        integracao: [],
+      },
+      {
+        id: 2,
+        nome: "Carlos",
+        turno: "MANHA",
+        diasTrabalhados: 1,
+        integracao: [],
+      },
+    ] as unknown as Motorista[]);
 
     vi.mocked(prisma.viagem.create).mockResolvedValue({ 
       id: 99 
@@ -43,25 +54,33 @@ describe("Viagem Service - Sistema Híbrido de Alocação", () => {
 
     expect(prisma.viagem.create).toHaveBeenCalledWith(
       expect.objectContaining({
-        data: expect.objectContaining({ motoristaId: 1 }),
+        data: expect.objectContaining({ motoristaId: 2, status: "ALOCADA" }),
       })
     );
   });
 
-  it("Cenário 2: Deve salvar a viagem SEM motorista (null) se ninguém estiver disponível", async () => {
+  it("Cenário 2: Deve manter sem motorista quando nenhum tiver dias disponíveis suficientes", async () => {
     const dadosViagem: NovaViagemInput = {
       numViagem: "1002",
       carreta: "DEF4G56",
       cavalo: "LMN1O22",
       tanque: "80%",
-      diasViagem: 1,
+      diasViagem: 3,
       inicioPrevisto: new Date("2026-06-28T18:00:00Z"),
       fimPrevisto: new Date("2026-06-29T06:00:00Z"),
       turno: "NOITE",
       entregas: [],
     };
 
-    vi.mocked(prisma.motorista.findFirst).mockResolvedValue(null);
+    vi.mocked(prisma.motorista.findMany).mockResolvedValue([
+      {
+        id: 10,
+        nome: "Noite 1",
+        turno: "NOITE",
+        diasTrabalhados: 5,
+        integracao: [],
+      },
+    ] as unknown as Motorista[]);
     
     vi.mocked(prisma.viagem.create).mockResolvedValue({ 
       id: 100 
@@ -71,7 +90,7 @@ describe("Viagem Service - Sistema Híbrido de Alocação", () => {
 
     expect(prisma.viagem.create).toHaveBeenCalledWith(
       expect.objectContaining({
-        data: expect.objectContaining({ motoristaId: null }),
+        data: expect.objectContaining({ motoristaId: null, status: "CRIADA" }),
       })
     );
   });

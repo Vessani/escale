@@ -2,6 +2,12 @@ import Link from "next/link"
 import { buscarMotoristas } from "@/lib/queries/motoristas"
 import { buscarViagensSemMotorista } from "@/lib/queries/viagens"
 import type { ViagemAlocacao } from "@/lib/types/alocacao"
+import {
+  calcularDiasDisponiveis,
+  calcularIntegracaoExigida,
+  filtrarMotoristasCompativeis,
+  sugerirMotoristaAutomatico,
+} from "@/lib/services/alocacao.service"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { ArrowRightLeft, Truck } from "lucide-react"
@@ -10,34 +16,23 @@ import AlocacaoViagensClient from "./viagens-alocacao-client"
 type ViagemBase = Awaited<ReturnType<typeof buscarViagensSemMotorista>>[number]
 type MotoristaBase = Awaited<ReturnType<typeof buscarMotoristas>>[number]
 
-function temIntegracaoValida(motorista: MotoristaBase, cliente: string, dataInicio: Date) {
-  return motorista.integracao.some((integracao) => {
-    return (
-      integracao.cliente === cliente &&
-      integracao.status === "ATIVO" &&
-      new Date(integracao.dataValidade) >= dataInicio
-    )
-  })
-}
-
 function serializarViagem(viagem: ViagemBase, motoristas: MotoristaBase[]): ViagemAlocacao | null {
   if (viagem.motoristaId !== null) {
     return null
   }
 
   const dataInicio = new Date(viagem.inicioPrevisto)
-  const clientesComIntegracao = viagem.integracaoExigida ? [viagem.integracaoExigida] : []
+  const integracaoExigida = viagem.integracaoExigida ?? calcularIntegracaoExigida(viagem.entregas)
 
-  const motoristasCompativeis = motoristas
-    .filter((motorista) => motorista.turno === viagem.turno)
-    .filter((motorista) => {
-      if (clientesComIntegracao.length === 0) {
-        return true
-      }
+  const contextoAlocacao = {
+    turnoViagem: viagem.turno,
+    diasViagem: viagem.diasViagem,
+    dataInicioViagem: dataInicio,
+    integracaoExigida,
+  }
 
-      return clientesComIntegracao.every((cliente) => temIntegracaoValida(motorista, cliente, dataInicio))
-    })
-    .sort((a, b) => a.diasTrabalhados - b.diasTrabalhados || a.nome.localeCompare(b.nome))
+  const motoristasCompativeis = filtrarMotoristasCompativeis(motoristas, contextoAlocacao)
+  const motoristaSugerido = sugerirMotoristaAutomatico(motoristas, contextoAlocacao)
 
   return {
     id: viagem.id,
@@ -50,7 +45,7 @@ function serializarViagem(viagem: ViagemBase, motoristas: MotoristaBase[]): Viag
     fimPrevisto: new Date(viagem.fimPrevisto).toISOString(),
     turno: viagem.turno,
     motoristaId: viagem.motoristaId,
-    integracaoExigida: viagem.integracaoExigida,
+    integracaoExigida,
     entregas: viagem.entregas.map((entrega) => ({
       id: entrega.id,
       dataEntrega: new Date(entrega.dataEntrega).toISOString(),
@@ -63,16 +58,17 @@ function serializarViagem(viagem: ViagemBase, motoristas: MotoristaBase[]): Viag
       sapcode: entrega.sapcode,
       codewhite: entrega.codewhite,
     })),
-    motoristaSugerido: motoristasCompativeis[0]
+    motoristaSugerido: motoristaSugerido
       ? {
-          id: motoristasCompativeis[0].id,
-          nome: motoristasCompativeis[0].nome,
+          id: motoristaSugerido.id,
+          nome: motoristaSugerido.nome,
         }
       : null,
     motoristasCompativeis: motoristasCompativeis.map((motorista) => ({
       id: motorista.id,
       nome: motorista.nome,
       diasTrabalhados: motorista.diasTrabalhados,
+      diasDisponiveis: calcularDiasDisponiveis(motorista.diasTrabalhados),
       turno: motorista.turno,
     })),
   }
@@ -118,7 +114,7 @@ export default async function PaginaAlocacaoViagens() {
             <CardTitle className="text-lg">Viagens sem motorista</CardTitle>
           </div>
           <CardDescription>
-            Motoristas compatíveis são calculados pelo turno e, quando houver exigência, pela integração ativa válida.
+            Motoristas compatíveis são calculados por turno, dias disponíveis da jornada (até 6 consecutivos) e integração ativa válida.
           </CardDescription>
         </CardHeader>
         <CardContent className="pt-6">

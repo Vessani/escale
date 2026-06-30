@@ -12,6 +12,7 @@ import { Input } from "@/components/ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { editarViagem } from "@/lib/actions/viagens"
 import type { EditarViagemInput } from "@/lib/types/types"
+import { calcularIntegracaoExigida, motoristaEhCompativel } from "@/lib/services/alocacao.service"
 import { PlusCircle, Save, Trash2, UserCheck } from "lucide-react"
 import { formatDateTimeForInput, normalizeFormValue } from "@/lib/form-utils"
 import { editarViagemSchema, type EditarViagemFormValues } from "@/lib/validation/viagens"
@@ -33,6 +34,12 @@ type MotoristaParaSelect = {
   id: number
   nome: string
   turno: EditarViagemFormValues["turno"]
+  diasTrabalhados: number
+  integracao: Array<{
+    cliente: string
+    status: "ATIVO" | "INATIVO" | "PENDENTE"
+    dataValidade: string | Date
+  }>
 }
 
 type ViagemComRelacionamentos = {
@@ -58,6 +65,7 @@ type FormEditarViagemProps = {
 export default function FormEditarViagem({ viagem, motoristas }: FormEditarViagemProps) {
   const router = useRouter()
   const [erroGlobal, setErroGlobal] = useState("")
+  const integracaoExigida = viagem.integracaoExigida ?? calcularIntegracaoExigida(viagem.entregas)
 
   const form = useForm<EditarViagemFormValues>({
     resolver: zodResolver(editarViagemSchema) as Resolver<EditarViagemFormValues>,
@@ -146,7 +154,7 @@ export default function FormEditarViagem({ viagem, motoristas }: FormEditarViage
               name="motoristaId"
               render={({ field }) => (
                 <FormItem className="max-w-md">
-                  <FormLabel>Condutor Responsável (Turno: {viagem.turno})</FormLabel>
+                  <FormLabel>Condutor Responsável (Turno preferencial: {viagem.turno})</FormLabel>
                   <Select
                     value={field.value === null || field.value === undefined ? "" : String(field.value)}
                     onValueChange={(value) => field.onChange(value ? Number(value) : null)}
@@ -159,17 +167,29 @@ export default function FormEditarViagem({ viagem, motoristas }: FormEditarViage
                     <SelectContent>
                       {motoristas.length === 0 ? (
                         <SelectItem value="0" disabled>
-                          Nenhum motorista neste turno
+                          Nenhum motorista disponível
                         </SelectItem>
                       ) : (
-                        motoristas.map((motorista) => (
-                          <SelectItem key={motorista.id} value={String(motorista.id)}>
-                            {motorista.nome} {viagem.motoristaId === motorista.id ? "(Sugerido pelo Sistema)" : ""}
-                          </SelectItem>
-                        ))
+                        motoristas.map((motorista) => {
+                          const compativel = motoristaEhCompativel(motorista, {
+                            turnoViagem: viagem.turno,
+                            diasViagem: viagem.diasViagem,
+                            dataInicioViagem: new Date(viagem.inicioPrevisto),
+                            integracaoExigida,
+                          })
+
+                          return (
+                            <SelectItem key={motorista.id} value={String(motorista.id)}>
+                              {motorista.nome} {compativel ? "(Compatível)" : "(Emergência - fora da regra)"}
+                            </SelectItem>
+                          )
+                        })
                       )}
                     </SelectContent>
                   </Select>
+                  <p className="text-xs text-slate-500">
+                  A seleção manual aceita exceções para emergência; a alocação automática sempre respeita turno, integração e jornada.
+                  </p>
                   <FormMessage />
                 </FormItem>
               )}

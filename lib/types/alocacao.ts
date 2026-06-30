@@ -15,6 +15,7 @@ export type MotoristaCompativel = {
   id: number
   nome: string
   diasTrabalhados: number
+  diasDisponiveis: number
   turno: "MANHA" | "NOITE"
 }
 

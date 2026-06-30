@@ -194,7 +194,7 @@ export default function AlocacaoViagensClient({ viagens }: Props) {
                           {viagem.motoristaSugerido?.nome}
                         </p>
                         <p className="text-xs text-slate-500">
-                          Ordenado por menor quantidade de dias trabalhados.
+                          Priorizado pelo maior número de dias disponíveis na jornada.
                         </p>
                       </div>
                     )}
@@ -210,7 +210,7 @@ export default function AlocacaoViagensClient({ viagens }: Props) {
                       ) : (
                         viagem.motoristasCompativeis.map((motorista) => (
                           <Badge key={motorista.id} variant="secondary">
-                            {motorista.nome} · {motorista.diasTrabalhados} dia(s)
+                            {motorista.nome} · {motorista.diasDisponiveis} dia(s) disponível(is)
                           </Badge>
                         ))
                       )}

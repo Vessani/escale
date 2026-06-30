@@ -141,9 +141,9 @@ export default function FormEditarMotorista({ motorista }: FormEditarMotoristaPr
                 name="diasTrabalhados"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Dias Trabalhados</FormLabel>
+                    <FormLabel>Dias Trabalhados (1-10)</FormLabel>
                     <FormControl>
-                      <Input type="number" placeholder="Ex: 15" {...field} value={normalizeFormValue(field.value)} />
+                      <Input type="number" min={1} max={10} placeholder="Ex: 1 a 10" {...field} value={normalizeFormValue(field.value)} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>

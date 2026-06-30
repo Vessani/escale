@@ -6,7 +6,12 @@ const statusIntegracaoSchema = z.enum(["ATIVO", "INATIVO", "PENDENTE"])
 export const motoristaBaseSchema = z.object({
   nome: z.string().min(2, "O nome deve ter pelo menos 2 caracteres"),
   seva: z.coerce.number().int().min(1, "O numero SEVA deve ser maior que 0"),
-  diasTrabalhados: z.coerce.number().int().min(0, "O numero de dias nao pode ser negativo"),
+  diasTrabalhados: z
+    .coerce
+    .number()
+    .int()
+    .min(1, "Informe um código de 1 a 10")
+    .max(10, "Informe um código de 1 a 10"),
   turno: turnoSchema,
 })
 
