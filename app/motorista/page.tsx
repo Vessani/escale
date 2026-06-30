@@ -5,6 +5,8 @@ import { ChevronLeft, ChevronRight, PlusCircle, Users } from "lucide-react"
 import { buscarMotoristasComAgenda } from "@/lib/queries/motoristas"
 import { calcularDiasDisponiveis } from "@/lib/services/alocacao.service"
 
+type MotoristaComAgenda = Awaited<ReturnType<typeof buscarMotoristasComAgenda>>[number]
+
 function inicioDoDia(data: Date) {
   const dia = new Date(data)
   dia.setHours(0, 0, 0, 0)
@@ -207,7 +209,7 @@ export default async function MotoristasPage({ searchParams }: { searchParams?: 
                 </tr>
               </thead>
               <tbody>
-                {motoristas.map((motorista) => {
+                {motoristas.map((motorista: MotoristaComAgenda) => {
                   const diasDisponiveis = calcularDiasDisponiveis(motorista.diasTrabalhados)
                   const statusJornada = obterStatusJornada(motorista.diasTrabalhados)
 
