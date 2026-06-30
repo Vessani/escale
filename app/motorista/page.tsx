@@ -6,6 +6,7 @@ import { buscarMotoristasComAgenda } from "@/lib/queries/motoristas"
 import { calcularDiasDisponiveis } from "@/lib/services/alocacao.service"
 
 type MotoristaComAgenda = Awaited<ReturnType<typeof buscarMotoristasComAgenda>>[number]
+type ViagemDoMotorista = MotoristaComAgenda["viagens"][number]
 
 function inicioDoDia(data: Date) {
   const dia = new Date(data)
@@ -237,7 +238,7 @@ export default async function MotoristasPage({ searchParams }: { searchParams?: 
                         </div>
                       </td>
                       {dias.map((dia) => {
-                        const viagensNoDia = motorista.viagens.filter((viagem) => {
+                        const viagensNoDia = motorista.viagens.filter((viagem: ViagemDoMotorista) => {
                           const inicio = new Date(viagem.inicioPrevisto)
                           const fim = new Date(viagem.fimPrevisto)
                           return inicio <= fimDoDia(dia) && fim >= inicioDoDia(dia)
@@ -253,7 +254,7 @@ export default async function MotoristasPage({ searchParams }: { searchParams?: 
                               </div>
                               {viagensNoDia.length > 0 ? (
                                 <div className="space-y-1">
-                                  {viagensNoDia.map((viagem) => (
+                                  {viagensNoDia.map((viagem: ViagemDoMotorista) => (
                                     <div key={viagem.id} className="rounded-md border border-blue-200 bg-blue-50 p-1 text-xs">
                                       <div className="font-semibold text-blue-900">{viagem.numViagem}</div>
                                     </div>
