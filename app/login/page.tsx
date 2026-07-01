@@ -20,7 +20,7 @@ export default function LoginPage() {
     setErro("")
     setCarregando(true)
 
-    // Comunica-se com a nossa configuração no lib/auth.ts
+
     const resultado = await signIn("credentials", {
       email,
       senha,
@@ -31,7 +31,6 @@ export default function LoginPage() {
       setErro(resultado.error)
       setCarregando(false)
     } else {
-      // Login aprovado! Envia o despachante para o sistema
       router.push("/")
       router.refresh()
     }
@@ -41,7 +40,7 @@ export default function LoginPage() {
     <div className="flex items-center justify-center min-h-screen bg-slate-50">
       <Card className="w-[400px] shadow-lg">
         <CardHeader className="space-y-1 text-center">
-          <CardTitle className="text-2xl font-bold tracking-tight">Transportadora Digital</CardTitle>
+          <CardTitle className="text-2xl font-bold tracking-tight">Projeto Escalador</CardTitle>
           <CardDescription>
             Insira suas credenciais para acessar a operação
           </CardDescription>
@@ -54,7 +53,7 @@ export default function LoginPage() {
               <Input 
                 id="email" 
                 type="email" 
-                placeholder="admin@transportadora.com"
+                placeholder="seu e-mail aqui"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 required
@@ -71,7 +70,7 @@ export default function LoginPage() {
               />
             </div>
 
-            {/* Tratamento de erro elegante na tela */}
+            {}
             {erro && (
               <div className="text-sm text-red-500 font-medium text-center">
                 {erro}
