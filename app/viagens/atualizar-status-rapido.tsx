@@ -5,7 +5,12 @@ import { useRouter } from "next/navigation"
 import type { StatusViagem } from "@prisma/client"
 import { atualizarStatusViagem } from "@/lib/actions/viagens"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { STATUS_VIAGEM_OPCOES, ehStatusViagem } from "@/lib/services/viagem-status.service"
+import {
+  STATUS_VIAGEM_OPCOES,
+  ehStatusViagem,
+  normalizarStatusViagem,
+  type StatusViagemSelecionavel,
+} from "@/lib/services/viagem-status.service"
 
 type Props = {
   viagemId: number
@@ -16,7 +21,9 @@ export default function AtualizarStatusRapido({ viagemId, statusAtual }: Props) 
   const router = useRouter()
   const [isPending, startTransition] = useTransition()
   const [erro, setErro] = useState("")
-  const [statusSelecionado, setStatusSelecionado] = useState<StatusViagem>(statusAtual)
+  const [statusSelecionado, setStatusSelecionado] = useState<StatusViagemSelecionavel>(
+    normalizarStatusViagem(statusAtual),
+  )
 
   const alterarStatus = (novoStatus: string) => {
     if (!ehStatusViagem(novoStatus)) {

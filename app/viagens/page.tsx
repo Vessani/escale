@@ -51,7 +51,6 @@ function resolverGrupoStatus(viagem: Viagem, agora: Date): GrupoStatus {
   }
 
   if (
-    viagem.status === "EM_CURSO" ||
     viagem.status === "INICIADA" ||
     viagem.status === "RETORNANDO" ||
     (viagem.inicioPrevisto <= agora && viagem.fimPrevisto > agora)
@@ -183,7 +182,7 @@ export default async function ViagensPage({
           <Link href="/viagens">
             <Button variant={filtroStatus === "TODOS" ? "default" : "outline"}>Todos</Button>
           </Link>
-          {STATUS_VIAGEM_OPCOES.filter((status) => status.valor !== "EM_CURSO").map((status) => (
+          {STATUS_VIAGEM_OPCOES.map((status) => (
             <Link key={status.valor} href={`/viagens?status=${status.valor}`}>
               <Button variant={filtroStatus === status.valor ? "default" : "outline"}>
                 {status.label}

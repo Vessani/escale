@@ -1,4 +1,4 @@
-import { StatusIntegracao, Turno } from "@prisma/client"
+import { StatusIntegracao, StatusViagem, Turno } from "@prisma/client"
 
 const MAX_DIAS_CONSECUTIVOS = 6
 
@@ -25,7 +25,7 @@ type ViagemParaDisponibilidade = {
   id: number
   inicioPrevisto: Date | string
   fimPrevisto: Date | string
-  status: "CRIADA" | "ALOCADA" | "EM_CURSO" | "INICIADA" | "RETORNANDO" | "POSTERGADA" | "FINALIZADA" | "CANCELADA"
+  status: StatusViagem
   deletadoEm?: Date | string | null
 }
 

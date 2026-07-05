@@ -1,9 +1,8 @@
 'use server'
 import { revalidatePath } from "next/cache";
 import { NovaViagemInput, EditarViagemInput } from "@/lib/types/types";
-import { StatusViagem } from "@prisma/client";
 import { errorToMessage } from "@/lib/action-error";
-import { ehStatusViagem } from "@/lib/services/viagem-status.service";
+import { ehStatusViagem, type StatusViagemSelecionavel } from "@/lib/services/viagem-status.service";
 import { 
   criarViagemService, 
   editarViagemService, 
@@ -53,7 +52,7 @@ export async function deletarViagem(id: number) {
   }
 }
 
-export async function atualizarStatusViagem(idViagem: number, status: StatusViagem) {
+export async function atualizarStatusViagem(idViagem: number, status: StatusViagemSelecionavel) {
   try {
     if (!ehStatusViagem(status)) {
       return { sucesso: false, erro: "Status inválido." }

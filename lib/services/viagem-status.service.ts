@@ -8,10 +8,11 @@ export const STATUS_VIAGEM_VALORES = [
   "POSTERGADA",
   "FINALIZADA",
   "CANCELADA",
-  "EM_CURSO",
 ] as const satisfies readonly StatusViagem[]
 
-const STATUS_VIAGEM_LABELS: Record<StatusViagem, string> = {
+export type StatusViagemSelecionavel = (typeof STATUS_VIAGEM_VALORES)[number]
+
+const STATUS_VIAGEM_LABELS: Record<StatusViagemSelecionavel, string> = {
   CRIADA: "Criada",
   ALOCADA: "Alocada",
   INICIADA: "Iniciada",
@@ -19,19 +20,22 @@ const STATUS_VIAGEM_LABELS: Record<StatusViagem, string> = {
   POSTERGADA: "Postergada",
   FINALIZADA: "Finalizada",
   CANCELADA: "Cancelada",
-  EM_CURSO: "Em curso (legado)",
 }
 
-export const STATUS_VIAGEM_OPCOES: Array<{ valor: StatusViagem; label: string }> =
+export const STATUS_VIAGEM_OPCOES: Array<{ valor: StatusViagemSelecionavel; label: string }> =
   STATUS_VIAGEM_VALORES.map((valor) => ({
     valor,
     label: STATUS_VIAGEM_LABELS[valor],
   }))
 
-export function ehStatusViagem(valor: string): valor is StatusViagem {
+export function normalizarStatusViagem(status: StatusViagem): StatusViagemSelecionavel {
+  return status
+}
+
+export function ehStatusViagem(valor: string): valor is StatusViagemSelecionavel {
   return STATUS_VIAGEM_VALORES.some((item) => item === valor)
 }
 
 export function formatarStatusViagem(status: StatusViagem) {
-  return STATUS_VIAGEM_LABELS[status]
+  return STATUS_VIAGEM_LABELS[normalizarStatusViagem(status)]
 }

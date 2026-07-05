@@ -1,5 +1,6 @@
 "use client"
 
+import type { StatusViagem } from "@prisma/client"
 import { useState } from "react"
 import { useRouter } from "next/navigation"
 import { zodResolver } from "@hookform/resolvers/zod"
@@ -13,7 +14,11 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { editarViagem } from "@/lib/actions/viagens"
 import type { EditarViagemInput } from "@/lib/types/types"
 import { calcularIntegracaoExigida, motoristaEhCompativel } from "@/lib/services/alocacao.service"
-import { STATUS_VIAGEM_OPCOES, formatarStatusViagem } from "@/lib/services/viagem-status.service"
+import {
+  STATUS_VIAGEM_OPCOES,
+  formatarStatusViagem,
+  normalizarStatusViagem,
+} from "@/lib/services/viagem-status.service"
 import { classeBadgeStatusViagem } from "../../badge-styles"
 import { PlusCircle, Save, Trash2, UserCheck } from "lucide-react"
 import { formatDateTimeForInput, normalizeFormValue } from "@/lib/form-utils"
@@ -55,7 +60,7 @@ type ViagemComRelacionamentos = {
   motoristaId: number | null
   inicioPrevisto: string | Date
   fimPrevisto: string | Date
-  status: EditarViagemFormValues["status"]
+  status: StatusViagem
   integracaoExigida: string | null
   entregas: EntregaFormModel[]
 }
@@ -69,6 +74,7 @@ export default function FormEditarViagem({ viagem, motoristas }: FormEditarViage
   const router = useRouter()
   const [erroGlobal, setErroGlobal] = useState("")
   const integracaoExigida = viagem.integracaoExigida ?? calcularIntegracaoExigida(viagem.entregas)
+  const statusInicial = normalizarStatusViagem(viagem.status)
 
   const form = useForm<EditarViagemFormValues>({
     resolver: zodResolver(editarViagemSchema) as Resolver<EditarViagemFormValues>,
@@ -82,7 +88,7 @@ export default function FormEditarViagem({ viagem, motoristas }: FormEditarViage
       motoristaId: viagem.motoristaId,
       inicioPrevisto: formatDateTimeForInput(viagem.inicioPrevisto),
       fimPrevisto: formatDateTimeForInput(viagem.fimPrevisto),
-      status: viagem.status,
+      status: statusInicial,
       entregas: viagem.entregas.map((entrega) => ({
         id: entrega.id,
         dataEntrega: formatDateTimeForInput(entrega.dataEntrega),

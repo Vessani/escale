@@ -16,7 +16,6 @@
   enum StatusViagem {
     CRIADA      
     ALOCADA     
-    EM_CURSO    
     INICIADA
     RETORNANDO
     POSTERGADA

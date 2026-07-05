@@ -15,7 +15,7 @@ export function classeBadgeStatusViagem(status: StatusViagem) {
     return "border-blue-200 bg-blue-100 text-blue-800 hover:bg-blue-100"
   }
 
-  if (status === "EM_CURSO" || status === "INICIADA" || status === "RETORNANDO") {
+  if (status === "INICIADA" || status === "RETORNANDO") {
     return "border-cyan-200 bg-cyan-100 text-cyan-800 hover:bg-cyan-100"
   }
 

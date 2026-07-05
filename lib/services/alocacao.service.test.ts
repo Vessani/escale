@@ -150,7 +150,7 @@ describe("alocacao.service", () => {
               id: 201,
               inicioPrevisto: new Date("2026-07-10T08:00:00.000Z"),
               fimPrevisto: new Date("2026-07-10T12:00:00.000Z"),
-              status: "EM_CURSO",
+              status: "INICIADA",
               deletadoEm: null,
             },
           ],
