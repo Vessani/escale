@@ -19,48 +19,6 @@ import {
 
 type Viagem = Awaited<ReturnType<typeof buscarViagens>>[number]
 
-type GrupoStatus = "AGUARDANDO_INICIO" | "EM_ANDAMENTO" | "POSTERGADA" | "FINALIZADA" | "CANCELADA"
-
-const ordemGrupos: GrupoStatus[] = [
-  "EM_ANDAMENTO",
-  "AGUARDANDO_INICIO",
-  "POSTERGADA",
-  "FINALIZADA",
-  "CANCELADA",
-]
-
-const tituloGrupo: Record<GrupoStatus, string> = {
-  AGUARDANDO_INICIO: "Aguardando início",
-  EM_ANDAMENTO: "Em andamento",
-  POSTERGADA: "Postergadas",
-  FINALIZADA: "Finalizadas",
-  CANCELADA: "Canceladas",
-}
-
-function resolverGrupoStatus(viagem: Viagem, agora: Date): GrupoStatus {
-  if (viagem.status === "CANCELADA") {
-    return "CANCELADA"
-  }
-
-  if (viagem.status === "FINALIZADA" || viagem.fimPrevisto <= agora) {
-    return "FINALIZADA"
-  }
-
-  if (viagem.status === "POSTERGADA") {
-    return "POSTERGADA"
-  }
-
-  if (
-    viagem.status === "INICIADA" ||
-    viagem.status === "RETORNANDO" ||
-    (viagem.inicioPrevisto <= agora && viagem.fimPrevisto > agora)
-  ) {
-    return "EM_ANDAMENTO"
-  }
-
-  return "AGUARDANDO_INICIO"
-}
-
 function ViagensTabela({ viagens }: { viagens: Viagem[] }) {
   return (
     <div className="border rounded-lg bg-white shadow-sm overflow-hidden">
@@ -155,28 +113,13 @@ export default async function ViagensPage({
   const viagens = await buscarViagens()
   const viagensFiltradas =
     filtroStatus === "TODOS" ? viagens : viagens.filter((viagem) => viagem.status === filtroStatus)
-  const agora = new Date()
-
-  const grupos = viagensFiltradas.reduce<Record<GrupoStatus, Viagem[]>>(
-    (acumulado: Record<GrupoStatus, Viagem[]>, viagem: Viagem) => {
-      acumulado[resolverGrupoStatus(viagem, agora)].push(viagem)
-      return acumulado
-    },
-    {
-      AGUARDANDO_INICIO: [],
-      EM_ANDAMENTO: [],
-      POSTERGADA: [],
-      FINALIZADA: [],
-      CANCELADA: [],
-    },
-  )
 
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-bold tracking-tight text-slate-900">Gestão de Viagens</h1>
-          <p className="text-slate-500 mt-1">Acompanhe viagens em andamento, aguardando início, finalizadas e canceladas.</p>
+          <p className="text-slate-500 mt-1">Use os filtros para acompanhar viagens por status e gerenciar as ações.</p>
         </div>
         <div className="flex gap-3">
           <Link href="/viagens">
@@ -209,22 +152,15 @@ export default async function ViagensPage({
           </div>
         </div>
       ) : (
-        ordemGrupos.map((grupo: GrupoStatus) => (
-          <section key={grupo} className="space-y-3">
-            <div className="flex items-center justify-between">
-              <h2 className="text-xl font-semibold text-slate-900">{tituloGrupo[grupo]}</h2>
-              <Badge variant="outline">{grupos[grupo].length}</Badge>
-            </div>
-
-            {grupos[grupo].length === 0 ? (
-              <div className="rounded-md border border-dashed border-slate-200 bg-slate-50 p-6 text-sm text-slate-500">
-                Nenhuma viagem nesta categoria.
-              </div>
-            ) : (
-              <ViagensTabela viagens={grupos[grupo]} />
-            )}
-          </section>
-        ))
+        <section className="space-y-3">
+          <div className="flex items-center justify-between">
+            <h2 className="text-xl font-semibold text-slate-900">
+              {filtroStatus === "TODOS" ? "Todas as viagens" : `Status: ${formatarStatusViagem(filtroStatus)}`}
+            </h2>
+            <Badge variant="outline">{viagensFiltradas.length}</Badge>
+          </div>
+          <ViagensTabela viagens={viagensFiltradas} />
+        </section>
       )}
     </div>
   )
