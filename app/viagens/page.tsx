@@ -5,6 +5,7 @@ import { Download, PlusCircle, Truck } from "lucide-react"
 import { buscarViagens } from "@/lib/queries/viagens"
 import { STATUS_VIAGEM_OPCOES, ehStatusViagem, formatarStatusViagem } from "@/lib/services/viagem-status.service"
 import AtualizarStatusRapido from "./atualizar-status-rapido"
+import ExcluirViagemButton from "./excluir-viagem-button"
 import { classeBadgeStatusViagem, classeBadgeTurno } from "./badge-styles"
 import { formatarDataHoraPtBr } from "./date-utils"
 import {
@@ -122,6 +123,7 @@ function ViagensTabela({ viagens }: { viagens: Viagem[] }) {
                   <Link href={`/viagens/editar/${viagem.id}`}>
                     <Button variant="outline" size="sm">Editar</Button>
                   </Link>
+                  <ExcluirViagemButton viagemId={viagem.id} numeroViagem={viagem.numViagem} />
                 </div>
               </TableCell>
             </TableRow>

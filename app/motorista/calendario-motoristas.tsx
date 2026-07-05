@@ -4,7 +4,8 @@ import { useMemo, useState, useTransition } from "react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { Badge } from "@/components/ui/badge"
-import { atualizarJornadaMotoristaNoCalendario } from "@/lib/actions/motoristas"
+import { Button } from "@/components/ui/button"
+import { atualizarJornadaMotoristaNoCalendario, deletarMotorista } from "@/lib/actions/motoristas"
 import { calcularDiasDisponiveis } from "@/lib/services/alocacao.service"
 import { calcularCodigoJornadaNoDia, obterStatusJornada } from "@/lib/services/jornada.service"
 import { fimDoDia, formatarSemana, inicioDoDia, OPCOES_CODIGO_JORNADA } from "./calendario-utils"
@@ -36,6 +37,7 @@ export default function CalendarioMotoristas({ mesParam, hojeIso, dias, motorist
   const router = useRouter()
   const [celulaEmEdicao, setCelulaEmEdicao] = useState<string | null>(null)
   const [celulaSalvando, setCelulaSalvando] = useState<string | null>(null)
+  const [motoristaExcluindoId, setMotoristaExcluindoId] = useState<number | null>(null)
   const [mensagemErro, setMensagemErro] = useState("")
   const [isPending, startTransition] = useTransition()
 
@@ -53,6 +55,32 @@ export default function CalendarioMotoristas({ mesParam, hojeIso, dias, motorist
 
       if (!resposta.sucesso) {
         setMensagemErro(resposta.erro ?? "Não foi possível atualizar a jornada.")
+        return
+      }
+
+      router.replace(`/motorista?mes=${mesParam}`)
+      router.refresh()
+    })
+  }
+
+  const excluirMotorista = (motoristaId: number, nomeMotorista: string) => {
+    const confirmar = window.confirm(
+      `Tem certeza que deseja excluir o motorista ${nomeMotorista}?`,
+    )
+
+    if (!confirmar) {
+      return
+    }
+
+    setMensagemErro("")
+    setMotoristaExcluindoId(motoristaId)
+
+    startTransition(async () => {
+      const resposta = await deletarMotorista(motoristaId)
+      setMotoristaExcluindoId(null)
+
+      if (!resposta.sucesso) {
+        setMensagemErro(resposta.erro ?? "Não foi possível excluir o motorista.")
         return
       }
 
@@ -107,6 +135,22 @@ export default function CalendarioMotoristas({ mesParam, hojeIso, dias, motorist
                         <Badge variant="outline" className={classeTurnoBadge}>
                           {motorista.turno}
                         </Badge>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <Link href={`/motorista/editar/${motorista.id}`}>
+                          <Button variant="outline" size="sm">
+                            Editar
+                          </Button>
+                        </Link>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="border-rose-200 text-rose-700 hover:bg-rose-50 hover:text-rose-800"
+                          disabled={isPending}
+                          onClick={() => excluirMotorista(motorista.id, motorista.nome)}
+                        >
+                          {motoristaExcluindoId === motorista.id ? "Excluindo..." : "Excluir"}
+                        </Button>
                       </div>
                       <div className="flex flex-wrap items-center gap-2 text-xs text-slate-500">
                         <span>SEVA {motorista.seva}</span>
