@@ -7,7 +7,7 @@ export async function criarMotoristaService(dados: NovoMotoristaInput) {
       nome: dados.nome,
       seva: dados.seva,
       diasTrabalhados: dados.diasTrabalhados,
-      turno: dados.turno, // <--- Novo campo aqui!
+      turno: dados.turno, 
       integracao: {
         create: dados.integracao.map((integ) => ({
           dataValidade: new Date(integ.dataValidade),
@@ -62,5 +62,12 @@ export async function deletarMotoristaService(id: number) {
     data: {
       deletadoEm: new Date(),
     }
+  });
+}
+
+export async function atualizarDiasTrabalhadosMotoristaService(idMotorista: number, diasTrabalhados: number) {
+  return await prisma.motorista.update({
+    where: { id: idMotorista },
+    data: { diasTrabalhados },
   });
 }

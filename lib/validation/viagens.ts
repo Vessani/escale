@@ -1,6 +1,8 @@
 import * as z from "zod"
+import { STATUS_VIAGEM_VALORES } from "@/lib/services/viagem-status.service"
 
 const turnoSchema = z.enum(["MANHA", "NOITE"])
+const statusViagemSchema = z.enum(STATUS_VIAGEM_VALORES)
 
 const entregaBaseSchema = z.object({
   dataEntrega: z.string().min(1, "Obrigatorio"),
@@ -31,6 +33,7 @@ const viagemBaseSchema = z.object({
   inicioPrevisto: z.string().min(1, "Obrigatorio"),
   fimPrevisto: z.string().min(1, "Obrigatorio"),
   turno: turnoSchema,
+  status: statusViagemSchema.optional(),
 })
 
 export const novaViagemSchema = viagemBaseSchema.extend({

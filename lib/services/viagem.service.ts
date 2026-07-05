@@ -2,6 +2,7 @@ import { prisma } from "@/lib/prisma";
 import { NovaViagemInput, EditarViagemInput } from "@/lib/types/types";
 import {
   calcularIntegracaoExigida,
+  filtrarMotoristasDisponiveisNoPeriodo,
   sugerirMotoristaAutomatico,
 } from "./alocacao.service";
 
@@ -9,21 +10,48 @@ function resolverStatusPorAlocacao(motoristaId: number | null) {
   return motoristaId === null ? "CRIADA" : "ALOCADA";
 }
 
+function statusPermiteAutoAjuste(statusAtual: string) {
+  return statusAtual === "CRIADA" || statusAtual === "ALOCADA"
+}
+
 export async function criarViagemService(dados: NovaViagemInput) {
   const integracaoNecessaria = calcularIntegracaoExigida(dados.entregas);
   const inicioPrevisto = new Date(dados.inicioPrevisto);
+  const fimPrevisto = new Date(dados.fimPrevisto);
 
   const motoristas = await prisma.motorista.findMany({
     where: { deletadoEm: null },
-    include: { integracao: true },
+    include: {
+      integracao: true,
+      viagens: {
+        where: {
+          deletadoEm: null,
+          status: { notIn: ["CANCELADA", "FINALIZADA"] },
+          inicioPrevisto: { lt: fimPrevisto },
+          fimPrevisto: { gt: inicioPrevisto },
+        },
+        select: {
+          id: true,
+          inicioPrevisto: true,
+          fimPrevisto: true,
+          status: true,
+          deletadoEm: true,
+        },
+      },
+    },
   });
-  const motoristaSugerido = sugerirMotoristaAutomatico(motoristas, {
+  const motoristasDisponiveis = filtrarMotoristasDisponiveisNoPeriodo(
+    motoristas,
+    inicioPrevisto,
+    fimPrevisto,
+  );
+  const motoristaSugeridoDisponivel = sugerirMotoristaAutomatico(motoristasDisponiveis, {
     turnoViagem: dados.turno,
     diasViagem: dados.diasViagem,
     dataInicioViagem: inicioPrevisto,
     integracaoExigida: integracaoNecessaria,
   });
-  const motoristaEscolhidoId = motoristaSugerido?.id ?? null;
+  const motoristaEscolhidoId = motoristaSugeridoDisponivel?.id ?? null;
 
   return await prisma.viagem.create({
     data: {
@@ -33,10 +61,10 @@ export async function criarViagemService(dados: NovaViagemInput) {
       tanque: dados.tanque,
       diasViagem: dados.diasViagem,
       inicioPrevisto,
-      fimPrevisto: new Date(dados.fimPrevisto),
+      fimPrevisto,
       turno: dados.turno,
       integracaoExigida: integracaoNecessaria,
-      status: resolverStatusPorAlocacao(motoristaEscolhidoId),
+      status: dados.status ?? resolverStatusPorAlocacao(motoristaEscolhidoId),
       motoristaId: motoristaEscolhidoId, 
       
       entregas: {
@@ -67,6 +95,24 @@ export async function editarViagemService(idViagem: number, dados: EditarViagemI
   const entregasExistentes = dados.entregas.filter(e => e.id);
   const entregasNovas = dados.entregas.filter(e => !e.id);
   const manterEntregas = entregasExistentes.map(e => e.id as number);
+  const viagemAtual = await prisma.viagem.findUnique({
+    where: { id: idViagem },
+    select: { status: true },
+  })
+
+  if (!viagemAtual) {
+    throw new Error("Viagem não encontrada.")
+  }
+
+  const statusDerivado =
+    dados.motoristaId !== undefined
+      ? resolverStatusPorAlocacao(dados.motoristaId ?? null)
+      : undefined
+  const statusFinal =
+    dados.status ??
+    (statusDerivado && statusPermiteAutoAjuste(viagemAtual.status)
+      ? statusDerivado
+      : viagemAtual.status)
 
   return await prisma.viagem.update({
     where: { id: idViagem },
@@ -82,10 +128,7 @@ export async function editarViagemService(idViagem: number, dados: EditarViagemI
       turno: dados.turno,
       
       integracaoExigida: integracaoNecessaria,
-      status:
-        dados.motoristaId !== undefined
-          ? resolverStatusPorAlocacao(dados.motoristaId ?? null)
-          : undefined,
+      status: statusFinal,
       motoristaId: dados.motoristaId !== undefined ? dados.motoristaId : undefined,
       
       entregas: {
@@ -129,4 +172,15 @@ export async function deletarViagemService(id: number) {
       deletadoEm: new Date(),
     }
   });
+}
+
+export async function atualizarStatusViagemService(idViagem: number, status: EditarViagemInput["status"]) {
+  if (!status) {
+    throw new Error("Status de viagem é obrigatório.")
+  }
+
+  return await prisma.viagem.update({
+    where: { id: idViagem },
+    data: { status },
+  })
 }

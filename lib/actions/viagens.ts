@@ -1,11 +1,14 @@
 'use server'
 import { revalidatePath } from "next/cache";
 import { NovaViagemInput, EditarViagemInput } from "@/lib/types/types";
+import { StatusViagem } from "@prisma/client";
 import { errorToMessage } from "@/lib/action-error";
+import { ehStatusViagem } from "@/lib/services/viagem-status.service";
 import { 
   criarViagemService, 
   editarViagemService, 
-  deletarViagemService 
+  deletarViagemService,
+  atualizarStatusViagemService,
 } from "@/lib/services/viagem.service";
 
 export async function criarViagem(dados: NovaViagemInput) {
@@ -47,5 +50,23 @@ export async function deletarViagem(id: number) {
     const mensagem = errorToMessage(erro, "Não foi possível apagar a viagem.");
     
     return { sucesso: false, erro: mensagem };
+  }
+}
+
+export async function atualizarStatusViagem(idViagem: number, status: StatusViagem) {
+  try {
+    if (!ehStatusViagem(status)) {
+      return { sucesso: false, erro: "Status inválido." }
+    }
+
+    await atualizarStatusViagemService(idViagem, status)
+
+    revalidatePath("/viagens")
+    revalidatePath("/viagens/alocacao")
+    revalidatePath("/motorista")
+    return { sucesso: true }
+  } catch (erro) {
+    const mensagem = errorToMessage(erro, "Não foi possível atualizar o status da viagem.")
+    return { sucesso: false, erro: mensagem }
   }
 }

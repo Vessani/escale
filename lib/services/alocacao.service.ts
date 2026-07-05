@@ -21,6 +21,18 @@ type MotoristaParaAlocacao = {
   integracao: IntegracaoBase[]
 }
 
+type ViagemParaDisponibilidade = {
+  id: number
+  inicioPrevisto: Date | string
+  fimPrevisto: Date | string
+  status: "CRIADA" | "ALOCADA" | "EM_CURSO" | "INICIADA" | "RETORNANDO" | "POSTERGADA" | "FINALIZADA" | "CANCELADA"
+  deletadoEm?: Date | string | null
+}
+
+type MotoristaComAgenda = MotoristaParaAlocacao & {
+  viagens: ViagemParaDisponibilidade[]
+}
+
 type ContextoCompatibilidade = {
   turnoViagem: Turno
   diasViagem: number
@@ -97,6 +109,47 @@ export function filtrarMotoristasCompativeis(
       const diasDisponiveisB = calcularDiasDisponiveis(b.diasTrabalhados)
       return diasDisponiveisB - diasDisponiveisA || a.nome.localeCompare(b.nome)
     })
+}
+
+function periodoConflita(inicioA: Date, fimA: Date, inicioB: Date, fimB: Date) {
+  return inicioA < fimB && fimA > inicioB
+}
+
+function viagemBloqueiaAgenda(viagem: ViagemParaDisponibilidade) {
+  if (viagem.deletadoEm) {
+    return false
+  }
+
+  return viagem.status !== "CANCELADA" && viagem.status !== "FINALIZADA"
+}
+
+export function motoristaEstaDisponivelNoPeriodo(
+  motorista: MotoristaComAgenda,
+  inicioViagem: Date,
+  fimViagem: Date,
+) {
+  return !motorista.viagens.some((viagem) => {
+    if (!viagemBloqueiaAgenda(viagem)) {
+      return false
+    }
+
+    return periodoConflita(
+      new Date(viagem.inicioPrevisto),
+      new Date(viagem.fimPrevisto),
+      inicioViagem,
+      fimViagem,
+    )
+  })
+}
+
+export function filtrarMotoristasDisponiveisNoPeriodo(
+  motoristas: MotoristaComAgenda[],
+  inicioViagem: Date,
+  fimViagem: Date,
+) {
+  return motoristas.filter((motorista) =>
+    motoristaEstaDisponivelNoPeriodo(motorista, inicioViagem, fimViagem),
+  )
 }
 
 export function sugerirMotoristaAutomatico(

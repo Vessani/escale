@@ -9,6 +9,8 @@ import { editarViagem } from "@/lib/actions/viagens"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
+import { classeBadgeTurno } from "../badge-styles"
+import { formatarDataHoraPtBr } from "../date-utils"
 import {
   Select,
   SelectContent,
@@ -20,16 +22,6 @@ import { AlertTriangle, CheckCircle2, PencilLine, Route, Save, UserCheck } from 
 
 type Props = {
   viagens: ViagemAlocacao[]
-}
-
-function formatarData(dataISO: string) {
-  return new Intl.DateTimeFormat("pt-BR", {
-    day: "2-digit",
-    month: "2-digit",
-    year: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
-  }).format(new Date(dataISO))
 }
 
 export default function AlocacaoViagensClient({ viagens }: Props) {
@@ -157,17 +149,21 @@ export default function AlocacaoViagensClient({ viagens }: Props) {
                 <div>
                   <CardTitle className="text-lg text-slate-900">Viagem {viagem.numViagem}</CardTitle>
                   <p className="mt-1 text-sm text-slate-500">
-                    {viagem.cavalo} / {viagem.carreta} · {formatarData(viagem.inicioPrevisto)}
+                    {viagem.cavalo} / {viagem.carreta} · {formatarDataHoraPtBr(viagem.inicioPrevisto)}
                   </p>
                 </div>
                 <div className="flex flex-col items-end gap-2">
-                  <Badge variant="outline">{viagem.turno}</Badge>
+                  <Badge variant="outline" className={classeBadgeTurno(viagem.turno)}>
+                    {viagem.turno}
+                  </Badge>
                   {viagem.integracaoExigida ? (
-                    <Badge className="bg-amber-100 text-amber-800 hover:bg-amber-100">
+                    <Badge variant="outline" className="border-amber-200 bg-amber-100 text-amber-800 hover:bg-amber-100">
                       Integração: {viagem.integracaoExigida}
                     </Badge>
                   ) : (
-                    <Badge className="bg-emerald-100 text-emerald-800 hover:bg-emerald-100">Sem integração</Badge>
+                    <Badge variant="outline" className="border-emerald-200 bg-emerald-100 text-emerald-800 hover:bg-emerald-100">
+                      Sem integração
+                    </Badge>
                   )}
                 </div>
               </CardHeader>
@@ -266,7 +262,7 @@ export default function AlocacaoViagensClient({ viagens }: Props) {
               </CardContent>
               <CardFooter className="flex items-center justify-between border-t bg-slate-50 text-xs text-slate-500">
                 <span>Entrega(s): {viagem.entregas.length}</span>
-                <span>Fim previsto: {formatarData(viagem.fimPrevisto)}</span>
+                <span>Fim previsto: {formatarDataHoraPtBr(viagem.fimPrevisto)}</span>
               </CardFooter>
             </Card>
           )

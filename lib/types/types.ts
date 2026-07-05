@@ -1,4 +1,4 @@
-import type { StatusIntegracao, Turno } from "@prisma/client";
+import type { StatusIntegracao, StatusViagem, Turno } from "@prisma/client";
 import { DefaultSession } from "next-auth";
 
 export type NovoMotoristaInput = {
@@ -36,6 +36,7 @@ export type NovaViagemInput = {
   inicioPrevisto: string | Date;
   fimPrevisto: string | Date;
   turno: Turno;
+  status?: StatusViagem;
   entregas: NovaEntregaInput[];
 };
 
@@ -46,6 +47,7 @@ export type EditarEntregaInput = NovaEntregaInput & {
 export type EditarViagemInput = Omit<NovaViagemInput, 'entregas'> & {
   entregas: EditarEntregaInput[];
   motoristaId?: number | null;
+  status?: StatusViagem;
 };
 
 export type EditarIntegracaoInput = NovaIntegracaoInput & {

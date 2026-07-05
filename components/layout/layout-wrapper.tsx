@@ -4,7 +4,7 @@ import { ReactNode } from "react"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
 import { signOut } from "next-auth/react"
-import { Truck, Users, LayoutDashboard, LogOut, Settings, Route } from "lucide-react"
+import { Truck, Users, LayoutDashboard, LogOut, Route } from "lucide-react"
 import { Session } from "next-auth"
 
 // Lista de rotas do sistema para montarmos o menu automaticamente
@@ -13,7 +13,6 @@ const menuItems = [
   { href: "/viagens", label: "Gestão de Viagens", icon: Truck },
   { href: "/viagens/alocacao", label: "Alocação", icon: Route },
   { href: "/motorista", label: "Motoristas", icon: Users },
-  { href: "/configuracoes", label: "Configurações", icon: Settings },
 ]
 
 export function LayoutWrapper({ 
@@ -21,26 +20,24 @@ export function LayoutWrapper({
   usuario 
 }: { 
   children: ReactNode, 
-  usuario: Session["user"] // <--- O TypeScript agora sabe exatamente quem é o usuário!
+  usuario: Session["user"] // 
 }) {
-  const pathname = usePathname() // Descobre em qual página o usuário está
+  const pathname = usePathname() // 
 
   return (
     <div className="flex h-screen bg-slate-100 overflow-hidden">
       
-      {/* ==========================================
-          BARRA LATERAL (SIDEBAR) 
-          ========================================== */}
+      {}
       <aside className="w-64 bg-slate-900 text-slate-300 flex flex-col shadow-xl">
         <div className="h-16 flex items-center px-6 bg-slate-950/50 text-white font-bold text-lg tracking-wider">
           <Truck className="w-5 h-5 mr-3 text-blue-500" />
-          TRANSPO DIGITAL
+          ESCALADOR
         </div>
 
         <nav className="flex-1 px-4 py-6 space-y-2 overflow-y-auto">
           {menuItems.map((item) => {
             const Icon = item.icon
-            // Verifica se a rota atual é a mesma do botão para pintá-lo de azul
+            
             const isActive = pathname === item.href || pathname.startsWith(`${item.href}/`)
 
             return (
@@ -60,9 +57,7 @@ export function LayoutWrapper({
           })}
         </nav>
 
-        {/* ==========================================
-            RODAPÉ DA BARRA LATERAL (DADOS DO USUÁRIO) 
-            ========================================== */}
+        {}
         <div className="p-4 bg-slate-950/50 border-t border-slate-800">
           <div className="flex items-center mb-4">
             <div className="w-10 h-10 rounded-full bg-blue-600 flex items-center justify-center text-white font-bold uppercase mr-3 shrink-0">
@@ -84,15 +79,13 @@ export function LayoutWrapper({
         </div>
       </aside>
 
-      {/* ==========================================
-          ÁREA DE CONTEÚDO PRINCIPAL (ONDE AS TELAS ENTRAM) 
-          ========================================== */}
+      {}
       <main className="flex-1 flex flex-col h-full overflow-hidden">
-        {/* Aqui é onde a Tabela de Viagens, Motoristas, etc. vai aparecer */}
+        {}
         <div className="flex-1 overflow-y-auto p-8">
           {children}
         </div>
-      </main>
+      </main> 
     </div>
   )
 }

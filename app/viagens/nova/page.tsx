@@ -12,6 +12,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Trash2, PlusCircle, Save } from "lucide-react"
 import { criarViagem } from "@/lib/actions/viagens"
 import { normalizeFormValue } from "@/lib/form-utils"
+import { STATUS_VIAGEM_OPCOES } from "@/lib/services/viagem-status.service"
 import { novaViagemSchema, type NovaViagemFormValues } from "@/lib/validation/viagens"
 
 export default function NovaViagemPage() {
@@ -29,6 +30,7 @@ export default function NovaViagemPage() {
       inicioPrevisto: "", 
       fimPrevisto: "", 
       turno: "MANHA",
+      status: "CRIADA",
       entregas: [
         { dataEntrega: "", cliente: "", cidade: "", uf: "", kg: 0, m3: 0, sapcode: "", codewhite: "", obs: "" }
       ]
@@ -132,6 +134,25 @@ export default function NovaViagemPage() {
                     <SelectContent>
                       <SelectItem value="MANHA">Manhã</SelectItem>
                       <SelectItem value="NOITE">Noite</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <FormMessage/>
+                </FormItem>
+              )} />
+
+              <FormField control={form.control} name="status" render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Status</FormLabel>
+                  <Select value={field.value} onValueChange={field.onChange}>
+                    <FormControl>
+                      <SelectTrigger><SelectValue placeholder="Selecione o status" /></SelectTrigger>
+                    </FormControl>
+                    <SelectContent>
+                      {STATUS_VIAGEM_OPCOES.map((opcao) => (
+                        <SelectItem key={opcao.valor} value={opcao.valor}>
+                          {opcao.label}
+                        </SelectItem>
+                      ))}
                     </SelectContent>
                   </Select>
                   <FormMessage/>

@@ -1,8 +1,12 @@
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
-import { PlusCircle, Truck } from "lucide-react"
+import { Download, PlusCircle, Truck } from "lucide-react"
 import { buscarViagens } from "@/lib/queries/viagens"
+import { STATUS_VIAGEM_OPCOES, ehStatusViagem, formatarStatusViagem } from "@/lib/services/viagem-status.service"
+import AtualizarStatusRapido from "./atualizar-status-rapido"
+import { classeBadgeStatusViagem, classeBadgeTurno } from "./badge-styles"
+import { formatarDataHoraPtBr } from "./date-utils"
 import {
   Table,
   TableBody,
@@ -14,11 +18,12 @@ import {
 
 type Viagem = Awaited<ReturnType<typeof buscarViagens>>[number]
 
-type GrupoStatus = "AGUARDANDO_INICIO" | "EM_ANDAMENTO" | "FINALIZADA" | "CANCELADA"
+type GrupoStatus = "AGUARDANDO_INICIO" | "EM_ANDAMENTO" | "POSTERGADA" | "FINALIZADA" | "CANCELADA"
 
 const ordemGrupos: GrupoStatus[] = [
   "EM_ANDAMENTO",
   "AGUARDANDO_INICIO",
+  "POSTERGADA",
   "FINALIZADA",
   "CANCELADA",
 ]
@@ -26,18 +31,9 @@ const ordemGrupos: GrupoStatus[] = [
 const tituloGrupo: Record<GrupoStatus, string> = {
   AGUARDANDO_INICIO: "Aguardando início",
   EM_ANDAMENTO: "Em andamento",
+  POSTERGADA: "Postergadas",
   FINALIZADA: "Finalizadas",
   CANCELADA: "Canceladas",
-}
-
-function formatarData(data: Date) {
-  return new Intl.DateTimeFormat("pt-BR", {
-    day: "2-digit",
-    month: "2-digit",
-    year: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
-  }).format(data)
 }
 
 function resolverGrupoStatus(viagem: Viagem, agora: Date): GrupoStatus {
@@ -49,8 +45,14 @@ function resolverGrupoStatus(viagem: Viagem, agora: Date): GrupoStatus {
     return "FINALIZADA"
   }
 
+  if (viagem.status === "POSTERGADA") {
+    return "POSTERGADA"
+  }
+
   if (
     viagem.status === "EM_CURSO" ||
+    viagem.status === "INICIADA" ||
+    viagem.status === "RETORNANDO" ||
     (viagem.inicioPrevisto <= agora && viagem.fimPrevisto > agora)
   ) {
     return "EM_ANDAMENTO"
@@ -69,6 +71,7 @@ function ViagensTabela({ viagens }: { viagens: Viagem[] }) {
             <TableHead className="font-semibold text-slate-700">Início Previsto</TableHead>
             <TableHead className="font-semibold text-slate-700">Fim Previsto</TableHead>
             <TableHead className="font-semibold text-slate-700">Turno</TableHead>
+            <TableHead className="font-semibold text-slate-700">Status</TableHead>
             <TableHead className="font-semibold text-slate-700">Caminhão</TableHead>
             <TableHead className="font-semibold text-slate-700">Motorista</TableHead>
             <TableHead className="font-semibold text-slate-700 text-right">Ações</TableHead>
@@ -78,10 +81,20 @@ function ViagensTabela({ viagens }: { viagens: Viagem[] }) {
           {viagens.map((viagem: Viagem) => (
             <TableRow key={viagem.id} className="hover:bg-slate-50">
               <TableCell className="font-medium">{viagem.numViagem}</TableCell>
-              <TableCell>{formatarData(viagem.inicioPrevisto)}</TableCell>
-              <TableCell>{formatarData(viagem.fimPrevisto)}</TableCell>
+              <TableCell>{formatarDataHoraPtBr(viagem.inicioPrevisto)}</TableCell>
+              <TableCell>{formatarDataHoraPtBr(viagem.fimPrevisto)}</TableCell>
               <TableCell>
-                <Badge variant={viagem.turno === "MANHA" ? "default" : "secondary"}>{viagem.turno}</Badge>
+                <Badge variant="outline" className={classeBadgeTurno(viagem.turno)}>
+                  {viagem.turno}
+                </Badge>
+              </TableCell>
+              <TableCell>
+                <div className="space-y-1">
+                  <Badge variant="outline" className={classeBadgeStatusViagem(viagem.status)}>
+                    {formatarStatusViagem(viagem.status)}
+                  </Badge>
+                  <AtualizarStatusRapido viagemId={viagem.id} statusAtual={viagem.status} />
+                </div>
               </TableCell>
               <TableCell>
                 <div className="text-sm">
@@ -93,15 +106,23 @@ function ViagensTabela({ viagens }: { viagens: Viagem[] }) {
                 {viagem.motorista ? (
                   <span className="text-slate-900 font-medium">{viagem.motorista.nome}</span>
                 ) : (
-                  <Badge variant="destructive" className="bg-yellow-500 hover:bg-yellow-600">
+                  <Badge variant="outline" className="border-amber-200 bg-amber-100 text-amber-800 hover:bg-amber-100">
                     Pendente Alocação
                   </Badge>
                 )}
               </TableCell>
               <TableCell className="text-right">
-                <Link href={`/viagens/editar/${viagem.id}`}>
-                  <Button variant="outline" size="sm">Editar</Button>
-                </Link>
+                <div className="flex justify-end gap-2">
+                  <Link href={`/api/viagens/${viagem.id}/pdf`}>
+                    <Button variant="outline" size="sm">
+                      <Download className="h-4 w-4 mr-2" />
+                      Download
+                    </Button>
+                  </Link>
+                  <Link href={`/viagens/editar/${viagem.id}`}>
+                    <Button variant="outline" size="sm">Editar</Button>
+                  </Link>
+                </div>
               </TableCell>
             </TableRow>
           ))}
@@ -111,11 +132,31 @@ function ViagensTabela({ viagens }: { viagens: Viagem[] }) {
   )
 }
 
-export default async function ViagensPage() {
+type SearchParamsInput = {
+  status?: string
+}
+
+function parseStatusFiltro(valor?: string) {
+  if (!valor || valor === "TODOS") {
+    return "TODOS" as const
+  }
+
+  return ehStatusViagem(valor) ? valor : "TODOS"
+}
+
+export default async function ViagensPage({
+  searchParams,
+}: {
+  searchParams?: Promise<SearchParamsInput>
+}) {
+  const parametros = (await searchParams) ?? {}
+  const filtroStatus = parseStatusFiltro(parametros.status)
   const viagens = await buscarViagens()
+  const viagensFiltradas =
+    filtroStatus === "TODOS" ? viagens : viagens.filter((viagem) => viagem.status === filtroStatus)
   const agora = new Date()
 
-  const grupos = viagens.reduce<Record<GrupoStatus, Viagem[]>>(
+  const grupos = viagensFiltradas.reduce<Record<GrupoStatus, Viagem[]>>(
     (acumulado: Record<GrupoStatus, Viagem[]>, viagem: Viagem) => {
       acumulado[resolverGrupoStatus(viagem, agora)].push(viagem)
       return acumulado
@@ -123,6 +164,7 @@ export default async function ViagensPage() {
     {
       AGUARDANDO_INICIO: [],
       EM_ANDAMENTO: [],
+      POSTERGADA: [],
       FINALIZADA: [],
       CANCELADA: [],
     },
@@ -136,6 +178,16 @@ export default async function ViagensPage() {
           <p className="text-slate-500 mt-1">Acompanhe viagens em andamento, aguardando início, finalizadas e canceladas.</p>
         </div>
         <div className="flex gap-3">
+          <Link href="/viagens">
+            <Button variant={filtroStatus === "TODOS" ? "default" : "outline"}>Todos</Button>
+          </Link>
+          {STATUS_VIAGEM_OPCOES.filter((status) => status.valor !== "EM_CURSO").map((status) => (
+            <Link key={status.valor} href={`/viagens?status=${status.valor}`}>
+              <Button variant={filtroStatus === status.valor ? "default" : "outline"}>
+                {status.label}
+              </Button>
+            </Link>
+          ))}
           <Link href="/viagens/alocacao">
             <Button variant="outline">Alocação Manual</Button>
           </Link>
@@ -148,11 +200,11 @@ export default async function ViagensPage() {
         </div>
       </div>
 
-      {viagens.length === 0 ? (
+      {viagensFiltradas.length === 0 ? (
         <div className="border rounded-lg bg-white shadow-sm p-12">
           <div className="flex flex-col items-center justify-center text-slate-500">
             <Truck className="w-8 h-8 text-slate-300 mb-2" />
-            <p>Nenhuma viagem cadastrada ainda.</p>
+            <p>Nenhuma viagem encontrada para este filtro.</p>
           </div>
         </div>
       ) : (

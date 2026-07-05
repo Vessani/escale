@@ -3,7 +3,7 @@
 import { useState } from "react"
 import { useRouter } from "next/navigation"
 import { zodResolver } from "@hookform/resolvers/zod"
-import { useFieldArray, useForm, type Path, type Resolver, type SubmitHandler } from "react-hook-form"
+import { useFieldArray, useForm, useWatch, type Path, type Resolver, type SubmitHandler } from "react-hook-form"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -13,6 +13,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { editarViagem } from "@/lib/actions/viagens"
 import type { EditarViagemInput } from "@/lib/types/types"
 import { calcularIntegracaoExigida, motoristaEhCompativel } from "@/lib/services/alocacao.service"
+import { STATUS_VIAGEM_OPCOES, formatarStatusViagem } from "@/lib/services/viagem-status.service"
+import { classeBadgeStatusViagem } from "../../badge-styles"
 import { PlusCircle, Save, Trash2, UserCheck } from "lucide-react"
 import { formatDateTimeForInput, normalizeFormValue } from "@/lib/form-utils"
 import { editarViagemSchema, type EditarViagemFormValues } from "@/lib/validation/viagens"
@@ -53,6 +55,7 @@ type ViagemComRelacionamentos = {
   motoristaId: number | null
   inicioPrevisto: string | Date
   fimPrevisto: string | Date
+  status: EditarViagemFormValues["status"]
   integracaoExigida: string | null
   entregas: EntregaFormModel[]
 }
@@ -79,6 +82,7 @@ export default function FormEditarViagem({ viagem, motoristas }: FormEditarViage
       motoristaId: viagem.motoristaId,
       inicioPrevisto: formatDateTimeForInput(viagem.inicioPrevisto),
       fimPrevisto: formatDateTimeForInput(viagem.fimPrevisto),
+      status: viagem.status,
       entregas: viagem.entregas.map((entrega) => ({
         id: entrega.id,
         dataEntrega: formatDateTimeForInput(entrega.dataEntrega),
@@ -98,6 +102,7 @@ export default function FormEditarViagem({ viagem, motoristas }: FormEditarViage
     name: "entregas",
     control: form.control,
   })
+  const statusSelecionado = useWatch({ control: form.control, name: "status" })
 
   const onSubmit: SubmitHandler<EditarViagemFormValues> = async (dados) => {
     setErroGlobal("")
@@ -142,11 +147,16 @@ export default function FormEditarViagem({ viagem, motoristas }: FormEditarViage
               <UserCheck className="h-5 w-5 text-blue-600" />
               <CardTitle className="text-lg text-blue-900">Alocação de Motorista</CardTitle>
             </div>
-            {viagem.integracaoExigida && (
-              <Badge variant="outline" className="border-yellow-300 bg-yellow-100 text-yellow-800">
-                Exige Integração: {viagem.integracaoExigida}
+            <div className="flex items-center gap-2">
+              <Badge variant="outline" className={classeBadgeStatusViagem(statusSelecionado ?? "CRIADA")}>
+                {formatarStatusViagem(statusSelecionado ?? "CRIADA")}
               </Badge>
-            )}
+              {viagem.integracaoExigida && (
+                <Badge variant="outline" className="border-yellow-300 bg-yellow-100 text-yellow-800">
+                  Exige Integração: {viagem.integracaoExigida}
+                </Badge>
+              )}
+            </div>
           </CardHeader>
           <CardContent className="pt-6">
             <FormField
@@ -190,6 +200,31 @@ export default function FormEditarViagem({ viagem, motoristas }: FormEditarViage
                   <p className="text-xs text-slate-500">
                   A seleção manual aceita exceções para emergência; a alocação automática sempre respeita turno, integração e jornada.
                   </p>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <FormField
+              control={form.control}
+              name="status"
+              render={({ field }) => (
+                <FormItem className="max-w-md mt-4">
+                  <FormLabel>Status da viagem</FormLabel>
+                  <Select value={field.value ?? "CRIADA"} onValueChange={field.onChange}>
+                    <FormControl>
+                      <SelectTrigger className="bg-white">
+                        <SelectValue placeholder="Selecione o status" />
+                      </SelectTrigger>
+                    </FormControl>
+                    <SelectContent>
+                      {STATUS_VIAGEM_OPCOES.map((opcao) => (
+                        <SelectItem key={opcao.valor} value={opcao.valor}>
+                          {opcao.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                   <FormMessage />
                 </FormItem>
               )}

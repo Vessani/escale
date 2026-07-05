@@ -17,6 +17,9 @@
     CRIADA      
     ALOCADA     
     EM_CURSO    
+    INICIADA
+    RETORNANDO
+    POSTERGADA
     FINALIZADA  
     CANCELADA 
   }
