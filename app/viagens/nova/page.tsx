@@ -63,12 +63,8 @@ export default function NovaViagemPage() {
       } else {
         setErroGlobal(resposta.erro ?? "Ocorreu um erro desconhecido ao salvar a viagem.")
       }
-    } catch (error) {
-      if (error instanceof Error) {
-        setErroGlobal(error.message)
-      } else {
-        setErroGlobal("Ocorreu um erro inesperado ao salvar a viagem.")
-      }
+    } catch {
+      setErroGlobal("Ocorreu um erro inesperado ao salvar a viagem.")
     }
   }
 

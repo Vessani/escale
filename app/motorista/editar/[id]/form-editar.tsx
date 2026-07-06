@@ -82,12 +82,7 @@ export default function FormEditarMotorista({ motorista }: FormEditarMotoristaPr
       }
 
       setErroGlobal(resposta.erro ?? "Erro interno ao salvar o motorista.")
-    } catch (error) {
-      if (error instanceof Error) {
-        setErroGlobal(error.message)
-        return
-      }
-
+    } catch {
       setErroGlobal("Falha de comunicação com o servidor.")
     }
   }

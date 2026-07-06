@@ -8,6 +8,23 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 
+function normalizarErroLogin(erro: string) {
+  if (erro === "CredentialsSignin") {
+    return "Credenciais inválidas."
+  }
+
+  if (
+    /prisma/i.test(erro) ||
+    /invalid/i.test(erro) ||
+    /constraint/i.test(erro) ||
+    /P\d{4}/i.test(erro)
+  ) {
+    return "Não foi possível realizar o login no momento. Tente novamente."
+  }
+
+  return erro
+}
+
 export default function LoginPage() {
   const router = useRouter()
   const [email, setEmail] = useState("")
@@ -28,7 +45,7 @@ export default function LoginPage() {
     })
 
     if (resultado?.error) {
-      setErro(resultado.error)
+      setErro(normalizarErroLogin(resultado.error))
       setCarregando(false)
     } else {
       router.push("/")

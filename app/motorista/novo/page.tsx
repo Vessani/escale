@@ -54,12 +54,8 @@ export default function NovoMotoristaPage() {
       } else {
         setErroGlobal(resposta.erro || "Erro interno ao salvar o motorista.")
       }
-    } catch (error) {
-      if (error instanceof Error) {
-        setErroGlobal(error.message)
-      } else {
-        setErroGlobal("Falha de comunicação com o servidor.")
-      }
+    } catch {
+      setErroGlobal("Falha de comunicação com o servidor.")
     }
   }
 
