@@ -1,0 +1,1 @@
+ALTER TABLE "Entrega" ALTER COLUMN "cliente" TYPE VARCHAR(100);

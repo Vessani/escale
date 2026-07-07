@@ -6,11 +6,12 @@ import { useRouter } from "next/navigation"
 import type { EditarViagemInput } from "@/lib/types/types"
 import type { ViagemAlocacao } from "@/lib/types/alocacao"
 import { editarViagem } from "@/lib/actions/viagens"
+import { periodoConflita } from "@/lib/services/alocacao.service"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { classeBadgeTurno } from "../badge-styles"
-import { formatarDataHoraPtBr } from "../date-utils"
+import { formatarDataHoraPtBr } from "@/lib/utils/date-format"
 import {
   Select,
   SelectContent,
@@ -37,6 +38,48 @@ export default function AlocacaoViagensClient({ viagens }: Props) {
   const [erro, setErro] = useState<string>("")
 
   const totalPendentes = useMemo(() => viagens.length, [viagens.length])
+
+  // Motorista selecionado por viagem (explícito ou, na falta, a sugestão automática),
+  // usado só para detectar conflitos de agenda dentro do lote em revisão.
+  const selecaoEfetivaPorViagem = useMemo(() => {
+    const mapa: Record<number, string> = {}
+    for (const viagem of viagens) {
+      const sugestao = viagem.motoristaSugerido ? String(viagem.motoristaSugerido.id) : ""
+      mapa[viagem.id] = selecoes[viagem.id] || sugestao
+    }
+    return mapa
+  }, [viagens, selecoes])
+
+  // Viagens que têm o mesmo motorista selecionado e período sobreposto.
+  // Só avisa — não troca nada automaticamente, quem decide é o usuário.
+  const conflitosPorViagem = useMemo(() => {
+    const mapa: Record<number, string[]> = {}
+
+    for (const viagemA of viagens) {
+      const motoristaA = selecaoEfetivaPorViagem[viagemA.id]
+      if (!motoristaA) continue
+
+      const numerosConflitantes = viagens
+        .filter((viagemB) => {
+          if (viagemB.id === viagemA.id) return false
+          if (selecaoEfetivaPorViagem[viagemB.id] !== motoristaA) return false
+
+          return periodoConflita(
+            new Date(viagemA.inicioPrevisto),
+            new Date(viagemA.fimPrevisto),
+            new Date(viagemB.inicioPrevisto),
+            new Date(viagemB.fimPrevisto),
+          )
+        })
+        .map((viagemB) => viagemB.numViagem)
+
+      if (numerosConflitantes.length > 0) {
+        mapa[viagemA.id] = numerosConflitantes
+      }
+    }
+
+    return mapa
+  }, [viagens, selecaoEfetivaPorViagem])
 
   const atualizarSelecao = (viagemId: number, motoristaId: string) => {
     setSelecoes((atual) => ({
@@ -239,6 +282,16 @@ export default function AlocacaoViagensClient({ viagens }: Props) {
                       </SelectContent>
                     </Select>
                   </div>
+
+                  {conflitosPorViagem[viagem.id] && (
+                    <div className="flex items-start gap-2 rounded-md border border-amber-300 bg-amber-50 p-2 text-xs text-amber-800">
+                      <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+                      <span>
+                        Esse motorista também está selecionado na(s) viagem(ns){" "}
+                        {conflitosPorViagem[viagem.id].join(", ")}, com período sobreposto.
+                      </span>
+                    </div>
+                  )}
 
                   <div className="flex gap-2">
                     <Button

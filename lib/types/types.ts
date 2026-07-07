@@ -58,6 +58,20 @@ export type EditarMotoristaInput = Omit<NovoMotoristaInput, 'integracao'> & {
   integracao: EditarIntegracaoInput[];
 };
 
+/** Formato padrão de retorno de toda server action (criar/editar/deletar/atualizar) */
+export type RespostaAcao = { sucesso: true } | { sucesso: false; erro: string };
+
+export type FalhaImportacaoViagem = {
+  numViagem: string;
+  erro: string;
+};
+
+export type ResultadoImportacaoLote = {
+  sucesso: boolean;
+  criadas: number;
+  falhas: FalhaImportacaoViagem[];
+};
+
 declare module "next-auth" {
   interface Session {
     user: {

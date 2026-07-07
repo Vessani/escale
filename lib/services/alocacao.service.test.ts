@@ -7,6 +7,7 @@ import {
   filtrarMotoristasDisponiveisNoPeriodo,
   motoristaEstaDisponivelNoPeriodo,
   motoristaEhCompativel,
+  sugerirAlocacoesEmLote,
 } from "@/lib/services/alocacao.service"
 
 type MotoristaMock = {
@@ -199,5 +200,97 @@ describe("alocacao.service", () => {
     )
 
     expect(resultado.map((motorista) => motorista.nome)).toEqual(["Livre"])
+  })
+
+  describe("sugerirAlocacoesEmLote", () => {
+    function criarMotoristaComAgenda(parcial: Partial<MotoristaMock>) {
+      return { ...criarMotorista(parcial), viagens: [] }
+    }
+
+    it("não sugere o mesmo motorista para duas viagens do lote com período sobreposto", () => {
+      const motoristaTop = criarMotoristaComAgenda({ id: 1, nome: "Ana", diasTrabalhados: 1 }) // 5 dias disponíveis
+      const motoristaSegundo = criarMotoristaComAgenda({ id: 2, nome: "Bruno", diasTrabalhados: 3 }) // 3 dias disponíveis
+
+      const viagens = [
+        {
+          id: 10,
+          turno: "MANHA" as Turno,
+          diasViagem: 2,
+          inicioPrevisto: new Date("2026-07-04T08:00:00.000Z"),
+          fimPrevisto: new Date("2026-07-06T08:00:00.000Z"),
+          integracaoExigida: null,
+        },
+        {
+          id: 11,
+          turno: "MANHA" as Turno,
+          diasViagem: 2,
+          inicioPrevisto: new Date("2026-07-05T08:00:00.000Z"), // sobrepõe a viagem 10
+          fimPrevisto: new Date("2026-07-07T08:00:00.000Z"),
+          integracaoExigida: null,
+        },
+      ]
+
+      const resultado = sugerirAlocacoesEmLote(viagens, [motoristaTop, motoristaSegundo])
+
+      expect(resultado[0].motoristaSugerido?.id).toBe(1)
+      expect(resultado[1].motoristaSugerido?.id).toBe(2)
+    })
+
+    it("permite sugerir o mesmo motorista para duas viagens do lote quando os períodos não se sobrepõem", () => {
+      const motorista = criarMotoristaComAgenda({ id: 1, nome: "Ana", diasTrabalhados: 1 })
+
+      const viagens = [
+        {
+          id: 10,
+          turno: "MANHA" as Turno,
+          diasViagem: 1,
+          inicioPrevisto: new Date("2026-07-04T08:00:00.000Z"),
+          fimPrevisto: new Date("2026-07-04T20:00:00.000Z"),
+          integracaoExigida: null,
+        },
+        {
+          id: 11,
+          turno: "MANHA" as Turno,
+          diasViagem: 1,
+          inicioPrevisto: new Date("2026-07-10T08:00:00.000Z"),
+          fimPrevisto: new Date("2026-07-10T20:00:00.000Z"),
+          integracaoExigida: null,
+        },
+      ]
+
+      const resultado = sugerirAlocacoesEmLote(viagens, [motorista])
+
+      expect(resultado[0].motoristaSugerido?.id).toBe(1)
+      expect(resultado[1].motoristaSugerido?.id).toBe(1)
+    })
+
+    it("retorna null quando sobra só um motorista compatível e ele já foi usado numa viagem sobreposta", () => {
+      const unico = criarMotoristaComAgenda({ id: 1, nome: "Ana", diasTrabalhados: 1 })
+
+      const viagens = [
+        {
+          id: 10,
+          turno: "MANHA" as Turno,
+          diasViagem: 2,
+          inicioPrevisto: new Date("2026-07-04T08:00:00.000Z"),
+          fimPrevisto: new Date("2026-07-06T08:00:00.000Z"),
+          integracaoExigida: null,
+        },
+        {
+          id: 11,
+          turno: "MANHA" as Turno,
+          diasViagem: 2,
+          inicioPrevisto: new Date("2026-07-05T08:00:00.000Z"),
+          fimPrevisto: new Date("2026-07-07T08:00:00.000Z"),
+          integracaoExigida: null,
+        },
+      ]
+
+      const resultado = sugerirAlocacoesEmLote(viagens, [unico])
+
+      expect(resultado[0].motoristaSugerido?.id).toBe(1)
+      expect(resultado[1].motoristaSugerido).toBeNull()
+      expect(resultado[1].motoristasCompativeis).toEqual([])
+    })
   })
 })

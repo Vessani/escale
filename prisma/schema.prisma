@@ -61,7 +61,7 @@
     viagemId     Int
     
     dataEntrega  DateTime     @db.Timestamp(6)
-    cliente      String       @db.VarChar(30)
+    cliente      String       @db.VarChar(100)
     cidade       String       @db.VarChar(25)
     uf           String       @db.VarChar(5)
     

@@ -52,3 +52,8 @@ next-env.d.ts
 *.swp
 *.swo
 *~
+
+# dados reais de teste (planilhas de exemplo com informação de cliente)
+AR.xls
+*.xls
+*.xlsx

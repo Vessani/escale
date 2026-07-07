@@ -1,14 +1,9 @@
+import { inicioDoDia } from "@/lib/utils/date-format"
+
 const DIAS_NO_CICLO_JORNADA = 7
 
 export type StatusJornada = {
   texto: string
-  classe: string
-}
-
-function inicioDoDia(data: Date) {
-  const dia = new Date(data)
-  dia.setHours(0, 0, 0, 0)
-  return dia
 }
 
 export function diferencaEmDias(dataA: Date, dataB: Date) {
@@ -49,32 +44,32 @@ export function calcularCodigoAtualPorCodigoNoDia(codigoNoDia: number, dia: Date
 
 export function obterStatusJornada(diasTrabalhados: number): StatusJornada {
   if (diasTrabalhados >= 1 && diasTrabalhados <= 3) {
-    return { texto: `${diasTrabalhados}º dia`, classe: "bg-emerald-100 text-emerald-800 border border-emerald-200" }
+    return { texto: `${diasTrabalhados}º dia` }
   }
 
   if (diasTrabalhados >= 4 && diasTrabalhados <= 5) {
-    return { texto: `${diasTrabalhados}º dia`, classe: "bg-yellow-100 text-yellow-800 border border-yellow-200" }
+    return { texto: `${diasTrabalhados}º dia` }
   }
 
   if (diasTrabalhados === 6) {
-    return { texto: "6º dia", classe: "bg-orange-100 text-orange-800 border border-orange-200" }
+    return { texto: "6º dia" }
   }
 
   if (diasTrabalhados === 7) {
-    return { texto: "Folga", classe: "bg-sky-100 text-sky-800 border border-sky-200" }
+    return { texto: "Folga" }
   }
 
   if (diasTrabalhados === 8) {
-    return { texto: "Férias", classe: "bg-indigo-100 text-indigo-800 border border-indigo-200" }
+    return { texto: "Férias" }
   }
 
   if (diasTrabalhados === 9) {
-    return { texto: "Exames", classe: "bg-rose-100 text-rose-800 border border-rose-200" }
+    return { texto: "Exames" }
   }
 
   if (diasTrabalhados === 10) {
-    return { texto: "Interno", classe: "bg-slate-200 text-slate-800 border border-slate-300" }
+    return { texto: "Interno" }
   }
 
-  return { texto: String(diasTrabalhados), classe: "bg-slate-100 text-slate-700 border border-slate-200" }
+  return { texto: String(diasTrabalhados) }
 }

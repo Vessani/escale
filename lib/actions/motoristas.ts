@@ -1,6 +1,6 @@
 'use server'
 import { revalidatePath } from "next/cache";
-import { NovoMotoristaInput, EditarMotoristaInput } from "@/lib/types/types";
+import { NovoMotoristaInput, EditarMotoristaInput, type RespostaAcao } from "@/lib/types/types";
 import { errorToMessage } from "@/lib/action-error";
 import { 
   criarMotoristaService, 
@@ -10,7 +10,7 @@ import {
 } from "@/lib/services/motorista.service";
 import { calcularCodigoAtualPorCodigoNoDia } from "@/lib/services/jornada.service";
 
-export async function criarMotorista(dados: NovoMotoristaInput) {
+export async function criarMotorista(dados: NovoMotoristaInput): Promise<RespostaAcao> {
   try {
     await criarMotoristaService(dados);
     
@@ -21,7 +21,7 @@ export async function criarMotorista(dados: NovoMotoristaInput) {
   }
 }
 
-export async function editarMotorista(idMotorista: number, dados: EditarMotoristaInput) {
+export async function editarMotorista(idMotorista: number, dados: EditarMotoristaInput): Promise<RespostaAcao> {
   try {
     await editarMotoristaService(idMotorista, dados);
     
@@ -32,7 +32,7 @@ export async function editarMotorista(idMotorista: number, dados: EditarMotorist
   }
 }
 
-export async function deletarMotorista(id: number) {
+export async function deletarMotorista(id: number): Promise<RespostaAcao> {
   try {
     await deletarMotoristaService(id);
     
@@ -70,7 +70,7 @@ export async function atualizarJornadaMotoristaNoCalendario(
   idMotorista: number,
   dataReferencia: string,
   codigoNoDia: number,
-) {
+): Promise<RespostaAcao> {
   try {
     const data = parseDataLocal(dataReferencia)
     const hoje = new Date()

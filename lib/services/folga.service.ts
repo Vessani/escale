@@ -1,4 +1,5 @@
 import { StatusViagem, type Prisma } from "@prisma/client"
+import { fimDoDia, inicioDoDia } from "@/lib/utils/date-format"
 
 const STATUS_NAO_ATIVOS: StatusViagem[] = ["CANCELADA", "FINALIZADA"]
 
@@ -8,18 +9,6 @@ export function deveMarcarMotoristaComoFolga(diasTrabalhados: number, possuiViag
 
 export function deveRetirarMotoristaDaFolga(diasTrabalhados: number, possuiViagemAtivaHoje: boolean) {
   return diasTrabalhados === 7 && possuiViagemAtivaHoje
-}
-
-function inicioDoDia(data: Date) {
-  const dia = new Date(data)
-  dia.setHours(0, 0, 0, 0)
-  return dia
-}
-
-function fimDoDia(data: Date) {
-  const dia = new Date(data)
-  dia.setHours(23, 59, 59, 999)
-  return dia
 }
 
 export async function reconciliarFolgaMotoristasNoDiaAtual(

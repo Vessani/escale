@@ -6,6 +6,7 @@ import {
   sugerirMotoristaAutomatico,
 } from "./alocacao.service";
 import { reconciliarFolgaMotoristasNoDiaAtual } from "./folga.service";
+import { converterEditarViagemParaBD, converterNovaViagemParaBD } from "./viagem-data-converter.service";
 
 function resolverStatusPorAlocacao(motoristaId: number | null) {
   return motoristaId === null ? "CRIADA" : "ALOCADA";
@@ -15,10 +16,59 @@ function statusPermiteAutoAjuste(statusAtual: string) {
   return statusAtual === "CRIADA" || statusAtual === "ALOCADA"
 }
 
-export async function criarViagemService(dados: NovaViagemInput) {
+type DadosViagemConvertidos = ReturnType<typeof converterNovaViagemParaBD>
+
+function inserirViagem(
+  dados: DadosViagemConvertidos,
+  integracaoNecessaria: string | null,
+  motoristaId: number | null,
+  status: NovaViagemInput["status"],
+) {
+  return prisma.$transaction(async (tx) => {
+    const viagemCriada = await tx.viagem.create({
+      data: {
+        numViagem: dados.numViagem,
+        carreta: dados.carreta,
+        cavalo: dados.cavalo,
+        tanque: dados.tanque,
+        diasViagem: dados.diasViagem,
+        inicioPrevisto: dados.inicioPrevisto as Date,
+        fimPrevisto: dados.fimPrevisto as Date,
+        turno: dados.turno,
+        integracaoExigida: integracaoNecessaria,
+        status: status ?? resolverStatusPorAlocacao(motoristaId),
+        motoristaId,
+        entregas: {
+          create: dados.entregas.map((entrega) => ({
+            dataEntrega: entrega.dataEntrega as Date,
+            cliente: entrega.cliente,
+            cidade: entrega.cidade,
+            uf: entrega.uf,
+            kg: entrega.kg,
+            m3: entrega.m3,
+            obs: entrega.obs,
+            sapcode: entrega.sapcode,
+            codewhite: entrega.codewhite,
+          })),
+        },
+      },
+      include: {
+        entregas: true,
+        motorista: true,
+      },
+    })
+
+    await reconciliarFolgaMotoristasNoDiaAtual(tx)
+
+    return viagemCriada
+  })
+}
+
+export async function criarViagemService(dadosRecebidos: NovaViagemInput) {
+  const dados = converterNovaViagemParaBD(dadosRecebidos);
   const integracaoNecessaria = calcularIntegracaoExigida(dados.entregas);
-  const inicioPrevisto = new Date(dados.inicioPrevisto);
-  const fimPrevisto = new Date(dados.fimPrevisto);
+  const inicioPrevisto = dados.inicioPrevisto as Date;
+  const fimPrevisto = dados.fimPrevisto as Date;
 
   const motoristas = await prisma.motorista.findMany({
     where: { deletadoEm: null },
@@ -54,48 +104,24 @@ export async function criarViagemService(dados: NovaViagemInput) {
   });
   const motoristaEscolhidoId = motoristaSugeridoDisponivel?.id ?? null;
 
-  return await prisma.$transaction(async (tx) => {
-    const viagemCriada = await tx.viagem.create({
-      data: {
-        numViagem: dados.numViagem,
-        carreta: dados.carreta,
-        cavalo: dados.cavalo,
-        tanque: dados.tanque,
-        diasViagem: dados.diasViagem,
-        inicioPrevisto,
-        fimPrevisto,
-        turno: dados.turno,
-        integracaoExigida: integracaoNecessaria,
-        status: dados.status ?? resolverStatusPorAlocacao(motoristaEscolhidoId),
-        motoristaId: motoristaEscolhidoId,
-        entregas: {
-          create: dados.entregas.map((entrega) => ({
-            dataEntrega: new Date(entrega.dataEntrega),
-            cliente: entrega.cliente,
-            cidade: entrega.cidade,
-            uf: entrega.uf,
-            kg: entrega.kg,
-            m3: entrega.m3,
-            obs: entrega.obs,
-            sapcode: entrega.sapcode,
-            codewhite: entrega.codewhite,
-          })),
-        },
-      },
-      include: {
-        entregas: true,
-        motorista: true,
-      },
-    })
+  return inserirViagem(dados, integracaoNecessaria, motoristaEscolhidoId, dados.status);
+}
 
-    await reconciliarFolgaMotoristasNoDiaAtual(tx)
+/**
+ * Cria a viagem sem sugerir/atribuir motorista automaticamente.
+ * Usado na importação em lote: a decisão de motorista fica inteiramente
+ * a cargo da tela de alocação, onde dá pra comparar sugestões entre viagens.
+ */
+export async function criarViagemSemAlocacaoService(dadosRecebidos: NovaViagemInput) {
+  const dados = converterNovaViagemParaBD(dadosRecebidos);
+  const integracaoNecessaria = calcularIntegracaoExigida(dados.entregas);
 
-    return viagemCriada
-  })
+  return inserirViagem(dados, integracaoNecessaria, null, "CRIADA");
 }
 
 
-export async function editarViagemService(idViagem: number, dados: EditarViagemInput) {
+export async function editarViagemService(idViagem: number, dadosRecebidos: EditarViagemInput) {
+  const dados = converterEditarViagemParaBD(dadosRecebidos);
   const integracaoNecessaria = calcularIntegracaoExigida(dados.entregas);
 
   const entregasExistentes = dados.entregas.filter(e => e.id);
@@ -129,8 +155,8 @@ export async function editarViagemService(idViagem: number, dados: EditarViagemI
         cavalo: dados.cavalo,
         tanque: dados.tanque,
         diasViagem: dados.diasViagem,
-        inicioPrevisto: new Date(dados.inicioPrevisto),
-        fimPrevisto: new Date(dados.fimPrevisto),
+        inicioPrevisto: dados.inicioPrevisto as Date,
+        fimPrevisto: dados.fimPrevisto as Date,
         turno: dados.turno,
         integracaoExigida: integracaoNecessaria,
         status: statusFinal,
@@ -142,7 +168,7 @@ export async function editarViagemService(idViagem: number, dados: EditarViagemI
           update: entregasExistentes.map((entrega) => ({
             where: { id: entrega.id },
             data: {
-              dataEntrega: new Date(entrega.dataEntrega),
+              dataEntrega: entrega.dataEntrega as Date,
               cliente: entrega.cliente,
               cidade: entrega.cidade,
               uf: entrega.uf,
@@ -154,7 +180,7 @@ export async function editarViagemService(idViagem: number, dados: EditarViagemI
             }
           })),
           create: entregasNovas.map((entrega) => ({
-            dataEntrega: new Date(entrega.dataEntrega),
+            dataEntrega: entrega.dataEntrega as Date,
             cliente: entrega.cliente,
             cidade: entrega.cidade,
             uf: entrega.uf,

@@ -5,8 +5,7 @@ import type { ViagemAlocacao } from "@/lib/types/alocacao"
 import {
   calcularDiasDisponiveis,
   calcularIntegracaoExigida,
-  filtrarMotoristasCompativeis,
-  sugerirMotoristaAutomatico,
+  sugerirAlocacoesEmLote,
 } from "@/lib/services/alocacao.service"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -17,62 +16,67 @@ type ViagemBase = Awaited<ReturnType<typeof buscarViagensSemMotorista>>[number]
 type MotoristaBase = Awaited<ReturnType<typeof buscarMotoristas>>[number]
 type EntregaBase = ViagemBase["entregas"][number]
 
-function serializarViagem(viagem: ViagemBase, motoristas: MotoristaBase[]): ViagemAlocacao | null {
-  if (viagem.motoristaId !== null) {
-    return null
-  }
+/** Monta o view-model da tela de alocação a partir das viagens pendentes e da sugestão em lote. */
+function serializarViagens(viagensBrutas: ViagemBase[], motoristas: MotoristaBase[]): ViagemAlocacao[] {
+  const viagensPendentes = viagensBrutas.filter((viagem) => viagem.motoristaId === null)
 
-  const dataInicio = new Date(viagem.inicioPrevisto)
-  const integracaoExigida = viagem.integracaoExigida ?? calcularIntegracaoExigida(viagem.entregas)
-
-  const contextoAlocacao = {
-    turnoViagem: viagem.turno,
-    diasViagem: viagem.diasViagem,
-    dataInicioViagem: dataInicio,
-    integracaoExigida,
-  }
-
-  const motoristasCompativeis = filtrarMotoristasCompativeis(motoristas, contextoAlocacao)
-  const motoristaSugerido = sugerirMotoristaAutomatico(motoristas, contextoAlocacao)
-
-  return {
+  const viagensParaSugestao = viagensPendentes.map((viagem) => ({
     id: viagem.id,
-    numViagem: viagem.numViagem,
-    carreta: viagem.carreta,
-    cavalo: viagem.cavalo,
-    tanque: viagem.tanque,
-    diasViagem: viagem.diasViagem,
-    inicioPrevisto: new Date(viagem.inicioPrevisto).toISOString(),
-    fimPrevisto: new Date(viagem.fimPrevisto).toISOString(),
     turno: viagem.turno,
-    motoristaId: viagem.motoristaId,
-    integracaoExigida,
-    entregas: viagem.entregas.map((entrega: EntregaBase) => ({
-      id: entrega.id,
-      dataEntrega: new Date(entrega.dataEntrega).toISOString(),
-      cliente: entrega.cliente,
-      cidade: entrega.cidade,
-      uf: entrega.uf,
-      kg: Number(entrega.kg),
-      m3: Number(entrega.m3),
-      obs: entrega.obs,
-      sapcode: entrega.sapcode,
-      codewhite: entrega.codewhite,
-    })),
-    motoristaSugerido: motoristaSugerido
-      ? {
-          id: motoristaSugerido.id,
-          nome: motoristaSugerido.nome,
-        }
-      : null,
-    motoristasCompativeis: motoristasCompativeis.map((motorista: (typeof motoristasCompativeis)[number]) => ({
-      id: motorista.id,
-      nome: motorista.nome,
-      diasTrabalhados: motorista.diasTrabalhados,
-      diasDisponiveis: calcularDiasDisponiveis(motorista.diasTrabalhados),
-      turno: motorista.turno,
-    })),
-  }
+    diasViagem: viagem.diasViagem,
+    inicioPrevisto: new Date(viagem.inicioPrevisto),
+    fimPrevisto: new Date(viagem.fimPrevisto),
+    integracaoExigida: viagem.integracaoExigida ?? calcularIntegracaoExigida(viagem.entregas),
+  }))
+
+  const sugestoesPorViagemId = new Map(
+    sugerirAlocacoesEmLote(viagensParaSugestao, motoristas).map((sugestao) => [sugestao.viagemId, sugestao]),
+  )
+
+  return viagensPendentes.map((viagem) => {
+    const sugestao = sugestoesPorViagemId.get(viagem.id)
+    const motoristasCompativeis = sugestao?.motoristasCompativeis ?? []
+    const motoristaSugerido = sugestao?.motoristaSugerido ?? null
+
+    return {
+      id: viagem.id,
+      numViagem: viagem.numViagem,
+      carreta: viagem.carreta,
+      cavalo: viagem.cavalo,
+      tanque: viagem.tanque,
+      diasViagem: viagem.diasViagem,
+      inicioPrevisto: new Date(viagem.inicioPrevisto).toISOString(),
+      fimPrevisto: new Date(viagem.fimPrevisto).toISOString(),
+      turno: viagem.turno,
+      motoristaId: viagem.motoristaId,
+      integracaoExigida: viagem.integracaoExigida ?? calcularIntegracaoExigida(viagem.entregas),
+      entregas: viagem.entregas.map((entrega: EntregaBase) => ({
+        id: entrega.id,
+        dataEntrega: new Date(entrega.dataEntrega).toISOString(),
+        cliente: entrega.cliente,
+        cidade: entrega.cidade,
+        uf: entrega.uf,
+        kg: Number(entrega.kg),
+        m3: Number(entrega.m3),
+        obs: entrega.obs,
+        sapcode: entrega.sapcode,
+        codewhite: entrega.codewhite,
+      })),
+      motoristaSugerido: motoristaSugerido
+        ? {
+            id: motoristaSugerido.id,
+            nome: motoristaSugerido.nome,
+          }
+        : null,
+      motoristasCompativeis: motoristasCompativeis.map((motorista) => ({
+        id: motorista.id,
+        nome: motorista.nome,
+        diasTrabalhados: motorista.diasTrabalhados,
+        diasDisponiveis: calcularDiasDisponiveis(motorista.diasTrabalhados),
+        turno: motorista.turno,
+      })),
+    }
+  })
 }
 
 export default async function PaginaAlocacaoViagens() {
@@ -81,9 +85,7 @@ export default async function PaginaAlocacaoViagens() {
     buscarMotoristas(),
   ])
 
-  const viagens = viagensBrutas
-    .map((viagem: ViagemBase) => serializarViagem(viagem, motoristasBrutos))
-    .filter((viagem: ViagemAlocacao | null): viagem is ViagemAlocacao => viagem !== null)
+  const viagens = serializarViagens(viagensBrutas, motoristasBrutos)
 
   return (
     <div className="space-y-6">
@@ -115,7 +117,7 @@ export default async function PaginaAlocacaoViagens() {
             <CardTitle className="text-lg">Viagens sem motorista</CardTitle>
           </div>
           <CardDescription>
-            Motoristas compatíveis são calculados por turno, dias disponíveis da jornada (até 6 consecutivos) e integração ativa válida.
+            Motoristas compatíveis são calculados por turno, dias disponíveis da jornada (até 6 consecutivos), integração ativa válida e disponibilidade real (sem outra viagem no mesmo período — inclusive entre viagens desta mesma lista).
           </CardDescription>
         </CardHeader>
         <CardContent className="pt-6">

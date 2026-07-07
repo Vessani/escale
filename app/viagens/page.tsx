@@ -7,7 +7,7 @@ import { STATUS_VIAGEM_OPCOES, ehStatusViagem, formatarStatusViagem } from "@/li
 import AtualizarStatusRapido from "./atualizar-status-rapido"
 import ExcluirViagemButton from "./excluir-viagem-button"
 import { classeBadgeStatusViagem, classeBadgeTurno } from "./badge-styles"
-import { formatarDataHoraPtBr } from "./date-utils"
+import { formatarDataHoraPtBr } from "@/lib/utils/date-format"
 import {
   Table,
   TableBody,

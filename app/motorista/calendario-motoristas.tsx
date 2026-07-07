@@ -8,15 +8,15 @@ import { Button } from "@/components/ui/button"
 import { atualizarJornadaMotoristaNoCalendario, deletarMotorista } from "@/lib/actions/motoristas"
 import { calcularDiasDisponiveis } from "@/lib/services/alocacao.service"
 import { calcularCodigoJornadaNoDia, obterStatusJornada } from "@/lib/services/jornada.service"
+import { fimDoDia, inicioDoDia } from "@/lib/utils/date-format"
 import {
-  fimDoDia,
   formatarSemana,
-  inicioDoDia,
   OPCOES_CODIGO_JORNADA,
   OPCOES_FILTRO_STATUS,
   statusJornadaCorrespondeAoFiltro,
   type FiltroStatusJornada,
 } from "./calendario-utils"
+import { classeBadgeJornada } from "./jornada-status"
 
 type Viagem = {
   id: number
@@ -191,7 +191,7 @@ export default function CalendarioMotoristas({ mesParam, hojeIso, dias, motorist
                         <span>·</span>
                         <span>{diasDisponiveis} dia(s) disponível(is)</span>
                         <span>·</span>
-                        <span className={`rounded px-2 py-0.5 font-semibold ${statusJornada.classe}`}>
+                        <span className={`rounded px-2 py-0.5 font-semibold ${classeBadgeJornada(motorista.diasTrabalhados)}`}>
                           {statusJornada.texto}
                         </span>
                       </div>
@@ -240,7 +240,7 @@ export default function CalendarioMotoristas({ mesParam, hojeIso, dias, motorist
                             <button
                               type="button"
                               onClick={() => setCelulaEmEdicao(chaveCelula)}
-                              className={`inline-flex rounded px-2 py-0.5 text-xs font-semibold hover:brightness-95 ${statusNoDia.classe}`}
+                              className={`inline-flex rounded px-2 py-0.5 text-xs font-semibold hover:brightness-95 ${classeBadgeJornada(codigoNoDia)}`}
                             >
                               {statusNoDia.texto}
                             </button>

@@ -4,11 +4,26 @@ import { Turno } from "@prisma/client";
 
 export async function buscarMotoristas() {
   return await prisma.motorista.findMany({
-    where: { 
+    where: {
       deletadoEm: null
     },
     orderBy: { nome: 'asc' },
-    include: { integracao: true },
+    include: {
+      integracao: true,
+      viagens: {
+        where: {
+          deletadoEm: null,
+          status: { notIn: ["CANCELADA", "FINALIZADA"] },
+        },
+        select: {
+          id: true,
+          inicioPrevisto: true,
+          fimPrevisto: true,
+          status: true,
+          deletadoEm: true,
+        },
+      },
+    },
   });
 }
 

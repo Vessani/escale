@@ -102,10 +102,10 @@ export function motoristaEhCompativel(
   return temIntegracaoValida(motorista, contexto.integracaoExigida, contexto.dataInicioViagem)
 }
 
-export function filtrarMotoristasCompativeis(
-  motoristas: MotoristaParaAlocacao[],
+export function filtrarMotoristasCompativeis<T extends MotoristaParaAlocacao>(
+  motoristas: T[],
   contexto: ContextoCompatibilidade,
-) {
+): T[] {
   return motoristas
     .filter((motorista) => motoristaEhCompativel(motorista, contexto))
     .sort((a, b) => {
@@ -115,7 +115,7 @@ export function filtrarMotoristasCompativeis(
     })
 }
 
-function periodoConflita(inicioA: Date, fimA: Date, inicioB: Date, fimB: Date) {
+export function periodoConflita(inicioA: Date, fimA: Date, inicioB: Date, fimB: Date) {
   return inicioA < fimB && fimA > inicioB
 }
 
@@ -162,4 +162,77 @@ export function sugerirMotoristaAutomatico(
 ) {
   const compativeis = filtrarMotoristasCompativeis(motoristas, contexto)
   return compativeis[0] ?? null
+}
+
+type ViagemParaSugestaoLote = {
+  id: number
+  turno: Turno
+  diasViagem: number
+  inicioPrevisto: Date
+  fimPrevisto: Date
+  integracaoExigida: string | null
+}
+
+type AtribuicaoTentativa = {
+  motoristaId: number
+  inicio: Date
+  fim: Date
+}
+
+export type SugestaoAlocacaoLote = {
+  viagemId: number
+  motoristasCompativeis: MotoristaComAgenda[]
+  motoristaSugerido: MotoristaComAgenda | null
+}
+
+/**
+ * Sugere motorista para um lote de viagens pendentes, processando em ordem e
+ * levando em conta as sugestões já feitas às viagens anteriores do mesmo lote:
+ * se duas viagens têm período sobreposto, a segunda não recebe o motorista já
+ * sugerido para a primeira, mesmo que ele também seja compatível para ela.
+ * Também exclui motoristas com viagem real conflitante já registrada no banco.
+ */
+export function sugerirAlocacoesEmLote(
+  viagens: ViagemParaSugestaoLote[],
+  motoristas: MotoristaComAgenda[],
+): SugestaoAlocacaoLote[] {
+  const atribuicoesTentativas: AtribuicaoTentativa[] = []
+
+  return viagens.map((viagem) => {
+    const contexto: ContextoCompatibilidade = {
+      turnoViagem: viagem.turno,
+      diasViagem: viagem.diasViagem,
+      dataInicioViagem: viagem.inicioPrevisto,
+      integracaoExigida: viagem.integracaoExigida,
+    }
+
+    const motoristasDisponiveis = filtrarMotoristasDisponiveisNoPeriodo(
+      motoristas,
+      viagem.inicioPrevisto,
+      viagem.fimPrevisto,
+    )
+
+    const motoristasCompativeis = filtrarMotoristasCompativeis(motoristasDisponiveis, contexto).filter(
+      (motorista) =>
+        !atribuicoesTentativas.some(
+          (atribuicao) =>
+            atribuicao.motoristaId === motorista.id &&
+            periodoConflita(viagem.inicioPrevisto, viagem.fimPrevisto, atribuicao.inicio, atribuicao.fim),
+        ),
+    )
+
+    // motoristasCompativeis já está filtrado e ordenado por filtrarMotoristasCompativeis
+    // (mesmo critério usado por sugerirMotoristaAutomatico); o primeiro é o sugerido.
+    const motoristaSugerido = motoristasCompativeis[0] ?? null
+
+    if (motoristaSugerido) {
+      atribuicoesTentativas.push({
+        motoristaId: motoristaSugerido.id,
+        inicio: viagem.inicioPrevisto,
+        fim: viagem.fimPrevisto,
+      })
+    }
+
+    return { viagemId: viagem.id, motoristasCompativeis, motoristaSugerido }
+  })
 }

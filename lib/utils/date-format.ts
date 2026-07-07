@@ -1,0 +1,161 @@
+/**
+ * Utilitários para formatação de datas e horas
+ * Centralizado para reutilização em toda aplicação
+ */
+
+/**
+ * Início do dia (00:00:00.000) da data informada
+ */
+export function inicioDoDia(data: Date): Date {
+  const dia = new Date(data)
+  dia.setHours(0, 0, 0, 0)
+  return dia
+}
+
+/**
+ * Fim do dia (23:59:59.999) da data informada
+ */
+export function fimDoDia(data: Date): Date {
+  const dia = new Date(data)
+  dia.setHours(23, 59, 59, 999)
+  return dia
+}
+
+/**
+ * Formata Date para string de input[type="date"] (YYYY-MM-DD)
+ */
+export function formatDateForDateInput(value: Date | string): string {
+  const instant = new Date(value)
+  const localDate = new Date(instant.getTime() - instant.getTimezoneOffset() * 60000)
+  return localDate.toISOString().slice(0, 10)
+}
+
+/**
+ * Formata Date para string de input[type="datetime-local"] (YYYY-MM-DDTHH:MM)
+ */
+export function formatDateTimeForInput(value: Date | string): string {
+  const instant = new Date(value)
+  const localDate = new Date(instant.getTime() - instant.getTimezoneOffset() * 60000)
+  return localDate.toISOString().slice(0, 16)
+}
+
+/**
+ * Formata data e hora no padrão pt-BR (DD/MM/YYYY HH:MM)
+ */
+export function formatarDataHoraPtBr(data: Date | string): string {
+  const dataNormalizada = data instanceof Date ? data : new Date(data)
+
+  return new Intl.DateTimeFormat("pt-BR", {
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  }).format(dataNormalizada)
+}
+
+/**
+ * Formata data em diferentes formatos para datetime-local
+ * Suporta: DD.MM, DD.MM.YYYY, serial Excel, Date object
+ */
+export function formatarDataExcel(data: string | Date, hora?: string): string {
+  if (!data) return ''
+
+  // Se já está em formato datetime-local
+  if (typeof data === 'string' && data.includes('T')) return data
+
+  let date: Date | null = null
+
+  if (data instanceof Date) {
+    date = data
+  } else if (typeof data === 'string') {
+    // Remove espaços e pontos finais (SAP às vezes adiciona "04.07." ao invés de "04.07")
+    const dataNormalizada = data.trim().replace(/\.$/, '')
+    
+    // Formato DD.MM (ou DD.MM. do SAP)
+    if (dataNormalizada.match(/^\d{2}\.\d{2}$/)) {
+      const [dia, mes] = dataNormalizada.split('.')
+      const ano = new Date().getFullYear()
+      date = new Date(`${ano}-${mes}-${dia}T${hora || '00:00'}`)
+    }
+    // Formato DD.MM.YYYY
+    else if (dataNormalizada.match(/^\d{2}\.\d{2}\.\d{4}$/)) {
+      const [dia, mes, ano] = dataNormalizada.split('.')
+      date = new Date(`${ano}-${mes}-${dia}T${hora || '00:00'}`)
+    }
+    // Serial do Excel (número)
+    else if (!isNaN(Number(dataNormalizada))) {
+      const excelDate = Number(dataNormalizada)
+      const date1900 = new Date(1900, 0, 1)
+      date = new Date(date1900.getTime() + (excelDate - 1) * 24 * 60 * 60 * 1000)
+    }
+  }
+
+  if (!date || isNaN(date.getTime())) {
+    return ''
+  }
+
+  return formatarDateTimeLocal(date, hora)
+}
+
+/**
+ * Normaliza string de hora para formato HH:MM
+ */
+export function normalizarHora(hora: string): string {
+  if (!hora) return '00:00'
+  if (typeof hora !== 'string') return '00:00'
+
+  const match = hora.match(/^(\d{1,2}):(\d{2})/)
+  if (match) {
+    const h = String(match[1]).padStart(2, '0')
+    const m = String(match[2]).padStart(2, '0')
+    return `${h}:${m}`
+  }
+
+  return '00:00'
+}
+
+/**
+ * Calcula dias entre duas datas
+ * Retorna número de dias (mínimo 1)
+ */
+export function calcularDiasEntre(dataInicio: Date, dataFim: Date): number {
+  const diffMs = dataFim.getTime() - dataInicio.getTime()
+  const diffDays = Math.ceil(diffMs / (1000 * 60 * 60 * 24))
+  return Math.max(1, diffDays + 1) // +1 para incluir o primeiro dia
+}
+
+/**
+ * Formata Date para string datetime-local (YYYY-MM-DDTHH:MM)
+ */
+export function formatarDateTimeLocal(date: Date, hora?: string): string {
+  const ano = date.getFullYear()
+  const mes = String(date.getMonth() + 1).padStart(2, '0')
+  const dia = String(date.getDate()).padStart(2, '0')
+
+  if (hora) {
+    return `${ano}-${mes}-${dia}T${hora}`
+  }
+
+  const h = String(date.getHours()).padStart(2, '0')
+  const m = String(date.getMinutes()).padStart(2, '0')
+
+  return `${ano}-${mes}-${dia}T${h}:${m}`
+}
+
+/**
+ * Valida se um valor é um número válido e positivo
+ */
+export function validarNumeroPositivo(valor: unknown, campoNome: string): number {
+  const num = typeof valor === 'string' ? parseFloat(valor) : typeof valor === 'number' ? valor : NaN
+
+  if (isNaN(num)) {
+    throw new Error(`${campoNome} inválido: deve ser um número`)
+  }
+
+  if (num < 0) {
+    throw new Error(`${campoNome} inválido: deve ser positivo`)
+  }
+
+  return num
+}
