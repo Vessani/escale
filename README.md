@@ -8,14 +8,17 @@ Sistema de gestão de viagens e alocação de motoristas com autenticação e da
 - ✅ Gestão completa de viagens (criar, editar, listar)
 - ✅ Gestão de motoristas com integrações
 - ✅ Visualização de datas de validade de integrações
+- ✅ Importação de viagens via planilha .xlsx/.xls (uma viagem ou várias de uma vez)
+- ✅ Importação em lote: cria todas as viagens do arquivo direto e leva para a alocação
 - ✅ Alocação automática por turno + integração + jornada (até 6 dias consecutivos)
 - ✅ Priorização automática do motorista com maior disponibilidade
+- ✅ Aviso de conflito quando o mesmo motorista é escolhido para viagens com período sobreposto
 - ✅ Edição manual de alocação para cenários de emergência
 - ✅ Visão de viagens por status (aguardando início, em andamento, finalizada, cancelada)
 - ✅ Calendário operacional de motoristas (motoristas nas colunas e dias nas linhas)
 - ✅ Interface responsiva e moderna (Tailwind CSS)
 - ✅ Validação de dados (Zod)
-- ✅ Banco de dados relacional (Prisma + PostgreSQL)
+- ✅ Banco de dados relacional (Prisma + PostgreSQL, com Row Level Security habilitado)
 
 ## 🛠️ Stack Tecnológico
 
@@ -69,27 +72,39 @@ Para instruções detalhadas de deployment, veja [DEPLOYMENT.md](./DEPLOYMENT.md
 escala/
 ├── app/
 │   ├── motorista/
-│   │   ├── page.tsx (listar motoristas)
+│   │   ├── page.tsx (listar + calendário de jornada)
+│   │   ├── jornada-status.ts (cores/labels do status de jornada)
 │   │   ├── novo/ (criar motorista)
 │   │   └── editar/[id]/ (editar motorista)
 │   ├── viagens/
 │   │   ├── page.tsx (listar viagens)
-│   │   ├── nova/ (criar viagem)
+│   │   ├── nova/ (criar viagem, com import .xlsx único e em lote)
 │   │   ├── editar/[id]/ (editar viagem)
-│   │   └── alocacao/ (alocação manual)
-│   ├── api/auth/[...nextauth]/ (autenticação)
+│   │   └── alocacao/ (alocação manual + aviso de conflito de motorista)
+│   ├── api/
+│   │   ├── auth/[...nextauth]/ (autenticação)
+│   │   └── viagens/[id]/pdf/ (exportação de viagem em PDF)
 │   └── layout.tsx
 ├── lib/
-│   ├── actions/ (server actions)
-│   ├── queries/ (database queries)
-│   ├── services/ (business logic)
+│   ├── actions/ (server actions — única porta de entrada para mutações)
+│   ├── queries/ (leituras direto do Prisma)
+│   ├── services/ (regras de negócio, *.service.ts)
+│   ├── parsers/ (parser de planilha .xlsx/.xls)
 │   ├── validation/ (schemas Zod)
-│   └── types/ (TypeScript types)
-├── components/ (UI components)
+│   ├── types/ (tipos compartilhados — Input/Output de actions, respostas)
+│   └── utils/ (utilitários puros, ex: formatação de data)
+├── components/
+│   ├── ui/ (primitivos shadcn/radix)
+│   ├── layout/ (shell da aplicação)
+│   ├── motorista/ (formulário compartilhado criar/editar motorista)
+│   └── viagem/ (upload .xlsx, campos de rota e de entregas do formulário de viagem)
 ├── prisma/
-│   └── schema.prisma (data models)
+│   ├── schema.prisma (data models)
+│   └── migrations/
 └── proxy.ts (middleware autenticação)
 ```
+
+**Padrão de fluxo de dados:** página/componente → `lib/actions` (server action) → `lib/services` (regra de negócio) → Prisma. Leituras usam `lib/queries` diretamente. Tipos de entrada/saída de actions ficam em `lib/types/types.ts`; tipos específicos de uma tela (view-model de props) ficam no próprio arquivo do componente.
 
 ## 🔐 Configuração de Ambiente
 
@@ -114,31 +129,20 @@ node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
 ## 🧪 Testes
 
 ```bash
-# Rodar testes unitários
 npm run test
-
-# Com cobertura
-npm run test:coverage
 ```
 
-## 📋 API Routes
+## 📋 Rotas HTTP e Server Actions
 
-### Autenticação
-- `POST /api/auth/signin` - Login
-- `POST /api/auth/signout` - Logout
-- `GET /api/auth/session` - Info sessão
+A maior parte das operações (criar/editar/excluir viagem e motorista, alocar motorista, atualizar status/jornada, importar em lote) **não é REST** — são [Server Actions](https://nextjs.org/docs/app/building-your-application/data-fetching/server-actions-and-mutations) do Next.js, chamadas diretamente pelos componentes client a partir de `lib/actions/viagens.ts` e `lib/actions/motoristas.ts`.
 
-### Viagens
-- `GET /viagens` - Listar viagens
-- `POST /viagens` - Criar viagem
-- `PUT /viagens/[id]` - Editar viagem
-- `DELETE /viagens/[id]` - Deletar viagem
+Rotas HTTP reais (`app/api/`):
+- `GET|POST /api/auth/[...nextauth]` - Autenticação (NextAuth)
+- `GET /api/viagens/[id]/pdf` - Exporta uma viagem em PDF
 
-### Motoristas
-- `GET /motorista` - Listar motoristas
-- `POST /motorista` - Criar motorista
-- `PUT /motorista/[id]` - Editar motorista
-- `DELETE /motorista/[id]` - Deletar motorista
+Páginas (`app/`):
+- `/login`, `/motorista`, `/motorista/novo`, `/motorista/editar/[id]`
+- `/viagens`, `/viagens/nova`, `/viagens/editar/[id]`, `/viagens/alocacao`
 
 ## 🐛 Debug
 
@@ -163,4 +167,4 @@ Proprietary - Transportadora Digital
 ---
 
 **Versão:** 0.1.0  
-**Última atualização:** 2026-06-28
+**Última atualização:** 2026-07-07

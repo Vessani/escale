@@ -1,0 +1,41 @@
+Este é um arquivo de exemplo para demonstrar o formato esperado pelo parser
+(lib/parsers/xlsx-parser.ts), com base na estrutura real do relatório AR.xls.
+
+O parser lê por LETRA DE COLUNA, não pelo texto do cabeçalho (o cabeçalho do
+relatório tem células mescladas que não ficam alinhadas com os dados abaixo).
+
+---
+
+Linha da viagem (início de cada bloco), colunas relevantes:
+C = Nº Viagem | F = Carreta | J = Cavalo | K = Data | L = Hora | AD = Tanque
+
+| C      | F   | J    | K     | L     | AD      |
+|--------|-----|------|-------|-------|---------|
+| 893892 | 908 | 2064 | 04.07 | 08:45 | STCV-28 |
+
+Linhas de entrega (uma ou mais logo abaixo da linha da viagem), colunas relevantes:
+K = Data entrega | L = Hora entrega | M = SAP Code | O = Code White
+R = Cliente | U = Cidade | V = UF | Y = KG | AC = Cubagem (M3) | S = Observações
+
+| K     | L     | M        | O     | R                | U            | V  | Y    | AC   | S       |
+|-------|-------|----------|-------|------------------|--------------|----|------|------|---------|
+| 04.07 | 11:16 |          |       | ARAUCARIA        | ARAUCARIA    | PR |      |      |         |
+| 06.07 | 10:00 | 90003246 | 77712 | SEMEATO 1 - AR L | PASSO FUNDO  | RS | 2228 | 1346 |         |
+
+---
+
+INSTRUÇÕES:
+
+1. Uma nova viagem começa sempre que a coluna C tiver um número novo
+2. Cada linha com a coluna R (Cliente) preenchida logo abaixo é importada como
+   uma entrega da viagem atual, até aparecer o próximo número na coluna C
+3. As datas devem estar no formato DD.MM, DD.MM.YYYY ou serial numérico do Excel
+4. As horas devem estar no formato HH:MM
+5. Se M/O/S estiverem vazios, o sistema usa valores padrão ("0" para SAP/White
+   Code, "Confirmar com a programação antes de sair" para observação)
+
+Um mesmo arquivo pode ter várias viagens em sequência — o sistema detecta todas
+e, ao importar, deixa escolher entre revisar uma por vez no formulário ou
+importar todas de uma vez e ajustar o motorista na tela de alocação.
+
+Veja o mapeamento completo e as regras de conversão em docs/IMPORTACAO_XLSX.md.
