@@ -5,6 +5,7 @@ import {
   filtrarMotoristasDisponiveisNoPeriodo,
   sugerirMotoristaAutomatico,
 } from "./alocacao.service";
+import { reconciliarFolgaMotoristasNoDiaAtual } from "./folga.service";
 
 function resolverStatusPorAlocacao(motoristaId: number | null) {
   return motoristaId === null ? "CRIADA" : "ALOCADA";
@@ -53,39 +54,44 @@ export async function criarViagemService(dados: NovaViagemInput) {
   });
   const motoristaEscolhidoId = motoristaSugeridoDisponivel?.id ?? null;
 
-  return await prisma.viagem.create({
-    data: {
-      numViagem: dados.numViagem,
-      carreta: dados.carreta,
-      cavalo: dados.cavalo,
-      tanque: dados.tanque,
-      diasViagem: dados.diasViagem,
-      inicioPrevisto,
-      fimPrevisto,
-      turno: dados.turno,
-      integracaoExigida: integracaoNecessaria,
-      status: dados.status ?? resolverStatusPorAlocacao(motoristaEscolhidoId),
-      motoristaId: motoristaEscolhidoId, 
-      
-      entregas: {
-        create: dados.entregas.map((entrega) => ({
-          dataEntrega: new Date(entrega.dataEntrega),
-          cliente: entrega.cliente,
-          cidade: entrega.cidade,
-          uf: entrega.uf,
-          kg: entrega.kg,
-          m3: entrega.m3,
-          obs: entrega.obs,
-          sapcode: entrega.sapcode,
-          codewhite: entrega.codewhite,
-        })),
+  return await prisma.$transaction(async (tx) => {
+    const viagemCriada = await tx.viagem.create({
+      data: {
+        numViagem: dados.numViagem,
+        carreta: dados.carreta,
+        cavalo: dados.cavalo,
+        tanque: dados.tanque,
+        diasViagem: dados.diasViagem,
+        inicioPrevisto,
+        fimPrevisto,
+        turno: dados.turno,
+        integracaoExigida: integracaoNecessaria,
+        status: dados.status ?? resolverStatusPorAlocacao(motoristaEscolhidoId),
+        motoristaId: motoristaEscolhidoId,
+        entregas: {
+          create: dados.entregas.map((entrega) => ({
+            dataEntrega: new Date(entrega.dataEntrega),
+            cliente: entrega.cliente,
+            cidade: entrega.cidade,
+            uf: entrega.uf,
+            kg: entrega.kg,
+            m3: entrega.m3,
+            obs: entrega.obs,
+            sapcode: entrega.sapcode,
+            codewhite: entrega.codewhite,
+          })),
+        },
       },
-    },
-    include: {
-      entregas: true,
-      motorista: true,
-    },
-  });
+      include: {
+        entregas: true,
+        motorista: true,
+      },
+    })
+
+    await reconciliarFolgaMotoristasNoDiaAtual(tx)
+
+    return viagemCriada
+  })
 }
 
 
@@ -114,30 +120,40 @@ export async function editarViagemService(idViagem: number, dados: EditarViagemI
       ? statusDerivado
       : viagemAtual.status)
 
-  return await prisma.viagem.update({
-    where: { id: idViagem },
-    data: {
-      numViagem: dados.numViagem,
-      carreta: dados.carreta,
-      cavalo: dados.cavalo,
-      tanque: dados.tanque,
-      diasViagem: dados.diasViagem,
-      
-      inicioPrevisto: new Date(dados.inicioPrevisto),
-      fimPrevisto: new Date(dados.fimPrevisto),
-      turno: dados.turno,
-      
-      integracaoExigida: integracaoNecessaria,
-      status: statusFinal,
-      motoristaId: dados.motoristaId !== undefined ? dados.motoristaId : undefined,
-      
-      entregas: {
-        deleteMany: {
-          id: { notIn: manterEntregas }
-        },
-        update: entregasExistentes.map((entrega) => ({
-          where: { id: entrega.id },
-          data: {
+  return await prisma.$transaction(async (tx) => {
+    const viagemAtualizada = await tx.viagem.update({
+      where: { id: idViagem },
+      data: {
+        numViagem: dados.numViagem,
+        carreta: dados.carreta,
+        cavalo: dados.cavalo,
+        tanque: dados.tanque,
+        diasViagem: dados.diasViagem,
+        inicioPrevisto: new Date(dados.inicioPrevisto),
+        fimPrevisto: new Date(dados.fimPrevisto),
+        turno: dados.turno,
+        integracaoExigida: integracaoNecessaria,
+        status: statusFinal,
+        motoristaId: dados.motoristaId !== undefined ? dados.motoristaId : undefined,
+        entregas: {
+          deleteMany: {
+            id: { notIn: manterEntregas }
+          },
+          update: entregasExistentes.map((entrega) => ({
+            where: { id: entrega.id },
+            data: {
+              dataEntrega: new Date(entrega.dataEntrega),
+              cliente: entrega.cliente,
+              cidade: entrega.cidade,
+              uf: entrega.uf,
+              kg: entrega.kg,
+              m3: entrega.m3,
+              obs: entrega.obs,
+              sapcode: entrega.sapcode,
+              codewhite: entrega.codewhite,
+            }
+          })),
+          create: entregasNovas.map((entrega) => ({
             dataEntrega: new Date(entrega.dataEntrega),
             cliente: entrega.cliente,
             cidade: entrega.cidade,
@@ -147,31 +163,28 @@ export async function editarViagemService(idViagem: number, dados: EditarViagemI
             obs: entrega.obs,
             sapcode: entrega.sapcode,
             codewhite: entrega.codewhite,
-          }
-        })),
-        create: entregasNovas.map((entrega) => ({
-          dataEntrega: new Date(entrega.dataEntrega),
-          cliente: entrega.cliente,
-          cidade: entrega.cidade,
-          uf: entrega.uf,
-          kg: entrega.kg,
-          m3: entrega.m3,
-          obs: entrega.obs,
-          sapcode: entrega.sapcode,
-          codewhite: entrega.codewhite,
-        }))
+          }))
+        }
       }
-    }
-  });
+    })
+
+    await reconciliarFolgaMotoristasNoDiaAtual(tx)
+    return viagemAtualizada
+  })
 }
 
 export async function deletarViagemService(id: number) {
-  return await prisma.viagem.update({
-    where: { id: id },
-    data: {
-      deletadoEm: new Date(),
-    }
-  });
+  return await prisma.$transaction(async (tx) => {
+    const viagemDeletada = await tx.viagem.update({
+      where: { id: id },
+      data: {
+        deletadoEm: new Date(),
+      }
+    })
+
+    await reconciliarFolgaMotoristasNoDiaAtual(tx)
+    return viagemDeletada
+  })
 }
 
 export async function atualizarStatusViagemService(idViagem: number, status: EditarViagemInput["status"]) {
@@ -179,8 +192,13 @@ export async function atualizarStatusViagemService(idViagem: number, status: Edi
     throw new Error("Status de viagem é obrigatório.")
   }
 
-  return await prisma.viagem.update({
-    where: { id: idViagem },
-    data: { status },
+  return await prisma.$transaction(async (tx) => {
+    const viagemAtualizada = await tx.viagem.update({
+      where: { id: idViagem },
+      data: { status },
+    })
+
+    await reconciliarFolgaMotoristasNoDiaAtual(tx)
+    return viagemAtualizada
   })
 }

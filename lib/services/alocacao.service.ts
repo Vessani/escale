@@ -45,6 +45,10 @@ function normalizarCliente(cliente: string) {
 }
 
 export function calcularDiasDisponiveis(diasTrabalhados: number) {
+  if (diasTrabalhados === 7) {
+    return MAX_DIAS_CONSECUTIVOS
+  }
+
   if (diasTrabalhados < 1 || diasTrabalhados > MAX_DIAS_CONSECUTIVOS) {
     return 0
   }

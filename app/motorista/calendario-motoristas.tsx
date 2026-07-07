@@ -8,7 +8,15 @@ import { Button } from "@/components/ui/button"
 import { atualizarJornadaMotoristaNoCalendario, deletarMotorista } from "@/lib/actions/motoristas"
 import { calcularDiasDisponiveis } from "@/lib/services/alocacao.service"
 import { calcularCodigoJornadaNoDia, obterStatusJornada } from "@/lib/services/jornada.service"
-import { fimDoDia, formatarSemana, inicioDoDia, OPCOES_CODIGO_JORNADA } from "./calendario-utils"
+import {
+  fimDoDia,
+  formatarSemana,
+  inicioDoDia,
+  OPCOES_CODIGO_JORNADA,
+  OPCOES_FILTRO_STATUS,
+  statusJornadaCorrespondeAoFiltro,
+  type FiltroStatusJornada,
+} from "./calendario-utils"
 
 type Viagem = {
   id: number
@@ -39,9 +47,14 @@ export default function CalendarioMotoristas({ mesParam, hojeIso, dias, motorist
   const [celulaSalvando, setCelulaSalvando] = useState<string | null>(null)
   const [motoristaExcluindoId, setMotoristaExcluindoId] = useState<number | null>(null)
   const [mensagemErro, setMensagemErro] = useState("")
+  const [filtroStatus, setFiltroStatus] = useState<FiltroStatusJornada>("TODOS")
   const [isPending, startTransition] = useTransition()
 
   const hoje = useMemo(() => new Date(hojeIso), [hojeIso])
+  const motoristasFiltrados = useMemo(
+    () => motoristas.filter((motorista) => statusJornadaCorrespondeAoFiltro(motorista.diasTrabalhados, filtroStatus)),
+    [motoristas, filtroStatus],
+  )
 
   const salvarJornada = (motoristaId: number, diaIso: string, codigoNoDia: number) => {
     const chaveCelula = `${motoristaId}-${diaIso}`
@@ -91,13 +104,34 @@ export default function CalendarioMotoristas({ mesParam, hojeIso, dias, motorist
 
   return (
     <div className="space-y-3">
+      <div className="flex flex-wrap items-center gap-2 text-xs">
+        <span className="font-semibold text-slate-600">Filtro por status:</span>
+        {OPCOES_FILTRO_STATUS.map((opcao) => {
+          const ativo = filtroStatus === opcao.valor
+          return (
+            <button
+              key={opcao.valor}
+              type="button"
+              onClick={() => setFiltroStatus(opcao.valor)}
+              className={`rounded px-2 py-0.5 font-semibold transition ${opcao.classe} ${ativo ? "ring-2 ring-blue-400" : "opacity-80 hover:opacity-100"}`}
+            >
+              {opcao.label}
+            </button>
+          )
+        })}
+      </div>
       <p className="text-xs text-slate-500">
         Clique no status de qualquer célula para abrir o seletor e salvar imediatamente.
       </p>
       {mensagemErro ? <p className="text-sm text-red-600">{mensagemErro}</p> : null}
 
-      <div className="isolate overflow-auto rounded-lg border border-slate-200 bg-white shadow-sm">
-        <table className="min-w-[1600px] w-full text-sm">
+      {motoristasFiltrados.length === 0 ? (
+        <div className="rounded-lg border border-slate-200 bg-slate-50 p-6 text-sm text-slate-600">
+          Nenhum motorista encontrado para o filtro selecionado.
+        </div>
+      ) : (
+        <div className="isolate overflow-auto rounded-lg border border-slate-200 bg-white shadow-sm">
+          <table className="min-w-[1600px] w-full text-sm">
           <thead className="bg-slate-50">
             <tr>
               <th className="sticky left-0 z-40 bg-slate-50 border-b border-r px-4 py-3 text-left font-semibold text-slate-700 min-w-80 shadow-[4px_0_6px_-4px_rgba(15,23,42,0.2)]">
@@ -115,7 +149,7 @@ export default function CalendarioMotoristas({ mesParam, hojeIso, dias, motorist
             </tr>
           </thead>
           <tbody>
-            {motoristas.map((motorista, indiceMotorista) => {
+            {motoristasFiltrados.map((motorista, indiceMotorista) => {
               const diasDisponiveis = calcularDiasDisponiveis(motorista.diasTrabalhados)
               const statusJornada = obterStatusJornada(motorista.diasTrabalhados)
               const fundoColunaFixa = indiceMotorista % 2 === 0 ? "bg-white" : "bg-slate-50"
@@ -235,8 +269,9 @@ export default function CalendarioMotoristas({ mesParam, hojeIso, dias, motorist
               )
             })}
           </tbody>
-        </table>
-      </div>
+          </table>
+        </div>
+      )}
     </div>
   )
 }

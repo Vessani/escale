@@ -34,9 +34,35 @@ function criarMotorista(parcial: Partial<MotoristaMock>): MotoristaMock {
 
 describe("alocacao.service", () => {
   it("calcula dias disponíveis apenas para jornada válida", () => {
+    expect(calcularDiasDisponiveis(0)).toBe(0)
     expect(calcularDiasDisponiveis(1)).toBe(5)
     expect(calcularDiasDisponiveis(6)).toBe(0)
-    expect(calcularDiasDisponiveis(7)).toBe(0)
+    expect(calcularDiasDisponiveis(7)).toBe(6)
+    expect(calcularDiasDisponiveis(8)).toBe(0)
+  })
+
+  it("trata motorista com 0 dias como incompatível por jornada", () => {
+    const motorista = criarMotorista({ diasTrabalhados: 0 })
+    const compativel = motoristaEhCompativel(motorista, {
+      turnoViagem: "MANHA",
+      diasViagem: 1,
+      dataInicioViagem: new Date("2026-07-10"),
+      integracaoExigida: null,
+    })
+
+    expect(compativel).toBe(false)
+  })
+
+  it("trata motorista em folga como compatível para iniciar jornada", () => {
+    const motorista = criarMotorista({ diasTrabalhados: 7 })
+    const compativel = motoristaEhCompativel(motorista, {
+      turnoViagem: "MANHA",
+      diasViagem: 2,
+      dataInicioViagem: new Date("2026-07-10"),
+      integracaoExigida: null,
+    })
+
+    expect(compativel).toBe(true)
   })
 
   it("detecta integração obrigatória por cliente normalizado", () => {

@@ -84,17 +84,6 @@ export default async function MotoristasPage({
         </div>
       </div>
 
-      <div className="flex flex-wrap items-center gap-2 text-xs text-slate-600">
-        <span className="font-semibold">Códigos:</span>
-        <span className="rounded px-2 py-0.5 bg-emerald-100 text-emerald-800 border border-emerald-200">1-3 Jornada</span>
-        <span className="rounded px-2 py-0.5 bg-yellow-100 text-yellow-800 border border-yellow-200">4-5 Jornada</span>
-        <span className="rounded px-2 py-0.5 bg-orange-100 text-orange-800 border border-orange-200">6 Jornada</span>
-        <span className="rounded px-2 py-0.5 bg-sky-100 text-sky-800 border border-sky-200">7 Folga</span>
-        <span className="rounded px-2 py-0.5 bg-indigo-100 text-indigo-800 border border-indigo-200">8 Férias</span>
-        <span className="rounded px-2 py-0.5 bg-rose-100 text-rose-800 border border-rose-200">9 Exames</span>
-        <span className="rounded px-2 py-0.5 bg-slate-200 text-slate-800 border border-slate-300">10 Interno</span>
-      </div>
-
       {motoristas.length === 0 ? (
         <div className="border rounded-lg bg-white shadow-sm p-12">
           <div className="flex flex-col items-center justify-center text-slate-500">

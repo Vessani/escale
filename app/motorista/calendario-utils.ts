@@ -3,6 +3,16 @@ export type OpcaoCodigoJornada = {
   label: string
 }
 
+export type FiltroStatusJornada =
+  | "TODOS"
+  | "JORNADA_1_3"
+  | "JORNADA_4_5"
+  | "JORNADA_6"
+  | "FOLGA"
+  | "FERIAS"
+  | "EXAMES"
+  | "INTERNO"
+
 export const OPCOES_CODIGO_JORNADA: OpcaoCodigoJornada[] = [
   { valor: 1, label: "1º dia" },
   { valor: 2, label: "2º dia" },
@@ -15,6 +25,52 @@ export const OPCOES_CODIGO_JORNADA: OpcaoCodigoJornada[] = [
   { valor: 9, label: "Exames" },
   { valor: 10, label: "Interno" },
 ]
+
+export const OPCOES_FILTRO_STATUS: Array<{ valor: FiltroStatusJornada; label: string; classe: string }> = [
+  { valor: "TODOS", label: "Todos", classe: "bg-white text-slate-700 border border-slate-200" },
+  { valor: "JORNADA_1_3", label: "1-3 Jornada", classe: "bg-emerald-100 text-emerald-800 border border-emerald-200" },
+  { valor: "JORNADA_4_5", label: "4-5 Jornada", classe: "bg-yellow-100 text-yellow-800 border border-yellow-200" },
+  { valor: "JORNADA_6", label: "6 Jornada", classe: "bg-orange-100 text-orange-800 border border-orange-200" },
+  { valor: "FOLGA", label: "7 Folga", classe: "bg-sky-100 text-sky-800 border border-sky-200" },
+  { valor: "FERIAS", label: "8 Férias", classe: "bg-indigo-100 text-indigo-800 border border-indigo-200" },
+  { valor: "EXAMES", label: "9 Exames", classe: "bg-rose-100 text-rose-800 border border-rose-200" },
+  { valor: "INTERNO", label: "10 Interno", classe: "bg-slate-200 text-slate-800 border border-slate-300" },
+]
+
+export function statusJornadaCorrespondeAoFiltro(
+  diasTrabalhados: number,
+  filtro: FiltroStatusJornada,
+) {
+  if (filtro === "TODOS") {
+    return true
+  }
+
+  if (filtro === "JORNADA_1_3") {
+    return diasTrabalhados >= 1 && diasTrabalhados <= 3
+  }
+
+  if (filtro === "JORNADA_4_5") {
+    return diasTrabalhados >= 4 && diasTrabalhados <= 5
+  }
+
+  if (filtro === "JORNADA_6") {
+    return diasTrabalhados === 6
+  }
+
+  if (filtro === "FOLGA") {
+    return diasTrabalhados === 7
+  }
+
+  if (filtro === "FERIAS") {
+    return diasTrabalhados === 8
+  }
+
+  if (filtro === "EXAMES") {
+    return diasTrabalhados === 9
+  }
+
+  return diasTrabalhados === 10
+}
 
 export function inicioDoDia(data: Date) {
   const dia = new Date(data)
