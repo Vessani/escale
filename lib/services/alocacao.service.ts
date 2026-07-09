@@ -4,7 +4,7 @@ import { inicioDoDia } from "@/lib/utils/date-format"
 const MAX_DIAS_CONSECUTIVOS = 6
 
 const CLIENTES_COM_INTEGRACAO_OBRIGATORIA = new Set([
-  "AMBEV",
+  "GEMP - AMBEV - BEBIDAS - N2L. (GRUPO AMB",
   "WEG",
 ])
 
