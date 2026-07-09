@@ -2,16 +2,7 @@ import { PDFDocument, StandardFonts, rgb } from "pdf-lib"
 import { getServerSession } from "next-auth"
 import { authOptions } from "@/lib/auth"
 import { buscarViagemPorId } from "@/lib/queries/viagens"
-
-function formatarDataHora(data: Date) {
-  return new Intl.DateTimeFormat("pt-BR", {
-    day: "2-digit",
-    month: "2-digit",
-    year: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
-  }).format(data)
-}
+import { formatarDataHoraPtBr } from "@/lib/utils/date-format"
 
 function formatarNumero(valor: number) {
   return new Intl.NumberFormat("pt-BR", {
@@ -130,8 +121,8 @@ export async function GET(
   escreverTitulo(`Relatório da Viagem ${viagem.numViagem}`)
   escreverLinhaInfo("Status", viagem.status)
   escreverLinhaInfo("Turno", viagem.turno)
-  escreverLinhaInfo("Início previsto", formatarDataHora(new Date(viagem.inicioPrevisto)))
-  escreverLinhaInfo("Fim previsto", formatarDataHora(new Date(viagem.fimPrevisto)))
+  escreverLinhaInfo("Início previsto", formatarDataHoraPtBr(new Date(viagem.inicioPrevisto)))
+  escreverLinhaInfo("Fim previsto", formatarDataHoraPtBr(new Date(viagem.fimPrevisto)))
   escreverLinhaInfo("Duração (dias)", String(viagem.diasViagem))
   escreverLinhaInfo("Cavalo", viagem.cavalo)
   escreverLinhaInfo("Carreta", viagem.carreta)
@@ -155,7 +146,7 @@ export async function GET(
         color: rgb(0.07, 0.16, 0.31),
       })
       y -= 16
-      escreverLinhaInfo("Data", formatarDataHora(new Date(entrega.dataEntrega)))
+      escreverLinhaInfo("Data", formatarDataHoraPtBr(new Date(entrega.dataEntrega)))
       escreverLinhaInfo("Cliente", entrega.cliente)
       escreverLinhaInfo("Cidade/UF", `${entrega.cidade} - ${entrega.uf}`)
       escreverLinhaInfo("Peso (kg)", formatarNumero(Number(entrega.kg)))

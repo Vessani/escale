@@ -54,6 +54,10 @@
     deletadoEm        DateTime?    // Para o Soft Delete
 
     entregas          Entrega[]
+
+    @@index([motoristaId])
+    @@index([status])
+    @@index([inicioPrevisto, fimPrevisto])
   }
 
   model Entrega {

@@ -137,13 +137,30 @@ export function normalizarHora(hora: string): string {
 }
 
 /**
- * Calcula dias entre duas datas
- * Retorna número de dias (mínimo 1)
+ * Converte uma string "YYYY-MM-DD" em Date local, validando que a data
+ * existe de fato (rejeita ex: "2026-02-30")
  */
-export function calcularDiasEntre(dataInicio: Date, dataFim: Date): number {
-  const diffMs = dataFim.getTime() - dataInicio.getTime()
-  const diffDays = Math.ceil(diffMs / (1000 * 60 * 60 * 24))
-  return Math.max(1, diffDays + 1) // +1 para incluir o primeiro dia
+export function parseDataLocal(dataTexto: string): Date {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(dataTexto)) {
+    throw new Error("Data inválida.")
+  }
+
+  const [anoTexto, mesTexto, diaTexto] = dataTexto.split("-")
+  const ano = Number(anoTexto)
+  const mes = Number(mesTexto)
+  const dia = Number(diaTexto)
+  const data = new Date(ano, mes - 1, dia)
+
+  if (
+    Number.isNaN(data.getTime()) ||
+    data.getFullYear() !== ano ||
+    data.getMonth() !== mes - 1 ||
+    data.getDate() !== dia
+  ) {
+    throw new Error("Data inválida.")
+  }
+
+  return data
 }
 
 /**

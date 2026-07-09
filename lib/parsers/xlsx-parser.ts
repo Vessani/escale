@@ -211,17 +211,21 @@ class XLSXToFormDataConverter {
       fimPrevisto: dataFimString,
       turno: this.determinarTurnoPorHora(dados.horaInicio),
       status: 'CRIADA' as const,
-      entregas: dados.entregas.map(e => ({
-        cliente: e.cliente || '',
-        cidade: e.cidade || '',
-        uf: e.uf || 'SP',
-        dataEntrega: formatarDataExcel(e.dataEntrega, e.horaEntrega || '12:00') || '',
-        kg: e.kg || 0,
-        m3: e.m3 || 0,
-        sapcode: e.sapcode || '0',
-        codewhite: e.codewhite || '0',
-        obs: e.obs || 'Confirmar com a programação antes de sair'
-      }))
+      entregas: dados.entregas.map(e => this.converterEntrega(e))
+    }
+  }
+
+  private static converterEntrega(entrega: DadosEntregaPlanilha) {
+    return {
+      cliente: entrega.cliente || '',
+      cidade: entrega.cidade || '',
+      uf: entrega.uf || 'SP',
+      dataEntrega: formatarDataExcel(entrega.dataEntrega, entrega.horaEntrega || '12:00') || '',
+      kg: entrega.kg || 0,
+      m3: entrega.m3 || 0,
+      sapcode: entrega.sapcode || '0',
+      codewhite: entrega.codewhite || '0',
+      obs: entrega.obs || 'Confirmar com a programação antes de sair'
     }
   }
 

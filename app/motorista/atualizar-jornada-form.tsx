@@ -6,6 +6,7 @@ import { atualizarJornadaMotoristaNoCalendario } from "@/lib/actions/motoristas"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { OPCOES_CODIGO_JORNADA } from "./calendario-utils"
 
 type MotoristaOpcao = {
   id: number
@@ -52,18 +53,7 @@ export default function AtualizarJornadaForm({ motoristas, dias, selecaoInicial,
   const [sucesso, setSucesso] = useState("")
 
   const codigos = useMemo(
-    () => [
-      { valor: "1", label: "1º dia" },
-      { valor: "2", label: "2º dia" },
-      { valor: "3", label: "3º dia" },
-      { valor: "4", label: "4º dia" },
-      { valor: "5", label: "5º dia" },
-      { valor: "6", label: "6º dia" },
-      { valor: "7", label: "Folga" },
-      { valor: "8", label: "Férias" },
-      { valor: "9", label: "Exames" },
-      { valor: "10", label: "Interno" },
-    ],
+    () => OPCOES_CODIGO_JORNADA.map((opcao) => ({ valor: String(opcao.valor), label: opcao.label })),
     []
   )
 

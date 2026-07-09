@@ -2,6 +2,7 @@
 import { revalidatePath } from "next/cache";
 import { NovoMotoristaInput, EditarMotoristaInput, type RespostaAcao } from "@/lib/types/types";
 import { errorToMessage } from "@/lib/action-error";
+import { parseDataLocal } from "@/lib/utils/date-format";
 import {
   criarMotoristaService,
   editarMotoristaService,
@@ -40,29 +41,6 @@ export async function deletarMotorista(id: number): Promise<RespostaAcao> {
   } catch (error) {
     return { sucesso: false, erro: errorToMessage(error, "Erro ao deletar motorista.") };
   }
-}
-
-function parseDataLocal(dataTexto: string) {
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(dataTexto)) {
-    throw new Error("Data inválida.")
-  }
-
-  const [anoTexto, mesTexto, diaTexto] = dataTexto.split("-")
-  const ano = Number(anoTexto)
-  const mes = Number(mesTexto)
-  const dia = Number(diaTexto)
-  const data = new Date(ano, mes - 1, dia)
-
-  if (
-    Number.isNaN(data.getTime()) ||
-    data.getFullYear() !== ano ||
-    data.getMonth() !== mes - 1 ||
-    data.getDate() !== dia
-  ) {
-    throw new Error("Data inválida.")
-  }
-
-  return data
 }
 
 export async function atualizarJornadaMotoristaNoCalendario(

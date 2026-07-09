@@ -26,14 +26,8 @@ export async function criarMotoristaService(dados: NovoMotoristaInput) {
       },
     });
 
-    // Âncora inicial do histórico de jornada (ver registrarJornadaNoDiaService)
-    await tx.registroJornada.create({
-      data: {
-        motoristaId: motoristaCriado.id,
-        data: dataParaColunaDate(hoje),
-        codigo: dados.diasTrabalhados,
-      },
-    });
+    // Âncora inicial do histórico de jornada
+    await registrarJornadaNoDia(tx, motoristaCriado.id, hoje, dados.diasTrabalhados);
 
     return motoristaCriado;
   });

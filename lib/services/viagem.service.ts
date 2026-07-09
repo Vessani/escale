@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/prisma";
 import { NovaViagemInput, EditarViagemInput } from "@/lib/types/types";
+import { buscarMotoristasParaSelect } from "@/lib/queries/motoristas";
 import {
   calcularIntegracaoExigida,
   filtrarMotoristasDisponiveisNoPeriodo,
@@ -70,27 +71,7 @@ export async function criarViagemService(dadosRecebidos: NovaViagemInput) {
   const inicioPrevisto = dados.inicioPrevisto as Date;
   const fimPrevisto = dados.fimPrevisto as Date;
 
-  const motoristas = await prisma.motorista.findMany({
-    where: { deletadoEm: null },
-    include: {
-      integracao: true,
-      viagens: {
-        where: {
-          deletadoEm: null,
-          status: { notIn: ["CANCELADA", "FINALIZADA"] },
-          inicioPrevisto: { lt: fimPrevisto },
-          fimPrevisto: { gt: inicioPrevisto },
-        },
-        select: {
-          id: true,
-          inicioPrevisto: true,
-          fimPrevisto: true,
-          status: true,
-          deletadoEm: true,
-        },
-      },
-    },
-  });
+  const motoristas = await buscarMotoristasParaSelect();
   const motoristasDisponiveis = filtrarMotoristasDisponiveisNoPeriodo(
     motoristas,
     inicioPrevisto,

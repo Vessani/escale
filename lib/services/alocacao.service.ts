@@ -1,4 +1,5 @@
 import { StatusIntegracao, StatusViagem, Turno } from "@prisma/client"
+import { inicioDoDia } from "@/lib/utils/date-format"
 
 const MAX_DIAS_CONSECUTIVOS = 6
 
@@ -127,15 +128,9 @@ function viagemBloqueiaAgenda(viagem: ViagemParaDisponibilidade) {
   return viagem.status !== "CANCELADA" && viagem.status !== "FINALIZADA"
 }
 
-function inicioDoDiaLocal(data: Date): Date {
-  const dia = new Date(data)
-  dia.setHours(0, 0, 0, 0)
-  return dia
-}
-
 /** Primeiro dia (00:00) em que o motorista está livre após o fim de uma viagem: o dia seguinte ao dia em que ela termina. */
 function primeiroDiaDisponivelApos(fimViagem: Date): Date {
-  const dia = inicioDoDiaLocal(fimViagem)
+  const dia = inicioDoDia(fimViagem)
   dia.setDate(dia.getDate() + 1)
   return dia
 }
@@ -148,9 +143,9 @@ function primeiroDiaDisponivelApos(fimViagem: Date): Date {
  */
 export function periodosConflitamComDescanso(inicioA: Date, fimA: Date, inicioB: Date, fimB: Date) {
   return periodoConflita(
-    inicioDoDiaLocal(inicioA),
+    inicioDoDia(inicioA),
     primeiroDiaDisponivelApos(fimA),
-    inicioDoDiaLocal(inicioB),
+    inicioDoDia(inicioB),
     primeiroDiaDisponivelApos(fimB),
   )
 }

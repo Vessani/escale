@@ -9,6 +9,7 @@ import { atualizarJornadaMotoristaNoCalendario, deletarMotorista } from "@/lib/a
 import { calcularDiasDisponiveis } from "@/lib/services/alocacao.service"
 import { obterStatusJornada, projetarCodigoNoDia } from "@/lib/services/jornada.service"
 import { colunaDateParaLocal, fimDoDia, inicioDoDia } from "@/lib/utils/date-format"
+import { classeBadgeTurno } from "../viagens/badge-styles"
 import {
   formatarSemana,
   OPCOES_CODIGO_JORNADA,
@@ -163,10 +164,7 @@ export default function CalendarioMotoristas({ mesParam, hojeIso, dias, motorist
                 data: colunaDateParaLocal(new Date(registro.data)),
                 codigo: registro.codigo,
               }))
-              const classeTurnoBadge =
-                motorista.turno === "MANHA"
-                  ? "border-amber-200 bg-amber-100 text-amber-800 hover:bg-amber-100"
-                  : "border-indigo-200 bg-indigo-100 text-indigo-800 hover:bg-indigo-100"
+              const classeTurnoBadge = classeBadgeTurno(motorista.turno)
 
               return (
                 <tr key={motorista.id} className="odd:bg-white even:bg-slate-50/40">

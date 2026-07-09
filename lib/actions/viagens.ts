@@ -85,8 +85,9 @@ export async function deletarViagem(id: number): Promise<RespostaAcao> {
     return { sucesso: true };
     
   } catch (erro) {
+    console.error("[deletarViagem] Erro ao apagar viagem:", erro);
     const mensagem = errorToMessage(erro, "Não foi possível apagar a viagem.");
-    
+
     return { sucesso: false, erro: mensagem };
   }
 }
@@ -104,6 +105,7 @@ export async function atualizarStatusViagem(idViagem: number, status: StatusViag
     revalidatePath("/motorista")
     return { sucesso: true }
   } catch (erro) {
+    console.error("[atualizarStatusViagem] Erro ao atualizar status:", erro);
     const mensagem = errorToMessage(erro, "Não foi possível atualizar o status da viagem.")
     return { sucesso: false, erro: mensagem }
   }
