@@ -1,5 +1,6 @@
 import { StatusViagem, type Prisma } from "@prisma/client"
 import { fimDoDia, inicioDoDia } from "@/lib/utils/date-format"
+import { registrarJornadaNoDia } from "./motorista.service"
 
 const STATUS_NAO_ATIVOS: StatusViagem[] = ["CANCELADA", "FINALIZADA"]
 
@@ -11,10 +12,24 @@ export function deveRetirarMotoristaDaFolga(diasTrabalhados: number, possuiViage
   return diasTrabalhados === 7 && possuiViagemAtivaHoje
 }
 
+/**
+ * Reconcilia o status de folga apenas dos motoristas informados (tipicamente
+ * o(s) motorista(s) envolvido(s) na viagem que acabou de ser criada/editada/
+ * excluída). Não escaneia a tabela inteira — do contrário, qualquer alteração
+ * numa única viagem alterava o "diasTrabalhados" de motoristas sem nenhuma
+ * relação com essa viagem.
+ */
 export async function reconciliarFolgaMotoristasNoDiaAtual(
   tx: Prisma.TransactionClient,
+  motoristaIds: Array<number | null | undefined>,
   dataReferencia = new Date(),
 ) {
+  const idsRelevantes = [...new Set(motoristaIds.filter((id): id is number => id != null))]
+
+  if (idsRelevantes.length === 0) {
+    return
+  }
+
   const inicioHoje = inicioDoDia(dataReferencia)
   const fimHoje = fimDoDia(dataReferencia)
   const viagensAtivasHoje = {
@@ -34,21 +49,31 @@ export async function reconciliarFolgaMotoristasNoDiaAtual(
     },
   }
 
-  await tx.motorista.updateMany({
+  const paraFolga = await tx.motorista.findMany({
     where: {
+      id: { in: idsRelevantes },
       deletadoEm: null,
       diasTrabalhados: { gte: 1, lte: 6 },
       viagens: viagensAtivasHoje,
     },
-    data: { diasTrabalhados: 7 },
+    select: { id: true },
   })
 
-  await tx.motorista.updateMany({
+  for (const motorista of paraFolga) {
+    await registrarJornadaNoDia(tx, motorista.id, dataReferencia, 7)
+  }
+
+  const saindoDaFolga = await tx.motorista.findMany({
     where: {
+      id: { in: idsRelevantes },
       deletadoEm: null,
       diasTrabalhados: 7,
       viagens: viagensComAtividadeHoje,
     },
-    data: { diasTrabalhados: 1 },
+    select: { id: true },
   })
+
+  for (const motorista of saindoDaFolga) {
+    await registrarJornadaNoDia(tx, motorista.id, dataReferencia, 1)
+  }
 }

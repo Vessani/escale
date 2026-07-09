@@ -27,19 +27,45 @@ export function calcularCodigoJornadaNoDia(codigoAtual: number, dia: Date, hoje:
   return rotacao + 1
 }
 
-export function calcularCodigoAtualPorCodigoNoDia(codigoNoDia: number, dia: Date, hoje: Date) {
-  if (codigoNoDia >= 8 && codigoNoDia <= 10) {
-    return codigoNoDia
+export type PontoRegistroJornada = {
+  data: Date
+  codigo: number
+}
+
+/**
+ * Código de jornada projetado para um dia, ancorado no registro histórico
+ * mais próximo (não sempre em "hoje"). Isso permite editar um dia específico
+ * (ex: marcar amanhã como Folga) sem afetar o código de hoje ou de outros
+ * dias — cada um projeta a partir do registro conhecido mais relevante.
+ */
+export function projetarCodigoNoDia(
+  registros: PontoRegistroJornada[],
+  dia: Date,
+  hoje: Date,
+  codigoFallback: number,
+): number {
+  const ordenados = [...registros].sort((a, b) => a.data.getTime() - b.data.getTime())
+  const diaAlvo = inicioDoDia(dia).getTime()
+
+  let ancora: PontoRegistroJornada | null = null
+
+  for (const registro of ordenados) {
+    if (inicioDoDia(registro.data).getTime() <= diaAlvo) {
+      ancora = registro
+    } else {
+      break
+    }
   }
 
-  if (codigoNoDia < 1 || codigoNoDia > DIAS_NO_CICLO_JORNADA) {
-    return codigoNoDia
+  if (!ancora) {
+    ancora = ordenados[0] ?? null
   }
 
-  const deslocamento = diferencaEmDias(dia, hoje)
-  const baseNoDia = codigoNoDia - 1
-  const baseAtual = ((baseNoDia - deslocamento) % DIAS_NO_CICLO_JORNADA + DIAS_NO_CICLO_JORNADA) % DIAS_NO_CICLO_JORNADA
-  return baseAtual + 1
+  if (!ancora) {
+    return calcularCodigoJornadaNoDia(codigoFallback, dia, hoje)
+  }
+
+  return calcularCodigoJornadaNoDia(ancora.codigo, dia, ancora.data)
 }
 
 export function obterStatusJornada(diasTrabalhados: number): StatusJornada {

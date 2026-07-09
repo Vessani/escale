@@ -83,16 +83,34 @@
     nome            String       @db.VarChar(50)
     seva            Int
     diasTrabalhados Int
-    
 
-    turno           Turno        
-    
+
+    turno           Turno
+
     criadoEm        DateTime     @default(now())
     atualizadoEm    DateTime     @updatedAt
-    deletadoEm      DateTime?   
+    deletadoEm      DateTime?
 
     integracao      Integracao[]
-    viagens         Viagem[]     
+    viagens         Viagem[]
+    registrosJornada RegistroJornada[]
+  }
+
+  // Histórico de jornada por dia. diasTrabalhados no Motorista continua sendo
+  // um cache do registro de hoje; este model é a fonte de verdade do
+  // calendário, permitindo editar um dia específico sem afetar os outros.
+  model RegistroJornada {
+    id           Int       @id @default(autoincrement())
+    motoristaId  Int
+    data         DateTime  @db.Date
+    codigo       Int
+
+    criadoEm     DateTime  @default(now())
+    atualizadoEm DateTime  @updatedAt
+
+    motorista    Motorista @relation(fields: [motoristaId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+    @@unique([motoristaId, data])
   }
 
   model Integracao {

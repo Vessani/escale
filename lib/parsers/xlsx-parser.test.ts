@@ -36,6 +36,55 @@ describe('XLSXParserViagem', () => {
       expect(resultado.entregas.length).toBe(1)
     })
 
+    it('usa "0000" como cavalo quando a planilha não traz valor (veículo truck)', () => {
+      const dados = {
+        numViagem: '893892',
+        carreta: 'CAR01',
+        cavalo: '',
+        tanque: '',
+        dataInicio: '04.07',
+        horaInicio: '08:45',
+        entregas: [
+          { dataEntrega: '04.07', horaEntrega: '11:16', cliente: 'JOINVILLE', cidade: 'JOINVILLE', uf: 'SC', kg: 1, m3: 1, sapcode: '0', codewhite: '0', obs: '' }
+        ]
+      }
+
+      const resultado = XLSXParserViagem.converterParaFormulario(dados)
+      expect(resultado.cavalo).toBe('0000')
+    })
+
+    it('define turno MANHA para viagens com início antes das 16h', () => {
+      const dados = {
+        numViagem: '893892',
+        carreta: 'CAR01',
+        cavalo: '2024',
+        tanque: '',
+        dataInicio: '04.07',
+        horaInicio: '15:59',
+        entregas: [
+          { dataEntrega: '04.07', horaEntrega: '16:00', cliente: 'JOINVILLE', cidade: 'JOINVILLE', uf: 'SC', kg: 1, m3: 1, sapcode: '0', codewhite: '0', obs: '' }
+        ]
+      }
+
+      expect(XLSXParserViagem.converterParaFormulario(dados).turno).toBe('MANHA')
+    })
+
+    it('define turno NOITE para viagens com início a partir das 16h', () => {
+      const dados = {
+        numViagem: '893892',
+        carreta: 'CAR01',
+        cavalo: '2024',
+        tanque: '',
+        dataInicio: '04.07',
+        horaInicio: '16:00',
+        entregas: [
+          { dataEntrega: '04.07', horaEntrega: '17:00', cliente: 'JOINVILLE', cidade: 'JOINVILLE', uf: 'SC', kg: 1, m3: 1, sapcode: '0', codewhite: '0', obs: '' }
+        ]
+      }
+
+      expect(XLSXParserViagem.converterParaFormulario(dados).turno).toBe('NOITE')
+    })
+
     it('should calculate trip days correctly based on date range', () => {
       // Mesma data de início e fim deve resultar em 1 dia
       const dados = {

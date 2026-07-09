@@ -202,6 +202,79 @@ describe("alocacao.service", () => {
     expect(resultado.map((motorista) => motorista.nome)).toEqual(["Livre"])
   })
 
+  it("marca indisponível no dia seguinte ao fim de uma viagem, mesmo sem sobreposição de horário", () => {
+    // Reproduz o caso real: viagem termina dia 9 às 03h, próxima começa dia 9 às 09h.
+    // Mesmo sem sobrepor horário, o motorista precisa de 1 dia calendário inteiro de descanso.
+    const motorista = {
+      ...criarMotorista({ id: 1, nome: "Dilson" }),
+      viagens: [
+        {
+          id: 1,
+          inicioPrevisto: new Date("2026-07-08T08:00:00.000Z"),
+          fimPrevisto: new Date("2026-07-09T03:00:00.000Z"),
+          status: "ALOCADA" as const,
+          deletadoEm: null,
+        },
+      ],
+    }
+
+    const disponivel = motoristaEstaDisponivelNoPeriodo(
+      motorista,
+      new Date("2026-07-09T09:00:00.000Z"),
+      new Date("2026-07-10T03:00:00.000Z"),
+    )
+
+    expect(disponivel).toBe(false)
+  })
+
+  it("libera o motorista a partir do dia seguinte ao fim da viagem anterior", () => {
+    const motorista = {
+      ...criarMotorista({ id: 1, nome: "Dilson" }),
+      viagens: [
+        {
+          id: 1,
+          inicioPrevisto: new Date("2026-07-08T08:00:00.000Z"),
+          fimPrevisto: new Date("2026-07-09T03:00:00.000Z"), // termina dia 9
+          status: "ALOCADA" as const,
+          deletadoEm: null,
+        },
+      ],
+    }
+
+    // Nova viagem no dia 10 (dia seguinte ao fim) já deve estar liberada
+    const disponivel = motoristaEstaDisponivelNoPeriodo(
+      motorista,
+      new Date("2026-07-10T05:00:00.000Z"),
+      new Date("2026-07-10T20:00:00.000Z"),
+    )
+
+    expect(disponivel).toBe(true)
+  })
+
+  it("ainda bloqueia se a nova viagem começar mais tarde no mesmo dia em que a anterior termina", () => {
+    const motorista = {
+      ...criarMotorista({ id: 1, nome: "Dilson" }),
+      viagens: [
+        {
+          id: 1,
+          inicioPrevisto: new Date("2026-07-08T08:00:00.000Z"),
+          fimPrevisto: new Date("2026-07-09T03:00:00.000Z"),
+          status: "ALOCADA" as const,
+          deletadoEm: null,
+        },
+      ],
+    }
+
+    // Mesmo tarde da noite do dia 9, ainda é o mesmo dia calendário do fim da viagem anterior
+    const disponivel = motoristaEstaDisponivelNoPeriodo(
+      motorista,
+      new Date("2026-07-09T23:00:00.000Z"),
+      new Date("2026-07-10T10:00:00.000Z"),
+    )
+
+    expect(disponivel).toBe(false)
+  })
+
   describe("sugerirAlocacoesEmLote", () => {
     function criarMotoristaComAgenda(parcial: Partial<MotoristaMock>) {
       return { ...criarMotorista(parcial), viagens: [] }

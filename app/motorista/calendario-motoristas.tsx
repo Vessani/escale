@@ -7,8 +7,8 @@ import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { atualizarJornadaMotoristaNoCalendario, deletarMotorista } from "@/lib/actions/motoristas"
 import { calcularDiasDisponiveis } from "@/lib/services/alocacao.service"
-import { calcularCodigoJornadaNoDia, obterStatusJornada } from "@/lib/services/jornada.service"
-import { fimDoDia, inicioDoDia } from "@/lib/utils/date-format"
+import { obterStatusJornada, projetarCodigoNoDia } from "@/lib/services/jornada.service"
+import { colunaDateParaLocal, fimDoDia, inicioDoDia } from "@/lib/utils/date-format"
 import {
   formatarSemana,
   OPCOES_CODIGO_JORNADA,
@@ -25,6 +25,11 @@ type Viagem = {
   fimPrevisto: string
 }
 
+type RegistroJornada = {
+  data: string
+  codigo: number
+}
+
 type Motorista = {
   id: number
   nome: string
@@ -32,6 +37,7 @@ type Motorista = {
   seva: number
   diasTrabalhados: number
   viagens: Viagem[]
+  registrosJornada: RegistroJornada[]
 }
 
 type Props = {
@@ -153,6 +159,10 @@ export default function CalendarioMotoristas({ mesParam, hojeIso, dias, motorist
               const diasDisponiveis = calcularDiasDisponiveis(motorista.diasTrabalhados)
               const statusJornada = obterStatusJornada(motorista.diasTrabalhados)
               const fundoColunaFixa = indiceMotorista % 2 === 0 ? "bg-white" : "bg-slate-50"
+              const registrosJornada = motorista.registrosJornada.map((registro) => ({
+                data: colunaDateParaLocal(new Date(registro.data)),
+                codigo: registro.codigo,
+              }))
               const classeTurnoBadge =
                 motorista.turno === "MANHA"
                   ? "border-amber-200 bg-amber-100 text-amber-800 hover:bg-amber-100"
@@ -201,7 +211,7 @@ export default function CalendarioMotoristas({ mesParam, hojeIso, dias, motorist
                   {dias.map((diaIso) => {
                     const chaveCelula = `${motorista.id}-${diaIso}`
                     const dia = new Date(`${diaIso}T00:00:00`)
-                    const codigoNoDia = calcularCodigoJornadaNoDia(motorista.diasTrabalhados, dia, hoje)
+                    const codigoNoDia = projetarCodigoNoDia(registrosJornada, dia, hoje, motorista.diasTrabalhados)
                     const statusNoDia = obterStatusJornada(codigoNoDia)
                     const celulaAberta = celulaEmEdicao === chaveCelula
                     const celulaOcupada = celulaSalvando === chaveCelula

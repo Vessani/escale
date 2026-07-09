@@ -41,9 +41,9 @@ export async function buscarMotoristaPorId(id: number) {
 
 export async function buscarMotoristasParaSelect(turnoDaViagem?: Turno) {
   return await prisma.motorista.findMany({
-    where: { 
+    where: {
       deletadoEm: null,
-   
+
       ...(turnoDaViagem ? { turno: turnoDaViagem } : {})
     },
     select: {
@@ -56,6 +56,19 @@ export async function buscarMotoristasParaSelect(turnoDaViagem?: Turno) {
           cliente: true,
           status: true,
           dataValidade: true,
+        },
+      },
+      viagens: {
+        where: {
+          deletadoEm: null,
+          status: { notIn: ["CANCELADA", "FINALIZADA"] },
+        },
+        select: {
+          id: true,
+          inicioPrevisto: true,
+          fimPrevisto: true,
+          status: true,
+          deletadoEm: true,
         },
       },
     },
@@ -79,6 +92,12 @@ export async function buscarMotoristasComAgenda(inicio: Date, fim: Date) {
           fimPrevisto: { gte: inicio },
         },
         orderBy: { inicioPrevisto: "asc" },
+      },
+      // Histórico completo (não só o mês visível): a projeção de um dia sem
+      // registro próprio usa o registro conhecido mais próximo, que pode ser
+      // de um mês anterior.
+      registrosJornada: {
+        orderBy: { data: "asc" },
       },
     },
   });

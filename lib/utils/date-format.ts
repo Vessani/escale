@@ -13,6 +13,27 @@ export function inicioDoDia(data: Date): Date {
 }
 
 /**
+ * Converte uma data local (ano/mês/dia no fuso do servidor Node) para o
+ * instante UTC correspondente à meia-noite desse mesmo dia — seguro para
+ * gravar em colunas `@db.Date` do Postgres. Sem isso, timezones com offset
+ * negativo (ex: Brasil, UTC-3) podem gravar o dia errado dependendo da hora.
+ */
+export function dataParaColunaDate(data: Date): Date {
+  return new Date(Date.UTC(data.getFullYear(), data.getMonth(), data.getDate()))
+}
+
+/**
+ * Converte um valor lido de uma coluna `@db.Date` (Prisma sempre retorna à
+ * meia-noite UTC) de volta para meia-noite local do mesmo dia calendário —
+ * seguro para comparar com outras datas locais (`inicioDoDia`, `dia`, `hoje`).
+ * Sem isso, aplicar `inicioDoDia` direto num valor UTC desloca um dia inteiro
+ * para trás em fusos com offset negativo.
+ */
+export function colunaDateParaLocal(dataColuna: Date): Date {
+  return new Date(dataColuna.getUTCFullYear(), dataColuna.getUTCMonth(), dataColuna.getUTCDate())
+}
+
+/**
  * Fim do dia (23:59:59.999) da data informada
  */
 export function fimDoDia(data: Date): Date {

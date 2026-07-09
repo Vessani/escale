@@ -1,5 +1,6 @@
 import { buscarViagemPorId } from "@/lib/queries/viagens"
 import { buscarMotoristasParaSelect } from "@/lib/queries/motoristas"
+import { motoristaEstaDisponivelNoPeriodo } from "@/lib/services/alocacao.service"
 import { notFound } from "next/navigation"
 import FormEditarViagem from "./form-editar"
 import { serializeData } from "@/lib/serialization"
@@ -22,9 +23,26 @@ export default async function EditarViagemPage({ params }: { params: Promise<{ i
   }
 
   const motoristas = await buscarMotoristasParaSelect()
-  
+
+  const inicioViagem = new Date(viagem.inicioPrevisto)
+  const fimViagem = new Date(viagem.fimPrevisto)
+
+  // Disponibilidade real (sem outra viagem ativa no mesmo período), ignorando
+  // a própria viagem que está sendo editada — senão o motorista já alocado
+  // nela apareceria como "ocupado" por causa da sua própria viagem.
+  const motoristasComDisponibilidade = motoristas.map((motorista) => {
+    const { viagens, ...dadosMotorista } = motorista
+    const disponivel = motoristaEstaDisponivelNoPeriodo(
+      { ...motorista, viagens: viagens.filter((v) => v.id !== viagem.id) },
+      inicioViagem,
+      fimViagem,
+    )
+
+    return { ...dadosMotorista, disponivel }
+  })
+
   const viagemSerializada = serializeData(viagem)
-  const motoristasSerializados = serializeData(motoristas)
+  const motoristasSerializados = serializeData(motoristasComDisponibilidade)
 
   return (
     <div className="max-w-5xl mx-auto space-y-6 pb-20">
@@ -43,7 +61,7 @@ export default async function EditarViagemPage({ params }: { params: Promise<{ i
         </Link>
       </div>
 
-      <FormEditarViagem viagem={viagemSerializada} motoristas={motoristasSerializados} />
+      <FormEditarViagem key={viagem.id} viagem={viagemSerializada} motoristas={motoristasSerializados} />
     </div>
   )
 }

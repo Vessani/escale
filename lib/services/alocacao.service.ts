@@ -127,6 +127,34 @@ function viagemBloqueiaAgenda(viagem: ViagemParaDisponibilidade) {
   return viagem.status !== "CANCELADA" && viagem.status !== "FINALIZADA"
 }
 
+function inicioDoDiaLocal(data: Date): Date {
+  const dia = new Date(data)
+  dia.setHours(0, 0, 0, 0)
+  return dia
+}
+
+/** Primeiro dia (00:00) em que o motorista está livre após o fim de uma viagem: o dia seguinte ao dia em que ela termina. */
+function primeiroDiaDisponivelApos(fimViagem: Date): Date {
+  const dia = inicioDoDiaLocal(fimViagem)
+  dia.setDate(dia.getDate() + 1)
+  return dia
+}
+
+/**
+ * Duas viagens conflitam por descanso se, olhando só a data (não a hora exata),
+ * uma delas começa antes do primeiro dia livre após o fim da outra — ou seja,
+ * exige pelo menos um dia calendário inteiro de descanso entre o fim de uma
+ * viagem e o início da próxima. Ex: viagem termina dia 9, só libera dia 10.
+ */
+export function periodosConflitamComDescanso(inicioA: Date, fimA: Date, inicioB: Date, fimB: Date) {
+  return periodoConflita(
+    inicioDoDiaLocal(inicioA),
+    primeiroDiaDisponivelApos(fimA),
+    inicioDoDiaLocal(inicioB),
+    primeiroDiaDisponivelApos(fimB),
+  )
+}
+
 export function motoristaEstaDisponivelNoPeriodo(
   motorista: MotoristaComAgenda,
   inicioViagem: Date,
@@ -137,7 +165,7 @@ export function motoristaEstaDisponivelNoPeriodo(
       return false
     }
 
-    return periodoConflita(
+    return periodosConflitamComDescanso(
       new Date(viagem.inicioPrevisto),
       new Date(viagem.fimPrevisto),
       inicioViagem,
@@ -217,7 +245,7 @@ export function sugerirAlocacoesEmLote(
         !atribuicoesTentativas.some(
           (atribuicao) =>
             atribuicao.motoristaId === motorista.id &&
-            periodoConflita(viagem.inicioPrevisto, viagem.fimPrevisto, atribuicao.inicio, atribuicao.fim),
+            periodosConflitamComDescanso(viagem.inicioPrevisto, viagem.fimPrevisto, atribuicao.inicio, atribuicao.fim),
         ),
     )
 

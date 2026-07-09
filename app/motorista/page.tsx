@@ -47,6 +47,10 @@ export default async function MotoristasPage({
         inicioPrevisto: viagem.inicioPrevisto,
         fimPrevisto: viagem.fimPrevisto,
       })),
+      registrosJornada: motorista.registrosJornada.map((registro) => ({
+        data: registro.data,
+        codigo: registro.codigo,
+      })),
     })),
   )
 

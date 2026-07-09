@@ -43,6 +43,7 @@ type MotoristaParaSelect = {
   nome: string
   turno: EditarViagemFormValues["turno"]
   diasTrabalhados: number
+  disponivel: boolean
   integracao: Array<{
     cliente: string
     status: "ATIVO" | "INATIVO" | "PENDENTE"
@@ -191,9 +192,13 @@ export default function FormEditarViagem({ viagem, motoristas }: FormEditarViage
                             integracaoExigida,
                           })
 
+                          const rotulo = motorista.disponivel
+                            ? (compativel ? "(Compatível)" : "(Emergência - fora da regra)")
+                            : (compativel ? "(Compatível, mas sem descanso suficiente / já em outra viagem)" : "(Emergência - fora da regra, sem descanso suficiente / já em outra viagem)")
+
                           return (
                             <SelectItem key={motorista.id} value={String(motorista.id)}>
-                              {motorista.nome} {compativel ? "(Compatível)" : "(Emergência - fora da regra)"}
+                              {motorista.nome} {rotulo}
                             </SelectItem>
                           )
                         })
@@ -201,7 +206,7 @@ export default function FormEditarViagem({ viagem, motoristas }: FormEditarViage
                     </SelectContent>
                   </Select>
                   <p className="text-xs text-slate-500">
-                  A seleção manual aceita exceções para emergência; a alocação automática sempre respeita turno, integração e jornada.
+                  A seleção manual aceita exceções para emergência (turno, integração ou jornada fora da regra) e também permite escolher um motorista sem 1 dia de descanso completo após a última viagem dele, ou já em outra viagem no período — mas isso não é impedido nem verificado automaticamente, então confira o aviso antes de confirmar.
                   </p>
                   <FormMessage />
                 </FormItem>

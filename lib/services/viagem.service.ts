@@ -58,7 +58,7 @@ function inserirViagem(
       },
     })
 
-    await reconciliarFolgaMotoristasNoDiaAtual(tx)
+    await reconciliarFolgaMotoristasNoDiaAtual(tx, [viagemCriada.motoristaId])
 
     return viagemCriada
   })
@@ -129,7 +129,7 @@ export async function editarViagemService(idViagem: number, dadosRecebidos: Edit
   const manterEntregas = entregasExistentes.map(e => e.id as number);
   const viagemAtual = await prisma.viagem.findUnique({
     where: { id: idViagem },
-    select: { status: true },
+    select: { status: true, motoristaId: true },
   })
 
   if (!viagemAtual) {
@@ -194,7 +194,7 @@ export async function editarViagemService(idViagem: number, dadosRecebidos: Edit
       }
     })
 
-    await reconciliarFolgaMotoristasNoDiaAtual(tx)
+    await reconciliarFolgaMotoristasNoDiaAtual(tx, [viagemAtual.motoristaId, viagemAtualizada.motoristaId])
     return viagemAtualizada
   })
 }
@@ -208,7 +208,7 @@ export async function deletarViagemService(id: number) {
       }
     })
 
-    await reconciliarFolgaMotoristasNoDiaAtual(tx)
+    await reconciliarFolgaMotoristasNoDiaAtual(tx, [viagemDeletada.motoristaId])
     return viagemDeletada
   })
 }
@@ -224,7 +224,7 @@ export async function atualizarStatusViagemService(idViagem: number, status: Edi
       data: { status },
     })
 
-    await reconciliarFolgaMotoristasNoDiaAtual(tx)
+    await reconciliarFolgaMotoristasNoDiaAtual(tx, [viagemAtualizada.motoristaId])
     return viagemAtualizada
   })
 }

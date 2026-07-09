@@ -6,7 +6,7 @@ import { useRouter } from "next/navigation"
 import type { EditarViagemInput } from "@/lib/types/types"
 import type { ViagemAlocacao } from "@/lib/types/alocacao"
 import { editarViagem } from "@/lib/actions/viagens"
-import { periodoConflita } from "@/lib/services/alocacao.service"
+import { periodosConflitamComDescanso } from "@/lib/services/alocacao.service"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
@@ -50,7 +50,7 @@ export default function AlocacaoViagensClient({ viagens }: Props) {
     return mapa
   }, [viagens, selecoes])
 
-  // Viagens que têm o mesmo motorista selecionado e período sobreposto.
+  // Viagens que têm o mesmo motorista selecionado sem 1 dia de descanso entre elas.
   // Só avisa — não troca nada automaticamente, quem decide é o usuário.
   const conflitosPorViagem = useMemo(() => {
     const mapa: Record<number, string[]> = {}
@@ -64,7 +64,7 @@ export default function AlocacaoViagensClient({ viagens }: Props) {
           if (viagemB.id === viagemA.id) return false
           if (selecaoEfetivaPorViagem[viagemB.id] !== motoristaA) return false
 
-          return periodoConflita(
+          return periodosConflitamComDescanso(
             new Date(viagemA.inicioPrevisto),
             new Date(viagemA.fimPrevisto),
             new Date(viagemB.inicioPrevisto),
@@ -288,7 +288,7 @@ export default function AlocacaoViagensClient({ viagens }: Props) {
                       <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0" />
                       <span>
                         Esse motorista também está selecionado na(s) viagem(ns){" "}
-                        {conflitosPorViagem[viagem.id].join(", ")}, com período sobreposto.
+                        {conflitosPorViagem[viagem.id].join(", ")}, sem 1 dia de descanso entre elas.
                       </span>
                     </div>
                   )}

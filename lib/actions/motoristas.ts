@@ -2,13 +2,12 @@
 import { revalidatePath } from "next/cache";
 import { NovoMotoristaInput, EditarMotoristaInput, type RespostaAcao } from "@/lib/types/types";
 import { errorToMessage } from "@/lib/action-error";
-import { 
-  criarMotoristaService, 
-  editarMotoristaService, 
+import {
+  criarMotoristaService,
+  editarMotoristaService,
   deletarMotoristaService,
-  atualizarDiasTrabalhadosMotoristaService,
+  registrarJornadaNoDiaService,
 } from "@/lib/services/motorista.service";
-import { calcularCodigoAtualPorCodigoNoDia } from "@/lib/services/jornada.service";
 
 export async function criarMotorista(dados: NovoMotoristaInput): Promise<RespostaAcao> {
   try {
@@ -72,15 +71,13 @@ export async function atualizarJornadaMotoristaNoCalendario(
   codigoNoDia: number,
 ): Promise<RespostaAcao> {
   try {
-    const data = parseDataLocal(dataReferencia)
-    const hoje = new Date()
-    const codigoAtual = calcularCodigoAtualPorCodigoNoDia(codigoNoDia, data, hoje)
-
-    if (!Number.isInteger(codigoAtual) || codigoAtual < 1 || codigoAtual > 10) {
+    if (!Number.isInteger(codigoNoDia) || codigoNoDia < 1 || codigoNoDia > 10) {
       return { sucesso: false, erro: "Código de jornada inválido." }
     }
 
-    await atualizarDiasTrabalhadosMotoristaService(idMotorista, codigoAtual)
+    const data = parseDataLocal(dataReferencia)
+
+    await registrarJornadaNoDiaService(idMotorista, data, codigoNoDia)
     revalidatePath("/motorista")
     return { sucesso: true }
   } catch (error) {

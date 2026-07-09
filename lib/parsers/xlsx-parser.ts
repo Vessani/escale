@@ -179,10 +179,20 @@ class XLSXDataExtractor {
  * ⚠️ IMPORTANTE: Retorna APENAS strings para datas (não Date objects)
  * Motivo: Date objects não são serializáveis em JSON para Next.js server actions
  */
+const HORA_CORTE_TURNO_NOITE = 16
+
 class XLSXToFormDataConverter {
+  /**
+   * MANHA/NOITE conforme a hora de início da viagem: a partir das 16h é NOITE.
+   */
+  private static determinarTurnoPorHora(horaInicio: string): 'MANHA' | 'NOITE' {
+    const horas = Number(horaInicio.split(':')[0])
+    return horas >= HORA_CORTE_TURNO_NOITE ? 'NOITE' : 'MANHA'
+  }
+
   static convert(dados: DadosViagemPlanilha) {
     const dataInicio = formatarDataExcel(dados.dataInicio, dados.horaInicio)
-    
+
     if (!dataInicio) {
       throw new Error('Data de início inválida. Use formato DD.MM, DD.MM.YYYY ou serial Excel.')
     }
@@ -193,12 +203,13 @@ class XLSXToFormDataConverter {
     return {
       numViagem: dados.numViagem || '',
       carreta: dados.carreta || '',
-      cavalo: dados.cavalo || '',
+      // Veículos truck não têm cavalo separado; usa "0000" quando a planilha vem vazia
+      cavalo: dados.cavalo || '0000',
       tanque: dados.tanque || '',
       diasViagem: this.calcularDiasViagemComoString(dataInicio, dataFimString),
       inicioPrevisto: dataInicio,
       fimPrevisto: dataFimString,
-      turno: 'MANHA' as const,
+      turno: this.determinarTurnoPorHora(dados.horaInicio),
       status: 'CRIADA' as const,
       entregas: dados.entregas.map(e => ({
         cliente: e.cliente || '',
