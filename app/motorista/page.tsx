@@ -2,7 +2,6 @@ import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import { ChevronLeft, ChevronRight, PlusCircle, Users } from "lucide-react"
 import { buscarMotoristasComAgenda } from "@/lib/queries/motoristas"
-import { reconciliarFolgaDeTodosMotoristas } from "@/lib/services/folga.service"
 import { serializeData } from "@/lib/serialization"
 import { fimDoDia, inicioDoDia } from "@/lib/utils/date-format"
 import CalendarioMotoristas from "./calendario-motoristas"
@@ -32,9 +31,6 @@ export default async function MotoristasPage({
   janelaAnterior.setDate(janelaAnterior.getDate() - TAMANHO_JANELA_CALENDARIO)
   const janelaSeguinte = new Date(inicioJanela)
   janelaSeguinte.setDate(janelaSeguinte.getDate() + TAMANHO_JANELA_CALENDARIO)
-
-  // Pega em dia qualquer motorista com folga desatualizada (ver reconciliarFolgaDeTodosMotoristas).
-  await reconciliarFolgaDeTodosMotoristas(hoje)
 
   const motoristas = await buscarMotoristasComAgenda(inicioJanela, fimJanela)
   const inicioParam = formatarDataDia(inicioJanela)

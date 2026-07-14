@@ -1,5 +1,4 @@
 import { StatusViagem, type Prisma } from "@prisma/client"
-import { prisma } from "@/lib/prisma"
 import { fimDoDia, inicioDoDia } from "@/lib/utils/date-format"
 import { registrarJornadaNoDia } from "./motorista.service"
 
@@ -77,27 +76,4 @@ export async function reconciliarFolgaMotoristasNoDiaAtual(
   for (const motorista of saindoDaFolga) {
     await registrarJornadaNoDia(tx, motorista.id, dataReferencia, 1)
   }
-}
-
-/**
- * Reconcilia a folga de todos os motoristas ativos para hoje. `reconciliarFolgaMotoristasNoDiaAtual`
- * só roda quando uma viagem é criada/editada/apagada — se uma viagem for
- * agendada com antecedência (ex: hoje para daqui a 3 dias), ninguém dispara a
- * reconciliação no dia em que ela de fato acontece, e o motorista pode
- * continuar aparecendo como Folga mesmo tendo viagem hoje. Chamada ao carregar
- * a página de motoristas, cobre esse caso (ver app/motorista/page.tsx).
- */
-export async function reconciliarFolgaDeTodosMotoristas(dataReferencia = new Date()) {
-  await prisma.$transaction(async (tx) => {
-    const motoristasAtivos = await tx.motorista.findMany({
-      where: { deletadoEm: null },
-      select: { id: true },
-    })
-
-    await reconciliarFolgaMotoristasNoDiaAtual(
-      tx,
-      motoristasAtivos.map((motorista) => motorista.id),
-      dataReferencia,
-    )
-  })
 }

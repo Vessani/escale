@@ -1,14 +1,7 @@
 import { describe, expect, it, vi } from "vitest"
-
-vi.mock("@/lib/prisma", () => ({
-  prisma: { $transaction: vi.fn() },
-}))
-
-import { prisma } from "@/lib/prisma"
 import {
   deveMarcarMotoristaComoFolga,
   deveRetirarMotoristaDaFolga,
-  reconciliarFolgaDeTodosMotoristas,
   reconciliarFolgaMotoristasNoDiaAtual,
 } from "@/lib/services/folga.service"
 
@@ -236,49 +229,6 @@ describe("folga.service", () => {
       } finally {
         vi.useRealTimers()
       }
-    })
-  })
-
-  describe("reconciliarFolgaDeTodosMotoristas", () => {
-    it("busca todos os motoristas ativos e reconcilia a folga de cada um", async () => {
-      const tx = criarTx()
-      let numeroDaChamada = 0
-
-      vi.mocked(tx.motorista.findMany).mockImplementation((args: never) => {
-        numeroDaChamada += 1
-
-        if (numeroDaChamada === 1) {
-          // Primeira chamada: busca os ids de todos os motoristas ativos.
-          expect(args).toEqual({ where: { deletadoEm: null }, select: { id: true } })
-          return Promise.resolve([{ id: 1 }, { id: 2 }])
-        }
-
-        // Chamadas seguintes: as duas queries de reconciliarFolgaMotoristasNoDiaAtual,
-        // já restritas aos ids buscados acima.
-        const idsUsados = (args as { where: { id: { in: number[] } } }).where.id.in
-        expect(idsUsados).toEqual([1, 2])
-        return Promise.resolve([])
-      })
-
-      vi.mocked(prisma.$transaction).mockImplementation(((callback: (tx: unknown) => unknown) =>
-        Promise.resolve(callback(tx))) as never)
-
-      await reconciliarFolgaDeTodosMotoristas(new Date())
-
-      expect(tx.motorista.findMany).toHaveBeenCalledTimes(3)
-    })
-
-    it("não reconcilia nada quando não há motoristas ativos", async () => {
-      const tx = criarTx()
-      vi.mocked(tx.motorista.findMany).mockResolvedValueOnce([])
-      vi.mocked(prisma.$transaction).mockImplementation(((callback: (tx: unknown) => unknown) =>
-        Promise.resolve(callback(tx))) as never)
-
-      await reconciliarFolgaDeTodosMotoristas(new Date())
-
-      // Só a busca dos ids ativos — sem ids, reconciliarFolgaMotoristasNoDiaAtual
-      // retorna cedo e não faz as outras duas consultas.
-      expect(tx.motorista.findMany).toHaveBeenCalledTimes(1)
     })
   })
 })
