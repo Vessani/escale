@@ -60,8 +60,10 @@ describe("alocacao.service", () => {
       expect(calcularIntegracaoExigida([{ cliente: "Cliente Comum" }, { cliente: "Outro" }])).toBeNull()
     })
 
-    it("detecta AMBEV e WEG normalizando maiúsculas/espaços", () => {
-      expect(calcularIntegracaoExigida([{ cliente: "  ambev  " }])).toBe("AMBEV")
+    it("detecta o cliente do grupo AMBEV e a WEG normalizando maiúsculas/espaços", () => {
+      expect(calcularIntegracaoExigida([{ cliente: "  gemp - ambev - bebidas - n2l. (grupo amb  " }])).toBe(
+        "GEMP - AMBEV - BEBIDAS - N2L. (GRUPO AMB",
+      )
       expect(calcularIntegracaoExigida([{ cliente: "weg" }])).toBe("WEG")
     })
 

@@ -127,11 +127,12 @@ describe("viagem.service", () => {
       usarTransacaoCom(tx)
 
       await criarViagemAvulsaService(
-        criarViagemInput({ entregas: [{ dataEntrega: new Date().toISOString(), cliente: "AMBEV", cidade: "SP", uf: "SP", kg: 1, m3: 1, obs: "", sapcode: "", codewhite: "" }] }),
+        // WEG (e não a variante do grupo AMBEV) porque só o nome dela é estável nos testes.
+        criarViagemInput({ entregas: [{ dataEntrega: new Date().toISOString(), cliente: "WEG", cidade: "SP", uf: "SP", kg: 1, m3: 1, obs: "", sapcode: "", codewhite: "" }] }),
       )
 
       const dadosCriados = vi.mocked(tx.viagem.create).mock.calls[0][0].data
-      expect(dadosCriados.integracaoExigida).toBe("AMBEV")
+      expect(dadosCriados.integracaoExigida).toBe("WEG")
     })
 
     it("não seleciona automaticamente um motorista que já tem viagem conflitante registrada no banco (chamada separada anterior)", async () => {
