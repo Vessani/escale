@@ -2,20 +2,20 @@ import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import { ChevronLeft, ChevronRight, PlusCircle, Users } from "lucide-react"
 import { buscarMotoristasComAgenda } from "@/lib/queries/motoristas"
+import { reconciliarFolgaDeTodosMotoristas } from "@/lib/services/folga.service"
 import { serializeData } from "@/lib/serialization"
+import { fimDoDia, inicioDoDia } from "@/lib/utils/date-format"
 import CalendarioMotoristas from "./calendario-motoristas"
 import {
-  fimDoMes,
   formatarDataDia,
-  formatarMesAno,
-  formatarMesParam,
-  gerarDiasDoMes,
-  inicioDoMes,
-  parseMesParam,
+  formatarIntervaloDias,
+  gerarJanelaDias,
+  parseDataInicioParam,
+  TAMANHO_JANELA_CALENDARIO,
 } from "./calendario-utils"
 
 type SearchParamsInput = {
-  mes?: string
+  inicio?: string
 }
 
 export default async function MotoristasPage({
@@ -25,14 +25,19 @@ export default async function MotoristasPage({
 }) {
   const parametros = (await searchParams) ?? {}
   const hoje = new Date()
-  const mesReferencia = parseMesParam(parametros.mes) ?? inicioDoMes(hoje)
-  const primeiroDiaMes = inicioDoMes(mesReferencia)
-  const ultimoDiaMes = fimDoMes(mesReferencia)
-  const mesAnterior = inicioDoMes(new Date(mesReferencia.getFullYear(), mesReferencia.getMonth() - 1, 1))
-  const proximoMes = inicioDoMes(new Date(mesReferencia.getFullYear(), mesReferencia.getMonth() + 1, 1))
-  const motoristas = await buscarMotoristasComAgenda(primeiroDiaMes, ultimoDiaMes)
-  const dias = gerarDiasDoMes(mesReferencia)
-  const mesParam = formatarMesParam(mesReferencia)
+  const inicioJanela = parseDataInicioParam(parametros.inicio) ?? inicioDoDia(hoje)
+  const dias = gerarJanelaDias(inicioJanela, TAMANHO_JANELA_CALENDARIO)
+  const fimJanela = fimDoDia(dias[dias.length - 1])
+  const janelaAnterior = new Date(inicioJanela)
+  janelaAnterior.setDate(janelaAnterior.getDate() - TAMANHO_JANELA_CALENDARIO)
+  const janelaSeguinte = new Date(inicioJanela)
+  janelaSeguinte.setDate(janelaSeguinte.getDate() + TAMANHO_JANELA_CALENDARIO)
+
+  // Pega em dia qualquer motorista com folga desatualizada (ver reconciliarFolgaDeTodosMotoristas).
+  await reconciliarFolgaDeTodosMotoristas(hoje)
+
+  const motoristas = await buscarMotoristasComAgenda(inicioJanela, fimJanela)
+  const inicioParam = formatarDataDia(inicioJanela)
   const diasIso = dias.map((dia) => formatarDataDia(dia))
   const calendarioSerializado = serializeData(
     motoristas.map((motorista) => ({
@@ -60,22 +65,22 @@ export default async function MotoristasPage({
         <div>
           <h1 className="text-3xl font-bold tracking-tight text-slate-900">Calendário de Motoristas</h1>
           <p className="text-slate-500 mt-1">
-            Motoristas em linha e dias do mês em colunas ({formatarMesAno(mesReferencia)}).
+            Motoristas em linha e dias em colunas, a partir de hoje ({formatarIntervaloDias(inicioJanela, dias[dias.length - 1])}).
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
-          <Link href={`/motorista?mes=${formatarMesParam(mesAnterior)}`}>
+          <Link href={`/motorista?inicio=${formatarDataDia(janelaAnterior)}`}>
             <Button variant="outline">
               <ChevronLeft className="w-4 h-4 mr-2" />
-              Mês anterior
+              Dias anteriores
             </Button>
           </Link>
           <Link href="/motorista">
-            <Button variant="outline">Mês atual</Button>
+            <Button variant="outline">Hoje</Button>
           </Link>
-          <Link href={`/motorista?mes=${formatarMesParam(proximoMes)}`}>
+          <Link href={`/motorista?inicio=${formatarDataDia(janelaSeguinte)}`}>
             <Button variant="outline">
-              Próximo mês
+              Próximos dias
               <ChevronRight className="w-4 h-4 ml-2" />
             </Button>
           </Link>
@@ -97,7 +102,7 @@ export default async function MotoristasPage({
         </div>
       ) : (
         <CalendarioMotoristas
-          mesParam={mesParam}
+          inicioParam={inicioParam}
           hojeIso={hoje.toISOString()}
           dias={diasIso}
           motoristas={calendarioSerializado}

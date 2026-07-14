@@ -26,5 +26,4 @@ export const motoristaComIntegracoesSchema = motoristaBaseSchema.extend({
   integracao: z.array(integracaoMotoristaSchema),
 })
 
-export type MotoristaFormValues = z.infer<typeof motoristaBaseSchema>
 export type MotoristaComIntegracoesFormValues = z.infer<typeof motoristaComIntegracoesSchema>

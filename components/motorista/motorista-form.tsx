@@ -121,7 +121,7 @@ export default function MotoristaForm({ defaultValues, onSubmit, submitLabel, su
         </Card>
 
         <Card className="shadow-sm border-slate-200">
-          <CardHeader className="bg-slate-50 border-b flex flex-row items-center justify-between">
+          <CardHeader className="flex flex-col gap-3 border-b bg-slate-50 sm:flex-row sm:items-center sm:justify-between">
             <div>
               <CardTitle className="text-lg">Integrações</CardTitle>
               <CardDescription>Cadastre as integrações ativas do motorista para validação de alocação.</CardDescription>

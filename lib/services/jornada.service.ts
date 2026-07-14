@@ -1,4 +1,4 @@
-import { inicioDoDia } from "@/lib/utils/date-format"
+import { colunaDateParaLocal, inicioDoDia } from "@/lib/utils/date-format"
 
 const DIAS_NO_CICLO_JORNADA = 7
 
@@ -30,6 +30,25 @@ export function calcularCodigoJornadaNoDia(codigoAtual: number, dia: Date, hoje:
 export type PontoRegistroJornada = {
   data: Date
   codigo: number
+}
+
+type RegistroJornadaBruto = {
+  data: Date | string
+  codigo: number
+}
+
+/**
+ * Converte registros brutos de jornada (Date vindo direto do Prisma, ou
+ * string já serializada pro cliente) para o formato usado por
+ * `projetarCodigoNoDia`, aplicando `colunaDateParaLocal`: a coluna é
+ * `@db.Date`, sempre devolvida em meia-noite UTC pelo Prisma, e comparar
+ * isso direto com datas locais desloca um dia em fusos negativos.
+ */
+export function mapearRegistrosJornada(registros: RegistroJornadaBruto[]): PontoRegistroJornada[] {
+  return registros.map((registro) => ({
+    data: colunaDateParaLocal(new Date(registro.data)),
+    codigo: registro.codigo,
+  }))
 }
 
 /**

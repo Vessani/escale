@@ -2,6 +2,7 @@
 import { revalidatePath } from "next/cache";
 import { NovoMotoristaInput, EditarMotoristaInput, type RespostaAcao } from "@/lib/types/types";
 import { errorToMessage } from "@/lib/action-error";
+import { requireSession } from "@/lib/auth-guard";
 import { parseDataLocal } from "@/lib/utils/date-format";
 import {
   criarMotoristaService,
@@ -12,6 +13,7 @@ import {
 
 export async function criarMotorista(dados: NovoMotoristaInput): Promise<RespostaAcao> {
   try {
+    await requireSession();
     await criarMotoristaService(dados);
     
     revalidatePath("/motorista"); 
@@ -23,6 +25,7 @@ export async function criarMotorista(dados: NovoMotoristaInput): Promise<Respost
 
 export async function editarMotorista(idMotorista: number, dados: EditarMotoristaInput): Promise<RespostaAcao> {
   try {
+    await requireSession();
     await editarMotoristaService(idMotorista, dados);
     
     revalidatePath("/motorista");
@@ -34,6 +37,7 @@ export async function editarMotorista(idMotorista: number, dados: EditarMotorist
 
 export async function deletarMotorista(id: number): Promise<RespostaAcao> {
   try {
+    await requireSession();
     await deletarMotoristaService(id);
     
     revalidatePath("/motorista");
@@ -49,6 +53,8 @@ export async function atualizarJornadaMotoristaNoCalendario(
   codigoNoDia: number,
 ): Promise<RespostaAcao> {
   try {
+    await requireSession();
+
     if (!Number.isInteger(codigoNoDia) || codigoNoDia < 1 || codigoNoDia > 10) {
       return { sucesso: false, erro: "Código de jornada inválido." }
     }

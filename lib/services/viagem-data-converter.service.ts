@@ -9,6 +9,7 @@
  */
 
 import { NovaViagemInput, EditarViagemInput } from "@/lib/types/types";
+import { calcularDiasEntre } from "@/lib/utils/date-format";
 
 /**
  * Converte strings de data (datetime-local) para Date objects
@@ -17,7 +18,7 @@ import { NovaViagemInput, EditarViagemInput } from "@/lib/types/types";
 function converterDataParaDate(data: string | Date): Date {
   if (data instanceof Date) return data;
   if (!data) throw new Error("Data inválida: valor vazio");
-  
+
   const date = new Date(data);
   if (isNaN(date.getTime())) {
     throw new Error(`Data inválida: ${data}`);
@@ -31,10 +32,16 @@ function converterDataParaDate(data: string | Date): Date {
 export function converterNovaViagemParaBD(
   dados: NovaViagemInput
 ): NovaViagemInput {
+  const inicioPrevisto = converterDataParaDate(dados.inicioPrevisto);
+  const fimPrevisto = converterDataParaDate(dados.fimPrevisto);
+
   return {
     ...dados,
-    inicioPrevisto: converterDataParaDate(dados.inicioPrevisto),
-    fimPrevisto: converterDataParaDate(dados.fimPrevisto),
+    inicioPrevisto,
+    fimPrevisto,
+    // Fonte de verdade é o intervalo de datas, não o número enviado pelo
+    // formulário — evita desincronia entre "duração" e o intervalo real.
+    diasViagem: calcularDiasEntre(inicioPrevisto, fimPrevisto),
     entregas: dados.entregas.map(entrega => ({
       ...entrega,
       dataEntrega: converterDataParaDate(entrega.dataEntrega),
@@ -48,10 +55,14 @@ export function converterNovaViagemParaBD(
 export function converterEditarViagemParaBD(
   dados: EditarViagemInput
 ): EditarViagemInput {
+  const inicioPrevisto = converterDataParaDate(dados.inicioPrevisto);
+  const fimPrevisto = converterDataParaDate(dados.fimPrevisto);
+
   return {
     ...dados,
-    inicioPrevisto: converterDataParaDate(dados.inicioPrevisto),
-    fimPrevisto: converterDataParaDate(dados.fimPrevisto),
+    inicioPrevisto,
+    fimPrevisto,
+    diasViagem: calcularDiasEntre(inicioPrevisto, fimPrevisto),
     entregas: dados.entregas.map(entrega => ({
       ...entrega,
       dataEntrega: converterDataParaDate(entrega.dataEntrega),

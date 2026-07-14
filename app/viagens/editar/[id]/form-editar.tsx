@@ -1,7 +1,7 @@
 "use client"
 
 import type { StatusViagem } from "@prisma/client"
-import { useState } from "react"
+import { useMemo, useState } from "react"
 import { useRouter } from "next/navigation"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { useForm, useWatch, type Resolver, type SubmitHandler } from "react-hook-form"
@@ -13,6 +13,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { editarViagem } from "@/lib/actions/viagens"
 import type { EditarViagemInput } from "@/lib/types/types"
 import { calcularIntegracaoExigida, motoristaEhCompativel } from "@/lib/services/alocacao.service"
+import { mapearRegistrosJornada } from "@/lib/services/jornada.service"
 import {
   STATUS_VIAGEM_OPCOES,
   formatarStatusViagem,
@@ -20,7 +21,7 @@ import {
 } from "@/lib/services/viagem-status.service"
 import { classeBadgeStatusViagem } from "../../badge-styles"
 import { Save, UserCheck } from "lucide-react"
-import { formatDateTimeForInput } from "@/lib/utils/date-format"
+import { formatDateTimeForInput, inicioDoDia } from "@/lib/utils/date-format"
 import { editarViagemSchema, type EditarViagemFormValues } from "@/lib/validation/viagens"
 import RotaFields from "@/components/viagem/rota-fields"
 import EntregasFieldArray from "@/components/viagem/entregas-field-array"
@@ -48,6 +49,10 @@ type MotoristaParaSelect = {
     cliente: string
     status: "ATIVO" | "INATIVO" | "PENDENTE"
     dataValidade: string | Date
+  }>
+  registrosJornada: Array<{
+    data: string | Date
+    codigo: number
   }>
 }
 
@@ -77,6 +82,10 @@ export default function FormEditarViagem({ viagem, motoristas }: FormEditarViage
   const [erroGlobal, setErroGlobal] = useState("")
   const integracaoExigida = viagem.integracaoExigida ?? calcularIntegracaoExigida(viagem.entregas)
   const statusInicial = normalizarStatusViagem(viagem.status)
+  // "Hoje" do navegador — essa checagem é só um aviso na seleção manual (ver
+  // texto de ajuda abaixo), não é reforçada no servidor, então não precisa
+  // vir do servidor.
+  const hoje = useMemo(() => inicioDoDia(new Date()), [])
 
   const form = useForm<EditarViagemFormValues>({
     resolver: zodResolver(editarViagemSchema) as Resolver<EditarViagemFormValues>,
@@ -146,12 +155,12 @@ export default function FormEditarViagem({ viagem, motoristas }: FormEditarViage
         )}
 
         <Card className="border-blue-200 bg-blue-50/30 shadow-sm">
-          <CardHeader className="flex flex-row items-center justify-between border-b border-blue-100 bg-blue-50 py-4">
+          <CardHeader className="flex flex-col gap-3 border-b border-blue-100 bg-blue-50 py-4 sm:flex-row sm:items-center sm:justify-between">
             <div className="flex items-center space-x-2">
               <UserCheck className="h-5 w-5 text-blue-600" />
               <CardTitle className="text-lg text-blue-900">Alocação de Motorista</CardTitle>
             </div>
-            <div className="flex items-center gap-2">
+            <div className="flex flex-wrap items-center gap-2">
               <Badge variant="outline" className={classeBadgeStatusViagem(statusSelecionado ?? "CRIADA")}>
                 {formatarStatusViagem(statusSelecionado ?? "CRIADA")}
               </Badge>
@@ -185,12 +194,19 @@ export default function FormEditarViagem({ viagem, motoristas }: FormEditarViage
                         </SelectItem>
                       ) : (
                         motoristas.map((motorista) => {
-                          const compativel = motoristaEhCompativel(motorista, {
-                            turnoViagem: viagem.turno,
-                            diasViagem: viagem.diasViagem,
-                            dataInicioViagem: new Date(viagem.inicioPrevisto),
-                            integracaoExigida,
-                          })
+                          const compativel = motoristaEhCompativel(
+                            {
+                              ...motorista,
+                              registrosJornada: mapearRegistrosJornada(motorista.registrosJornada),
+                            },
+                            {
+                              turnoViagem: viagem.turno,
+                              diasViagem: viagem.diasViagem,
+                              dataInicioViagem: new Date(viagem.inicioPrevisto),
+                              integracaoExigida,
+                              hoje,
+                            },
+                          )
 
                           const rotulo = motorista.disponivel
                             ? (compativel ? "(Compatível)" : "(Emergência - fora da regra)")

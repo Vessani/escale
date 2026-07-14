@@ -7,8 +7,8 @@ import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { atualizarJornadaMotoristaNoCalendario, deletarMotorista } from "@/lib/actions/motoristas"
 import { calcularDiasDisponiveis } from "@/lib/services/alocacao.service"
-import { obterStatusJornada, projetarCodigoNoDia } from "@/lib/services/jornada.service"
-import { colunaDateParaLocal, fimDoDia, inicioDoDia } from "@/lib/utils/date-format"
+import { mapearRegistrosJornada, obterStatusJornada, projetarCodigoNoDia } from "@/lib/services/jornada.service"
+import { fimDoDia, inicioDoDia } from "@/lib/utils/date-format"
 import { classeBadgeTurno } from "../viagens/badge-styles"
 import {
   formatarSemana,
@@ -42,13 +42,13 @@ type Motorista = {
 }
 
 type Props = {
-  mesParam: string
+  inicioParam: string
   hojeIso: string
   dias: string[]
   motoristas: Motorista[]
 }
 
-export default function CalendarioMotoristas({ mesParam, hojeIso, dias, motoristas }: Props) {
+export default function CalendarioMotoristas({ inicioParam, hojeIso, dias, motoristas }: Props) {
   const router = useRouter()
   const [celulaEmEdicao, setCelulaEmEdicao] = useState<string | null>(null)
   const [celulaSalvando, setCelulaSalvando] = useState<string | null>(null)
@@ -58,9 +58,24 @@ export default function CalendarioMotoristas({ mesParam, hojeIso, dias, motorist
   const [isPending, startTransition] = useTransition()
 
   const hoje = useMemo(() => new Date(hojeIso), [hojeIso])
+
+  // Código de hoje projetado a partir do histórico real (mesma conta que a
+  // coluna "Hoje" da grade usa) — não o cache motorista.diasTrabalhados, que só
+  // é atualizado quando algo escreve explicitamente no dia de hoje e por isso
+  // pode ficar parado enquanto os dias passam sem nenhum evento.
+  const motoristasComHoje = useMemo(
+    () =>
+      motoristas.map((motorista) => {
+        const registrosJornada = mapearRegistrosJornada(motorista.registrosJornada)
+        const codigoHoje = projetarCodigoNoDia(registrosJornada, hoje, hoje, motorista.diasTrabalhados)
+        return { ...motorista, registrosJornada, codigoHoje }
+      }),
+    [motoristas, hoje],
+  )
+
   const motoristasFiltrados = useMemo(
-    () => motoristas.filter((motorista) => statusJornadaCorrespondeAoFiltro(motorista.diasTrabalhados, filtroStatus)),
-    [motoristas, filtroStatus],
+    () => motoristasComHoje.filter((motorista) => statusJornadaCorrespondeAoFiltro(motorista.codigoHoje, filtroStatus)),
+    [motoristasComHoje, filtroStatus],
   )
 
   const salvarJornada = (motoristaId: number, diaIso: string, codigoNoDia: number) => {
@@ -78,7 +93,7 @@ export default function CalendarioMotoristas({ mesParam, hojeIso, dias, motorist
         return
       }
 
-      router.replace(`/motorista?mes=${mesParam}`)
+      router.replace(`/motorista?inicio=${inicioParam}`)
       router.refresh()
     })
   }
@@ -104,7 +119,7 @@ export default function CalendarioMotoristas({ mesParam, hojeIso, dias, motorist
         return
       }
 
-      router.replace(`/motorista?mes=${mesParam}`)
+      router.replace(`/motorista?inicio=${inicioParam}`)
       router.refresh()
     })
   }
@@ -146,10 +161,15 @@ export default function CalendarioMotoristas({ mesParam, hojeIso, dias, motorist
               </th>
               {dias.map((diaIso) => {
                 const dia = new Date(`${diaIso}T00:00:00`)
+                const ehHoje = inicioDoDia(dia).getTime() === inicioDoDia(hoje).getTime()
                 return (
-                  <th key={diaIso} className="border-b border-r px-2 py-3 text-center align-top min-w-20 bg-slate-50">
+                  <th
+                    key={diaIso}
+                    className={`border-b border-r px-2 py-3 text-center align-top min-w-20 ${ehHoje ? "bg-blue-100" : "bg-slate-50"}`}
+                  >
                     <div className="font-semibold text-slate-700">{dia.getDate()}</div>
                     <div className="text-[11px] uppercase text-slate-500">{formatarSemana(dia)}</div>
+                    {ehHoje ? <div className="text-[10px] font-bold uppercase text-blue-600">Hoje</div> : null}
                   </th>
                 )
               })}
@@ -157,13 +177,10 @@ export default function CalendarioMotoristas({ mesParam, hojeIso, dias, motorist
           </thead>
           <tbody>
             {motoristasFiltrados.map((motorista, indiceMotorista) => {
-              const diasDisponiveis = calcularDiasDisponiveis(motorista.diasTrabalhados)
-              const statusJornada = obterStatusJornada(motorista.diasTrabalhados)
+              const diasDisponiveis = calcularDiasDisponiveis(motorista.codigoHoje)
+              const statusJornada = obterStatusJornada(motorista.codigoHoje)
               const fundoColunaFixa = indiceMotorista % 2 === 0 ? "bg-white" : "bg-slate-50"
-              const registrosJornada = motorista.registrosJornada.map((registro) => ({
-                data: colunaDateParaLocal(new Date(registro.data)),
-                codigo: registro.codigo,
-              }))
+              const registrosJornada = motorista.registrosJornada
               const classeTurnoBadge = classeBadgeTurno(motorista.turno)
 
               return (
@@ -199,8 +216,8 @@ export default function CalendarioMotoristas({ mesParam, hojeIso, dias, motorist
                         <span>·</span>
                         <span>{diasDisponiveis} dia(s) disponível(is)</span>
                         <span>·</span>
-                        <span className={`rounded px-2 py-0.5 font-semibold ${classeBadgeJornada(motorista.diasTrabalhados)}`}>
-                          {statusJornada.texto}
+                        <span className={`rounded px-2 py-0.5 font-semibold ${classeBadgeJornada(motorista.codigoHoje)}`}>
+                          Hoje: {statusJornada.texto}
                         </span>
                       </div>
                     </div>
@@ -209,6 +226,7 @@ export default function CalendarioMotoristas({ mesParam, hojeIso, dias, motorist
                   {dias.map((diaIso) => {
                     const chaveCelula = `${motorista.id}-${diaIso}`
                     const dia = new Date(`${diaIso}T00:00:00`)
+                    const ehHoje = inicioDoDia(dia).getTime() === inicioDoDia(hoje).getTime()
                     const codigoNoDia = projetarCodigoNoDia(registrosJornada, dia, hoje, motorista.diasTrabalhados)
                     const statusNoDia = obterStatusJornada(codigoNoDia)
                     const celulaAberta = celulaEmEdicao === chaveCelula
@@ -221,7 +239,10 @@ export default function CalendarioMotoristas({ mesParam, hojeIso, dias, motorist
                     })
 
                     return (
-                      <td key={chaveCelula} className={`border-r border-b px-2 py-2 align-top text-center ${celulaAberta ? "relative z-10" : ""}`}>
+                      <td
+                        key={chaveCelula}
+                        className={`border-r border-b px-2 py-2 align-top text-center ${celulaAberta ? "relative z-10" : ""} ${ehHoje ? "bg-blue-50" : ""}`}
+                      >
                         <div className="space-y-1">
                           {celulaAberta ? (
                             <select

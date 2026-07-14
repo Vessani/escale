@@ -3,6 +3,7 @@ import { Prisma } from "@prisma/client"
 const MENSAGENS_SEGURAS = new Set([
   "Por favor, preencha o e-mail e a senha.",
   "Credenciais inválidas.",
+  "Não autorizado.",
   "Viagem não encontrada.",
   "Status de viagem é obrigatório.",
   "Data inválida.",

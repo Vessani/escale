@@ -3,11 +3,12 @@ import { NovaViagemInput, EditarViagemInput } from "@/lib/types/types";
 import { buscarMotoristasParaSelect } from "@/lib/queries/motoristas";
 import {
   calcularIntegracaoExigida,
-  filtrarMotoristasDisponiveisNoPeriodo,
   sugerirMotoristaAutomatico,
 } from "./alocacao.service";
 import { reconciliarFolgaMotoristasNoDiaAtual } from "./folga.service";
 import { converterEditarViagemParaBD, converterNovaViagemParaBD } from "./viagem-data-converter.service";
+import { mapearRegistrosJornada } from "./jornada.service";
+import { inicioDoDia } from "@/lib/utils/date-format";
 
 function resolverStatusPorAlocacao(motoristaId: number | null) {
   return motoristaId === null ? "CRIADA" : "ALOCADA";
@@ -65,23 +66,25 @@ function inserirViagem(
   })
 }
 
-export async function criarViagemService(dadosRecebidos: NovaViagemInput) {
+export async function criarViagemAvulsaService(dadosRecebidos: NovaViagemInput) {
   const dados = converterNovaViagemParaBD(dadosRecebidos);
   const integracaoNecessaria = calcularIntegracaoExigida(dados.entregas);
   const inicioPrevisto = dados.inicioPrevisto as Date;
   const fimPrevisto = dados.fimPrevisto as Date;
 
-  const motoristas = await buscarMotoristasParaSelect();
-  const motoristasDisponiveis = filtrarMotoristasDisponiveisNoPeriodo(
-    motoristas,
-    inicioPrevisto,
-    fimPrevisto,
-  );
-  const motoristaSugeridoDisponivel = sugerirMotoristaAutomatico(motoristasDisponiveis, {
+  const motoristasBrutos = await buscarMotoristasParaSelect();
+  const motoristas = motoristasBrutos.map((motorista) => ({
+    ...motorista,
+    registrosJornada: mapearRegistrosJornada(motorista.registrosJornada),
+  }));
+  const hoje = inicioDoDia(new Date());
+
+  const motoristaSugeridoDisponivel = sugerirMotoristaAutomatico(motoristas, fimPrevisto, {
     turnoViagem: dados.turno,
     diasViagem: dados.diasViagem,
     dataInicioViagem: inicioPrevisto,
     integracaoExigida: integracaoNecessaria,
+    hoje,
   });
   const motoristaEscolhidoId = motoristaSugeridoDisponivel?.id ?? null;
 
@@ -89,15 +92,16 @@ export async function criarViagemService(dadosRecebidos: NovaViagemInput) {
 }
 
 /**
- * Cria a viagem sem sugerir/atribuir motorista automaticamente.
- * Usado na importação em lote: a decisão de motorista fica inteiramente
- * a cargo da tela de alocação, onde dá pra comparar sugestões entre viagens.
+ * Cria a viagem já com o motorista escolhido (ou null, se nenhum foi
+ * selecionado) — não roda sugestão automática de novo. Usado na importação em
+ * lote, depois que o usuário já revisou e confirmou a alocação sugerida para
+ * cada viagem do arquivo.
  */
-export async function criarViagemSemAlocacaoService(dadosRecebidos: NovaViagemInput) {
+export async function criarViagemComAlocacaoService(dadosRecebidos: NovaViagemInput, motoristaId: number | null) {
   const dados = converterNovaViagemParaBD(dadosRecebidos);
   const integracaoNecessaria = calcularIntegracaoExigida(dados.entregas);
 
-  return inserirViagem(dados, integracaoNecessaria, null, "CRIADA");
+  return inserirViagem(dados, integracaoNecessaria, motoristaId, dados.status);
 }
 
 
@@ -207,5 +211,17 @@ export async function atualizarStatusViagemService(idViagem: number, status: Edi
 
     await reconciliarFolgaMotoristasNoDiaAtual(tx, [viagemAtualizada.motoristaId])
     return viagemAtualizada
+  })
+}
+
+/** Registro operacional feito pelo dashboard: horário real de saída e motivo do atraso, se houver. */
+export async function atualizarSaidaRealService(
+  idViagem: number,
+  horarioRealSaida: Date | null,
+  motivoAtraso: string | null,
+) {
+  return await prisma.viagem.update({
+    where: { id: idViagem },
+    data: { horarioRealSaida, motivoAtraso },
   })
 }

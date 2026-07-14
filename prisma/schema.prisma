@@ -45,7 +45,10 @@
 
     integracaoExigida String?      @db.VarChar(50)
     status            StatusViagem @default(CRIADA)
-    
+
+    horarioRealSaida  DateTime?    @db.Timestamp(6)
+    motivoAtraso      String?      @db.VarChar(200)
+
     motoristaId       Int?
     motorista         Motorista?   @relation(fields: [motoristaId], references: [id])
 

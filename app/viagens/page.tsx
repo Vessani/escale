@@ -19,9 +19,37 @@ import {
 
 type Viagem = Awaited<ReturnType<typeof buscarViagens>>[number]
 
+function MotoristaCelula({ viagem }: { viagem: Viagem }) {
+  return viagem.motorista ? (
+    <span className="text-slate-900 font-medium">{viagem.motorista.nome}</span>
+  ) : (
+    <Badge variant="outline" className="border-amber-200 bg-amber-100 text-amber-800 hover:bg-amber-100">
+      Pendente Alocação
+    </Badge>
+  )
+}
+
+function AcoesViagem({ viagem }: { viagem: Viagem }) {
+  return (
+    <div className="flex flex-wrap justify-end gap-2">
+      <Link href={`/api/viagens/${viagem.id}/pdf`}>
+        <Button variant="outline" size="sm">
+          <Download className="h-4 w-4 mr-2" />
+          Download
+        </Button>
+      </Link>
+      <Link href={`/viagens/editar/${viagem.id}`}>
+        <Button variant="outline" size="sm">Editar</Button>
+      </Link>
+      <ExcluirViagemButton viagemId={viagem.id} numeroViagem={viagem.numViagem} />
+    </div>
+  )
+}
+
+/** Tabela para telas a partir de md; em telas menores vira lista de cards (ver ViagensCards). */
 function ViagensTabela({ viagens }: { viagens: Viagem[] }) {
   return (
-    <div className="border rounded-lg bg-white shadow-sm overflow-hidden">
+    <div className="hidden rounded-lg border bg-white shadow-sm overflow-hidden md:block">
       <Table>
         <TableHeader className="bg-slate-50">
           <TableRow>
@@ -61,32 +89,58 @@ function ViagensTabela({ viagens }: { viagens: Viagem[] }) {
                 </div>
               </TableCell>
               <TableCell>
-                {viagem.motorista ? (
-                  <span className="text-slate-900 font-medium">{viagem.motorista.nome}</span>
-                ) : (
-                  <Badge variant="outline" className="border-amber-200 bg-amber-100 text-amber-800 hover:bg-amber-100">
-                    Pendente Alocação
-                  </Badge>
-                )}
+                <MotoristaCelula viagem={viagem} />
               </TableCell>
               <TableCell className="text-right">
-                <div className="flex justify-end gap-2">
-                  <Link href={`/api/viagens/${viagem.id}/pdf`}>
-                    <Button variant="outline" size="sm">
-                      <Download className="h-4 w-4 mr-2" />
-                      Download
-                    </Button>
-                  </Link>
-                  <Link href={`/viagens/editar/${viagem.id}`}>
-                    <Button variant="outline" size="sm">Editar</Button>
-                  </Link>
-                  <ExcluirViagemButton viagemId={viagem.id} numeroViagem={viagem.numViagem} />
-                </div>
+                <AcoesViagem viagem={viagem} />
               </TableCell>
             </TableRow>
           ))}
         </TableBody>
       </Table>
+    </div>
+  )
+}
+
+/** Lista em cards para telas abaixo de md; substitui a tabela (ver ViagensTabela). */
+function ViagensCards({ viagens }: { viagens: Viagem[] }) {
+  return (
+    <div className="space-y-3 md:hidden">
+      {viagens.map((viagem) => (
+        <div key={viagem.id} className="space-y-3 rounded-lg border bg-white shadow-sm p-4">
+          <div className="flex items-start justify-between gap-2">
+            <div>
+              <p className="font-semibold text-slate-900">{viagem.numViagem}</p>
+              <p className="text-xs text-slate-500">
+                {formatarDataHoraPtBr(viagem.inicioPrevisto)} até {formatarDataHoraPtBr(viagem.fimPrevisto)}
+              </p>
+            </div>
+            <Badge variant="outline" className={classeBadgeTurno(viagem.turno)}>
+              {viagem.turno}
+            </Badge>
+          </div>
+
+          <div className="flex flex-wrap items-center gap-2">
+            <Badge variant="outline" className={classeBadgeStatusViagem(viagem.status)}>
+              {formatarStatusViagem(viagem.status)}
+            </Badge>
+            <AtualizarStatusRapido viagemId={viagem.id} statusAtual={viagem.status} />
+          </div>
+
+          <dl className="grid grid-cols-2 gap-x-4 gap-y-2 text-sm">
+            <div>
+              <dt className="text-xs text-slate-500">Caminhão</dt>
+              <dd className="font-medium text-slate-900">{viagem.cavalo} / {viagem.carreta}</dd>
+            </div>
+            <div>
+              <dt className="text-xs text-slate-500">Motorista</dt>
+              <dd><MotoristaCelula viagem={viagem} /></dd>
+            </div>
+          </dl>
+
+          <AcoesViagem viagem={viagem} />
+        </div>
+      ))}
     </div>
   )
 }
@@ -116,12 +170,12 @@ export default async function ViagensPage({
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
         <div>
           <h1 className="text-3xl font-bold tracking-tight text-slate-900">Gestão de Viagens</h1>
           <p className="text-slate-500 mt-1">Use os filtros para acompanhar viagens por status e gerenciar as ações.</p>
         </div>
-        <div className="flex gap-3">
+        <div className="flex flex-wrap items-center gap-2">
           <Link href="/viagens">
             <Button variant={filtroStatus === "TODOS" ? "default" : "outline"}>Todos</Button>
           </Link>
@@ -160,6 +214,7 @@ export default async function ViagensPage({
             <Badge variant="outline">{viagensFiltradas.length}</Badge>
           </div>
           <ViagensTabela viagens={viagensFiltradas} />
+          <ViagensCards viagens={viagensFiltradas} />
         </section>
       )}
     </div>

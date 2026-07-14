@@ -1,5 +1,6 @@
 import { StatusIntegracao, StatusViagem, Turno } from "@prisma/client"
 import { inicioDoDia } from "@/lib/utils/date-format"
+import { projetarCodigoNoDia, type PontoRegistroJornada } from "./jornada.service"
 
 const MAX_DIAS_CONSECUTIVOS = 6
 
@@ -20,6 +21,7 @@ type MotoristaParaAlocacao = {
   turno: Turno
   diasTrabalhados: number
   integracao: IntegracaoBase[]
+  registrosJornada: PontoRegistroJornada[]
 }
 
 type ViagemParaDisponibilidade = {
@@ -39,17 +41,21 @@ type ContextoCompatibilidade = {
   diasViagem: number
   dataInicioViagem: Date
   integracaoExigida: string | null
+  /** "Hoje" do ponto de vista de quem está alocando — âncora usada para projetar a jornada do motorista em `dataInicioViagem`. */
+  hoje: Date
 }
 
 function normalizarCliente(cliente: string) {
   return cliente.trim().toUpperCase()
 }
 
+/**
+ * Dias consecutivos que o motorista ainda pode trabalhar a partir do código
+ * informado. Códigos fora de 1-6 (Folga, Férias, Exames, Interno) retornam 0:
+ * o motorista só volta a ficar disponível no dia seguinte, quando a rotação
+ * o traz de volta ao início do ciclo (ver `jornada.service.ts`).
+ */
 export function calcularDiasDisponiveis(diasTrabalhados: number) {
-  if (diasTrabalhados === 7) {
-    return MAX_DIAS_CONSECUTIVOS
-  }
-
   if (diasTrabalhados < 1 || diasTrabalhados > MAX_DIAS_CONSECUTIVOS) {
     return 0
   }
@@ -84,6 +90,16 @@ function temIntegracaoValida(
   })
 }
 
+/** Código de jornada do motorista projetado para a data real de início da viagem (não o cache de "hoje"). */
+function codigoJornadaNaViagem(motorista: MotoristaParaAlocacao, contexto: ContextoCompatibilidade) {
+  return projetarCodigoNoDia(
+    motorista.registrosJornada,
+    contexto.dataInicioViagem,
+    contexto.hoje,
+    motorista.diasTrabalhados,
+  )
+}
+
 export function motoristaEhCompativel(
   motorista: MotoristaParaAlocacao,
   contexto: ContextoCompatibilidade,
@@ -92,7 +108,9 @@ export function motoristaEhCompativel(
     return false
   }
 
-  if (calcularDiasDisponiveis(motorista.diasTrabalhados) < contexto.diasViagem) {
+  const codigoNaViagem = codigoJornadaNaViagem(motorista, contexto)
+
+  if (calcularDiasDisponiveis(codigoNaViagem) < contexto.diasViagem) {
     return false
   }
 
@@ -110,8 +128,8 @@ export function filtrarMotoristasCompativeis<T extends MotoristaParaAlocacao>(
   return motoristas
     .filter((motorista) => motoristaEhCompativel(motorista, contexto))
     .sort((a, b) => {
-      const diasDisponiveisA = calcularDiasDisponiveis(a.diasTrabalhados)
-      const diasDisponiveisB = calcularDiasDisponiveis(b.diasTrabalhados)
+      const diasDisponiveisA = calcularDiasDisponiveis(codigoJornadaNaViagem(a, contexto))
+      const diasDisponiveisB = calcularDiasDisponiveis(codigoJornadaNaViagem(b, contexto))
       return diasDisponiveisB - diasDisponiveisA || a.nome.localeCompare(b.nome)
     })
 }
@@ -180,10 +198,12 @@ export function filtrarMotoristasDisponiveisNoPeriodo(
 }
 
 export function sugerirMotoristaAutomatico(
-  motoristas: MotoristaParaAlocacao[],
+  motoristas: MotoristaComAgenda[],
+  fimViagem: Date,
   contexto: ContextoCompatibilidade,
 ) {
-  const compativeis = filtrarMotoristasCompativeis(motoristas, contexto)
+  const disponiveis = filtrarMotoristasDisponiveisNoPeriodo(motoristas, contexto.dataInicioViagem, fimViagem)
+  const compativeis = filtrarMotoristasCompativeis(disponiveis, contexto)
   return compativeis[0] ?? null
 }
 
@@ -218,6 +238,7 @@ export type SugestaoAlocacaoLote = {
 export function sugerirAlocacoesEmLote(
   viagens: ViagemParaSugestaoLote[],
   motoristas: MotoristaComAgenda[],
+  hoje: Date,
 ): SugestaoAlocacaoLote[] {
   const atribuicoesTentativas: AtribuicaoTentativa[] = []
 
@@ -227,6 +248,7 @@ export function sugerirAlocacoesEmLote(
       diasViagem: viagem.diasViagem,
       dataInicioViagem: viagem.inicioPrevisto,
       integracaoExigida: viagem.integracaoExigida,
+      hoje,
     }
 
     const motoristasDisponiveis = filtrarMotoristasDisponiveisNoPeriodo(

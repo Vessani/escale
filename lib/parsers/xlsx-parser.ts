@@ -1,5 +1,5 @@
 import * as XLSX from 'xlsx'
-import { formatarDataExcel, normalizarHora, validarNumeroPositivo } from '@/lib/utils/date-format'
+import { formatarDataExcel, formatarDateTimeLocal, normalizarHora, validarNumeroPositivo } from '@/lib/utils/date-format'
 
 export interface DadosViagemPlanilha {
   numViagem: string
@@ -262,7 +262,10 @@ class XLSXToFormDataConverter {
       }
     }
 
-    return new Date(dataUltimaMs).toISOString().replace('Z', '').substring(0, 16)
+    // formatarDateTimeLocal (não toISOString) preserva o horário local: converter
+    // pra UTC e reinterpretar a string resultante como hora local deslocaria a
+    // data em fusos negativos (ex: Brasil), inflando diasViagem em 1.
+    return formatarDateTimeLocal(new Date(dataUltimaMs))
   }
 }
 

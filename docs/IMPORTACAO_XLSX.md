@@ -99,8 +99,8 @@ O sistema tenta os formatos, nesta ordem:
 
 - `lib/parsers/xlsx-parser.ts` - leitura do arquivo e mapeamento de colunas
 - `components/viagem/upload-xlsx-viagem.tsx` - interface de upload, lista de viagens encontradas e botão de importação em lote
-- `lib/actions/viagens.ts` - `criarViagem` (uma viagem, com auto-alocação de motorista) e `criarViagensEmLote` (várias, sem alocação — decisão fica para `/viagens/alocacao`)
-- `lib/services/viagem.service.ts` - `criarViagemService` / `criarViagemSemAlocacaoService`
+- `lib/actions/viagens.ts` - `criarViagemAvulsa` (uma viagem, com auto-alocação de motorista) e `criarViagensEmLoteComAlocacao` (várias, com a alocação já decidida na tela de revisão)
+- `lib/services/viagem.service.ts` - `criarViagemAvulsaService` / `criarViagemComAlocacaoService`
 
 ---
 

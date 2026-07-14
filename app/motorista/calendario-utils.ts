@@ -1,4 +1,4 @@
-import { fimDoDia, inicioDoDia } from "@/lib/utils/date-format"
+import { parseDataLocal } from "@/lib/utils/date-format"
 import {
   CLASSE_JORNADA_1_3,
   CLASSE_JORNADA_4_5,
@@ -83,41 +83,20 @@ export function statusJornadaCorrespondeAoFiltro(
   return diasTrabalhados === 10
 }
 
-export function inicioDoMes(data: Date) {
-  return inicioDoDia(new Date(data.getFullYear(), data.getMonth(), 1))
-}
+/** Quantidade de dias exibidos de cada vez no calendário (uma "página" de navegação). */
+export const TAMANHO_JANELA_CALENDARIO = 30
 
-export function fimDoMes(data: Date) {
-  return fimDoDia(new Date(data.getFullYear(), data.getMonth() + 1, 0))
-}
-
-export function parseMesParam(valor?: string) {
-  if (!valor || !/^\d{4}-\d{2}$/.test(valor)) {
+/** Lê o parâmetro `inicio` da URL (YYYY-MM-DD); retorna null se ausente/inválido. */
+export function parseDataInicioParam(valor?: string) {
+  if (!valor) {
     return null
   }
 
-  const [anoTexto, mesTexto] = valor.split("-")
-  const ano = Number(anoTexto)
-  const mes = Number(mesTexto)
-
-  if (!Number.isInteger(ano) || !Number.isInteger(mes) || mes < 1 || mes > 12) {
+  try {
+    return parseDataLocal(valor)
+  } catch {
     return null
   }
-
-  return inicioDoMes(new Date(ano, mes - 1, 1))
-}
-
-export function formatarMesParam(data: Date) {
-  const ano = data.getFullYear()
-  const mes = String(data.getMonth() + 1).padStart(2, "0")
-  return `${ano}-${mes}`
-}
-
-export function formatarMesAno(data: Date) {
-  return new Intl.DateTimeFormat("pt-BR", {
-    month: "long",
-    year: "numeric",
-  }).format(data)
 }
 
 export function formatarDataDia(data: Date) {
@@ -127,12 +106,23 @@ export function formatarDataDia(data: Date) {
   return `${ano}-${mes}-${dia}`
 }
 
-export function gerarDiasDoMes(data: Date) {
-  const ano = data.getFullYear()
-  const mes = data.getMonth()
-  const totalDias = new Date(ano, mes + 1, 0).getDate()
+/** Gera `tamanho` dias consecutivos a partir de `dataInicio` (inclusive). */
+export function gerarJanelaDias(dataInicio: Date, tamanho: number) {
+  return Array.from({ length: tamanho }, (_, index) => {
+    const dia = new Date(dataInicio)
+    dia.setDate(dia.getDate() + index)
+    return dia
+  })
+}
 
-  return Array.from({ length: totalDias }, (_, index) => new Date(ano, mes, index + 1))
+/** Rótulo do intervalo exibido, ex: "09 jul – 07 ago de 2026" (ano só uma vez, quando não muda). */
+export function formatarIntervaloDias(inicio: Date, fim: Date) {
+  const mesmoAno = inicio.getFullYear() === fim.getFullYear()
+  const formatoSemAno = new Intl.DateTimeFormat("pt-BR", { day: "2-digit", month: "short" })
+  const formatoComAno = new Intl.DateTimeFormat("pt-BR", { day: "2-digit", month: "short", year: "numeric" })
+
+  const inicioTexto = mesmoAno ? formatoSemAno.format(inicio) : formatoComAno.format(inicio)
+  return `${inicioTexto} – ${formatoComAno.format(fim)}`
 }
 
 export function formatarSemana(data: Date) {

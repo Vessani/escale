@@ -160,7 +160,7 @@ export default function AlocacaoViagensClient({ viagens }: Props) {
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between rounded-lg bg-slate-50 p-4">
+      <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg bg-slate-50 p-4">
         <div className="flex items-center gap-2">
           <Route className="h-5 w-5 text-slate-600" />
           <span className="font-medium text-slate-900">{totalPendentes} viagem(ns) pendente(s)</span>
@@ -188,7 +188,7 @@ export default function AlocacaoViagensClient({ viagens }: Props) {
 
           return (
             <Card key={viagem.id} className="border-slate-200 shadow-sm">
-              <CardHeader className="flex flex-row items-start justify-between gap-4 border-b bg-white">
+              <CardHeader className="flex flex-col gap-3 border-b bg-white sm:flex-row sm:items-start sm:justify-between sm:gap-4">
                 <div>
                   <CardTitle className="text-lg text-slate-900">Viagem {viagem.numViagem}</CardTitle>
                   <p className="mt-1 text-sm text-slate-500">

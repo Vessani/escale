@@ -38,7 +38,7 @@ export default function EntregasFieldArray<TFieldValues extends FieldValues>({
 
   return (
     <Card className="shadow-sm border-slate-200">
-      <CardHeader className="bg-slate-50 border-b flex flex-row items-center justify-between">
+      <CardHeader className="flex flex-col gap-3 border-b bg-slate-50 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <CardTitle className="text-lg">Pontos de Entrega</CardTitle>
           <CardDescription>Adicione todas as paradas planejadas</CardDescription>

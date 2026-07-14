@@ -164,6 +164,16 @@ export function parseDataLocal(dataTexto: string): Date {
 }
 
 /**
+ * Calcula dias entre duas datas (span inclusivo)
+ * Retorna número de dias (mínimo 1)
+ */
+export function calcularDiasEntre(dataInicio: Date, dataFim: Date): number {
+  const diffMs = dataFim.getTime() - dataInicio.getTime()
+  const diffDays = Math.ceil(diffMs / (1000 * 60 * 60 * 24))
+  return Math.max(1, diffDays + 1) // +1 para incluir o primeiro dia
+}
+
+/**
  * Formata Date para string datetime-local (YYYY-MM-DDTHH:MM)
  */
 export function formatarDateTimeLocal(date: Date, hora?: string): string {

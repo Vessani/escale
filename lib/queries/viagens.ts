@@ -31,13 +31,33 @@ export async function buscarViagemPorId(id: number) {
 
 export async function buscarViagensSemMotorista() {
   return await prisma.viagem.findMany({
-    where: { 
+    where: {
       deletadoEm: null,
-      status: 'CRIADA' 
+      status: 'CRIADA'
     },
-    orderBy: { inicioPrevisto: 'asc' }, 
-    include: { 
-      entregas: true 
+    orderBy: { inicioPrevisto: 'asc' },
+    include: {
+      entregas: true
+    },
+  });
+}
+
+/**
+ * Viagens em andamento — painel do Dashboard. Não exige horarioRealSaida
+ * preenchido: é justamente lá que o horário real e o motivo de atraso são
+ * registrados (ver AtualizarSaidaReal), então a viagem precisa aparecer antes
+ * disso ser preenchido.
+ */
+export async function buscarViagensEmAndamento() {
+  return await prisma.viagem.findMany({
+    where: {
+      deletadoEm: null,
+      status: { in: ["INICIADA", "RETORNANDO"] },
+    },
+    orderBy: { inicioPrevisto: "asc" },
+    include: {
+      entregas: true,
+      motorista: true,
     },
   });
 }

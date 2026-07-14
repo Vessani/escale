@@ -40,3 +40,10 @@ export type ViagemAlocacao = {
   motoristaSugerido: MotoristaSugerido
   motoristasCompativeis: MotoristaCompativel[]
 }
+
+/** Sugestão de alocação para uma viagem que ainda não existe no banco (revisão antes de criar em lote). */
+export type SugestaoAlocacaoPendente = {
+  numViagem: string
+  motoristaSugerido: MotoristaSugerido
+  motoristasCompativeis: MotoristaCompativel[]
+}

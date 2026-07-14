@@ -7,6 +7,8 @@ import {
   calcularIntegracaoExigida,
   sugerirAlocacoesEmLote,
 } from "@/lib/services/alocacao.service"
+import { mapearRegistrosJornada, projetarCodigoNoDia } from "@/lib/services/jornada.service"
+import { inicioDoDia } from "@/lib/utils/date-format"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { ArrowRightLeft, Truck } from "lucide-react"
@@ -17,8 +19,13 @@ type MotoristaBase = Awaited<ReturnType<typeof buscarMotoristas>>[number]
 type EntregaBase = ViagemBase["entregas"][number]
 
 /** Monta o view-model da tela de alocação a partir das viagens pendentes e da sugestão em lote. */
-function serializarViagens(viagensBrutas: ViagemBase[], motoristas: MotoristaBase[]): ViagemAlocacao[] {
+function serializarViagens(viagensBrutas: ViagemBase[], motoristasBrutos: MotoristaBase[], hoje: Date): ViagemAlocacao[] {
   const viagensPendentes = viagensBrutas.filter((viagem) => viagem.motoristaId === null)
+
+  const motoristas = motoristasBrutos.map((motorista) => ({
+    ...motorista,
+    registrosJornada: mapearRegistrosJornada(motorista.registrosJornada),
+  }))
 
   const viagensParaSugestao = viagensPendentes.map((viagem) => ({
     id: viagem.id,
@@ -30,7 +37,7 @@ function serializarViagens(viagensBrutas: ViagemBase[], motoristas: MotoristaBas
   }))
 
   const sugestoesPorViagemId = new Map(
-    sugerirAlocacoesEmLote(viagensParaSugestao, motoristas).map((sugestao) => [sugestao.viagemId, sugestao]),
+    sugerirAlocacoesEmLote(viagensParaSugestao, motoristas, hoje).map((sugestao) => [sugestao.viagemId, sugestao]),
   )
 
   return viagensPendentes.map((viagem) => {
@@ -68,13 +75,25 @@ function serializarViagens(viagensBrutas: ViagemBase[], motoristas: MotoristaBas
             nome: motoristaSugerido.nome,
           }
         : null,
-      motoristasCompativeis: motoristasCompativeis.map((motorista) => ({
-        id: motorista.id,
-        nome: motorista.nome,
-        diasTrabalhados: motorista.diasTrabalhados,
-        diasDisponiveis: calcularDiasDisponiveis(motorista.diasTrabalhados),
-        turno: motorista.turno,
-      })),
+      motoristasCompativeis: motoristasCompativeis.map((motorista) => {
+        // Mesma jornada projetada usada pra decidir compatibilidade, não o
+        // cache de "hoje" — senão o número mostrado destoa do motivo real
+        // pelo qual o motorista foi sugerido.
+        const codigoNaViagem = projetarCodigoNoDia(
+          motorista.registrosJornada,
+          new Date(viagem.inicioPrevisto),
+          hoje,
+          motorista.diasTrabalhados,
+        )
+
+        return {
+          id: motorista.id,
+          nome: motorista.nome,
+          diasTrabalhados: codigoNaViagem,
+          diasDisponiveis: calcularDiasDisponiveis(codigoNaViagem),
+          turno: motorista.turno,
+        }
+      }),
     }
   })
 }
@@ -85,7 +104,8 @@ export default async function PaginaAlocacaoViagens() {
     buscarMotoristas(),
   ])
 
-  const viagens = serializarViagens(viagensBrutas, motoristasBrutos)
+  const hoje = inicioDoDia(new Date())
+  const viagens = serializarViagens(viagensBrutas, motoristasBrutos, hoje)
 
   return (
     <div className="space-y-6">
@@ -97,7 +117,7 @@ export default async function PaginaAlocacaoViagens() {
           </p>
         </div>
 
-        <div className="flex gap-3">
+        <div className="flex flex-wrap items-center gap-2">
           <Link href="/viagens">
             <Button variant="outline">Voltar para Viagens</Button>
           </Link>

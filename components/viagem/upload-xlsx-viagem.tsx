@@ -156,7 +156,7 @@ export default function UploadXLSXViagem({ onDataLoaded, onError, onImportarLote
           {/* Lista de viagens encontradas, quando o arquivo tem mais de uma */}
           {viagensDisponiveis.length > 1 && (
             <div className="rounded-lg border border-slate-200">
-              <div className="flex items-center justify-between gap-3 border-b bg-slate-50 px-4 py-2">
+              <div className="flex flex-wrap items-center justify-between gap-3 border-b bg-slate-50 px-4 py-2">
                 <span className="text-sm font-semibold text-slate-700">
                   {viagensDisponiveis.length} viagens encontradas no arquivo
                 </span>
@@ -175,14 +175,14 @@ export default function UploadXLSXViagem({ onDataLoaded, onError, onImportarLote
                 )}
               </div>
               <p className="border-b bg-slate-50 px-4 pb-2 text-xs text-slate-500">
-                &ldquo;Importar todas&rdquo; cria as viagens direto e leva para a tela de alocação de motoristas.
-                Ou escolha uma abaixo para revisar/ajustar os campos antes de salvar.
+                &ldquo;Importar todas&rdquo; calcula a alocação sugerida pra cada viagem e mostra pra você revisar
+                antes de criar. Ou escolha uma abaixo para revisar/ajustar os campos antes de salvar individualmente.
               </p>
               <ul className="divide-y divide-slate-100">
                 {viagensDisponiveis.map((viagem) => {
                   const carregadaAgora = viagem.numViagem === numViagemCarregada
                   return (
-                    <li key={viagem.numViagem} className="flex items-center justify-between gap-3 px-4 py-3">
+                    <li key={viagem.numViagem} className="flex flex-wrap items-center justify-between gap-3 px-4 py-3">
                       <div className="text-sm">
                         <div className="font-medium text-slate-900">Viagem {viagem.numViagem}</div>
                         <div className="text-xs text-slate-500">

@@ -23,6 +23,11 @@ export async function buscarMotoristas() {
           deletadoEm: true,
         },
       },
+      // Histórico de jornada: permite projetar o código do motorista na data
+      // real de início de cada viagem (ver alocacao.service.ts).
+      registrosJornada: {
+        orderBy: { data: "asc" },
+      },
     },
   });
 }
@@ -30,11 +35,20 @@ export async function buscarMotoristas() {
 
 export async function buscarMotoristaPorId(id: number) {
   return await prisma.motorista.findFirst({
-    where: { 
+    where: {
       id: id,
       deletadoEm: null
     },
-    include: { integracao: true },
+    include: {
+      integracao: true,
+      // Histórico de jornada: permite projetar o código de hoje a partir do
+      // registro real mais recente, em vez do cache diasTrabalhados (que só
+      // é atualizado quando algo escreve explicitamente no dia de hoje).
+      registrosJornada: {
+        select: { data: true, codigo: true },
+        orderBy: { data: "asc" },
+      },
+    },
   });
 }
 
@@ -70,6 +84,12 @@ export async function buscarMotoristasParaSelect(turnoDaViagem?: Turno) {
           status: true,
           deletadoEm: true,
         },
+      },
+      // Histórico de jornada: permite projetar o código do motorista na data
+      // real de início de cada viagem (ver alocacao.service.ts).
+      registrosJornada: {
+        select: { data: true, codigo: true },
+        orderBy: { data: "asc" },
       },
     },
     orderBy: { nome: 'asc' }
