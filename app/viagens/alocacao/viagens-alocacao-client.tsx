@@ -233,11 +233,18 @@ export default function AlocacaoViagensClient({ viagens }: Props) {
                           {viagem.motoristaSugerido?.nome}
                         </p>
                         <p className="text-xs text-slate-500">
-                          Priorizado pelo maior número de dias disponíveis na jornada.
+                          Priorizado por horário habitual de jornada mais próximo (dias disponíveis desempata).
                         </p>
                       </div>
                     )}
                   </div>
+
+                  {viagem.avisoInterjornada && (
+                    <div className="flex items-start gap-2 rounded-md border border-amber-300 bg-amber-50 p-2 text-xs text-amber-800">
+                      <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+                      <span>{viagem.avisoInterjornada}</span>
+                    </div>
+                  )}
 
                   <div className="grid gap-2">
                     <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
@@ -250,6 +257,7 @@ export default function AlocacaoViagensClient({ viagens }: Props) {
                         viagem.motoristasCompativeis.map((motorista) => (
                           <Badge key={motorista.id} variant="secondary">
                             {motorista.nome} · {motorista.diasDisponiveis} dia(s) disponível(is)
+                            {motorista.horarioHabitual ? ` · jornada às ${motorista.horarioHabitual}` : ""}
                           </Badge>
                         ))
                       )}

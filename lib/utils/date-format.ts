@@ -76,6 +76,17 @@ export function formatarDataHoraPtBr(data: Date | string): string {
 }
 
 /**
+ * Formata só o horário do dia local, ex: "07:00" — usado pro horário
+ * habitual de jornada (relatório importado), onde a data em si não importa.
+ */
+export function formatarHoraLocal(data: Date | string): string {
+  const dataNormalizada = data instanceof Date ? data : new Date(data)
+  const hora = String(dataNormalizada.getHours()).padStart(2, "0")
+  const minuto = String(dataNormalizada.getMinutes()).padStart(2, "0")
+  return `${hora}:${minuto}`
+}
+
+/**
  * Formata data em diferentes formatos para datetime-local
  * Suporta: DD.MM, DD.MM.YYYY, serial Excel, Date object
  */
@@ -158,6 +169,41 @@ export function parseDataLocal(dataTexto: string): Date {
     data.getDate() !== dia
   ) {
     throw new Error("Data inválida.")
+  }
+
+  return data
+}
+
+/**
+ * Converte uma string "DD/MM/YYYY HH:MM:SS" (formato do Relatório Sintético
+ * de Jornada) em Date local. Os segundos são opcionais.
+ */
+export function parseDataHoraBr(texto: string): Date {
+  const match = texto.trim().match(/^(\d{2})\/(\d{2})\/(\d{4}) (\d{2}):(\d{2})(?::(\d{2}))?$/)
+
+  if (!match) {
+    throw new Error("Data/hora inválida.")
+  }
+
+  const [, diaTexto, mesTexto, anoTexto, horaTexto, minutoTexto, segundoTexto] = match
+  const dia = Number(diaTexto)
+  const mes = Number(mesTexto)
+  const ano = Number(anoTexto)
+  const hora = Number(horaTexto)
+  const minuto = Number(minutoTexto)
+  const segundo = segundoTexto ? Number(segundoTexto) : 0
+
+  const data = new Date(ano, mes - 1, dia, hora, minuto, segundo)
+
+  if (
+    Number.isNaN(data.getTime()) ||
+    data.getFullYear() !== ano ||
+    data.getMonth() !== mes - 1 ||
+    data.getDate() !== dia ||
+    data.getHours() !== hora ||
+    data.getMinutes() !== minuto
+  ) {
+    throw new Error("Data/hora inválida.")
   }
 
   return data

@@ -1,4 +1,6 @@
 import { prisma } from "@/lib/prisma";
+import type { FiltroStatusViagem } from "@/lib/services/viagem-status.service";
+import { fimDoDia, inicioDoDia } from "@/lib/utils/date-format";
 
 // 1. A Busca Principal (Para a tabela de listagem geral)
 export async function buscarViagens() {
@@ -43,16 +45,24 @@ export async function buscarViagensSemMotorista() {
 }
 
 /**
- * Viagens em andamento — painel do Dashboard. Não exige horarioRealSaida
- * preenchido: é justamente lá que o horário real e o motivo de atraso são
- * registrados (ver AtualizarSaidaReal), então a viagem precisa aparecer antes
- * disso ser preenchido.
+ * Viagens do painel do Dashboard: qualquer status com atividade hoje (usa o
+ * mesmo critério de sobreposição de `reconciliarFolgaMotoristasNoDiaAtual`),
+ * mais qualquer viagem "Retornando" independente da data — ela não pode
+ * sumir da tela só porque começou em um dia anterior. `filtroStatus` estreita
+ * ainda mais esse conjunto quando não é "TODOS".
  */
-export async function buscarViagensEmAndamento() {
+export async function buscarViagensDoDashboard(hoje: Date, filtroStatus: FiltroStatusViagem) {
+  const inicioHoje = inicioDoDia(hoje);
+  const fimHoje = fimDoDia(hoje);
+
   return await prisma.viagem.findMany({
     where: {
       deletadoEm: null,
-      status: { in: ["INICIADA", "RETORNANDO"] },
+      OR: [
+        { inicioPrevisto: { lte: fimHoje }, fimPrevisto: { gte: inicioHoje } },
+        { status: "RETORNANDO" },
+      ],
+      ...(filtroStatus === "TODOS" ? {} : { status: filtroStatus }),
     },
     orderBy: { inicioPrevisto: "asc" },
     include: {

@@ -14,7 +14,7 @@ type Props = {
   motivoAtrasoInicial: string | null
 }
 
-/** Edição inline pelo dashboard — ver buscarViagensEmAndamento (lib/queries/viagens.ts). */
+/** Edição inline pelo dashboard — ver buscarViagensDoDashboard (lib/queries/viagens.ts). */
 export default function AtualizarSaidaReal({
   viagemId,
   inicioPrevisto,

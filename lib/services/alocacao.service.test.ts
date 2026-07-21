@@ -1,7 +1,10 @@
 import { describe, expect, it } from "vitest"
 import type { StatusIntegracao, Turno } from "@prisma/client"
 import {
+  calcularAvisoInterjornada,
   calcularDiasDisponiveis,
+  calcularDistanciaHorarioHabitual,
+  calcularHorarioIdealChegada,
   calcularIntegracaoExigida,
   filtrarMotoristasCompativeis,
   filtrarMotoristasDisponiveisNoPeriodo,
@@ -20,6 +23,8 @@ type MotoristaMock = {
   diasTrabalhados: number
   integracao: Array<{ cliente: string; status: StatusIntegracao; dataValidade: Date }>
   registrosJornada: Array<{ data: Date; codigo: number }>
+  jornadaRelatorioInicio: Date | string | null
+  jornadaRelatorioFim: Date | string | null
 }
 
 function criarMotorista(parcial: Partial<MotoristaMock>): MotoristaMock {
@@ -30,6 +35,8 @@ function criarMotorista(parcial: Partial<MotoristaMock>): MotoristaMock {
     diasTrabalhados: 3,
     integracao: [],
     registrosJornada: [],
+    jornadaRelatorioInicio: null,
+    jornadaRelatorioFim: null,
     ...parcial,
   }
 }
@@ -175,6 +182,19 @@ describe("alocacao.service", () => {
       ).toBe(true)
     })
 
+    it("bloqueia motorista no 6º dia (hoje) pra uma viagem amanhã — amanhã ele estaria no 7º dia (Folga obrigatória)", () => {
+      const motorista = criarMotorista({ diasTrabalhados: 6 })
+      expect(
+        motoristaEhCompativel(motorista, {
+          turnoViagem: "MANHA",
+          diasViagem: 1,
+          dataInicioViagem: new Date("2026-07-09T00:00:00"), // hoje + 1 dia
+          integracaoExigida: null,
+          hoje,
+        }),
+      ).toBe(false)
+    })
+
     it("respeita um registro manual futuro (ex: Férias) na data em que ele existe, e libera depois de um registro que encerra o período", () => {
       const motorista = criarMotorista({
         diasTrabalhados: 3,
@@ -300,6 +320,54 @@ describe("alocacao.service", () => {
       const resultado = filtrarMotoristasCompativeis([zeca, ana], contexto)
 
       expect(resultado.map((m) => m.nome)).toEqual(["Ana", "Zeca"])
+    })
+
+    it("prioriza horário habitual mais próximo do ideal, mesmo com menos dias disponíveis", () => {
+      // horário ideal = dataInicioViagem (08/07 00:00) - 1h = 07/07 23:00
+      const horarioExato = criarMotorista({
+        id: 1,
+        nome: "Bate Exato",
+        diasTrabalhados: 5, // só 1 dia disponível
+        jornadaRelatorioInicio: new Date("2026-07-01T23:00:00"), // hora bate, data é de outro dia (tanto faz)
+      })
+      const semDadoDeRelatorio = criarMotorista({
+        id: 2,
+        nome: "Sem Relatorio",
+        diasTrabalhados: 1, // 5 dias disponíveis
+        jornadaRelatorioInicio: null,
+      })
+
+      const resultado = filtrarMotoristasCompativeis([semDadoDeRelatorio, horarioExato], contexto)
+
+      expect(resultado.map((m) => m.id)).toEqual([1, 2])
+    })
+
+    it("motorista sem dado de relatório vai pro fim da lista, não é excluído", () => {
+      const comHorario = criarMotorista({ id: 1, nome: "Com Horario", jornadaRelatorioInicio: new Date("2026-07-01T05:00:00") })
+      const semHorario = criarMotorista({ id: 2, nome: "Sem Horario", jornadaRelatorioInicio: null })
+
+      const resultado = filtrarMotoristasCompativeis([semHorario, comHorario], contexto)
+
+      expect(resultado.map((m) => m.id)).toEqual([1, 2])
+    })
+
+    it("em empate de horário habitual, desempata por dias disponíveis (critério anterior)", () => {
+      const mesmoHorarioMenosLivre = criarMotorista({
+        id: 1,
+        nome: "Menos Livre",
+        diasTrabalhados: 5,
+        jornadaRelatorioInicio: new Date("2026-07-01T23:00:00"),
+      })
+      const mesmoHorarioMaisLivre = criarMotorista({
+        id: 2,
+        nome: "Mais Livre",
+        diasTrabalhados: 1,
+        jornadaRelatorioInicio: new Date("2026-07-05T23:00:00"), // hora igual, data diferente — mesma distância
+      })
+
+      const resultado = filtrarMotoristasCompativeis([mesmoHorarioMenosLivre, mesmoHorarioMaisLivre], contexto)
+
+      expect(resultado.map((m) => m.id)).toEqual([2, 1])
     })
   })
 
@@ -581,6 +649,68 @@ describe("alocacao.service", () => {
       expect(resultado[0].motoristaSugerido?.id).toBe(1)
       expect(resultado[1].motoristaSugerido).toBeNull()
       expect(resultado[1].motoristasCompativeis).toEqual([])
+    })
+  })
+
+  describe("calcularHorarioIdealChegada", () => {
+    it("subtrai 1h do início da viagem (tempo de checklist)", () => {
+      const resultado = calcularHorarioIdealChegada(new Date("2026-07-08T08:00:00"))
+      expect(resultado).toEqual(new Date("2026-07-08T07:00:00"))
+    })
+
+    it("vira o dia corretamente quando a viagem é logo após a meia-noite", () => {
+      const resultado = calcularHorarioIdealChegada(new Date("2026-07-08T00:30:00"))
+      expect(resultado).toEqual(new Date("2026-07-07T23:30:00"))
+    })
+  })
+
+  describe("calcularDistanciaHorarioHabitual", () => {
+    const horarioIdeal = new Date("2026-07-08T07:00:00")
+
+    it("retorna null quando o motorista não tem jornada importada", () => {
+      expect(calcularDistanciaHorarioHabitual(null, horarioIdeal)).toBeNull()
+    })
+
+    it("retorna 0 quando o horário habitual bate exatamente (ignora a data, só a hora)", () => {
+      expect(calcularDistanciaHorarioHabitual(new Date("2026-06-15T07:00:00"), horarioIdeal)).toBe(0)
+    })
+
+    it("calcula a distância em minutos pra horários diferentes", () => {
+      expect(calcularDistanciaHorarioHabitual(new Date("2026-06-15T08:30:00"), horarioIdeal)).toBe(90)
+      expect(calcularDistanciaHorarioHabitual(new Date("2026-06-15T05:00:00"), horarioIdeal)).toBe(120)
+    })
+
+    it("é circular: 23:50 e 00:10 estão a só 20 minutos de distância, não a 1420", () => {
+      const perto = calcularDistanciaHorarioHabitual(new Date("2026-06-15T23:50:00"), new Date("2026-07-08T00:10:00"))
+      expect(perto).toBe(20)
+    })
+  })
+
+  describe("calcularAvisoInterjornada", () => {
+    it("retorna null quando o motorista não tem fim de jornada conhecido", () => {
+      expect(calcularAvisoInterjornada(null, new Date("2026-07-08T08:00:00"))).toBeNull()
+    })
+
+    it("retorna null quando o descanso é de 11h ou mais (mínimo legal)", () => {
+      const fimJornada = new Date("2026-07-07T21:00:00")
+      const inicioViagem = new Date("2026-07-08T08:00:00") // exatamente 11h depois
+      expect(calcularAvisoInterjornada(fimJornada, inicioViagem)).toBeNull()
+    })
+
+    it("gera aviso quando o descanso é menor que 11h, com as horas de descanso na mensagem", () => {
+      const fimJornada = new Date("2026-07-08T02:00:00")
+      const inicioViagem = new Date("2026-07-08T08:30:00") // 6.5h de descanso
+      const aviso = calcularAvisoInterjornada(fimJornada, inicioViagem)
+
+      expect(aviso).toBe("Interjornada: motorista teve apenas 6.5h de descanso (mínimo 11h).")
+    })
+
+    it("não gera aviso com valor negativo quando a viagem começa antes do fim da jornada anterior (dado inconsistente)", () => {
+      const fimJornada = new Date("2026-07-08T10:00:00")
+      const inicioViagem = new Date("2026-07-08T08:00:00")
+      const aviso = calcularAvisoInterjornada(fimJornada, inicioViagem)
+
+      expect(aviso).toBe("Interjornada: motorista teve apenas 0.0h de descanso (mínimo 11h).")
     })
   })
 })

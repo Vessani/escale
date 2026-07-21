@@ -20,12 +20,18 @@ vi.mock("@/lib/services/motorista.service", () => ({
   registrarJornadaNoDiaService: vi.fn(),
 }))
 
+vi.mock("@/lib/services/jornada-relatorio.service", () => ({
+  atualizarJornadaRelatorioDosMotoristas: vi.fn(),
+}))
+
 import * as motoristaService from "@/lib/services/motorista.service"
+import * as jornadaRelatorioService from "@/lib/services/jornada-relatorio.service"
 import {
   criarMotorista,
   editarMotorista,
   deletarMotorista,
   atualizarJornadaMotoristaNoCalendario,
+  atualizarJornadaRelatorio,
 } from "@/lib/actions/motoristas"
 
 describe("lib/actions/motoristas — controle de acesso", () => {
@@ -65,6 +71,13 @@ describe("lib/actions/motoristas — controle de acesso", () => {
       expect(resposta.sucesso).toBe(false)
       expect(motoristaService.registrarJornadaNoDiaService).not.toHaveBeenCalled()
     })
+
+    it("atualizarJornadaRelatorio recusa e não chama o service", async () => {
+      const resposta = await atualizarJornadaRelatorio([])
+
+      expect(resposta.sucesso).toBe(false)
+      expect(jornadaRelatorioService.atualizarJornadaRelatorioDosMotoristas).not.toHaveBeenCalled()
+    })
   })
 
   describe("com sessão", () => {
@@ -88,6 +101,16 @@ describe("lib/actions/motoristas — controle de acesso", () => {
 
       expect(resposta).toEqual({ sucesso: true })
       expect(motoristaService.registrarJornadaNoDiaService).toHaveBeenCalledTimes(1)
+    })
+
+    it("atualizarJornadaRelatorio segue em frente, chama o service e devolve o resultado", async () => {
+      const resultado = { atualizados: 3, naoEncontrados: [999], duplicados: [] }
+      vi.mocked(jornadaRelatorioService.atualizarJornadaRelatorioDosMotoristas).mockResolvedValue(resultado)
+
+      const resposta = await atualizarJornadaRelatorio([])
+
+      expect(resposta).toEqual({ sucesso: true, resultado })
+      expect(jornadaRelatorioService.atualizarJornadaRelatorioDosMotoristas).toHaveBeenCalledTimes(1)
     })
   })
 })

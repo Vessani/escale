@@ -1,9 +1,9 @@
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
-import { Download, PlusCircle, Truck } from "lucide-react"
+import { AlertTriangle, Download, PlusCircle, Truck } from "lucide-react"
 import { buscarViagens } from "@/lib/queries/viagens"
-import { STATUS_VIAGEM_OPCOES, ehStatusViagem, formatarStatusViagem } from "@/lib/services/viagem-status.service"
+import { STATUS_VIAGEM_OPCOES, formatarStatusViagem, parseStatusFiltro } from "@/lib/services/viagem-status.service"
 import AtualizarStatusRapido from "./atualizar-status-rapido"
 import ExcluirViagemButton from "./excluir-viagem-button"
 import { classeBadgeStatusViagem, classeBadgeTurno } from "./badge-styles"
@@ -20,12 +20,24 @@ import {
 type Viagem = Awaited<ReturnType<typeof buscarViagens>>[number]
 
 function MotoristaCelula({ viagem }: { viagem: Viagem }) {
-  return viagem.motorista ? (
-    <span className="text-slate-900 font-medium">{viagem.motorista.nome}</span>
-  ) : (
-    <Badge variant="outline" className="border-amber-200 bg-amber-100 text-amber-800 hover:bg-amber-100">
-      Pendente Alocação
-    </Badge>
+  if (!viagem.motorista) {
+    return (
+      <Badge variant="outline" className="border-amber-200 bg-amber-100 text-amber-800 hover:bg-amber-100">
+        Pendente Alocação
+      </Badge>
+    )
+  }
+
+  return (
+    <div className="space-y-1">
+      <span className="text-slate-900 font-medium">{viagem.motorista.nome}</span>
+      {viagem.avisoInterjornada && (
+        <div className="flex items-center gap-1 text-xs text-amber-700" title={viagem.avisoInterjornada}>
+          <AlertTriangle className="h-3 w-3 shrink-0" />
+          <span>Interjornada</span>
+        </div>
+      )}
+    </div>
   )
 }
 
@@ -147,14 +159,6 @@ function ViagensCards({ viagens }: { viagens: Viagem[] }) {
 
 type SearchParamsInput = {
   status?: string
-}
-
-function parseStatusFiltro(valor?: string) {
-  if (!valor || valor === "TODOS") {
-    return "TODOS" as const
-  }
-
-  return ehStatusViagem(valor) ? valor : "TODOS"
 }
 
 export default async function ViagensPage({

@@ -48,6 +48,7 @@
 
     horarioRealSaida  DateTime?    @db.Timestamp(6)
     motivoAtraso      String?      @db.VarChar(200)
+    avisoInterjornada String?      @db.VarChar(200)
 
     motoristaId       Int?
     motorista         Motorista?   @relation(fields: [motoristaId], references: [id])
@@ -94,6 +95,13 @@
 
     turno           Turno
 
+    // Último registro do Relatório Sintético de Jornada importado pra esse
+    // motorista (busca por `seva` = Matrícula do relatório) — ver
+    // jornada-relatorio.service.ts. Só o mais recente é mantido.
+    jornadaRelatorioInicio DateTime? @db.Timestamp(6)
+    jornadaRelatorioFim    DateTime? @db.Timestamp(6)
+    jornadaRelatorioDia    DateTime? @db.Date
+
     criadoEm        DateTime     @default(now())
     atualizadoEm    DateTime     @updatedAt
     deletadoEm      DateTime?
@@ -101,6 +109,8 @@
     integracao      Integracao[]
     viagens         Viagem[]
     registrosJornada RegistroJornada[]
+
+    @@index([seva])
   }
 
   // Histórico de jornada por dia. diasTrabalhados no Motorista continua sendo

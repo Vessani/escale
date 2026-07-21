@@ -61,6 +61,7 @@ export default function NovaViagemPage() {
         dados,
         motoristaSugerido: sugestoes[indice]?.motoristaSugerido ?? null,
         motoristasCompativeis: sugestoes[indice]?.motoristasCompativeis ?? [],
+        avisoInterjornada: sugestoes[indice]?.avisoInterjornada ?? null,
       }))
       setRevisandoLote(paraConfirmar)
     } catch {

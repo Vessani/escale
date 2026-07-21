@@ -17,6 +17,8 @@ export type MotoristaCompativel = {
   diasTrabalhados: number
   diasDisponiveis: number
   turno: "MANHA" | "NOITE"
+  /** Hora do dia do último "Início de Jornada" do relatório importado, ex: "07:00". `null` sem dado. */
+  horarioHabitual: string | null
 }
 
 export type MotoristaSugerido = {
@@ -39,6 +41,7 @@ export type ViagemAlocacao = {
   entregas: EntregaAlocacao[]
   motoristaSugerido: MotoristaSugerido
   motoristasCompativeis: MotoristaCompativel[]
+  avisoInterjornada: string | null
 }
 
 /** Sugestão de alocação para uma viagem que ainda não existe no banco (revisão antes de criar em lote). */
@@ -46,4 +49,6 @@ export type SugestaoAlocacaoPendente = {
   numViagem: string
   motoristaSugerido: MotoristaSugerido
   motoristasCompativeis: MotoristaCompativel[]
+  /** Calculado pro motorista sugerido — ver calcularAvisoInterjornada (alocacao.service.ts). */
+  avisoInterjornada: string | null
 }

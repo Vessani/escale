@@ -18,6 +18,7 @@ export type ViagemParaConfirmar = {
   dados: NovaViagemFormValues
   motoristaSugerido: MotoristaSugerido
   motoristasCompativeis: MotoristaCompativel[]
+  avisoInterjornada: string | null
 }
 
 type Props = {
@@ -162,11 +163,18 @@ export default function ConfirmarLoteViagens({ viagens, onConcluido, onCancelar 
                         </p>
                         <p className="text-sm font-medium text-slate-900">{viagem.motoristaSugerido?.nome}</p>
                         <p className="text-xs text-slate-500">
-                          Priorizado pelo maior número de dias disponíveis na jornada.
+                          Priorizado por horário habitual de jornada mais próximo (dias disponíveis desempata).
                         </p>
                       </div>
                     )}
                   </div>
+
+                  {viagem.avisoInterjornada && (
+                    <div className="flex items-start gap-2 rounded-md border border-amber-300 bg-amber-50 p-2 text-xs text-amber-800">
+                      <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+                      <span>{viagem.avisoInterjornada}</span>
+                    </div>
+                  )}
                 </div>
 
                 <div className="space-y-4 rounded-lg border border-slate-200 bg-slate-50 p-4">
@@ -185,6 +193,7 @@ export default function ConfirmarLoteViagens({ viagens, onConcluido, onCancelar 
                           viagem.motoristasCompativeis.map((motorista) => (
                             <SelectItem key={motorista.id} value={String(motorista.id)}>
                               {motorista.nome} · {motorista.diasDisponiveis} dia(s) disponível(is)
+                              {motorista.horarioHabitual ? ` · jornada às ${motorista.horarioHabitual}` : ""}
                             </SelectItem>
                           ))
                         )}

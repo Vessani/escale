@@ -1,6 +1,6 @@
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
-import { ChevronLeft, ChevronRight, PlusCircle, Users } from "lucide-react"
+import { ChevronLeft, ChevronRight, PlusCircle, Upload, Users } from "lucide-react"
 import { buscarMotoristasComAgenda } from "@/lib/queries/motoristas"
 import { serializeData } from "@/lib/serialization"
 import { fimDoDia, inicioDoDia } from "@/lib/utils/date-format"
@@ -78,6 +78,12 @@ export default async function MotoristasPage({
             <Button variant="outline">
               Próximos dias
               <ChevronRight className="w-4 h-4 ml-2" />
+            </Button>
+          </Link>
+          <Link href="/motorista/importar-jornada">
+            <Button variant="outline">
+              <Upload className="w-4 h-4 mr-2" />
+              Importar Jornada
             </Button>
           </Link>
           <Link href="/motorista/novo">

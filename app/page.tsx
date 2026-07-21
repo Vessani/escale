@@ -1,18 +1,35 @@
 import Link from "next/link"
-import { Route } from "lucide-react"
+import { Button } from "@/components/ui/button"
+import { AlertTriangle, Route } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
-import { buscarViagensEmAndamento } from "@/lib/queries/viagens"
+import { buscarViagensDoDashboard } from "@/lib/queries/viagens"
 import { classeBadgeStatusViagem } from "./viagens/badge-styles"
-import { formatarStatusViagem } from "@/lib/services/viagem-status.service"
+import { STATUS_VIAGEM_OPCOES, formatarStatusViagem, parseStatusFiltro } from "@/lib/services/viagem-status.service"
 import { formatarDataHoraPtBr } from "@/lib/utils/date-format"
 import AtualizarSaidaReal from "./atualizar-saida-real"
 
-type Viagem = Awaited<ReturnType<typeof buscarViagensEmAndamento>>[number]
+type Viagem = Awaited<ReturnType<typeof buscarViagensDoDashboard>>[number]
 
 function cidadesDestino(viagem: Viagem) {
   const cidades = [...new Set(viagem.entregas.map((entrega) => entrega.cidade).filter(Boolean))]
   return cidades.length > 0 ? cidades.join(" → ") : "-"
+}
+
+function MotoristaCelula({ viagem, className }: { viagem: Viagem; className?: string }) {
+  return (
+    <div className="space-y-1">
+      <Link href={`/viagens/editar/${viagem.id}`} className={className ?? "hover:text-blue-700"}>
+        {viagem.motorista?.nome ?? "Não alocado"}
+      </Link>
+      {viagem.avisoInterjornada && (
+        <div className="flex items-center gap-1 text-xs text-amber-700" title={viagem.avisoInterjornada}>
+          <AlertTriangle className="h-3 w-3 shrink-0" />
+          <span>Interjornada</span>
+        </div>
+      )}
+    </div>
+  )
 }
 
 function SaidaCelula({ viagem }: { viagem: Viagem }) {
@@ -46,9 +63,7 @@ function ViagensEmAndamentoTabela({ viagens }: { viagens: Viagem[] }) {
           {viagens.map((viagem) => (
             <TableRow key={viagem.id} className="hover:bg-slate-50">
               <TableCell className="font-medium">
-                <Link href={`/viagens/editar/${viagem.id}`} className="hover:text-blue-700">
-                  {viagem.motorista?.nome ?? "Não alocado"}
-                </Link>
+                <MotoristaCelula viagem={viagem} />
               </TableCell>
               <TableCell>{viagem.numViagem}</TableCell>
               <TableCell>
@@ -81,9 +96,7 @@ function ViagensEmAndamentoCards({ viagens }: { viagens: Viagem[] }) {
         <div key={viagem.id} className="space-y-3 rounded-lg border bg-white shadow-sm p-4">
           <div className="flex items-start justify-between gap-2">
             <div>
-              <Link href={`/viagens/editar/${viagem.id}`} className="font-semibold text-slate-900 hover:text-blue-700">
-                {viagem.motorista?.nome ?? "Não alocado"}
-              </Link>
+              <MotoristaCelula viagem={viagem} className="font-semibold text-slate-900 hover:text-blue-700" />
               <p className="text-xs text-slate-500">
                 Viagem {viagem.numViagem} · {viagem.cavalo} / {viagem.carreta}
               </p>
@@ -116,29 +129,55 @@ function ViagensEmAndamentoCards({ viagens }: { viagens: Viagem[] }) {
   )
 }
 
-export default async function DashboardPage() {
-  const viagens = await buscarViagensEmAndamento()
+type SearchParamsInput = {
+  status?: string
+}
+
+export default async function DashboardPage({
+  searchParams,
+}: {
+  searchParams?: Promise<SearchParamsInput>
+}) {
+  const parametros = (await searchParams) ?? {}
+  const filtroStatus = parseStatusFiltro(parametros.status)
+  const viagens = await buscarViagensDoDashboard(new Date(), filtroStatus)
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-3xl font-bold tracking-tight text-slate-900">Dashboard</h1>
-        <p className="text-slate-500 mt-1">
-          Acompanhamento das viagens que já saíram e ainda estão em andamento.
-        </p>
+      <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+        <div>
+          <h1 className="text-3xl font-bold tracking-tight text-slate-900">Dashboard</h1>
+          <p className="text-slate-500 mt-1">
+            Viagens de hoje em qualquer status, mais qualquer viagem ainda Retornando de dias anteriores.
+          </p>
+        </div>
+        <div className="flex flex-wrap items-center gap-2">
+          <Link href="/">
+            <Button variant={filtroStatus === "TODOS" ? "default" : "outline"}>Todos</Button>
+          </Link>
+          {STATUS_VIAGEM_OPCOES.map((status) => (
+            <Link key={status.valor} href={`/?status=${status.valor}`}>
+              <Button variant={filtroStatus === status.valor ? "default" : "outline"}>
+                {status.label}
+              </Button>
+            </Link>
+          ))}
+        </div>
       </div>
 
       {viagens.length === 0 ? (
         <div className="border rounded-lg bg-white shadow-sm p-12">
           <div className="flex flex-col items-center justify-center text-slate-500">
             <Route className="w-8 h-8 text-slate-300 mb-2" />
-            <p>Nenhuma viagem em andamento no momento.</p>
+            <p>Nenhuma viagem encontrada para este filtro.</p>
           </div>
         </div>
       ) : (
         <section className="space-y-3">
           <div className="flex items-center justify-between">
-            <h2 className="text-xl font-semibold text-slate-900">Em andamento</h2>
+            <h2 className="text-xl font-semibold text-slate-900">
+              {filtroStatus === "TODOS" ? "Hoje" : `Status: ${formatarStatusViagem(filtroStatus)}`}
+            </h2>
             <Badge variant="outline">{viagens.length}</Badge>
           </div>
           <ViagensEmAndamentoTabela viagens={viagens} />

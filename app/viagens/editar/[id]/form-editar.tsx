@@ -54,6 +54,8 @@ type MotoristaParaSelect = {
     data: string | Date
     codigo: number
   }>
+  jornadaRelatorioInicio: string | Date | null
+  jornadaRelatorioFim: string | Date | null
 }
 
 type ViagemComRelacionamentos = {

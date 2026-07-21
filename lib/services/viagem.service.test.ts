@@ -8,6 +8,9 @@ vi.mock("@/lib/prisma", () => ({
       findUnique: vi.fn(),
       update: vi.fn(),
     },
+    motorista: {
+      findUnique: vi.fn(),
+    },
   },
 }))
 
@@ -75,6 +78,8 @@ function criarMotoristaParaSelect(parcial: Record<string, unknown> = {}) {
     integracao: [],
     viagens: [],
     registrosJornada: [],
+    jornadaRelatorioInicio: null,
+    jornadaRelatorioFim: null,
     ...parcial,
   }
 }
@@ -83,6 +88,8 @@ describe("viagem.service", () => {
   beforeEach(() => {
     vi.clearAllMocks()
     usarTransacaoCom(criarTx())
+    // Sem dado de jornada por padrão — calcularAvisoInterjornada retorna null.
+    vi.mocked(prisma.motorista.findUnique).mockResolvedValue(null)
   })
 
   describe("criarViagemAvulsaService", () => {
@@ -101,6 +108,37 @@ describe("viagem.service", () => {
       expect(dadosCriados.motoristaId).toBe(1)
       expect(dadosCriados.status).toBe("ALOCADA")
       expect(reconciliarFolgaMotoristasNoDiaAtual).toHaveBeenCalledWith(tx, [1])
+    })
+
+    it("grava avisoInterjornada quando o motorista sugerido teve descanso insuficiente", async () => {
+      const agora = new Date()
+      const fimJornadaRecente = new Date(agora.getTime() - 2 * 60 * 60 * 1000) // só 2h de descanso
+
+      vi.mocked(buscarMotoristasParaSelect).mockResolvedValue([
+        criarMotoristaParaSelect({ jornadaRelatorioFim: fimJornadaRecente }),
+      ] as never)
+
+      const tx = criarTx()
+      vi.mocked(tx.viagem.create).mockResolvedValue({ id: 102, motoristaId: 1 })
+      usarTransacaoCom(tx)
+
+      await criarViagemAvulsaService(criarViagemInput({ inicioPrevisto: agora.toISOString() }))
+
+      const dadosCriados = vi.mocked(tx.viagem.create).mock.calls[0][0].data
+      expect(dadosCriados.avisoInterjornada).toContain("Interjornada")
+    })
+
+    it("não grava avisoInterjornada quando o motorista não tem jornada de relatório importada", async () => {
+      vi.mocked(buscarMotoristasParaSelect).mockResolvedValue([criarMotoristaParaSelect()] as never)
+
+      const tx = criarTx()
+      vi.mocked(tx.viagem.create).mockResolvedValue({ id: 103, motoristaId: 1 })
+      usarTransacaoCom(tx)
+
+      await criarViagemAvulsaService(criarViagemInput())
+
+      const dadosCriados = vi.mocked(tx.viagem.create).mock.calls[0][0].data
+      expect(dadosCriados.avisoInterjornada).toBeNull()
     })
 
     it("cria sem motorista (status CRIADA) quando ninguém é compatível", async () => {
@@ -205,6 +243,37 @@ describe("viagem.service", () => {
       expect(dadosCriados.motoristaId).toBe(7)
       expect(dadosCriados.status).toBe("ALOCADA")
     })
+
+    it("busca o motorista pelo id e grava avisoInterjornada quando o descanso dele é insuficiente", async () => {
+      const agora = new Date()
+      const fimJornadaRecente = new Date(agora.getTime() - 3 * 60 * 60 * 1000)
+      vi.mocked(prisma.motorista.findUnique).mockResolvedValue({ jornadaRelatorioFim: fimJornadaRecente } as never)
+
+      const tx = criarTx()
+      vi.mocked(tx.viagem.create).mockResolvedValue({ id: 104, motoristaId: 7 })
+      usarTransacaoCom(tx)
+
+      await criarViagemComAlocacaoService(criarViagemInput({ inicioPrevisto: agora.toISOString() }), 7)
+
+      expect(prisma.motorista.findUnique).toHaveBeenCalledWith({
+        where: { id: 7 },
+        select: { jornadaRelatorioFim: true },
+      })
+      const dadosCriados = vi.mocked(tx.viagem.create).mock.calls[0][0].data
+      expect(dadosCriados.avisoInterjornada).toContain("Interjornada")
+    })
+
+    it("não consulta motorista nem gera aviso quando a viagem é criada sem motorista", async () => {
+      const tx = criarTx()
+      vi.mocked(tx.viagem.create).mockResolvedValue({ id: 105, motoristaId: null })
+      usarTransacaoCom(tx)
+
+      await criarViagemComAlocacaoService(criarViagemInput(), null)
+
+      expect(prisma.motorista.findUnique).not.toHaveBeenCalled()
+      const dadosCriados = vi.mocked(tx.viagem.create).mock.calls[0][0].data
+      expect(dadosCriados.avisoInterjornada).toBeNull()
+    })
   })
 
   describe("editarViagemService", () => {
@@ -257,6 +326,47 @@ describe("viagem.service", () => {
 
       const dados = vi.mocked(tx.viagem.update).mock.calls[0][0].data
       expect(dados.status).toBe("POSTERGADA")
+    })
+
+    it("recalcula avisoInterjornada com base no novo motorista quando motoristaId muda", async () => {
+      vi.mocked(prisma.viagem.findUnique).mockResolvedValue({ status: "CRIADA", motoristaId: null } as never)
+      const agora = new Date()
+      const fimJornadaRecente = new Date(agora.getTime() - 4 * 60 * 60 * 1000)
+      vi.mocked(prisma.motorista.findUnique).mockResolvedValue({ jornadaRelatorioFim: fimJornadaRecente } as never)
+
+      const tx = criarTx()
+      vi.mocked(tx.viagem.update).mockResolvedValue({ id: 1, motoristaId: 5 })
+      usarTransacaoCom(tx)
+
+      await editarViagemService(1, criarEdicaoInput({ motoristaId: 5, inicioPrevisto: agora.toISOString() }))
+
+      expect(prisma.motorista.findUnique).toHaveBeenCalledWith({
+        where: { id: 5 },
+        select: { jornadaRelatorioFim: true },
+      })
+      const dados = vi.mocked(tx.viagem.update).mock.calls[0][0].data
+      expect(dados.avisoInterjornada).toContain("Interjornada")
+    })
+
+    it("mantém o motorista atual (e recalcula o aviso pra ele) quando motoristaId não é enviado na edição", async () => {
+      const agora = new Date()
+      const fimJornadaRecente = new Date(agora.getTime() - 1 * 60 * 60 * 1000)
+      vi.mocked(prisma.viagem.findUnique).mockResolvedValue({ status: "ALOCADA", motoristaId: 9 } as never)
+      vi.mocked(prisma.motorista.findUnique).mockResolvedValue({ jornadaRelatorioFim: fimJornadaRecente } as never)
+
+      const tx = criarTx()
+      vi.mocked(tx.viagem.update).mockResolvedValue({ id: 1, motoristaId: 9 })
+      usarTransacaoCom(tx)
+
+      // motoristaId de propósito ausente do payload — dados.motoristaId fica undefined, não trocando o motorista.
+      await editarViagemService(1, criarEdicaoInput({ inicioPrevisto: agora.toISOString() }))
+
+      expect(prisma.motorista.findUnique).toHaveBeenCalledWith({
+        where: { id: 9 },
+        select: { jornadaRelatorioFim: true },
+      })
+      const dados = vi.mocked(tx.viagem.update).mock.calls[0][0].data
+      expect(dados.avisoInterjornada).toContain("Interjornada")
     })
   })
 

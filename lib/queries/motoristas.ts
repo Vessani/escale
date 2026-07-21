@@ -65,6 +65,8 @@ export async function buscarMotoristasParaSelect(turnoDaViagem?: Turno) {
       nome: true,
       turno: true,
       diasTrabalhados: true,
+      jornadaRelatorioInicio: true,
+      jornadaRelatorioFim: true,
       integracao: {
         select: {
           cliente: true,

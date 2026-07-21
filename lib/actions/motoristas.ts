@@ -10,6 +10,11 @@ import {
   deletarMotoristaService,
   registrarJornadaNoDiaService,
 } from "@/lib/services/motorista.service";
+import {
+  atualizarJornadaRelatorioDosMotoristas,
+  type ResultadoImportacaoJornada,
+} from "@/lib/services/jornada-relatorio.service";
+import type { RegistroJornadaRelatorio } from "@/lib/parsers/jornada-relatorio-parser";
 
 export async function criarMotorista(dados: NovoMotoristaInput): Promise<RespostaAcao> {
   try {
@@ -66,5 +71,29 @@ export async function atualizarJornadaMotoristaNoCalendario(
     return { sucesso: true }
   } catch (error) {
     return { sucesso: false, erro: errorToMessage(error, "Erro ao atualizar jornada no calendário.") }
+  }
+}
+
+export type RespostaImportacaoJornada =
+  | { sucesso: true; resultado: ResultadoImportacaoJornada }
+  | { sucesso: false; erro: string }
+
+/**
+ * Importa o Relatório Sintético de Jornada (upload recorrente — ver
+ * app/motorista/importar-jornada). Atualiza só o último registro de cada
+ * motorista, por matrícula (`seva`) — ver jornada-relatorio.service.ts.
+ */
+export async function atualizarJornadaRelatorio(
+  registros: RegistroJornadaRelatorio[],
+): Promise<RespostaImportacaoJornada> {
+  try {
+    await requireSession();
+    const resultado = await atualizarJornadaRelatorioDosMotoristas(registros);
+
+    revalidatePath("/motorista");
+    return { sucesso: true, resultado };
+  } catch (error) {
+    console.error("[atualizarJornadaRelatorio] Erro ao importar relatório de jornada:", error);
+    return { sucesso: false, erro: errorToMessage(error, "Não foi possível importar o relatório de jornada.") };
   }
 }

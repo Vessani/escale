@@ -3,12 +3,13 @@ import { buscarMotoristas } from "@/lib/queries/motoristas"
 import { buscarViagensSemMotorista } from "@/lib/queries/viagens"
 import type { ViagemAlocacao } from "@/lib/types/alocacao"
 import {
+  calcularAvisoInterjornada,
   calcularDiasDisponiveis,
   calcularIntegracaoExigida,
   sugerirAlocacoesEmLote,
 } from "@/lib/services/alocacao.service"
 import { mapearRegistrosJornada, projetarCodigoNoDia } from "@/lib/services/jornada.service"
-import { inicioDoDia } from "@/lib/utils/date-format"
+import { formatarHoraLocal, inicioDoDia } from "@/lib/utils/date-format"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { ArrowRightLeft, Truck } from "lucide-react"
@@ -75,6 +76,9 @@ function serializarViagens(viagensBrutas: ViagemBase[], motoristasBrutos: Motori
             nome: motoristaSugerido.nome,
           }
         : null,
+      avisoInterjornada: motoristaSugerido
+        ? calcularAvisoInterjornada(motoristaSugerido.jornadaRelatorioFim, new Date(viagem.inicioPrevisto))
+        : null,
       motoristasCompativeis: motoristasCompativeis.map((motorista) => {
         // Mesma jornada projetada usada pra decidir compatibilidade, não o
         // cache de "hoje" — senão o número mostrado destoa do motivo real
@@ -92,6 +96,7 @@ function serializarViagens(viagensBrutas: ViagemBase[], motoristasBrutos: Motori
           diasTrabalhados: codigoNaViagem,
           diasDisponiveis: calcularDiasDisponiveis(codigoNaViagem),
           turno: motorista.turno,
+          horarioHabitual: motorista.jornadaRelatorioInicio ? formatarHoraLocal(motorista.jornadaRelatorioInicio) : null,
         }
       }),
     }

@@ -2,7 +2,8 @@ import { StatusIntegracao, StatusViagem, Turno } from "@prisma/client"
 import { inicioDoDia } from "@/lib/utils/date-format"
 import { projetarCodigoNoDia, type PontoRegistroJornada } from "./jornada.service"
 
-const MAX_DIAS_CONSECUTIVOS = 6
+/** Máximo de dias consecutivos de trabalho antes da folga obrigatória — mesmo limite usado pra capar o "Dias Sem Folga" importado do relatório (ver jornada-relatorio.service.ts). */
+export const MAX_DIAS_CONSECUTIVOS = 6
 
 const CLIENTES_COM_INTEGRACAO_OBRIGATORIA = new Set([
   "GEMP - AMBEV - BEBIDAS - N2L. (GRUPO AMB",
@@ -22,6 +23,9 @@ type MotoristaParaAlocacao = {
   diasTrabalhados: number
   integracao: IntegracaoBase[]
   registrosJornada: PontoRegistroJornada[]
+  /** Último registro do Relatório Sintético de Jornada importado (ver jornada-relatorio.service.ts). */
+  jornadaRelatorioInicio: Date | string | null
+  jornadaRelatorioFim: Date | string | null
 }
 
 type ViagemParaDisponibilidade = {
@@ -100,6 +104,65 @@ function codigoJornadaNaViagem(motorista: MotoristaParaAlocacao, contexto: Conte
   )
 }
 
+const HORAS_ANTECEDENCIA_CHECKLIST = 1
+
+/** Horário ideal de início de jornada do motorista pra uma viagem: 1h antes, pra dar tempo de checklist. */
+export function calcularHorarioIdealChegada(dataInicioViagem: Date): Date {
+  return new Date(dataInicioViagem.getTime() - HORAS_ANTECEDENCIA_CHECKLIST * 60 * 60 * 1000)
+}
+
+/**
+ * Distância em minutos entre o horário habitual de início de jornada do
+ * motorista (só a hora do dia, não a data — o registro do relatório é de um
+ * dia qualquer do período coberto) e o horário ideal calculado pra viagem.
+ * Circular: 23:50 e 00:10 têm distância 20, não 1420. `null` quando o
+ * motorista nunca teve jornada importada — esses ficam por último na
+ * ordenação, não são excluídos.
+ */
+export function calcularDistanciaHorarioHabitual(
+  jornadaInicioHabitual: Date | string | null,
+  horarioIdeal: Date,
+): number | null {
+  if (!jornadaInicioHabitual) {
+    return null
+  }
+
+  const habitual = new Date(jornadaInicioHabitual)
+  const minutosHabitual = habitual.getHours() * 60 + habitual.getMinutes()
+  const minutosIdeal = horarioIdeal.getHours() * 60 + horarioIdeal.getMinutes()
+  const diferenca = Math.abs(minutosHabitual - minutosIdeal)
+
+  return Math.min(diferenca, 1440 - diferenca)
+}
+
+const MINIMO_HORAS_ENTRE_JORNADAS = 11
+
+/**
+ * Aviso de interjornada: quando o descanso entre o fim da última jornada
+ * conhecida do motorista (relatório) e o início da nova viagem é menor que o
+ * mínimo legal (11h, o mesmo valor já configurado no cabeçalho do relatório).
+ * É só aviso — não desqualifica o motorista da sugestão, sinaliza depois de
+ * escolhido, pra o time negociar nível de serviço com o cliente se precisar.
+ */
+export function calcularAvisoInterjornada(
+  fimJornadaAnterior: Date | string | null,
+  inicioNovaViagem: Date,
+): string | null {
+  if (!fimJornadaAnterior) {
+    return null
+  }
+
+  const fim = new Date(fimJornadaAnterior)
+  const horasDescanso = (inicioNovaViagem.getTime() - fim.getTime()) / (60 * 60 * 1000)
+
+  if (horasDescanso >= MINIMO_HORAS_ENTRE_JORNADAS) {
+    return null
+  }
+
+  const horasDescansoTexto = Math.max(0, horasDescanso).toFixed(1)
+  return `Interjornada: motorista teve apenas ${horasDescansoTexto}h de descanso (mínimo ${MINIMO_HORAS_ENTRE_JORNADAS}h).`
+}
+
 export function motoristaEhCompativel(
   motorista: MotoristaParaAlocacao,
   contexto: ContextoCompatibilidade,
@@ -121,13 +184,29 @@ export function motoristaEhCompativel(
   return temIntegracaoValida(motorista, contexto.integracaoExigida, contexto.dataInicioViagem)
 }
 
+/**
+ * Ordena por proximidade de horário habitual de jornada primeiro (quem não
+ * tem dado de relatório fica por último), dias disponíveis como desempate,
+ * nome como desempate final.
+ */
 export function filtrarMotoristasCompativeis<T extends MotoristaParaAlocacao>(
   motoristas: T[],
   contexto: ContextoCompatibilidade,
 ): T[] {
+  const horarioIdeal = calcularHorarioIdealChegada(contexto.dataInicioViagem)
+
   return motoristas
     .filter((motorista) => motoristaEhCompativel(motorista, contexto))
     .sort((a, b) => {
+      const distanciaA = calcularDistanciaHorarioHabitual(a.jornadaRelatorioInicio, horarioIdeal)
+      const distanciaB = calcularDistanciaHorarioHabitual(b.jornadaRelatorioInicio, horarioIdeal)
+
+      if (distanciaA !== distanciaB) {
+        if (distanciaA === null) return 1
+        if (distanciaB === null) return -1
+        return distanciaA - distanciaB
+      }
+
       const diasDisponiveisA = calcularDiasDisponiveis(codigoJornadaNaViagem(a, contexto))
       const diasDisponiveisB = calcularDiasDisponiveis(codigoJornadaNaViagem(b, contexto))
       return diasDisponiveisB - diasDisponiveisA || a.nome.localeCompare(b.nome)

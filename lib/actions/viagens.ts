@@ -22,12 +22,13 @@ import {
 } from "@/lib/services/viagem.service";
 import { buscarMotoristasParaSelect } from "@/lib/queries/motoristas";
 import {
+  calcularAvisoInterjornada,
   calcularDiasDisponiveis,
   calcularIntegracaoExigida,
   sugerirAlocacoesEmLote,
 } from "@/lib/services/alocacao.service";
 import { mapearRegistrosJornada, projetarCodigoNoDia } from "@/lib/services/jornada.service";
-import { inicioDoDia } from "@/lib/utils/date-format";
+import { formatarHoraLocal, inicioDoDia } from "@/lib/utils/date-format";
 
 export async function criarViagemAvulsa(dados: NovaViagemInput): Promise<RespostaAcao> {
   try {
@@ -82,6 +83,9 @@ export async function sugerirAlocacaoParaViagens(
       motoristaSugerido: sugestao.motoristaSugerido
         ? { id: sugestao.motoristaSugerido.id, nome: sugestao.motoristaSugerido.nome }
         : null,
+      avisoInterjornada: sugestao.motoristaSugerido
+        ? calcularAvisoInterjornada(sugestao.motoristaSugerido.jornadaRelatorioFim, dataInicioViagem)
+        : null,
       motoristasCompativeis: sugestao.motoristasCompativeis.map((motorista) => {
         // Mesma jornada projetada usada pra decidir compatibilidade, não o
         // cache de "hoje" — ver mesma lógica em app/viagens/alocacao/page.tsx.
@@ -98,6 +102,7 @@ export async function sugerirAlocacaoParaViagens(
           diasTrabalhados: codigoNaViagem,
           diasDisponiveis: calcularDiasDisponiveis(codigoNaViagem),
           turno: motorista.turno,
+          horarioHabitual: motorista.jornadaRelatorioInicio ? formatarHoraLocal(motorista.jornadaRelatorioInicio) : null,
         };
       }),
     };
@@ -201,7 +206,7 @@ export async function atualizarStatusViagem(idViagem: number, status: StatusViag
   }
 }
 
-/** Registro rápido pelo dashboard — ver buscarViagensEmAndamento (lib/queries/viagens.ts). */
+/** Registro rápido pelo dashboard — ver buscarViagensDoDashboard (lib/queries/viagens.ts). */
 export async function atualizarSaidaReal(
   idViagem: number,
   dados: { horarioRealSaida: string | null; motivoAtraso: string | null },

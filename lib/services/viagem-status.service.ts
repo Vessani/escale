@@ -39,3 +39,14 @@ export function ehStatusViagem(valor: string): valor is StatusViagemSelecionavel
 export function formatarStatusViagem(status: StatusViagem) {
   return STATUS_VIAGEM_LABELS[normalizarStatusViagem(status)]
 }
+
+/** Valor de um filtro de status vindo da URL (`?status=`) — "TODOS" quando ausente ou inválido. */
+export type FiltroStatusViagem = StatusViagemSelecionavel | "TODOS"
+
+export function parseStatusFiltro(valor?: string): FiltroStatusViagem {
+  if (!valor || valor === "TODOS") {
+    return "TODOS"
+  }
+
+  return ehStatusViagem(valor) ? valor : "TODOS"
+}
