@@ -4,6 +4,7 @@ import { useState } from "react"
 import { useRouter } from "next/navigation"
 import { useForm, SubmitHandler, Resolver } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
+import { Alert } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form"
@@ -62,6 +63,7 @@ export default function NovaViagemPage() {
         motoristaSugerido: sugestoes[indice]?.motoristaSugerido ?? null,
         motoristasCompativeis: sugestoes[indice]?.motoristasCompativeis ?? [],
         avisoInterjornada: sugestoes[indice]?.avisoInterjornada ?? null,
+        avisoFrotaIndisponivel: sugestoes[indice]?.avisoFrotaIndisponivel ?? null,
       }))
       setRevisandoLote(paraConfirmar)
     } catch {
@@ -106,28 +108,26 @@ export default function NovaViagemPage() {
         <Button variant="outline" type="button" onClick={() => router.back()}>Cancelar</Button>
       </div>
 
-      {erroGlobal && (
-        <div className="p-4 bg-red-50 text-red-600 border border-red-200 rounded-md font-medium">
-          {erroGlobal}
-        </div>
-      )}
+      {erroGlobal && <Alert variant="error" className="font-medium">{erroGlobal}</Alert>}
 
       {resumoLote && (
-        <div className="rounded-md border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800">
-          <p className="font-medium">
-            {resumoLote.criadas} viagem(ns) criada(s) com sucesso.
-            {resumoLote.falhas.length > 0 && ` ${resumoLote.falhas.length} falharam:`}
-          </p>
-          {resumoLote.falhas.length > 0 && (
-            <ul className="mt-2 list-disc pl-5">
-              {resumoLote.falhas.map((falha) => (
-                <li key={falha.numViagem}>
-                  Viagem {falha.numViagem} — {falha.erro}
-                </li>
-              ))}
-            </ul>
-          )}
-        </div>
+        <Alert variant={resumoLote.falhas.length > 0 ? "warning" : "success"}>
+          <div>
+            <p className="font-medium">
+              {resumoLote.criadas} viagem(ns) criada(s) com sucesso.
+              {resumoLote.falhas.length > 0 && ` ${resumoLote.falhas.length} falharam:`}
+            </p>
+            {resumoLote.falhas.length > 0 && (
+              <ul className="mt-2 list-disc pl-5">
+                {resumoLote.falhas.map((falha) => (
+                  <li key={falha.numViagem}>
+                    Viagem {falha.numViagem} — {falha.erro}
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+        </Alert>
       )}
 
       {revisandoLote ? (
@@ -207,7 +207,7 @@ export default function NovaViagemPage() {
 
                 <EntregasFieldArray control={form.control} mostrarCamposComplementares />
 
-                <div className="fixed bottom-0 left-64 right-0 p-4 bg-white border-t border-slate-200 flex justify-end shadow-[0_-4px_6px_-1px_rgb(0,0,0,0.05)]">
+                <div className="fixed bottom-0 left-0 right-0 md:left-64 p-4 bg-white border-t border-slate-200 flex justify-end shadow-[0_-4px_6px_-1px_rgb(0,0,0,0.05)]">
                   <Button type="submit" disabled={form.formState.isSubmitting} className="bg-blue-600 hover:bg-blue-700 w-48 shadow-md">
                     <Save className="w-4 h-4 mr-2" />
                     {form.formState.isSubmitting ? "A processar..." : "Finalizar Viagem"}

@@ -1,7 +1,8 @@
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
-import { AlertTriangle, Download, PlusCircle, Truck } from "lucide-react"
+import { Alert } from "@/components/ui/alert"
+import { Download, PlusCircle, Truck } from "lucide-react"
 import { buscarViagens } from "@/lib/queries/viagens"
 import { STATUS_VIAGEM_OPCOES, formatarStatusViagem, parseStatusFiltro } from "@/lib/services/viagem-status.service"
 import AtualizarStatusRapido from "./atualizar-status-rapido"
@@ -22,7 +23,7 @@ type Viagem = Awaited<ReturnType<typeof buscarViagens>>[number]
 function MotoristaCelula({ viagem }: { viagem: Viagem }) {
   if (!viagem.motorista) {
     return (
-      <Badge variant="outline" className="border-amber-200 bg-amber-100 text-amber-800 hover:bg-amber-100">
+      <Badge variant="warning">
         Pendente Alocação
       </Badge>
     )
@@ -32,10 +33,25 @@ function MotoristaCelula({ viagem }: { viagem: Viagem }) {
     <div className="space-y-1">
       <span className="text-slate-900 font-medium">{viagem.motorista.nome}</span>
       {viagem.avisoInterjornada && (
-        <div className="flex items-center gap-1 text-xs text-amber-700" title={viagem.avisoInterjornada}>
-          <AlertTriangle className="h-3 w-3 shrink-0" />
-          <span>Interjornada</span>
-        </div>
+        <Alert variant="warning" inline title={viagem.avisoInterjornada}>
+          Interjornada
+        </Alert>
+      )}
+    </div>
+  )
+}
+
+function FrotaCelula({ viagem }: { viagem: Viagem }) {
+  return (
+    <div className="text-sm">
+      <div>
+        <span className="font-medium text-slate-900">{viagem.cavalo}</span>
+        <span className="text-slate-500 ml-1">/ {viagem.carreta}</span>
+      </div>
+      {viagem.avisoFrotaIndisponivel && (
+        <Alert variant="warning" inline className="mt-1" title={viagem.avisoFrotaIndisponivel}>
+          Frota indisponível
+        </Alert>
       )}
     </div>
   )
@@ -95,10 +111,7 @@ function ViagensTabela({ viagens }: { viagens: Viagem[] }) {
                 </div>
               </TableCell>
               <TableCell>
-                <div className="text-sm">
-                  <span className="font-medium text-slate-900">{viagem.cavalo}</span>
-                  <span className="text-slate-500 ml-1">/ {viagem.carreta}</span>
-                </div>
+                <FrotaCelula viagem={viagem} />
               </TableCell>
               <TableCell>
                 <MotoristaCelula viagem={viagem} />
@@ -143,6 +156,11 @@ function ViagensCards({ viagens }: { viagens: Viagem[] }) {
             <div>
               <dt className="text-xs text-slate-500">Caminhão</dt>
               <dd className="font-medium text-slate-900">{viagem.cavalo} / {viagem.carreta}</dd>
+              {viagem.avisoFrotaIndisponivel && (
+                <Alert variant="warning" inline className="mt-1" title={viagem.avisoFrotaIndisponivel}>
+                  Frota indisponível
+                </Alert>
+              )}
             </div>
             <div>
               <dt className="text-xs text-slate-500">Motorista</dt>

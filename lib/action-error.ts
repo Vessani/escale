@@ -8,6 +8,7 @@ const MENSAGENS_SEGURAS = new Set([
   "Status de viagem é obrigatório.",
   "Data inválida.",
   "Código de jornada inválido.",
+  "Já existe um conjunto cadastrado com essa frota (cavalo/carreta).",
 ])
 
 function pareceMensagemTecnica(mensagem: string) {

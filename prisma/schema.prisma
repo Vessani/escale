@@ -49,6 +49,7 @@
     horarioRealSaida  DateTime?    @db.Timestamp(6)
     motivoAtraso      String?      @db.VarChar(200)
     avisoInterjornada String?      @db.VarChar(200)
+    avisoFrotaIndisponivel String? @db.VarChar(200)
 
     motoristaId       Int?
     motorista         Motorista?   @relation(fields: [motoristaId], references: [id])
@@ -62,6 +63,29 @@
     @@index([motoristaId])
     @@index([status])
     @@index([inicioPrevisto, fimPrevisto])
+    @@index([cavalo])
+    @@index([carreta])
+  }
+
+  // Cadastro de conjuntos (cavalo + carreta — pra truck, os dois com o mesmo
+  // número) com disponibilidade. disponivelEm é atualizado automaticamente
+  // pelo fim previsto da viagem mais recente pra aquela dupla (ver
+  // frota.service.ts), e pode ser corrigido à mão no cadastro (ex: liberação
+  // de manutenção). Nulo ou no passado = disponível agora; no futuro = em
+  // manutenção/ocupado até aquela data/hora.
+  model Frota {
+    id           Int       @id @default(autoincrement())
+    cavalo       String    @db.VarChar(7)
+    carreta      String    @db.VarChar(7)
+    disponivelEm DateTime? @db.Timestamp(6)
+
+    criadoEm     DateTime  @default(now())
+    atualizadoEm DateTime  @updatedAt
+    deletadoEm   DateTime?
+
+    @@unique([cavalo, carreta])
+    @@index([cavalo])
+    @@index([carreta])
   }
 
   model Entrega {

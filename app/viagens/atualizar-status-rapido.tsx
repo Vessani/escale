@@ -58,7 +58,7 @@ export default function AtualizarStatusRapido({ viagemId, statusAtual }: Props) 
           ))}
         </SelectContent>
       </Select>
-      {erro ? <p className="text-[11px] text-red-600">{erro}</p> : null}
+      {erro ? <p className="text-[11px] text-destructive">{erro}</p> : null}
     </div>
   )
 }

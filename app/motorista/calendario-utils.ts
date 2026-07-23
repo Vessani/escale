@@ -38,7 +38,7 @@ export const OPCOES_CODIGO_JORNADA: OpcaoCodigoJornada[] = [
 ]
 
 export const OPCOES_FILTRO_STATUS: Array<{ valor: FiltroStatusJornada; label: string; classe: string }> = [
-  { valor: "TODOS", label: "Todos", classe: "bg-white text-slate-700 border border-slate-200" },
+  { valor: "TODOS", label: "Todos", classe: "bg-background text-foreground border border-border" },
   { valor: "JORNADA_1_3", label: "1-3 Jornada", classe: CLASSE_JORNADA_1_3 },
   { valor: "JORNADA_4_5", label: "4-5 Jornada", classe: CLASSE_JORNADA_4_5 },
   { valor: "JORNADA_6", label: "6 Jornada", classe: CLASSE_JORNADA_6 },

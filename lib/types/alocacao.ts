@@ -19,6 +19,8 @@ export type MotoristaCompativel = {
   turno: "MANHA" | "NOITE"
   /** Hora do dia do último "Início de Jornada" do relatório importado, ex: "07:00". `null` sem dado. */
   horarioHabitual: string | null
+  /** Horário mínimo do próximo início respeitando o descanso legal, ex: "06:00". `null` sem dado. */
+  proximoInicioDisponivel: string | null
 }
 
 export type MotoristaSugerido = {
@@ -42,6 +44,8 @@ export type ViagemAlocacao = {
   motoristaSugerido: MotoristaSugerido
   motoristasCompativeis: MotoristaCompativel[]
   avisoInterjornada: string | null
+  /** Ver calcularAvisoFrotaIndisponivel (frota.service.ts) — cavalo/carreta em uso em outra viagem no mesmo período. */
+  avisoFrotaIndisponivel: string | null
 }
 
 /** Sugestão de alocação para uma viagem que ainda não existe no banco (revisão antes de criar em lote). */
@@ -51,4 +55,6 @@ export type SugestaoAlocacaoPendente = {
   motoristasCompativeis: MotoristaCompativel[]
   /** Calculado pro motorista sugerido — ver calcularAvisoInterjornada (alocacao.service.ts). */
   avisoInterjornada: string | null
+  /** Ver calcularAvisoFrotaIndisponivel (frota.service.ts) — cavalo/carreta em uso em outra viagem no mesmo período. */
+  avisoFrotaIndisponivel: string | null
 }

@@ -81,9 +81,12 @@ export function formatarDataHoraPtBr(data: Date | string): string {
  */
 export function formatarHoraLocal(data: Date | string): string {
   const dataNormalizada = data instanceof Date ? data : new Date(data)
-  const hora = String(dataNormalizada.getHours()).padStart(2, "0")
-  const minuto = String(dataNormalizada.getMinutes()).padStart(2, "0")
-  return `${hora}:${minuto}`
+  return new Intl.DateTimeFormat("pt-BR", {
+    timeZone: "America/Sao_Paulo",
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: false,
+  }).format(dataNormalizada)
 }
 
 /**

@@ -57,17 +57,17 @@ export default function AtualizarSaidaReal({
         onBlur={() => salvar(horarioRealSaida, motivoAtraso)}
       />
       <div className="flex items-center gap-1">
-        {atrasado && <AlertTriangle className="h-3 w-3 shrink-0 text-amber-700" />}
+        {atrasado && <AlertTriangle className="h-3 w-3 shrink-0 text-warning" />}
         <Input
           placeholder="Motivo do atraso / observações"
-          className={atrasado ? "h-7 border-amber-300 bg-amber-50 text-xs" : "h-7 bg-white text-xs"}
+          className={atrasado ? "h-7 border-warning/30 bg-warning/10 text-xs" : "h-7 bg-white text-xs"}
           value={motivoAtraso}
           disabled={isPending}
           onChange={(e) => setMotivoAtraso(e.target.value)}
           onBlur={() => salvar(horarioRealSaida, motivoAtraso)}
         />
       </div>
-      {erro ? <p className="text-[11px] text-red-600">{erro}</p> : null}
+      {erro ? <p className="text-[11px] text-destructive">{erro}</p> : null}
     </div>
   )
 }

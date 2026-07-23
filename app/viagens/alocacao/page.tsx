@@ -6,6 +6,7 @@ import {
   calcularAvisoInterjornada,
   calcularDiasDisponiveis,
   calcularIntegracaoExigida,
+  calcularProximoInicioDisponivel,
   sugerirAlocacoesEmLote,
 } from "@/lib/services/alocacao.service"
 import { mapearRegistrosJornada, projetarCodigoNoDia } from "@/lib/services/jornada.service"
@@ -79,6 +80,8 @@ function serializarViagens(viagensBrutas: ViagemBase[], motoristasBrutos: Motori
       avisoInterjornada: motoristaSugerido
         ? calcularAvisoInterjornada(motoristaSugerido.jornadaRelatorioFim, new Date(viagem.inicioPrevisto))
         : null,
+      // Já calculado e persistido na criação/edição da viagem — ver calcularAvisoFrotaIndisponivel (frota.service.ts).
+      avisoFrotaIndisponivel: viagem.avisoFrotaIndisponivel,
       motoristasCompativeis: motoristasCompativeis.map((motorista) => {
         // Mesma jornada projetada usada pra decidir compatibilidade, não o
         // cache de "hoje" — senão o número mostrado destoa do motivo real
@@ -90,6 +93,11 @@ function serializarViagens(viagensBrutas: ViagemBase[], motoristasBrutos: Motori
           motorista.diasTrabalhados,
         )
 
+        const proximoInicioDisponivel = calcularProximoInicioDisponivel(
+          motorista.jornadaRelatorioFim,
+          motorista.diasTrabalhados,
+        )
+
         return {
           id: motorista.id,
           nome: motorista.nome,
@@ -97,6 +105,7 @@ function serializarViagens(viagensBrutas: ViagemBase[], motoristasBrutos: Motori
           diasDisponiveis: calcularDiasDisponiveis(codigoNaViagem),
           turno: motorista.turno,
           horarioHabitual: motorista.jornadaRelatorioInicio ? formatarHoraLocal(motorista.jornadaRelatorioInicio) : null,
+          proximoInicioDisponivel: proximoInicioDisponivel ? formatarHoraLocal(proximoInicioDisponivel) : null,
         }
       }),
     }

@@ -145,7 +145,7 @@ export default function CalendarioMotoristas({ inicioParam, hojeIso, dias, motor
       <p className="text-xs text-slate-500">
         Clique no status de qualquer célula para abrir o seletor e salvar imediatamente.
       </p>
-      {mensagemErro ? <p className="text-sm text-red-600">{mensagemErro}</p> : null}
+      {mensagemErro ? <p className="text-sm text-destructive">{mensagemErro}</p> : null}
 
       {motoristasFiltrados.length === 0 ? (
         <div className="rounded-lg border border-slate-200 bg-slate-50 p-6 text-sm text-slate-600">

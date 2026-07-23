@@ -5,6 +5,7 @@ import { useMemo, useState } from "react"
 import { useRouter } from "next/navigation"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { useForm, useWatch, type Resolver, type SubmitHandler } from "react-hook-form"
+import { Alert } from "@/components/ui/alert"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -150,11 +151,7 @@ export default function FormEditarViagem({ viagem, motoristas }: FormEditarViage
   return (
     <Form {...form}>
       <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
-        {erroGlobal && (
-          <div className="rounded-md border border-red-200 bg-red-50 p-4 font-medium text-red-600">
-            {erroGlobal}
-          </div>
-        )}
+        {erroGlobal && <Alert variant="error" className="font-medium">{erroGlobal}</Alert>}
 
         <Card className="border-blue-200 bg-blue-50/30 shadow-sm">
           <CardHeader className="flex flex-col gap-3 border-b border-blue-100 bg-blue-50 py-4 sm:flex-row sm:items-center sm:justify-between">
@@ -269,7 +266,7 @@ export default function FormEditarViagem({ viagem, motoristas }: FormEditarViage
 
         <EntregasFieldArray control={form.control} />
 
-        <div className="fixed bottom-0 left-64 right-0 flex justify-end border-t border-slate-200 bg-white p-4 shadow-md">
+        <div className="fixed bottom-0 left-0 right-0 md:left-64 flex justify-end border-t border-slate-200 bg-white p-4 shadow-md">
           <Button type="button" variant="outline" className="mr-3" onClick={() => router.back()}>
             Cancelar
           </Button>

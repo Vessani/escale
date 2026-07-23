@@ -4,7 +4,7 @@ import { ReactNode, useState } from "react"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
 import { signOut } from "next-auth/react"
-import { Truck, Users, LayoutDashboard, LogOut, Route, Menu, X } from "lucide-react"
+import { Truck, Users, LayoutDashboard, LogOut, Route, Container, Menu, X } from "lucide-react"
 import { Session } from "next-auth"
 import { Dialog } from "radix-ui"
 
@@ -14,6 +14,7 @@ const menuItems = [
   { href: "/viagens", label: "Gestão de Viagens", icon: Truck },
   { href: "/viagens/alocacao", label: "Alocação", icon: Route },
   { href: "/motorista", label: "Motoristas", icon: Users },
+  { href: "/frotas", label: "Frotas", icon: Container },
 ]
 
 function LinksDoMenu({ pathname, aoNavegar }: { pathname: string; aoNavegar?: () => void }) {
@@ -108,7 +109,7 @@ export function LayoutWrapper({
           <Dialog.Content className="fixed inset-y-0 left-0 z-50 flex w-72 max-w-[85vw] flex-col bg-slate-900 text-slate-300 shadow-xl md:hidden">
             <Dialog.Title className="sr-only">Menu de navegação</Dialog.Title>
             <Dialog.Description className="sr-only">
-              Menu principal do sistema com os links para as telas de dashboard, viagens, alocação e motoristas.
+              Menu principal do sistema com os links para as telas de dashboard, viagens, alocação, motoristas e frotas.
             </Dialog.Description>
             <div className="h-16 flex items-center justify-between px-6 bg-slate-950/50 text-white font-bold text-lg tracking-wider">
               <span className="flex items-center">

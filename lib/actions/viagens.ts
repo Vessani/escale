@@ -25,8 +25,10 @@ import {
   calcularAvisoInterjornada,
   calcularDiasDisponiveis,
   calcularIntegracaoExigida,
+  calcularProximoInicioDisponivel,
   sugerirAlocacoesEmLote,
 } from "@/lib/services/alocacao.service";
+import { calcularAvisoFrotaIndisponivel } from "@/lib/services/frota.service";
 import { mapearRegistrosJornada, projetarCodigoNoDia } from "@/lib/services/jornada.service";
 import { formatarHoraLocal, inicioDoDia } from "@/lib/utils/date-format";
 
@@ -75,8 +77,13 @@ export async function sugerirAlocacaoParaViagens(
 
   const sugestoes = sugerirAlocacoesEmLote(viagensParaSugestao, motoristas, hoje);
 
-  return sugestoes.map((sugestao, indice) => {
+  return Promise.all(sugestoes.map(async (sugestao, indice) => {
     const dataInicioViagem = new Date(viagens[indice].inicioPrevisto);
+    const avisoFrotaIndisponivel = await calcularAvisoFrotaIndisponivel(
+      viagens[indice].cavalo,
+      viagens[indice].carreta,
+      dataInicioViagem,
+    );
 
     return {
       numViagem: viagens[indice].numViagem,
@@ -86,6 +93,7 @@ export async function sugerirAlocacaoParaViagens(
       avisoInterjornada: sugestao.motoristaSugerido
         ? calcularAvisoInterjornada(sugestao.motoristaSugerido.jornadaRelatorioFim, dataInicioViagem)
         : null,
+      avisoFrotaIndisponivel,
       motoristasCompativeis: sugestao.motoristasCompativeis.map((motorista) => {
         // Mesma jornada projetada usada pra decidir compatibilidade, não o
         // cache de "hoje" — ver mesma lógica em app/viagens/alocacao/page.tsx.
@@ -96,6 +104,11 @@ export async function sugerirAlocacaoParaViagens(
           motorista.diasTrabalhados,
         );
 
+        const proximoInicioDisponivel = calcularProximoInicioDisponivel(
+          motorista.jornadaRelatorioFim,
+          motorista.diasTrabalhados,
+        )
+
         return {
           id: motorista.id,
           nome: motorista.nome,
@@ -103,10 +116,11 @@ export async function sugerirAlocacaoParaViagens(
           diasDisponiveis: calcularDiasDisponiveis(codigoNaViagem),
           turno: motorista.turno,
           horarioHabitual: motorista.jornadaRelatorioInicio ? formatarHoraLocal(motorista.jornadaRelatorioInicio) : null,
+          proximoInicioDisponivel: proximoInicioDisponivel ? formatarHoraLocal(proximoInicioDisponivel) : null,
         };
       }),
     };
-  });
+  }));
 }
 
 /**

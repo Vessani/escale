@@ -5,20 +5,24 @@ import type { MotoristaCompativel, MotoristaSugerido } from "@/lib/types/alocaca
 import type { NovaViagemFormValues } from "@/lib/validation/viagens"
 import type { ResultadoImportacaoLote } from "@/lib/types/types"
 import { criarViagensEmLoteComAlocacao } from "@/lib/actions/viagens"
-import { periodosConflitamComDescanso } from "@/lib/services/alocacao.service"
+import { periodoConflita, periodosConflitamComDescanso } from "@/lib/services/alocacao.service"
+import { viagensCompartilhamFrota } from "@/lib/services/frota-regras"
+import { Alert } from "@/components/ui/alert"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { classeBadgeTurno } from "@/app/viagens/badge-styles"
 import { formatarDataHoraPtBr } from "@/lib/utils/date-format"
+import { formatarOpcaoMotoristaCompativel } from "@/lib/utils/motorista-format"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { AlertTriangle, CheckCircle2, UserCheck } from "lucide-react"
+import { CheckCircle2, UserCheck } from "lucide-react"
 
 export type ViagemParaConfirmar = {
   dados: NovaViagemFormValues
   motoristaSugerido: MotoristaSugerido
   motoristasCompativeis: MotoristaCompativel[]
   avisoInterjornada: string | null
+  avisoFrotaIndisponivel: string | null
 }
 
 type Props = {
@@ -81,6 +85,37 @@ export default function ConfirmarLoteViagens({ viagens, onConcluido, onCancelar 
     return mapa
   }, [viagens, selecaoEfetivaPorViagem])
 
+  // Frota (cavalo/carreta) usada em mais de uma viagem do próprio lote, em período sobreposto.
+  // sugerirAlocacaoParaViagens só verifica cada viagem contra o banco — nenhuma delas existe
+  // ainda, então um conflito só entre viagens do mesmo arquivo não aparece em avisoFrotaIndisponivel.
+  const conflitosFrotaPorViagem = useMemo(() => {
+    const mapa: Record<string, string[]> = {}
+
+    for (const viagemA of viagens) {
+      const numerosConflitantes = viagens
+        .filter((viagemB) => {
+          if (viagemB.dados.numViagem === viagemA.dados.numViagem) return false
+          if (!viagensCompartilhamFrota(viagemA.dados.cavalo, viagemA.dados.carreta, viagemB.dados.cavalo, viagemB.dados.carreta)) {
+            return false
+          }
+
+          return periodoConflita(
+            new Date(viagemA.dados.inicioPrevisto),
+            new Date(viagemA.dados.fimPrevisto),
+            new Date(viagemB.dados.inicioPrevisto),
+            new Date(viagemB.dados.fimPrevisto),
+          )
+        })
+        .map((viagemB) => viagemB.dados.numViagem)
+
+      if (numerosConflitantes.length > 0) {
+        mapa[viagemA.dados.numViagem] = numerosConflitantes
+      }
+    }
+
+    return mapa
+  }, [viagens])
+
   const atualizarSelecao = (numViagem: string, motoristaId: string) => {
     setSelecoes((atual) => ({ ...atual, [numViagem]: motoristaId }))
   }
@@ -118,9 +153,7 @@ export default function ConfirmarLoteViagens({ viagens, onConcluido, onCancelar 
         <Badge variant="outline">{isPending ? "Criando..." : "Aguardando confirmação"}</Badge>
       </div>
 
-      {erro && (
-        <div className="rounded-md border border-red-200 bg-red-50 p-3 text-sm text-red-700">{erro}</div>
-      )}
+      {erro && <Alert variant="error">{erro}</Alert>}
 
       <div className="grid gap-4">
         {viagens.map((viagem) => {
@@ -137,6 +170,16 @@ export default function ConfirmarLoteViagens({ viagens, onConcluido, onCancelar 
                   <p className="mt-1 text-sm text-slate-500">
                     {viagem.dados.cavalo} / {viagem.dados.carreta} · {formatarDataHoraPtBr(viagem.dados.inicioPrevisto)}
                   </p>
+                  {viagem.avisoFrotaIndisponivel && (
+                    <Alert variant="warning" inline className="mt-1" title={viagem.avisoFrotaIndisponivel}>
+                      Frota indisponível no horário
+                    </Alert>
+                  )}
+                  {conflitosFrotaPorViagem[numViagem] && (
+                    <Alert variant="warning" inline className="mt-1">
+                      Mesma frota também usada na(s) viagem(ns) {conflitosFrotaPorViagem[numViagem].join(", ")} deste lote, no mesmo período.
+                    </Alert>
+                  )}
                 </div>
                 <Badge variant="outline" className={classeBadgeTurno(viagem.dados.turno)}>
                   {viagem.dados.turno}
@@ -152,10 +195,9 @@ export default function ConfirmarLoteViagens({ viagens, onConcluido, onCancelar 
 
                   <div className="rounded-md border border-slate-200 bg-slate-50 p-3">
                     {semCompatibilidade ? (
-                      <div className="flex items-center gap-2 text-sm text-amber-700">
-                        <AlertTriangle className="h-4 w-4" />
+                      <Alert variant="warning">
                         Nenhum motorista compatível — a viagem é criada sem motorista, aloque depois manualmente.
-                      </div>
+                      </Alert>
                     ) : (
                       <div className="space-y-2">
                         <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
@@ -169,12 +211,7 @@ export default function ConfirmarLoteViagens({ viagens, onConcluido, onCancelar 
                     )}
                   </div>
 
-                  {viagem.avisoInterjornada && (
-                    <div className="flex items-start gap-2 rounded-md border border-amber-300 bg-amber-50 p-2 text-xs text-amber-800">
-                      <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0" />
-                      <span>{viagem.avisoInterjornada}</span>
-                    </div>
-                  )}
+                  {viagem.avisoInterjornada && <Alert variant="warning">{viagem.avisoInterjornada}</Alert>}
                 </div>
 
                 <div className="space-y-4 rounded-lg border border-slate-200 bg-slate-50 p-4">
@@ -192,8 +229,7 @@ export default function ConfirmarLoteViagens({ viagens, onConcluido, onCancelar 
                         ) : (
                           viagem.motoristasCompativeis.map((motorista) => (
                             <SelectItem key={motorista.id} value={String(motorista.id)}>
-                              {motorista.nome} · {motorista.diasDisponiveis} dia(s) disponível(is)
-                              {motorista.horarioHabitual ? ` · jornada às ${motorista.horarioHabitual}` : ""}
+                              {formatarOpcaoMotoristaCompativel(motorista)}
                             </SelectItem>
                           ))
                         )}
@@ -202,13 +238,10 @@ export default function ConfirmarLoteViagens({ viagens, onConcluido, onCancelar 
                   </div>
 
                   {conflitosPorViagem[numViagem] && (
-                    <div className="flex items-start gap-2 rounded-md border border-amber-300 bg-amber-50 p-2 text-xs text-amber-800">
-                      <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0" />
-                      <span>
-                        Esse motorista também está selecionado na(s) viagem(ns) {conflitosPorViagem[numViagem].join(", ")},
-                        sem 1 dia de descanso entre elas.
-                      </span>
-                    </div>
+                    <Alert variant="warning">
+                      Esse motorista também está selecionado na(s) viagem(ns) {conflitosPorViagem[numViagem].join(", ")},
+                      sem 1 dia de descanso entre elas.
+                    </Alert>
                   )}
                 </div>
               </CardContent>

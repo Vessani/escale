@@ -1,6 +1,7 @@
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
-import { AlertTriangle, Route } from "lucide-react"
+import { Route } from "lucide-react"
+import { Alert } from "@/components/ui/alert"
 import { Badge } from "@/components/ui/badge"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { buscarViagensDoDashboard } from "@/lib/queries/viagens"
@@ -23,10 +24,25 @@ function MotoristaCelula({ viagem, className }: { viagem: Viagem; className?: st
         {viagem.motorista?.nome ?? "Não alocado"}
       </Link>
       {viagem.avisoInterjornada && (
-        <div className="flex items-center gap-1 text-xs text-amber-700" title={viagem.avisoInterjornada}>
-          <AlertTriangle className="h-3 w-3 shrink-0" />
-          <span>Interjornada</span>
-        </div>
+        <Alert variant="warning" inline title={viagem.avisoInterjornada}>
+          Interjornada
+        </Alert>
+      )}
+    </div>
+  )
+}
+
+function FrotaCelula({ viagem }: { viagem: Viagem }) {
+  return (
+    <div className="space-y-1">
+      <div>
+        <span className="text-slate-900">{viagem.cavalo}</span>
+        <span className="text-slate-500"> / {viagem.carreta}</span>
+      </div>
+      {viagem.avisoFrotaIndisponivel && (
+        <Alert variant="warning" inline title={viagem.avisoFrotaIndisponivel}>
+          Frota indisponível
+        </Alert>
       )}
     </div>
   )
@@ -67,8 +83,7 @@ function ViagensEmAndamentoTabela({ viagens }: { viagens: Viagem[] }) {
               </TableCell>
               <TableCell>{viagem.numViagem}</TableCell>
               <TableCell>
-                <span className="text-slate-900">{viagem.cavalo}</span>
-                <span className="text-slate-500"> / {viagem.carreta}</span>
+                <FrotaCelula viagem={viagem} />
               </TableCell>
               <TableCell>
                 <Badge variant="outline" className={classeBadgeStatusViagem(viagem.status)}>
@@ -100,6 +115,11 @@ function ViagensEmAndamentoCards({ viagens }: { viagens: Viagem[] }) {
               <p className="text-xs text-slate-500">
                 Viagem {viagem.numViagem} · {viagem.cavalo} / {viagem.carreta}
               </p>
+              {viagem.avisoFrotaIndisponivel && (
+                <Alert variant="warning" inline className="mt-1" title={viagem.avisoFrotaIndisponivel}>
+                  Frota indisponível
+                </Alert>
+              )}
             </div>
             <Badge variant="outline" className={classeBadgeStatusViagem(viagem.status)}>
               {formatarStatusViagem(viagem.status)}

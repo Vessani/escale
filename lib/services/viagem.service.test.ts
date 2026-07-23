@@ -22,9 +22,15 @@ vi.mock("@/lib/services/folga.service", () => ({
   reconciliarFolgaMotoristasNoDiaAtual: vi.fn(),
 }))
 
+vi.mock("@/lib/services/frota.service", () => ({
+  calcularAvisoFrotaIndisponivel: vi.fn(),
+  registrarOuAtualizarDisponibilidadeFrota: vi.fn(),
+}))
+
 import { prisma } from "@/lib/prisma"
 import { buscarMotoristasParaSelect } from "@/lib/queries/motoristas"
 import { reconciliarFolgaMotoristasNoDiaAtual } from "@/lib/services/folga.service"
+import { calcularAvisoFrotaIndisponivel, registrarOuAtualizarDisponibilidadeFrota } from "@/lib/services/frota.service"
 import {
   criarViagemAvulsaService,
   criarViagemComAlocacaoService,
@@ -90,6 +96,8 @@ describe("viagem.service", () => {
     usarTransacaoCom(criarTx())
     // Sem dado de jornada por padrão — calcularAvisoInterjornada retorna null.
     vi.mocked(prisma.motorista.findUnique).mockResolvedValue(null)
+    // Sem conflito de frota por padrão — testado à parte em frota.service.test.ts.
+    vi.mocked(calcularAvisoFrotaIndisponivel).mockResolvedValue(null)
   })
 
   describe("criarViagemAvulsaService", () => {
@@ -227,6 +235,22 @@ describe("viagem.service", () => {
 
       const dadosCriados = vi.mocked(tx.viagem.create).mock.calls[0][0].data
       expect(dadosCriados.motoristaId).toBe(1)
+    })
+
+    it("grava avisoFrotaIndisponivel calculado e registra cavalo/carreta na mesma transação", async () => {
+      vi.mocked(buscarMotoristasParaSelect).mockResolvedValue([criarMotoristaParaSelect()] as never)
+      vi.mocked(calcularAvisoFrotaIndisponivel).mockResolvedValue("Frota 2064 só estará disponível a partir das 10:00 (em uso na viagem V-1).")
+
+      const tx = criarTx()
+      vi.mocked(tx.viagem.create).mockResolvedValue({ id: 99, motoristaId: 1 })
+      usarTransacaoCom(tx)
+
+      await criarViagemAvulsaService(criarViagemInput({ cavalo: "2064", carreta: "908" }))
+
+      expect(calcularAvisoFrotaIndisponivel).toHaveBeenCalledWith("2064", "908", expect.any(Date))
+      const dadosCriados = vi.mocked(tx.viagem.create).mock.calls[0][0].data
+      expect(dadosCriados.avisoFrotaIndisponivel).toBe("Frota 2064 só estará disponível a partir das 10:00 (em uso na viagem V-1).")
+      expect(registrarOuAtualizarDisponibilidadeFrota).toHaveBeenCalledWith(tx, "2064", "908", expect.any(Date))
     })
   })
 
@@ -367,6 +391,22 @@ describe("viagem.service", () => {
       })
       const dados = vi.mocked(tx.viagem.update).mock.calls[0][0].data
       expect(dados.avisoInterjornada).toContain("Interjornada")
+    })
+
+    it("verifica disponibilidade de frota e atualiza o cadastro com o novo fim previsto", async () => {
+      vi.mocked(prisma.viagem.findUnique).mockResolvedValue({ status: "ALOCADA", motoristaId: 9 } as never)
+      vi.mocked(calcularAvisoFrotaIndisponivel).mockResolvedValue("Frota 2064/908 só estará disponível a partir de 22/07/2026, 12:00.")
+
+      const tx = criarTx()
+      vi.mocked(tx.viagem.update).mockResolvedValue({ id: 1, motoristaId: 9 })
+      usarTransacaoCom(tx)
+
+      await editarViagemService(1, criarEdicaoInput({ cavalo: "2064", carreta: "908" }))
+
+      expect(calcularAvisoFrotaIndisponivel).toHaveBeenCalledWith("2064", "908", expect.any(Date))
+      const dados = vi.mocked(tx.viagem.update).mock.calls[0][0].data
+      expect(dados.avisoFrotaIndisponivel).toBe("Frota 2064/908 só estará disponível a partir de 22/07/2026, 12:00.")
+      expect(registrarOuAtualizarDisponibilidadeFrota).toHaveBeenCalledWith(tx, "2064", "908", expect.any(Date))
     })
   })
 

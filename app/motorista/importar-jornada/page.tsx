@@ -3,7 +3,8 @@
 import { useState } from "react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
-import { ArrowLeft, AlertTriangle, CheckCircle2, Loader, Upload } from "lucide-react"
+import { ArrowLeft, Loader, Upload } from "lucide-react"
+import { Alert } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
@@ -126,30 +127,24 @@ export default function ImportarJornadaPage() {
             </label>
           </div>
 
-          {erro && (
-            <div className="flex items-center gap-2 rounded-md border border-red-200 bg-red-50 p-3 text-sm text-red-700">
-              <AlertTriangle className="h-4 w-4 shrink-0" />
-              {erro}
-            </div>
-          )}
+          {erro && <Alert variant="error">{erro}</Alert>}
 
           {resultado && (
-            <div className="flex items-start gap-2 rounded-md border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-800">
-              <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0" />
+            <Alert variant="success">
               <div>
                 <p className="font-medium">{resultado.atualizados} motorista(s) atualizado(s).</p>
                 {resultado.naoEncontrados.length > 0 && (
-                  <p className="mt-1 text-amber-700">
+                  <p className="mt-1 text-warning">
                     Matrícula(s) sem motorista cadastrado: {resultado.naoEncontrados.join(", ")}
                   </p>
                 )}
                 {resultado.duplicados.length > 0 && (
-                  <p className="mt-1 text-amber-700">
+                  <p className="mt-1 text-warning">
                     Matrícula(s) com mais de um motorista ativo (não atualizadas): {resultado.duplicados.join(", ")}
                   </p>
                 )}
               </div>
-            </div>
+            </Alert>
           )}
         </CardContent>
       </Card>
