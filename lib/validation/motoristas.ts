@@ -13,6 +13,7 @@ export const motoristaBaseSchema = z.object({
     .min(1, "Informe um código de 1 a 10")
     .max(10, "Informe um código de 1 a 10"),
   turno: turnoSchema,
+  liberado: z.boolean(),
 })
 
 export const integracaoMotoristaSchema = z.object({

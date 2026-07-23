@@ -7,7 +7,7 @@ import { zodResolver } from "@hookform/resolvers/zod"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
-import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form"
+import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Save, PlusCircle, Trash2 } from "lucide-react"
 import { normalizeFormValue } from "@/lib/form-utils"
@@ -113,6 +113,27 @@ export default function MotoristaForm({ defaultValues, onSubmit, submitLabel, su
                     <SelectItem value="NOITE">Noite</SelectItem>
                   </SelectContent>
                 </Select>
+                <FormMessage />
+              </FormItem>
+            )} />
+
+            <FormField control={form.control} name="liberado" render={({ field }) => (
+              <FormItem>
+                <FormLabel>Situação</FormLabel>
+                <Select value={field.value ? "true" : "false"} onValueChange={(value) => field.onChange(value === "true")}>
+                  <FormControl>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Selecione a situação" />
+                    </SelectTrigger>
+                  </FormControl>
+                  <SelectContent>
+                    <SelectItem value="true">Liberado</SelectItem>
+                    <SelectItem value="false">Em treinamento (não liberado)</SelectItem>
+                  </SelectContent>
+                </Select>
+                <FormDescription>
+                  Não liberado fica de fora da sugestão automática e não pode ser motorista principal — só acompanhante.
+                </FormDescription>
                 <FormMessage />
               </FormItem>
             )} />

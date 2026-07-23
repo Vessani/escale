@@ -19,6 +19,7 @@ type MotoristaComIntegracoes = {
   seva: number
   diasTrabalhados: number
   turno: MotoristaComIntegracoesFormValues["turno"]
+  liberado: boolean
   integracao: IntegracaoFormModel[]
 }
 
@@ -48,6 +49,7 @@ export default function FormEditarMotorista({ motorista }: FormEditarMotoristaPr
         seva: motorista.seva,
         diasTrabalhados: motorista.diasTrabalhados,
         turno: motorista.turno,
+        liberado: motorista.liberado,
         integracao: motorista.integracao.map((integracao) => ({
           id: integracao.id,
           cliente: integracao.cliente,

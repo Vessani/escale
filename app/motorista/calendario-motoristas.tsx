@@ -37,6 +37,7 @@ type Motorista = {
   turno: "MANHA" | "NOITE"
   seva: number
   diasTrabalhados: number
+  liberado: boolean
   viagens: Viagem[]
   registrosJornada: RegistroJornada[]
 }
@@ -195,6 +196,9 @@ export default function CalendarioMotoristas({ inicioParam, hojeIso, dias, motor
                           {motorista.turno}
                         </Badge>
                       </div>
+                      {!motorista.liberado && (
+                        <Badge variant="warning">Em treinamento</Badge>
+                      )}
                       <div className="flex items-center gap-2">
                         <Link href={`/motorista/editar/${motorista.id}`}>
                           <Button variant="outline" size="sm">

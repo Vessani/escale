@@ -50,9 +50,17 @@
     motivoAtraso      String?      @db.VarChar(200)
     avisoInterjornada String?      @db.VarChar(200)
     avisoFrotaIndisponivel String? @db.VarChar(200)
+    // Gravado só na transição pra CANCELADA (ver atualizarStatusViagemService) — usado
+    // pra decidir até quando ela some do dashboard (visível no dia do cancelamento).
+    canceladoEm       DateTime?    @db.Timestamp(6)
 
     motoristaId       Int?
-    motorista         Motorista?   @relation(fields: [motoristaId], references: [id])
+    motorista         Motorista?   @relation("MotoristaPrincipal", fields: [motoristaId], references: [id])
+
+    // Segundo motorista (ex: acompanhante/aprendiz em treinamento) — não passa
+    // pela checagem de compatibilidade (turno/dias/integração) do principal.
+    motoristaAcompanhanteId Int?
+    motoristaAcompanhante   Motorista? @relation("MotoristaAcompanhante", fields: [motoristaAcompanhanteId], references: [id])
 
     criadoEm          DateTime     @default(now())
     atualizadoEm      DateTime     @updatedAt
@@ -61,10 +69,20 @@
     entregas          Entrega[]
 
     @@index([motoristaId])
+    @@index([motoristaAcompanhanteId])
     @@index([status])
     @@index([inicioPrevisto, fimPrevisto])
     @@index([cavalo])
     @@index([carreta])
+  }
+
+  // Bloco único de recados gerais da operação (ex: "frota 2024 com problema no
+  // freio"), editado por qualquer despachante direto no rodapé do Dashboard.
+  // Sempre um registro só (id fixo em 1, upsert).
+  model QuadroObservacao {
+    id           Int      @id @default(autoincrement())
+    texto        String   @db.Text
+    atualizadoEm DateTime @updatedAt
   }
 
   // Cadastro de conjuntos (cavalo + carreta — pra truck, os dois com o mesmo
@@ -119,6 +137,10 @@
 
     turno           Turno
 
+    // false = em treinamento: fica de fora da sugestão automática e não pode
+    // ser escolhido como motorista principal — só como acompanhante.
+    liberado        Boolean      @default(true)
+
     // Último registro do Relatório Sintético de Jornada importado pra esse
     // motorista (busca por `seva` = Matrícula do relatório) — ver
     // jornada-relatorio.service.ts. Só o mais recente é mantido.
@@ -131,7 +153,8 @@
     deletadoEm      DateTime?
 
     integracao      Integracao[]
-    viagens         Viagem[]
+    viagens         Viagem[]     @relation("MotoristaPrincipal")
+    viagensComoAcompanhante Viagem[] @relation("MotoristaAcompanhante")
     registrosJornada RegistroJornada[]
 
     @@index([seva])

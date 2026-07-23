@@ -22,6 +22,7 @@ type MotoristaMock = {
   nome: string
   turno: Turno
   diasTrabalhados: number
+  liberado: boolean
   integracao: Array<{ cliente: string; status: StatusIntegracao; dataValidade: Date }>
   registrosJornada: Array<{ data: Date; codigo: number }>
   jornadaRelatorioInicio: Date | string | null
@@ -34,6 +35,7 @@ function criarMotorista(parcial: Partial<MotoristaMock>): MotoristaMock {
     nome: "Motorista Teste",
     turno: "MANHA",
     diasTrabalhados: 3,
+    liberado: true,
     integracao: [],
     registrosJornada: [],
     jornadaRelatorioInicio: null,
@@ -90,6 +92,19 @@ describe("alocacao.service", () => {
 
     it("nega quando o turno do motorista diverge do turno da viagem", () => {
       const motorista = criarMotorista({ turno: "NOITE", diasTrabalhados: 1 })
+      expect(
+        motoristaEhCompativel(motorista, {
+          turnoViagem: "MANHA",
+          diasViagem: 1,
+          dataInicioViagem: hoje,
+          integracaoExigida: null,
+          hoje,
+        }),
+      ).toBe(false)
+    })
+
+    it("nega motorista não liberado (em treinamento), mesmo compatível em tudo o mais", () => {
+      const motorista = criarMotorista({ liberado: false, diasTrabalhados: 1 })
       expect(
         motoristaEhCompativel(motorista, {
           turnoViagem: "MANHA",

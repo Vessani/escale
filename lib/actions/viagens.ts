@@ -18,6 +18,7 @@ import {
   editarViagemService,
   deletarViagemService,
   atualizarStatusViagemService,
+  atualizarAlocacaoViagemService,
   atualizarSaidaRealService,
 } from "@/lib/services/viagem.service";
 import { buscarMotoristasParaSelect } from "@/lib/queries/motoristas";
@@ -172,6 +173,7 @@ export async function editarViagem(idViagem: number, dados: EditarViagemInput): 
 
     revalidatePath("/viagens");
     revalidatePath("/motorista");
+    revalidatePath("/");
     return { sucesso: true };
 
   } catch (erro) {
@@ -189,8 +191,9 @@ export async function deletarViagem(id: number): Promise<RespostaAcao> {
 
     revalidatePath("/viagens");
     revalidatePath("/motorista");
+    revalidatePath("/");
     return { sucesso: true };
-    
+
   } catch (erro) {
     console.error("[deletarViagem] Erro ao apagar viagem:", erro);
     const mensagem = errorToMessage(erro, "Não foi possível apagar a viagem.");
@@ -199,7 +202,11 @@ export async function deletarViagem(id: number): Promise<RespostaAcao> {
   }
 }
 
-export async function atualizarStatusViagem(idViagem: number, status: StatusViagemSelecionavel): Promise<RespostaAcao> {
+export async function atualizarStatusViagem(
+  idViagem: number,
+  status: StatusViagemSelecionavel,
+  novaData?: { inicioPrevisto: string; fimPrevisto: string },
+): Promise<RespostaAcao> {
   try {
     await requireSession();
 
@@ -207,15 +214,45 @@ export async function atualizarStatusViagem(idViagem: number, status: StatusViag
       return { sucesso: false, erro: "Status inválido." }
     }
 
-    await atualizarStatusViagemService(idViagem, status)
+    if (status === "POSTERGADA" && (!novaData?.inicioPrevisto || !novaData?.fimPrevisto)) {
+      return { sucesso: false, erro: "Informe a nova data de início e fim para postergar a viagem." }
+    }
 
+    await atualizarStatusViagemService(
+      idViagem,
+      status,
+      novaData ? { inicioPrevisto: new Date(novaData.inicioPrevisto), fimPrevisto: new Date(novaData.fimPrevisto) } : undefined,
+    )
+
+    revalidatePath("/viagens")
+    revalidatePath("/viagens/alocacao")
+    revalidatePath("/motorista")
+    revalidatePath("/")
+    return { sucesso: true }
+  } catch (erro) {
+    console.error("[atualizarStatusViagem] Erro ao atualizar status:", erro);
+    const mensagem = errorToMessage(erro, "Não foi possível atualizar o status da viagem.")
+    return { sucesso: false, erro: mensagem }
+  }
+}
+
+/** Alocação rápida direto do Dashboard (principal + acompanhante) — ver atualizarAlocacaoViagemService. */
+export async function atualizarAlocacaoViagem(
+  idViagem: number,
+  dados: { motoristaId: number | null; motoristaAcompanhanteId: number | null },
+): Promise<RespostaAcao> {
+  try {
+    await requireSession();
+    await atualizarAlocacaoViagemService(idViagem, dados)
+
+    revalidatePath("/")
     revalidatePath("/viagens")
     revalidatePath("/viagens/alocacao")
     revalidatePath("/motorista")
     return { sucesso: true }
   } catch (erro) {
-    console.error("[atualizarStatusViagem] Erro ao atualizar status:", erro);
-    const mensagem = errorToMessage(erro, "Não foi possível atualizar o status da viagem.")
+    console.error("[atualizarAlocacaoViagem] Erro ao atualizar alocação:", erro);
+    const mensagem = errorToMessage(erro, "Não foi possível atualizar a alocação.")
     return { sucesso: false, erro: mensagem }
   }
 }

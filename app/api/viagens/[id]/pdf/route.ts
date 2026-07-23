@@ -128,6 +128,9 @@ export async function GET(
   escreverLinhaInfo("Carreta", viagem.carreta)
   escreverLinhaInfo("Tanque", viagem.tanque)
   escreverLinhaInfo("Motorista", viagem.motorista?.nome ?? "Não alocado")
+  if (viagem.motoristaAcompanhante) {
+    escreverLinhaInfo("Acompanhante", viagem.motoristaAcompanhante.nome)
+  }
   escreverLinhaInfo("Integração exigida", viagem.integracaoExigida ?? "Não")
   y -= 8
 

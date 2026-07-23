@@ -50,6 +50,7 @@ describe("motorista.service", () => {
         seva: 1,
         diasTrabalhados: 3,
         turno: "MANHA",
+        liberado: true,
         integracao: [{ dataValidade: "2026-12-31", cliente: "AMBEV", status: "ATIVO" }],
       }
 
@@ -58,6 +59,7 @@ describe("motorista.service", () => {
       expect(resultado).toEqual({ id: 42 })
       const dadosCriados = vi.mocked(tx.motorista.create).mock.calls[0][0].data
       expect(dadosCriados.nome).toBe("Ana")
+      expect(dadosCriados.liberado).toBe(true)
       expect(dadosCriados.integracao.create[0].cliente).toBe("AMBEV")
 
       expect(tx.registroJornada.upsert).toHaveBeenCalledTimes(1)
@@ -70,6 +72,25 @@ describe("motorista.service", () => {
         where: { id: 42 },
         data: { diasTrabalhados: 3 },
       })
+    })
+
+    it("cadastra em treinamento (liberado: false)", async () => {
+      const tx = criarTx()
+      vi.mocked(tx.motorista.create).mockResolvedValue({ id: 43 })
+      vi.mocked(tx.registroJornada.upsert).mockResolvedValue({})
+      usarTransacaoCom(tx)
+
+      await criarMotoristaService({
+        nome: "Bruno",
+        seva: 2,
+        diasTrabalhados: 1,
+        turno: "MANHA",
+        liberado: false,
+        integracao: [],
+      })
+
+      const dadosCriados = vi.mocked(tx.motorista.create).mock.calls[0][0].data
+      expect(dadosCriados.liberado).toBe(false)
     })
   })
 
@@ -86,6 +107,7 @@ describe("motorista.service", () => {
         seva: 1,
         diasTrabalhados: 4,
         turno: "NOITE",
+        liberado: true,
         integracao: [
           { id: 10, dataValidade: "2026-12-31", cliente: "AMBEV", status: "ATIVO" },
           { dataValidade: "2027-01-01", cliente: "WEG", status: "ATIVO" },
@@ -95,8 +117,9 @@ describe("motorista.service", () => {
       await editarMotoristaService(5, dados)
 
       const chamada = vi.mocked(prisma.motorista.update).mock.calls[0][0] as {
-        data: { integracao: { deleteMany: { id: { notIn: number[] } }; update: unknown[]; create: unknown[] } }
+        data: { liberado: boolean; integracao: { deleteMany: { id: { notIn: number[] } }; update: unknown[]; create: unknown[] } }
       }
+      expect(chamada.data.liberado).toBe(true)
       expect(chamada.data.integracao.deleteMany.id.notIn).toEqual([10])
       expect(chamada.data.integracao.update).toHaveLength(1)
       expect(chamada.data.integracao.create).toHaveLength(1)

@@ -23,6 +23,7 @@ import {
 import { classeBadgeStatusViagem } from "../../badge-styles"
 import { Save, UserCheck } from "lucide-react"
 import { formatDateTimeForInput, inicioDoDia } from "@/lib/utils/date-format"
+import { rotularMotoristaParaSelect } from "@/lib/utils/motorista-format"
 import { editarViagemSchema, type EditarViagemFormValues } from "@/lib/validation/viagens"
 import RotaFields from "@/components/viagem/rota-fields"
 import EntregasFieldArray from "@/components/viagem/entregas-field-array"
@@ -45,6 +46,7 @@ type MotoristaParaSelect = {
   nome: string
   turno: EditarViagemFormValues["turno"]
   diasTrabalhados: number
+  liberado: boolean
   disponivel: boolean
   integracao: Array<{
     cliente: string
@@ -68,6 +70,7 @@ type ViagemComRelacionamentos = {
   diasViagem: number
   turno: EditarViagemFormValues["turno"]
   motoristaId: number | null
+  motoristaAcompanhanteId: number | null
   inicioPrevisto: string | Date
   fimPrevisto: string | Date
   status: StatusViagem
@@ -100,6 +103,7 @@ export default function FormEditarViagem({ viagem, motoristas }: FormEditarViage
       diasViagem: viagem.diasViagem,
       turno: viagem.turno,
       motoristaId: viagem.motoristaId,
+      motoristaAcompanhanteId: viagem.motoristaAcompanhanteId,
       inicioPrevisto: formatDateTimeForInput(viagem.inicioPrevisto),
       fimPrevisto: formatDateTimeForInput(viagem.fimPrevisto),
       status: statusInicial,
@@ -126,6 +130,7 @@ export default function FormEditarViagem({ viagem, motoristas }: FormEditarViage
     const pacote: EditarViagemInput = {
       ...dados,
       motoristaId: dados.motoristaId ?? null,
+      motoristaAcompanhanteId: dados.motoristaAcompanhanteId ?? null,
       inicioPrevisto: new Date(dados.inicioPrevisto),
       fimPrevisto: new Date(dados.fimPrevisto),
       entregas: dados.entregas.map((entrega) => ({
@@ -207,9 +212,7 @@ export default function FormEditarViagem({ viagem, motoristas }: FormEditarViage
                             },
                           )
 
-                          const rotulo = motorista.disponivel
-                            ? (compativel ? "(Compatível)" : "(Emergência - fora da regra)")
-                            : (compativel ? "(Compatível, mas sem descanso suficiente / já em outra viagem)" : "(Emergência - fora da regra, sem descanso suficiente / já em outra viagem)")
+                          const rotulo = rotularMotoristaParaSelect(compativel, motorista.disponivel)
 
                           return (
                             <SelectItem key={motorista.id} value={String(motorista.id)}>
@@ -222,6 +225,38 @@ export default function FormEditarViagem({ viagem, motoristas }: FormEditarViage
                   </Select>
                   <p className="text-xs text-slate-500">
                   A seleção manual aceita exceções para emergência (turno, integração ou jornada fora da regra) e também permite escolher um motorista sem 1 dia de descanso completo após a última viagem dele, ou já em outra viagem no período — mas isso não é impedido nem verificado automaticamente, então confira o aviso antes de confirmar.
+                  </p>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <FormField
+              control={form.control}
+              name="motoristaAcompanhanteId"
+              render={({ field }) => (
+                <FormItem className="max-w-md mt-4">
+                  <FormLabel>Motorista Acompanhante (opcional)</FormLabel>
+                  <Select
+                    value={field.value === null || field.value === undefined ? "nenhum" : String(field.value)}
+                    onValueChange={(value) => field.onChange(value === "nenhum" ? null : Number(value))}
+                  >
+                    <FormControl>
+                      <SelectTrigger className="bg-white">
+                        <SelectValue placeholder="Nenhum acompanhante..." />
+                      </SelectTrigger>
+                    </FormControl>
+                    <SelectContent>
+                      <SelectItem value="nenhum">Nenhum acompanhante</SelectItem>
+                      {motoristas.map((motorista) => (
+                        <SelectItem key={motorista.id} value={String(motorista.id)}>
+                          {motorista.nome} {!motorista.liberado && "(Em treinamento)"}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <p className="text-xs text-slate-500">
+                    Vaga extra sem checagem de compatibilidade (turno/integração/jornada) — aceita qualquer motorista, inclusive em treinamento (não liberado). Só é bloqueado se ele já estiver em outra viagem no mesmo período.
                   </p>
                   <FormMessage />
                 </FormItem>

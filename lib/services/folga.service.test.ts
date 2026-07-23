@@ -24,31 +24,38 @@ function mockFindMany(
 }
 
 type ViagemFake = { deletadoEm: Date | null; status: string; inicioPrevisto: Date; fimPrevisto: Date }
-type MotoristaFake = { id: number; deletadoEm: Date | null; diasTrabalhados: number; viagens: ViagemFake[] }
+type MotoristaFake = {
+  id: number
+  deletadoEm: Date | null
+  diasTrabalhados: number
+  viagens: ViagemFake[]
+  /** Viagens onde ele é acompanhante — também contam como atividade hoje (ver folga.service.ts). */
+  viagensComoAcompanhante?: ViagemFake[]
+}
+type FiltroViagem = { status: { notIn: string[] }; inicioPrevisto: { lte: Date }; fimPrevisto: { gte: Date } }
 
 /**
  * Fake fiel só à query usada por `reconciliarFolgaMotoristasNoDiaAtual`: avalia
  * de verdade a janela de datas (`inicioPrevisto <= fimJanela && fimPrevisto >=
  * inicioJanela`) contra os dados em memória, em vez de decidir a resposta na
  * mão — assim o teste pega de verdade um erro na conta da janela "hoje".
+ * Considera atividade tanto em `viagens` (principal) quanto `viagensComoAcompanhante`.
  */
 function criarFindManyFielAJanela(motoristas: MotoristaFake[]) {
   return vi.fn((args: {
     where: {
       id: { in: number[] }
       diasTrabalhados: number | { gte: number; lte: number }
-      viagens: {
-        none?: { status: { notIn: string[] }; inicioPrevisto: { lte: Date }; fimPrevisto: { gte: Date } }
-        some?: { status: { notIn: string[] }; inicioPrevisto: { lte: Date }; fimPrevisto: { gte: Date } }
-      }
+      AND?: Array<{ viagens?: { none: FiltroViagem }; viagensComoAcompanhante?: { none: FiltroViagem } }>
+      OR?: Array<{ viagens?: { some: FiltroViagem }; viagensComoAcompanhante?: { some: FiltroViagem } }>
     }
   }) => {
     const { where } = args
-    const condicaoViagens = where.viagens.none ?? where.viagens.some!
-    const exigeAtividade = Boolean(where.viagens.some)
+    const exigeAtividade = Boolean(where.OR)
+    const condicaoViagens = exigeAtividade ? where.OR![0].viagens!.some : where.AND![0].viagens!.none
 
     const temViagemNaJanela = (m: MotoristaFake) =>
-      m.viagens.some(
+      [...m.viagens, ...(m.viagensComoAcompanhante ?? [])].some(
         (v) =>
           v.deletadoEm === null &&
           !condicaoViagens.status.notIn.includes(v.status) &&
@@ -191,6 +198,36 @@ describe("folga.service", () => {
 
       expect(tx.registroJornada.upsert).not.toHaveBeenCalled()
       expect(tx.motorista.update).not.toHaveBeenCalled()
+    })
+
+    it("tira o motorista da folga quando ele tem atividade hoje só como acompanhante (não como principal)", async () => {
+      const hoje = new Date("2026-07-10T12:00:00")
+      const motoristas: MotoristaFake[] = [
+        {
+          id: 5,
+          deletadoEm: null,
+          diasTrabalhados: 7,
+          viagens: [],
+          viagensComoAcompanhante: [
+            {
+              deletadoEm: null,
+              status: "ALOCADA",
+              inicioPrevisto: new Date("2026-07-10T08:00:00"),
+              fimPrevisto: new Date("2026-07-10T20:00:00"),
+            },
+          ],
+        },
+      ]
+
+      const tx = criarTx()
+      tx.motorista.findMany = criarFindManyFielAJanela(motoristas) as never
+      vi.mocked(tx.registroJornada.upsert).mockResolvedValue({})
+
+      await reconciliarFolgaMotoristasNoDiaAtual(tx as never, [5], hoje)
+
+      expect(tx.registroJornada.upsert).toHaveBeenCalledTimes(1)
+      const upsertArgs = vi.mocked(tx.registroJornada.upsert).mock.calls[0][0] as { create: { codigo: number } }
+      expect(upsertArgs.create.codigo).toBe(1)
     })
 
     it("mas tira o motorista da folga quando a reconciliação roda no próprio dia da viagem", async () => {

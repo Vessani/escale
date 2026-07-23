@@ -1,28 +1,69 @@
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
-import { Route } from "lucide-react"
+import { Pencil, Route } from "lucide-react"
 import { Alert } from "@/components/ui/alert"
 import { Badge } from "@/components/ui/badge"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { buscarViagensDoDashboard } from "@/lib/queries/viagens"
+import { buscarMotoristasParaSelect } from "@/lib/queries/motoristas"
+import { motoristaEstaDisponivelNoPeriodo } from "@/lib/services/alocacao.service"
+import { serializeData } from "@/lib/serialization"
 import { classeBadgeStatusViagem } from "./viagens/badge-styles"
 import { STATUS_VIAGEM_OPCOES, formatarStatusViagem, parseStatusFiltro } from "@/lib/services/viagem-status.service"
 import { formatarDataHoraPtBr } from "@/lib/utils/date-format"
 import AtualizarSaidaReal from "./atualizar-saida-real"
+import AtualizarStatusRapido from "./viagens/atualizar-status-rapido"
+import AlocarMotoristasDashboard from "./alocar-motoristas-dashboard"
+import QuadroDeObservacoes from "./quadro-de-observacoes"
+import { buscarQuadroObservacoes } from "@/lib/queries/quadro"
 
-type Viagem = Awaited<ReturnType<typeof buscarViagensDoDashboard>>[number]
+async function buscarDadosDashboard(hoje: Date, filtroStatus: ReturnType<typeof parseStatusFiltro>) {
+  const [viagens, motoristasBrutos] = await Promise.all([
+    buscarViagensDoDashboard(hoje, filtroStatus),
+    buscarMotoristasParaSelect(),
+  ])
 
-function cidadesDestino(viagem: Viagem) {
-  const cidades = [...new Set(viagem.entregas.map((entrega) => entrega.cidade).filter(Boolean))]
+  // Disponibilidade é calculada por viagem (exclui a própria viagem da agenda
+  // de cada motorista) — mesmo critério usado em /viagens/editar/[id].
+  const viagensComMotoristas = viagens.map((viagem) => {
+    const motoristas = motoristasBrutos.map((motorista) => {
+      const { viagens: agenda, ...dadosMotorista } = motorista
+      const disponivel = motoristaEstaDisponivelNoPeriodo(
+        { ...motorista, viagens: agenda.filter((v) => v.id !== viagem.id) },
+        new Date(viagem.inicioPrevisto),
+        new Date(viagem.fimPrevisto),
+      )
+      return { ...dadosMotorista, disponivel }
+    })
+
+    return { viagem, motoristas }
+  })
+
+  return serializeData(viagensComMotoristas)
+}
+
+type ItemDashboard = Awaited<ReturnType<typeof buscarDadosDashboard>>[number]
+
+function cidadesDestino(item: ItemDashboard) {
+  const cidades = [...new Set(item.viagem.entregas.map((entrega) => entrega.cidade).filter(Boolean))]
   return cidades.length > 0 ? cidades.join(" → ") : "-"
 }
 
-function MotoristaCelula({ viagem, className }: { viagem: Viagem; className?: string }) {
+function AlocacaoCelula({ item }: { item: ItemDashboard }) {
+  const { viagem, motoristas } = item
+
   return (
     <div className="space-y-1">
-      <Link href={`/viagens/editar/${viagem.id}`} className={className ?? "hover:text-blue-700"}>
-        {viagem.motorista?.nome ?? "Não alocado"}
-      </Link>
+      <AlocarMotoristasDashboard
+        viagemId={viagem.id}
+        motoristaId={viagem.motoristaId}
+        motoristaAcompanhanteId={viagem.motoristaAcompanhanteId}
+        motoristas={motoristas}
+        turno={viagem.turno}
+        diasViagem={viagem.diasViagem}
+        inicioPrevisto={viagem.inicioPrevisto}
+        integracaoExigida={viagem.integracaoExigida}
+      />
       {viagem.avisoInterjornada && (
         <Alert variant="warning" inline title={viagem.avisoInterjornada}>
           Interjornada
@@ -32,12 +73,16 @@ function MotoristaCelula({ viagem, className }: { viagem: Viagem; className?: st
   )
 }
 
-function FrotaCelula({ viagem }: { viagem: Viagem }) {
+function FrotaCelula({ item }: { item: ItemDashboard }) {
+  const { viagem } = item
   return (
     <div className="space-y-1">
-      <div>
+      <div className="flex items-center gap-2">
         <span className="text-slate-900">{viagem.cavalo}</span>
-        <span className="text-slate-500"> / {viagem.carreta}</span>
+        <span className="text-slate-500">/ {viagem.carreta}</span>
+        <Link href={`/viagens/editar/${viagem.id}`} className="text-slate-400 hover:text-blue-600" title="Editar viagem">
+          <Pencil className="h-3.5 w-3.5" />
+        </Link>
       </div>
       {viagem.avisoFrotaIndisponivel && (
         <Alert variant="warning" inline title={viagem.avisoFrotaIndisponivel}>
@@ -48,7 +93,8 @@ function FrotaCelula({ viagem }: { viagem: Viagem }) {
   )
 }
 
-function SaidaCelula({ viagem }: { viagem: Viagem }) {
+function SaidaCelula({ item }: { item: ItemDashboard }) {
+  const { viagem } = item
   return (
     <AtualizarSaidaReal
       viagemId={viagem.id}
@@ -59,14 +105,31 @@ function SaidaCelula({ viagem }: { viagem: Viagem }) {
   )
 }
 
+function StatusCelula({ item }: { item: ItemDashboard }) {
+  const { viagem } = item
+  return (
+    <div className="space-y-1">
+      <Badge variant="outline" className={classeBadgeStatusViagem(viagem.status)}>
+        {formatarStatusViagem(viagem.status)}
+      </Badge>
+      <AtualizarStatusRapido
+        viagemId={viagem.id}
+        statusAtual={viagem.status}
+        inicioPrevisto={viagem.inicioPrevisto}
+        fimPrevisto={viagem.fimPrevisto}
+      />
+    </div>
+  )
+}
+
 /** Tabela para telas a partir de md; em telas menores vira lista de cards (ver ViagensEmAndamentoCards). */
-function ViagensEmAndamentoTabela({ viagens }: { viagens: Viagem[] }) {
+function ViagensEmAndamentoTabela({ itens }: { itens: ItemDashboard[] }) {
   return (
     <div className="hidden rounded-lg border bg-white shadow-sm overflow-hidden md:block">
       <Table>
         <TableHeader className="bg-slate-50">
           <TableRow>
-            <TableHead className="font-semibold text-slate-700">Motorista</TableHead>
+            <TableHead className="font-semibold text-slate-700">Motorista(s)</TableHead>
             <TableHead className="font-semibold text-slate-700">Nº Viagem</TableHead>
             <TableHead className="font-semibold text-slate-700">Frota</TableHead>
             <TableHead className="font-semibold text-slate-700">Status</TableHead>
@@ -76,25 +139,23 @@ function ViagensEmAndamentoTabela({ viagens }: { viagens: Viagem[] }) {
           </TableRow>
         </TableHeader>
         <TableBody>
-          {viagens.map((viagem) => (
-            <TableRow key={viagem.id} className="hover:bg-slate-50">
+          {itens.map((item) => (
+            <TableRow key={item.viagem.id} className="hover:bg-slate-50">
               <TableCell className="font-medium">
-                <MotoristaCelula viagem={viagem} />
+                <AlocacaoCelula item={item} />
               </TableCell>
-              <TableCell>{viagem.numViagem}</TableCell>
+              <TableCell>{item.viagem.numViagem}</TableCell>
               <TableCell>
-                <FrotaCelula viagem={viagem} />
+                <FrotaCelula item={item} />
               </TableCell>
               <TableCell>
-                <Badge variant="outline" className={classeBadgeStatusViagem(viagem.status)}>
-                  {formatarStatusViagem(viagem.status)}
-                </Badge>
+                <StatusCelula item={item} />
               </TableCell>
-              <TableCell>{formatarDataHoraPtBr(viagem.inicioPrevisto)}</TableCell>
+              <TableCell>{formatarDataHoraPtBr(item.viagem.inicioPrevisto)}</TableCell>
               <TableCell>
-                <SaidaCelula viagem={viagem} />
+                <SaidaCelula item={item} />
               </TableCell>
-              <TableCell className="max-w-xs">{cidadesDestino(viagem)}</TableCell>
+              <TableCell className="max-w-xs">{cidadesDestino(item)}</TableCell>
             </TableRow>
           ))}
         </TableBody>
@@ -104,44 +165,49 @@ function ViagensEmAndamentoTabela({ viagens }: { viagens: Viagem[] }) {
 }
 
 /** Lista em cards para telas abaixo de md; substitui a tabela (ver ViagensEmAndamentoTabela). */
-function ViagensEmAndamentoCards({ viagens }: { viagens: Viagem[] }) {
+function ViagensEmAndamentoCards({ itens }: { itens: ItemDashboard[] }) {
   return (
     <div className="space-y-3 md:hidden">
-      {viagens.map((viagem) => (
-        <div key={viagem.id} className="space-y-3 rounded-lg border bg-white shadow-sm p-4">
+      {itens.map((item) => (
+        <div key={item.viagem.id} className="space-y-3 rounded-lg border bg-white shadow-sm p-4">
           <div className="flex items-start justify-between gap-2">
             <div>
-              <MotoristaCelula viagem={viagem} className="font-semibold text-slate-900 hover:text-blue-700" />
               <p className="text-xs text-slate-500">
-                Viagem {viagem.numViagem} · {viagem.cavalo} / {viagem.carreta}
+                Viagem {item.viagem.numViagem} · {item.viagem.cavalo} / {item.viagem.carreta}
               </p>
-              {viagem.avisoFrotaIndisponivel && (
-                <Alert variant="warning" inline className="mt-1" title={viagem.avisoFrotaIndisponivel}>
+              {item.viagem.avisoFrotaIndisponivel && (
+                <Alert variant="warning" inline className="mt-1" title={item.viagem.avisoFrotaIndisponivel}>
                   Frota indisponível
                 </Alert>
               )}
             </div>
-            <Badge variant="outline" className={classeBadgeStatusViagem(viagem.status)}>
-              {formatarStatusViagem(viagem.status)}
-            </Badge>
+            <Link href={`/viagens/editar/${item.viagem.id}`} className="text-slate-400 hover:text-blue-600" title="Editar viagem">
+              <Pencil className="h-4 w-4" />
+            </Link>
+          </div>
+
+          <AlocacaoCelula item={item} />
+
+          <div className="flex flex-wrap items-center gap-2">
+            <StatusCelula item={item} />
           </div>
 
           <dl className="grid grid-cols-2 gap-x-4 gap-y-2 text-sm">
             <div>
               <dt className="text-xs text-slate-500">Início previsto</dt>
-              <dd className="font-medium text-slate-900">{formatarDataHoraPtBr(viagem.inicioPrevisto)}</dd>
+              <dd className="font-medium text-slate-900">{formatarDataHoraPtBr(item.viagem.inicioPrevisto)}</dd>
             </div>
             <div>
               <dt className="text-xs text-slate-500">Saída real</dt>
               <dd>
-                <SaidaCelula viagem={viagem} />
+                <SaidaCelula item={item} />
               </dd>
             </div>
           </dl>
 
           <div>
             <p className="text-xs text-slate-500">Destinos</p>
-            <p className="text-sm text-slate-900">{cidadesDestino(viagem)}</p>
+            <p className="text-sm text-slate-900">{cidadesDestino(item)}</p>
           </div>
         </div>
       ))}
@@ -160,7 +226,10 @@ export default async function DashboardPage({
 }) {
   const parametros = (await searchParams) ?? {}
   const filtroStatus = parseStatusFiltro(parametros.status)
-  const viagens = await buscarViagensDoDashboard(new Date(), filtroStatus)
+  const [itens, quadroObservacoes] = await Promise.all([
+    buscarDadosDashboard(new Date(), filtroStatus),
+    buscarQuadroObservacoes(),
+  ])
 
   return (
     <div className="space-y-6">
@@ -168,7 +237,7 @@ export default async function DashboardPage({
         <div>
           <h1 className="text-3xl font-bold tracking-tight text-slate-900">Dashboard</h1>
           <p className="text-slate-500 mt-1">
-            Viagens de hoje em qualquer status, mais qualquer viagem ainda Retornando de dias anteriores.
+            Quadro digital da operação: viagens de hoje em qualquer status, mais Retornando de dias anteriores e Canceladas só até a virada do dia.
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
@@ -185,7 +254,7 @@ export default async function DashboardPage({
         </div>
       </div>
 
-      {viagens.length === 0 ? (
+      {itens.length === 0 ? (
         <div className="border rounded-lg bg-white shadow-sm p-12">
           <div className="flex flex-col items-center justify-center text-slate-500">
             <Route className="w-8 h-8 text-slate-300 mb-2" />
@@ -198,12 +267,14 @@ export default async function DashboardPage({
             <h2 className="text-xl font-semibold text-slate-900">
               {filtroStatus === "TODOS" ? "Hoje" : `Status: ${formatarStatusViagem(filtroStatus)}`}
             </h2>
-            <Badge variant="outline">{viagens.length}</Badge>
+            <Badge variant="outline">{itens.length}</Badge>
           </div>
-          <ViagensEmAndamentoTabela viagens={viagens} />
-          <ViagensEmAndamentoCards viagens={viagens} />
+          <ViagensEmAndamentoTabela itens={itens} />
+          <ViagensEmAndamentoCards itens={itens} />
         </section>
       )}
+
+      <QuadroDeObservacoes textoInicial={quadroObservacoes} />
     </div>
   )
 }

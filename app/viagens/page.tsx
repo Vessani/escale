@@ -107,7 +107,7 @@ function ViagensTabela({ viagens }: { viagens: Viagem[] }) {
                   <Badge variant="outline" className={classeBadgeStatusViagem(viagem.status)}>
                     {formatarStatusViagem(viagem.status)}
                   </Badge>
-                  <AtualizarStatusRapido viagemId={viagem.id} statusAtual={viagem.status} />
+                  <AtualizarStatusRapido viagemId={viagem.id} statusAtual={viagem.status} inicioPrevisto={viagem.inicioPrevisto} fimPrevisto={viagem.fimPrevisto} />
                 </div>
               </TableCell>
               <TableCell>
@@ -149,7 +149,7 @@ function ViagensCards({ viagens }: { viagens: Viagem[] }) {
             <Badge variant="outline" className={classeBadgeStatusViagem(viagem.status)}>
               {formatarStatusViagem(viagem.status)}
             </Badge>
-            <AtualizarStatusRapido viagemId={viagem.id} statusAtual={viagem.status} />
+            <AtualizarStatusRapido viagemId={viagem.id} statusAtual={viagem.status} inicioPrevisto={viagem.inicioPrevisto} fimPrevisto={viagem.fimPrevisto} />
           </div>
 
           <dl className="grid grid-cols-2 gap-x-4 gap-y-2 text-sm">

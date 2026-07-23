@@ -21,6 +21,8 @@ type MotoristaParaAlocacao = {
   nome: string
   turno: Turno
   diasTrabalhados: number
+  /** false = em treinamento — nunca compatível como motorista principal (ver motoristaEhCompativel). */
+  liberado: boolean
   integracao: IntegracaoBase[]
   registrosJornada: PontoRegistroJornada[]
   /** Último registro do Relatório Sintético de Jornada importado (ver jornada-relatorio.service.ts). */
@@ -187,6 +189,10 @@ export function motoristaEhCompativel(
   motorista: MotoristaParaAlocacao,
   contexto: ContextoCompatibilidade,
 ) {
+  if (!motorista.liberado) {
+    return false
+  }
+
   if (motorista.turno !== contexto.turnoViagem) {
     return false
   }

@@ -13,6 +13,7 @@ export async function criarMotoristaService(dados: NovoMotoristaInput) {
         seva: dados.seva,
         diasTrabalhados: dados.diasTrabalhados,
         turno: dados.turno,
+        liberado: dados.liberado,
         integracao: {
           create: dados.integracao.map((integ) => ({
             dataValidade: new Date(integ.dataValidade),
@@ -45,6 +46,7 @@ export async function editarMotoristaService(idMotorista: number, dados: EditarM
       seva: dados.seva,
       diasTrabalhados: dados.diasTrabalhados,
       turno: dados.turno,
+      liberado: dados.liberado,
       integracao: {
         deleteMany: {
           id: { notIn: manterIntegracao }

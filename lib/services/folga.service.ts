@@ -32,21 +32,24 @@ export async function reconciliarFolgaMotoristasNoDiaAtual(
 
   const inicioHoje = inicioDoDia(dataReferencia)
   const fimHoje = fimDoDia(dataReferencia)
-  const viagensAtivasHoje = {
-    none: {
-      deletadoEm: null,
-      status: { notIn: STATUS_NAO_ATIVOS },
-      inicioPrevisto: { lte: fimHoje },
-      fimPrevisto: { gte: inicioHoje },
-    },
+  const filtroAtividadeHoje = {
+    deletadoEm: null,
+    status: { notIn: STATUS_NAO_ATIVOS },
+    inicioPrevisto: { lte: fimHoje },
+    fimPrevisto: { gte: inicioHoje },
   }
-  const viagensComAtividadeHoje = {
-    some: {
-      deletadoEm: null,
-      status: { notIn: STATUS_NAO_ATIVOS },
-      inicioPrevisto: { lte: fimHoje },
-      fimPrevisto: { gte: inicioHoje },
-    },
+  // Conta como "atividade hoje" tanto como motorista principal quanto acompanhante.
+  const semAtividadeHoje = {
+    AND: [
+      { viagens: { none: filtroAtividadeHoje } },
+      { viagensComoAcompanhante: { none: filtroAtividadeHoje } },
+    ],
+  }
+  const comAtividadeHoje = {
+    OR: [
+      { viagens: { some: filtroAtividadeHoje } },
+      { viagensComoAcompanhante: { some: filtroAtividadeHoje } },
+    ],
   }
 
   const paraFolga = await tx.motorista.findMany({
@@ -54,7 +57,7 @@ export async function reconciliarFolgaMotoristasNoDiaAtual(
       id: { in: idsRelevantes },
       deletadoEm: null,
       diasTrabalhados: { gte: 1, lte: 6 },
-      viagens: viagensAtivasHoje,
+      ...semAtividadeHoje,
     },
     select: { id: true },
   })
@@ -68,7 +71,7 @@ export async function reconciliarFolgaMotoristasNoDiaAtual(
       id: { in: idsRelevantes },
       deletadoEm: null,
       diasTrabalhados: 7,
-      viagens: viagensComAtividadeHoje,
+      ...comAtividadeHoje,
     },
     select: { id: true },
   })

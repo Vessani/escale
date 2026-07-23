@@ -6,6 +6,7 @@ export type NovoMotoristaInput = {
     seva: number;
     diasTrabalhados: number;
     turno: Turno;
+    liberado: boolean;
     integracao: NovaIntegracaoInput[];
 };
 
@@ -47,6 +48,7 @@ export type EditarEntregaInput = NovaEntregaInput & {
 export type EditarViagemInput = Omit<NovaViagemInput, 'entregas'> & {
   entregas: EditarEntregaInput[];
   motoristaId?: number | null;
+  motoristaAcompanhanteId?: number | null;
   status?: StatusViagem;
 };
 

@@ -44,6 +44,7 @@ export const novaViagemSchema = viagemBaseSchema.extend({
 
 export const editarViagemSchema = viagemBaseSchema.extend({
   motoristaId: z.number().nullable().optional(),
+  motoristaAcompanhanteId: z.number().nullable().optional(),
   entregas: z.array(editarEntregaSchema).min(1, "Minimo de 1 entrega."),
 })
 

@@ -49,6 +49,7 @@ export default function NovoMotoristaPage() {
           seva: 0,
           diasTrabalhados: 1,
           turno: "MANHA",
+          liberado: true,
           integracao: [],
         }}
         onSubmit={handleSubmit}

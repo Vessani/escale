@@ -10,7 +10,7 @@ import { reconciliarFolgaMotoristasNoDiaAtual } from "./folga.service";
 import { calcularAvisoFrotaIndisponivel, registrarOuAtualizarDisponibilidadeFrota } from "./frota.service";
 import { converterEditarViagemParaBD, converterNovaViagemParaBD } from "./viagem-data-converter.service";
 import { mapearRegistrosJornada } from "./jornada.service";
-import { inicioDoDia } from "@/lib/utils/date-format";
+import { calcularDiasEntre, inicioDoDia } from "@/lib/utils/date-format";
 
 function resolverStatusPorAlocacao(motoristaId: number | null) {
   return motoristaId === null ? "CRIADA" : "ALOCADA";
@@ -18,6 +18,11 @@ function resolverStatusPorAlocacao(motoristaId: number | null) {
 
 function statusPermiteAutoAjuste(statusAtual: string) {
   return statusAtual === "CRIADA" || statusAtual === "ALOCADA"
+}
+
+/** Marca o instante da transição para CANCELADA — usado pelo Dashboard pra decidir até quando a viagem cancelada ainda aparece. Não mexe se o status não mudou (evita renovar a janela de visibilidade a cada edição de uma viagem já cancelada). */
+function calcularCanceladoEm(statusNovo: string, statusAntigo: string): Date | undefined {
+  return statusNovo === "CANCELADA" && statusAntigo !== "CANCELADA" ? new Date() : undefined
 }
 
 type DadosViagemConvertidos = ReturnType<typeof converterNovaViagemParaBD>
@@ -144,7 +149,7 @@ export async function editarViagemService(idViagem: number, dadosRecebidos: Edit
   const manterEntregas = entregasExistentes.map(e => e.id as number);
   const viagemAtual = await prisma.viagem.findUnique({
     where: { id: idViagem },
-    select: { status: true, motoristaId: true },
+    select: { status: true, motoristaId: true, motoristaAcompanhanteId: true },
   })
 
   if (!viagemAtual) {
@@ -183,7 +188,9 @@ export async function editarViagemService(idViagem: number, dadosRecebidos: Edit
         turno: dados.turno,
         integracaoExigida: integracaoNecessaria,
         status: statusFinal,
+        canceladoEm: calcularCanceladoEm(statusFinal, viagemAtual.status),
         motoristaId: dados.motoristaId !== undefined ? dados.motoristaId : undefined,
+        motoristaAcompanhanteId: dados.motoristaAcompanhanteId !== undefined ? dados.motoristaAcompanhanteId : undefined,
         avisoInterjornada,
         avisoFrotaIndisponivel,
         entregas: {
@@ -220,7 +227,12 @@ export async function editarViagemService(idViagem: number, dadosRecebidos: Edit
     })
 
     await registrarOuAtualizarDisponibilidadeFrota(tx, dados.cavalo, dados.carreta, dados.fimPrevisto as Date)
-    await reconciliarFolgaMotoristasNoDiaAtual(tx, [viagemAtual.motoristaId, viagemAtualizada.motoristaId])
+    await reconciliarFolgaMotoristasNoDiaAtual(tx, [
+      viagemAtual.motoristaId,
+      viagemAtualizada.motoristaId,
+      viagemAtual.motoristaAcompanhanteId,
+      viagemAtualizada.motoristaAcompanhanteId,
+    ])
     return viagemAtualizada
   })
 }
@@ -234,23 +246,93 @@ export async function deletarViagemService(id: number) {
       }
     })
 
-    await reconciliarFolgaMotoristasNoDiaAtual(tx, [viagemDeletada.motoristaId])
+    await reconciliarFolgaMotoristasNoDiaAtual(tx, [viagemDeletada.motoristaId, viagemDeletada.motoristaAcompanhanteId])
     return viagemDeletada
   })
 }
 
-export async function atualizarStatusViagemService(idViagem: number, status: EditarViagemInput["status"]) {
+/** Nova data de início/fim exigida só quando o status vai para POSTERGADA — ver atualizarStatusViagemService. */
+export type NovaDataViagem = { inicioPrevisto: Date; fimPrevisto: Date }
+
+export async function atualizarStatusViagemService(
+  idViagem: number,
+  status: EditarViagemInput["status"],
+  novaData?: NovaDataViagem,
+) {
   if (!status) {
     throw new Error("Status de viagem é obrigatório.")
   }
 
   return await prisma.$transaction(async (tx) => {
-    const viagemAtualizada = await tx.viagem.update({
+    const viagemAtual = await tx.viagem.findUnique({
       where: { id: idViagem },
-      data: { status },
+      select: { status: true },
     })
 
-    await reconciliarFolgaMotoristasNoDiaAtual(tx, [viagemAtualizada.motoristaId])
+    if (!viagemAtual) {
+      throw new Error("Viagem não encontrada.")
+    }
+
+    const viagemAtualizada = await tx.viagem.update({
+      where: { id: idViagem },
+      data: {
+        status,
+        canceladoEm: calcularCanceladoEm(status, viagemAtual.status),
+        ...(novaData ? {
+          inicioPrevisto: novaData.inicioPrevisto,
+          fimPrevisto: novaData.fimPrevisto,
+          diasViagem: calcularDiasEntre(novaData.inicioPrevisto, novaData.fimPrevisto),
+        } : {}),
+      },
+    })
+
+    await reconciliarFolgaMotoristasNoDiaAtual(tx, [viagemAtualizada.motoristaId, viagemAtualizada.motoristaAcompanhanteId])
+    return viagemAtualizada
+  })
+}
+
+/**
+ * Alocação rápida feita direto pelo Dashboard: grava só motorista principal e
+ * acompanhante (e ajusta o status por alocação, como editarViagemService já
+ * faz) — sem mexer em entregas, frota ou datas, que continuam exclusivas da
+ * tela de edição completa.
+ */
+export async function atualizarAlocacaoViagemService(
+  idViagem: number,
+  dados: { motoristaId: number | null; motoristaAcompanhanteId: number | null },
+) {
+  const viagemAtual = await prisma.viagem.findUnique({
+    where: { id: idViagem },
+    select: { status: true, motoristaId: true, motoristaAcompanhanteId: true, inicioPrevisto: true },
+  })
+
+  if (!viagemAtual) {
+    throw new Error("Viagem não encontrada.")
+  }
+
+  const statusFinal = statusPermiteAutoAjuste(viagemAtual.status)
+    ? resolverStatusPorAlocacao(dados.motoristaId)
+    : viagemAtual.status
+  const avisoInterjornada = await calcularAvisoInterjornadaPorId(dados.motoristaId, viagemAtual.inicioPrevisto)
+
+  return await prisma.$transaction(async (tx) => {
+    const viagemAtualizada = await tx.viagem.update({
+      where: { id: idViagem },
+      data: {
+        motoristaId: dados.motoristaId,
+        motoristaAcompanhanteId: dados.motoristaAcompanhanteId,
+        status: statusFinal,
+        avisoInterjornada,
+      },
+    })
+
+    await reconciliarFolgaMotoristasNoDiaAtual(tx, [
+      viagemAtual.motoristaId,
+      viagemAtualizada.motoristaId,
+      viagemAtual.motoristaAcompanhanteId,
+      viagemAtualizada.motoristaAcompanhanteId,
+    ])
+
     return viagemAtualizada
   })
 }
