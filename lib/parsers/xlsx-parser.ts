@@ -253,7 +253,7 @@ class XLSXToFormDataConverter {
     let dataUltimaMs = new Date(dataInicioStr).getTime()
 
     for (const entrega of entregas) {
-      const dataStr = formatarDataExcel(entrega.dataEntrega)
+      const dataStr = formatarDataExcel(entrega.dataEntrega, entrega.horaEntrega)
       if (dataStr) {
         const dataMs = new Date(dataStr).getTime()
         if (dataMs > dataUltimaMs) {

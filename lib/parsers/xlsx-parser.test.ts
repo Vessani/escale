@@ -89,6 +89,30 @@ describe('XLSXParserViagem.converterParaFormulario', () => {
     })
   })
 
+  describe('cálculo de fim previsto', () => {
+    it('usa a hora da entrega mais distante, não sempre 00:00', () => {
+      const resultado = XLSXParserViagem.converterParaFormulario(
+        criarDadosViagem({
+          dataInicio: '04.07.2026',
+          horaInicio: '08:00',
+          entregas: [{ dataEntrega: '05.07.2026', horaEntrega: '14:30', cliente: 'X', cidade: 'X', uf: 'SP' }],
+        }),
+      )
+      expect(resultado.fimPrevisto).toBe('2026-07-05T14:30')
+    })
+
+    it('sem hora informada na entrega, cai no fallback 00:00', () => {
+      const resultado = XLSXParserViagem.converterParaFormulario(
+        criarDadosViagem({
+          dataInicio: '04.07.2026',
+          horaInicio: '08:00',
+          entregas: [{ dataEntrega: '05.07.2026', cliente: 'X', cidade: 'X', uf: 'SP' }],
+        }),
+      )
+      expect(resultado.fimPrevisto).toBe('2026-07-05T00:00')
+    })
+  })
+
   describe('defaults de entrega', () => {
     it('mantém a cidade vazia quando não vem preenchida (o fallback pro cliente acontece na extração da planilha, não aqui)', () => {
       const resultado = XLSXParserViagem.converterParaFormulario(
