@@ -6,6 +6,7 @@ vi.mock("@/lib/prisma", () => ({
     $transaction: vi.fn(),
     viagem: {
       findUnique: vi.fn(),
+      findFirst: vi.fn(),
       update: vi.fn(),
     },
     motorista: {
@@ -100,6 +101,8 @@ describe("viagem.service", () => {
     vi.mocked(prisma.motorista.findUnique).mockResolvedValue(null)
     // Sem conflito de frota por padrão — testado à parte em frota.service.test.ts.
     vi.mocked(calcularAvisoFrotaIndisponivel).mockResolvedValue(null)
+    // Sem outra viagem ativa com o mesmo número por padrão — testado à parte abaixo.
+    vi.mocked(prisma.viagem.findFirst).mockResolvedValue(null)
   })
 
   describe("criarViagemAvulsaService", () => {
@@ -302,6 +305,33 @@ describe("viagem.service", () => {
     })
   })
 
+  describe("garantirNumViagemDisponivel (numViagem sem @unique global — ver comentário no schema)", () => {
+    it("lança erro amigável ao criar com um número já usado por outra viagem ATIVA", async () => {
+      vi.mocked(prisma.viagem.findFirst).mockResolvedValue({ id: 1 } as never)
+
+      await expect(criarViagemComAlocacaoService(criarViagemInput({ numViagem: "10045" }), null)).rejects.toThrow(
+        "Já existe uma viagem com este número.",
+      )
+      expect(prisma.viagem.findFirst).toHaveBeenCalledWith({
+        where: { numViagem: "10045", deletadoEm: null },
+        select: { id: true },
+      })
+    })
+
+    it("permite criar com um número que só pertence a uma viagem DELETADA (soft delete não bloqueia mais)", async () => {
+      // findFirst já filtra deletadoEm: null — uma viagem deletada com o mesmo número não aparece aqui.
+      vi.mocked(prisma.viagem.findFirst).mockResolvedValue(null)
+
+      const tx = criarTx()
+      vi.mocked(tx.viagem.create).mockResolvedValue({ id: 50, motoristaId: null })
+      usarTransacaoCom(tx)
+
+      await criarViagemComAlocacaoService(criarViagemInput({ numViagem: "10045" }), null)
+
+      expect(tx.viagem.create).toHaveBeenCalledTimes(1)
+    })
+  })
+
   describe("editarViagemService", () => {
     function criarEdicaoInput(parcial: Partial<EditarViagemInput> = {}): EditarViagemInput {
       return { ...criarViagemInput(), entregas: criarViagemInput().entregas, ...parcial }
@@ -311,6 +341,33 @@ describe("viagem.service", () => {
       vi.mocked(prisma.viagem.findUnique).mockResolvedValue(null)
 
       await expect(editarViagemService(999, criarEdicaoInput())).rejects.toThrow("Viagem não encontrada.")
+    })
+
+    it("lança erro amigável quando o número editado já pertence a OUTRA viagem ativa", async () => {
+      vi.mocked(prisma.viagem.findUnique).mockResolvedValue({ status: "CRIADA", motoristaId: null, motoristaAcompanhanteId: null } as never)
+      vi.mocked(prisma.viagem.findFirst).mockResolvedValue({ id: 2 } as never)
+
+      await expect(editarViagemService(1, criarEdicaoInput({ numViagem: "10045" }))).rejects.toThrow(
+        "Já existe uma viagem com este número.",
+      )
+      expect(prisma.viagem.findFirst).toHaveBeenCalledWith({
+        where: { numViagem: "10045", deletadoEm: null, id: { not: 1 } },
+        select: { id: true },
+      })
+    })
+
+    it("não bloqueia salvar a própria viagem mantendo o mesmo número (exclui o próprio id da checagem)", async () => {
+      vi.mocked(prisma.viagem.findUnique).mockResolvedValue({ status: "CRIADA", motoristaId: null, motoristaAcompanhanteId: null } as never)
+      // findFirst já exclui id:1 da busca — a própria viagem não conta como conflito.
+      vi.mocked(prisma.viagem.findFirst).mockResolvedValue(null)
+
+      const tx = criarTx()
+      vi.mocked(tx.viagem.update).mockResolvedValue({ id: 1, motoristaId: null, motoristaAcompanhanteId: null })
+      usarTransacaoCom(tx)
+
+      await editarViagemService(1, criarEdicaoInput({ numViagem: "10045" }))
+
+      expect(tx.viagem.update).toHaveBeenCalledTimes(1)
     })
 
     it("promove o status pra ALOCADA ao atribuir motorista numa viagem CRIADA", async () => {

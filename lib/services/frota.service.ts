@@ -26,8 +26,8 @@ export async function calcularAvisoFrotaIndisponivel(
     return null
   }
 
-  const frota = await prisma.frota.findUnique({
-    where: { cavalo_carreta: { cavalo, carreta } },
+  const frota = await prisma.frota.findFirst({
+    where: { cavalo, carreta, deletadoEm: null },
   })
 
   if (!frota?.disponivelEm || frota.disponivelEm <= inicioNovo) {
@@ -54,10 +54,23 @@ export async function registrarOuAtualizarDisponibilidadeFrota(
     return
   }
 
-  await tx.frota.upsert({
-    where: { cavalo_carreta: { cavalo, carreta } },
-    update: { disponivelEm: fimNovo, deletadoEm: null },
-    create: { cavalo, carreta, disponivelEm: fimNovo },
+  // Sem @@unique em (cavalo, carreta) no schema (ver comentário no model
+  // Frota) — não dá pra usar upsert pela dupla, então busca a ativa e
+  // decide entre update/create à mão.
+  const existente = await tx.frota.findFirst({
+    where: { cavalo, carreta, deletadoEm: null },
+  })
+
+  if (existente) {
+    await tx.frota.update({
+      where: { id: existente.id },
+      data: { disponivelEm: fimNovo },
+    })
+    return
+  }
+
+  await tx.frota.create({
+    data: { cavalo, carreta, disponivelEm: fimNovo },
   })
 }
 

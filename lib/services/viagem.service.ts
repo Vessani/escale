@@ -25,6 +25,26 @@ function calcularCanceladoEm(statusNovo: string, statusAntigo: string): Date | u
   return statusNovo === "CANCELADA" && statusAntigo !== "CANCELADA" ? new Date() : undefined
 }
 
+/**
+ * Sem @unique em numViagem no schema (ver comentário no model Viagem) — a
+ * unicidade só vale entre viagens ativas, então o app precisa checar isso à
+ * mão antes de gravar (mesmo padrão de criarFrotaService/editarFrotaService).
+ */
+async function garantirNumViagemDisponivel(numViagem: string, idExcluido?: number) {
+  const existente = await prisma.viagem.findFirst({
+    where: {
+      numViagem,
+      deletadoEm: null,
+      ...(idExcluido !== undefined ? { id: { not: idExcluido } } : {}),
+    },
+    select: { id: true },
+  })
+
+  if (existente) {
+    throw new Error("Já existe uma viagem com este número.")
+  }
+}
+
 type DadosViagemConvertidos = ReturnType<typeof converterNovaViagemParaBD>
 
 /** Busca o jornadaRelatorioFim do motorista e calcula o aviso — usado quando só se tem o id, não o objeto completo. */
@@ -48,6 +68,8 @@ async function inserirViagem(
   status: NovaViagemInput["status"],
   avisoInterjornada: string | null,
 ) {
+  await garantirNumViagemDisponivel(dados.numViagem)
+
   const avisoFrotaIndisponivel = await calcularAvisoFrotaIndisponivel(
     dados.cavalo,
     dados.carreta,
@@ -155,6 +177,8 @@ export async function editarViagemService(idViagem: number, dadosRecebidos: Edit
   if (!viagemAtual) {
     throw new Error("Viagem não encontrada.")
   }
+
+  await garantirNumViagemDisponivel(dados.numViagem, idViagem)
 
   const statusDerivado =
     dados.motoristaId !== undefined

@@ -17,7 +17,7 @@ import {
 
 function criarTx() {
   return {
-    frota: { upsert: vi.fn() },
+    frota: { findFirst: vi.fn(), create: vi.fn(), update: vi.fn() },
   }
 }
 
@@ -34,16 +34,16 @@ describe("calcularAvisoFrotaIndisponivel", () => {
   })
 
   it("retorna null quando o conjunto não está cadastrado", async () => {
-    vi.mocked(prisma.frota.findUnique).mockResolvedValue(null)
+    vi.mocked(prisma.frota.findFirst).mockResolvedValue(null)
 
     const resultado = await calcularAvisoFrotaIndisponivel("75", "908", new Date("2026-07-20T08:00:00"))
 
     expect(resultado).toBeNull()
-    expect(prisma.frota.findUnique).toHaveBeenCalledWith({ where: { cavalo_carreta: { cavalo: "75", carreta: "908" } } })
+    expect(prisma.frota.findFirst).toHaveBeenCalledWith({ where: { cavalo: "75", carreta: "908", deletadoEm: null } })
   })
 
   it("retorna null quando disponivelEm já passou", async () => {
-    vi.mocked(prisma.frota.findUnique).mockResolvedValue({
+    vi.mocked(prisma.frota.findFirst).mockResolvedValue({
       id: 1, cavalo: "75", carreta: "908", disponivelEm: new Date("2026-07-19T10:00:00"),
     } as never)
 
@@ -53,7 +53,7 @@ describe("calcularAvisoFrotaIndisponivel", () => {
   })
 
   it("avisa quando disponivelEm é depois do início da nova viagem", async () => {
-    vi.mocked(prisma.frota.findUnique).mockResolvedValue({
+    vi.mocked(prisma.frota.findFirst).mockResolvedValue({
       id: 1, cavalo: "75", carreta: "908", disponivelEm: new Date("2026-07-22T18:30:00"),
     } as never)
 
@@ -64,7 +64,7 @@ describe("calcularAvisoFrotaIndisponivel", () => {
 
   it("não avisa quando disponivelEm é exatamente igual ao início da nova viagem", async () => {
     const mesmoHorario = new Date("2026-07-20T08:00:00")
-    vi.mocked(prisma.frota.findUnique).mockResolvedValue({
+    vi.mocked(prisma.frota.findFirst).mockResolvedValue({
       id: 1, cavalo: "75", carreta: "908", disponivelEm: mesmoHorario,
     } as never)
 
@@ -75,17 +75,32 @@ describe("calcularAvisoFrotaIndisponivel", () => {
 })
 
 describe("registrarOuAtualizarDisponibilidadeFrota", () => {
-  it("cadastra o conjunto com disponivelEm = fim da viagem quando ainda não existe", async () => {
+  it("cadastra o conjunto com disponivelEm = fim da viagem quando ainda não existe uma dupla ativa", async () => {
     const tx = criarTx()
+    vi.mocked(tx.frota.findFirst).mockResolvedValue(null)
     const fim = new Date("2026-07-20T18:00:00")
 
     await registrarOuAtualizarDisponibilidadeFrota(tx as never, "75", "908", fim)
 
-    expect(tx.frota.upsert).toHaveBeenCalledWith({
-      where: { cavalo_carreta: { cavalo: "75", carreta: "908" } },
-      update: { disponivelEm: fim, deletadoEm: null },
-      create: { cavalo: "75", carreta: "908", disponivelEm: fim },
+    expect(tx.frota.findFirst).toHaveBeenCalledWith({ where: { cavalo: "75", carreta: "908", deletadoEm: null } })
+    expect(tx.frota.create).toHaveBeenCalledWith({
+      data: { cavalo: "75", carreta: "908", disponivelEm: fim },
     })
+    expect(tx.frota.update).not.toHaveBeenCalled()
+  })
+
+  it("atualiza disponivelEm da dupla ativa já cadastrada, sem criar outra", async () => {
+    const tx = criarTx()
+    vi.mocked(tx.frota.findFirst).mockResolvedValue({ id: 7, cavalo: "75", carreta: "908" } as never)
+    const fim = new Date("2026-07-20T18:00:00")
+
+    await registrarOuAtualizarDisponibilidadeFrota(tx as never, "75", "908", fim)
+
+    expect(tx.frota.update).toHaveBeenCalledWith({
+      where: { id: 7 },
+      data: { disponivelEm: fim },
+    })
+    expect(tx.frota.create).not.toHaveBeenCalled()
   })
 
   it("não faz nada quando cavalo ou carreta é inválido (vazio/placeholder)", async () => {
@@ -93,7 +108,9 @@ describe("registrarOuAtualizarDisponibilidadeFrota", () => {
 
     await registrarOuAtualizarDisponibilidadeFrota(tx as never, "0000", "908", new Date())
 
-    expect(tx.frota.upsert).not.toHaveBeenCalled()
+    expect(tx.frota.findFirst).not.toHaveBeenCalled()
+    expect(tx.frota.create).not.toHaveBeenCalled()
+    expect(tx.frota.update).not.toHaveBeenCalled()
   })
 })
 

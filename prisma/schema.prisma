@@ -30,7 +30,11 @@
 
   model Viagem {
     id                Int          @id @default(autoincrement())
-    numViagem         String       @unique @db.VarChar(12)
+    // Sem @unique aqui de propósito: a unicidade real só vale entre viagens
+    // ativas (deletadoEm IS NULL) e é aplicada por um índice único parcial
+    // escrito à mão na migration — do contrário, um número reaproveitado
+    // depois de deletar a viagem original ficaria bloqueado para sempre.
+    numViagem         String       @db.VarChar(12)
     
     carreta           String       @db.VarChar(7)
     cavalo            String       @db.VarChar(7)
@@ -74,6 +78,7 @@
     @@index([inicioPrevisto, fimPrevisto])
     @@index([cavalo])
     @@index([carreta])
+    @@index([numViagem])
   }
 
   // Bloco único de recados gerais da operação (ex: "frota 2024 com problema no
@@ -101,7 +106,14 @@
     atualizadoEm DateTime  @updatedAt
     deletadoEm   DateTime?
 
-    @@unique([cavalo, carreta])
+    // Sem @@unique aqui de propósito: a unicidade real só vale entre
+    // conjuntos ativos (deletadoEm IS NULL) e é aplicada por um índice único
+    // parcial escrito à mão na migration — do contrário, cavalo/carreta
+    // reaproveitados depois de deletar o conjunto original ficariam
+    // bloqueados para sempre. Por isso mesmo, nenhum código deve usar
+    // findUnique/upsert pela dupla cavalo+carreta (não existe mais um
+    // WhereUniqueInput pra isso) — sempre findFirst filtrando deletadoEm: null.
+    @@index([cavalo, carreta])
     @@index([cavalo])
     @@index([carreta])
   }
