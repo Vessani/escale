@@ -81,7 +81,7 @@ export default function CriarUsuarioForm({ filiais }: Props) {
                   <FormControl>
                     <Input type="text" placeholder="Mínimo de 8 caracteres" {...field} />
                   </FormControl>
-                  <FormDescription>Sem tela de troca de senha ainda — avise a pessoa.</FormDescription>
+                  <FormDescription>A pessoa pode trocar depois pelo próprio painel de usuário.</FormDescription>
                   <FormMessage />
                 </FormItem>
               )} />

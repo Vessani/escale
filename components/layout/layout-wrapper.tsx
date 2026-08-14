@@ -21,6 +21,7 @@ import {
 } from "lucide-react"
 import { Session } from "next-auth"
 import { Dialog } from "radix-ui"
+import TrocarSenhaDialog from "@/components/usuario/trocar-senha-dialog"
 
 const CHAVE_SIDEBAR_COLAPSADA = "escalador:sidebar-colapsada"
 
@@ -131,23 +132,29 @@ function PainelUsuario({ usuario, colapsado = false }: { usuario: Session["user"
       </div>
 
       {!colapsado && (
-        <button
-          onClick={() => signOut({ callbackUrl: '/login' })}
-          className="w-full flex items-center justify-center px-3 py-2 text-sm text-red-400 bg-red-400/10 hover:bg-red-400/20 rounded-md transition-colors"
-        >
-          <LogOut aria-hidden="true" className="w-4 h-4 mr-2" />
-          Sair do Sistema
-        </button>
+        <>
+          <button
+            onClick={() => signOut({ callbackUrl: '/login' })}
+            className="w-full flex items-center justify-center px-3 py-2 text-sm text-red-400 bg-red-400/10 hover:bg-red-400/20 rounded-md transition-colors"
+          >
+            <LogOut aria-hidden="true" className="w-4 h-4 mr-2" />
+            Sair do Sistema
+          </button>
+          <TrocarSenhaDialog />
+        </>
       )}
       {colapsado && (
-        <button
-          onClick={() => signOut({ callbackUrl: '/login' })}
-          title="Sair do Sistema"
-          className="mt-3 w-full flex items-center justify-center px-3 py-2 text-sm text-red-400 bg-red-400/10 hover:bg-red-400/20 rounded-md transition-colors"
-        >
-          <LogOut aria-hidden="true" className="w-4 h-4" />
-          <span className="sr-only">Sair do Sistema</span>
-        </button>
+        <>
+          <button
+            onClick={() => signOut({ callbackUrl: '/login' })}
+            title="Sair do Sistema"
+            className="mt-3 w-full flex items-center justify-center px-3 py-2 text-sm text-red-400 bg-red-400/10 hover:bg-red-400/20 rounded-md transition-colors"
+          >
+            <LogOut aria-hidden="true" className="w-4 h-4" />
+            <span className="sr-only">Sair do Sistema</span>
+          </button>
+          <TrocarSenhaDialog colapsado />
+        </>
       )}
     </div>
   )
