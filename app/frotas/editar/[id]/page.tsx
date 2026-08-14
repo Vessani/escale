@@ -1,4 +1,6 @@
 import { notFound } from "next/navigation"
+import { getServerSession } from "next-auth"
+import { authOptions } from "@/lib/auth"
 import { buscarFrotaPorId } from "@/lib/queries/frotas"
 import FormEditarFrota from "./form-editar"
 import { serializeData } from "@/lib/serialization"
@@ -11,7 +13,10 @@ export default async function EditarFrotaPage({ params }: { params: Promise<{ id
     notFound()
   }
 
-  const frota = await buscarFrotaPorId(frotaId)
+  const session = await getServerSession(authOptions)
+  const filialId = session!.user.filialId!
+
+  const frota = await buscarFrotaPorId(filialId, frotaId)
 
   if (!frota) {
     notFound()

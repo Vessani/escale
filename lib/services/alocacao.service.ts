@@ -1,14 +1,8 @@
 import { StatusIntegracao, StatusViagem, Turno } from "@prisma/client"
-import { inicioDoDia } from "@/lib/utils/date-format"
 import { projetarCodigoNoDia, type PontoRegistroJornada } from "./jornada.service"
 
 /** Máximo de dias consecutivos de trabalho antes da folga obrigatória — mesmo limite usado pra capar o "Dias Sem Folga" importado do relatório (ver jornada-relatorio.service.ts). */
 export const MAX_DIAS_CONSECUTIVOS = 6
-
-const CLIENTES_COM_INTEGRACAO_OBRIGATORIA = new Set([
-  "GEMP - AMBEV - BEBIDAS - N2L. (GRUPO AMB",
-  "WEG",
-])
 
 type IntegracaoBase = {
   cliente: string
@@ -69,10 +63,18 @@ export function calcularDiasDisponiveis(diasTrabalhados: number) {
   return MAX_DIAS_CONSECUTIVOS - diasTrabalhados
 }
 
-export function calcularIntegracaoExigida(entregas: Array<{ cliente: string }>) {
+/**
+ * `clientesQueExigemIntegracao` já vem normalizado (trim + maiúsculas) — ver
+ * buscarNomesClientesQueExigemIntegracao (lib/queries/clientes.ts), que
+ * substituiu a antiga lista fixa no código.
+ */
+export function calcularIntegracaoExigida(
+  entregas: Array<{ cliente: string }>,
+  clientesQueExigemIntegracao: Set<string>,
+) {
   for (const entrega of entregas) {
     const clienteNormalizado = normalizarCliente(entrega.cliente)
-    if (CLIENTES_COM_INTEGRACAO_OBRIGATORIA.has(clienteNormalizado)) {
+    if (clientesQueExigemIntegracao.has(clienteNormalizado)) {
       return clienteNormalizado
     }
   }
@@ -275,51 +277,90 @@ export function periodoConflita(inicioA: Date, fimA: Date, inicioB: Date, fimB: 
   return inicioA < fimB && fimA > inicioB
 }
 
+/**
+ * CANCELADA nunca conta (a viagem não aconteceu, não há descanso a cumprir
+ * por causa dela). FINALIZADA conta como qualquer viagem ativa — uma viagem
+ * já concluída ainda define quando o motorista pode iniciar a próxima (ver
+ * MINIMO_HORAS_ENTRE_JORNADAS/MINIMO_HORAS_ENTRE_FOLGAS); a consulta que
+ * carrega `motorista.viagens` (lib/queries/motoristas.ts) já limita
+ * viagens FINALIZADA às recentes, então esta função não precisa repetir esse
+ * corte por tempo.
+ */
 function viagemBloqueiaAgenda(viagem: ViagemParaDisponibilidade) {
   if (viagem.deletadoEm) {
     return false
   }
 
-  return viagem.status !== "CANCELADA" && viagem.status !== "FINALIZADA"
-}
-
-/** Primeiro dia (00:00) em que o motorista está livre após o fim de uma viagem: o dia seguinte ao dia em que ela termina. */
-function primeiroDiaDisponivelApos(fimViagem: Date): Date {
-  const dia = inicioDoDia(fimViagem)
-  dia.setDate(dia.getDate() + 1)
-  return dia
+  return viagem.status !== "CANCELADA"
 }
 
 /**
- * Duas viagens conflitam por descanso se, olhando só a data (não a hora exata),
- * uma delas começa antes do primeiro dia livre após o fim da outra — ou seja,
- * exige pelo menos um dia calendário inteiro de descanso entre o fim de uma
- * viagem e o início da próxima. Ex: viagem termina dia 9, só libera dia 10.
+ * Duas viagens conflitam por descanso se elas se sobrepõem no tempo, ou se o
+ * intervalo entre o fim de uma e o início da outra é menor que o mínimo de
+ * descanso exigido (`minimoHoras`, 11h de interjornada por padrão — mesmo
+ * valor de MINIMO_HORAS_ENTRE_JORNADAS/calcularAvisoInterjornada; passe
+ * MINIMO_HORAS_ENTRE_FOLGAS quando a viagem anterior encerra o 6º dia
+ * consecutivo do motorista, ver descansoMinimoNecessarioApos). Comparação por
+ * hora exata, não por dia calendário: antes disso, uma viagem terminando
+ * 23h59 "liberava" o motorista a partir de 00h01 do dia seguinte — pouco mais
+ * de 2 minutos de descanso real, mesmo contando como "1 dia" de folga.
  */
-export function periodosConflitamComDescanso(inicioA: Date, fimA: Date, inicioB: Date, fimB: Date) {
-  return periodoConflita(
-    inicioDoDia(inicioA),
-    primeiroDiaDisponivelApos(fimA),
-    inicioDoDia(inicioB),
-    primeiroDiaDisponivelApos(fimB),
-  )
+export function periodosConflitamComDescanso(
+  inicioA: Date,
+  fimA: Date,
+  inicioB: Date,
+  fimB: Date,
+  minimoHoras: number = MINIMO_HORAS_ENTRE_JORNADAS,
+) {
+  if (periodoConflita(inicioA, fimA, inicioB, fimB)) {
+    return true
+  }
+
+  // Sem sobreposição real: como só se toca em um dos dois sentidos, o
+  // intervalo entre elas é a diferença entre o fim da que veio antes e o
+  // início da que veio depois (a ordem cronológica é confiável aqui, já que
+  // periodoConflita já descartou qualquer sobreposição).
+  const gapMs =
+    inicioA <= inicioB ? inicioB.getTime() - fimA.getTime() : inicioA.getTime() - fimB.getTime()
+
+  return gapMs < minimoHoras * 60 * 60 * 1000
+}
+
+/**
+ * Descanso mínimo (11h ou 35h) exigido depois de uma viagem já registrada do
+ * motorista, a partir do código de jornada projetado pro dia em que ela
+ * termina — mesma regra de calcularProximoInicioDisponivel, aplicada aqui
+ * contra a própria agenda do motorista no sistema (não só o relatório
+ * importado). Sem isso, o reset da rotação (código 7 → 1 na virada pro dia
+ * seguinte à Folga) somado ao mínimo de 11h deixaria passar uma viagem nova
+ * horas depois da meia-noite seguinte à Folga, bem antes das 35h reais desde
+ * que o motorista realmente parou de trabalhar.
+ */
+function descansoMinimoNecessarioApos(motorista: MotoristaParaAlocacao, fimViagemExistente: Date, hoje: Date) {
+  const codigoAoFim = projetarCodigoNoDia(motorista.registrosJornada, fimViagemExistente, hoje, motorista.diasTrabalhados)
+  return codigoAoFim >= MAX_DIAS_CONSECUTIVOS ? MINIMO_HORAS_ENTRE_FOLGAS : MINIMO_HORAS_ENTRE_JORNADAS
 }
 
 export function motoristaEstaDisponivelNoPeriodo(
   motorista: MotoristaComAgenda,
   inicioViagem: Date,
   fimViagem: Date,
+  hoje: Date,
 ) {
   return !motorista.viagens.some((viagem) => {
     if (!viagemBloqueiaAgenda(viagem)) {
       return false
     }
 
+    const fimViagemExistente = new Date(viagem.fimPrevisto)
+    const minimoHoras = descansoMinimoNecessarioApos(motorista, fimViagemExistente, hoje)
+
     return periodosConflitamComDescanso(
       new Date(viagem.inicioPrevisto),
-      new Date(viagem.fimPrevisto),
+      fimViagemExistente,
       inicioViagem,
       fimViagem,
+      minimoHoras,
     )
   })
 }
@@ -328,9 +369,10 @@ export function filtrarMotoristasDisponiveisNoPeriodo(
   motoristas: MotoristaComAgenda[],
   inicioViagem: Date,
   fimViagem: Date,
+  hoje: Date,
 ) {
   return motoristas.filter((motorista) =>
-    motoristaEstaDisponivelNoPeriodo(motorista, inicioViagem, fimViagem),
+    motoristaEstaDisponivelNoPeriodo(motorista, inicioViagem, fimViagem, hoje),
   )
 }
 
@@ -339,7 +381,12 @@ export function sugerirMotoristaAutomatico(
   fimViagem: Date,
   contexto: ContextoCompatibilidade,
 ) {
-  const disponiveis = filtrarMotoristasDisponiveisNoPeriodo(motoristas, contexto.dataInicioViagem, fimViagem)
+  const disponiveis = filtrarMotoristasDisponiveisNoPeriodo(
+    motoristas,
+    contexto.dataInicioViagem,
+    fimViagem,
+    contexto.hoje,
+  )
   const compativeis = filtrarMotoristasCompativeis(disponiveis, contexto)
   return compativeis[0] ?? null
 }
@@ -355,6 +402,7 @@ type ViagemParaSugestaoLote = {
 
 type AtribuicaoTentativa = {
   motoristaId: number
+  motorista: MotoristaComAgenda
   inicio: Date
   fim: Date
 }
@@ -392,15 +440,23 @@ export function sugerirAlocacoesEmLote(
       motoristas,
       viagem.inicioPrevisto,
       viagem.fimPrevisto,
+      hoje,
     )
 
     const motoristasCompativeis = filtrarMotoristasCompativeis(motoristasDisponiveis, contexto).filter(
       (motorista) =>
-        !atribuicoesTentativas.some(
-          (atribuicao) =>
-            atribuicao.motoristaId === motorista.id &&
-            periodosConflitamComDescanso(viagem.inicioPrevisto, viagem.fimPrevisto, atribuicao.inicio, atribuicao.fim),
-        ),
+        !atribuicoesTentativas.some((atribuicao) => {
+          if (atribuicao.motoristaId !== motorista.id) return false
+
+          const minimoHoras = descansoMinimoNecessarioApos(atribuicao.motorista, atribuicao.fim, hoje)
+          return periodosConflitamComDescanso(
+            viagem.inicioPrevisto,
+            viagem.fimPrevisto,
+            atribuicao.inicio,
+            atribuicao.fim,
+            minimoHoras,
+          )
+        }),
     )
 
     // motoristasCompativeis já está filtrado e ordenado por filtrarMotoristasCompativeis
@@ -410,6 +466,7 @@ export function sugerirAlocacoesEmLote(
     if (motoristaSugerido) {
       atribuicoesTentativas.push({
         motoristaId: motoristaSugerido.id,
+        motorista: motoristaSugerido,
         inicio: viagem.inicioPrevisto,
         fim: viagem.fimPrevisto,
       })

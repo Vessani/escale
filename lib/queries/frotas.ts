@@ -1,14 +1,14 @@
 import { prisma } from "@/lib/prisma";
 
-export async function buscarFrotas() {
+export async function buscarFrotas(filialId: number) {
   return await prisma.frota.findMany({
-    where: { deletadoEm: null },
+    where: { deletadoEm: null, filialId },
     orderBy: { cavalo: "asc" },
   });
 }
 
-export async function buscarFrotaPorId(id: number) {
+export async function buscarFrotaPorId(filialId: number, id: number) {
   return await prisma.frota.findFirst({
-    where: { id, deletadoEm: null },
+    where: { id, filialId, deletadoEm: null },
   });
 }

@@ -1,9 +1,10 @@
 "use client"
 
-import { useTransition } from "react"
+import { useState, useTransition } from "react"
 import { useRouter } from "next/navigation"
 import { Trash2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
+import { ConfirmDialog } from "@/components/ui/confirm-dialog"
 import { deletarViagem } from "@/lib/actions/viagens"
 
 type Props = {
@@ -14,37 +15,48 @@ type Props = {
 export default function ExcluirViagemButton({ viagemId, numeroViagem }: Props) {
   const router = useRouter()
   const [isPending, startTransition] = useTransition()
+  const [dialogAberto, setDialogAberto] = useState(false)
+  const [erro, setErro] = useState<string | null>(null)
 
   const handleExcluir = () => {
-    const confirmar = window.confirm(
-      `Tem certeza que deseja excluir a viagem ${numeroViagem}? Esta ação pode ser desfeita apenas no banco.`,
-    )
-
-    if (!confirmar) {
-      return
-    }
+    setErro(null)
 
     startTransition(async () => {
       const resposta = await deletarViagem(viagemId)
       if (!resposta.sucesso) {
-        window.alert(resposta.erro ?? "Não foi possível excluir a viagem.")
+        setErro(resposta.erro ?? "Não foi possível excluir a viagem.")
         return
       }
 
+      setDialogAberto(false)
       router.refresh()
     })
   }
 
   return (
-    <Button
-      variant="outline"
-      size="sm"
-      className="border-rose-200 text-rose-700 hover:bg-rose-50 hover:text-rose-800"
-      disabled={isPending}
-      onClick={handleExcluir}
-    >
-      <Trash2 className="h-4 w-4 mr-2" />
-      {isPending ? "Excluindo..." : "Excluir"}
-    </Button>
+    <>
+      <Button
+        variant="outline"
+        size="sm"
+        className="border-rose-200 text-rose-700 hover:bg-rose-50 hover:text-rose-800"
+        onClick={() => {
+          setErro(null)
+          setDialogAberto(true)
+        }}
+      >
+        <Trash2 className="h-4 w-4 mr-2" />
+        Excluir
+      </Button>
+
+      <ConfirmDialog
+        open={dialogAberto}
+        onOpenChange={setDialogAberto}
+        title="Excluir viagem"
+        description={`Tem certeza que deseja excluir a viagem ${numeroViagem}? Essa ação não pode ser desfeita pelo sistema.`}
+        confirming={isPending}
+        erro={erro}
+        onConfirm={handleExcluir}
+      />
+    </>
   )
 }

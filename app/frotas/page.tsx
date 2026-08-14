@@ -1,4 +1,6 @@
 import Link from "next/link"
+import { getServerSession } from "next-auth"
+import { authOptions } from "@/lib/auth"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { PlusCircle, Truck } from "lucide-react"
@@ -27,19 +29,19 @@ function StatusFrotaBadge({ frota, agora }: { frota: Frota; agora: Date }) {
   return <Badge variant="warning">Em manutenção até {formatarDataHoraPtBr(frota.disponivelEm as Date)}</Badge>
 }
 
-function AcoesFrota({ frota }: { frota: Frota }) {
+function AcoesFrota({ frota, podeExcluir }: { frota: Frota; podeExcluir: boolean }) {
   return (
     <div className="flex flex-wrap justify-end gap-2">
       <Link href={`/frotas/editar/${frota.id}`}>
         <Button variant="outline" size="sm">Editar</Button>
       </Link>
-      <ExcluirFrotaButton frotaId={frota.id} cavalo={frota.cavalo} carreta={frota.carreta} />
+      {podeExcluir && <ExcluirFrotaButton frotaId={frota.id} cavalo={frota.cavalo} carreta={frota.carreta} />}
     </div>
   )
 }
 
 /** Tabela para telas a partir de md; em telas menores vira lista de cards (ver FrotasCards). */
-function FrotasTabela({ frotas, agora }: { frotas: Frota[]; agora: Date }) {
+function FrotasTabela({ frotas, agora, podeExcluir }: { frotas: Frota[]; agora: Date; podeExcluir: boolean }) {
   return (
     <div className="hidden rounded-lg border bg-white shadow-sm overflow-hidden md:block">
       <Table>
@@ -60,7 +62,7 @@ function FrotasTabela({ frotas, agora }: { frotas: Frota[]; agora: Date }) {
                 <StatusFrotaBadge frota={frota} agora={agora} />
               </TableCell>
               <TableCell className="text-right">
-                <AcoesFrota frota={frota} />
+                <AcoesFrota frota={frota} podeExcluir={podeExcluir} />
               </TableCell>
             </TableRow>
           ))}
@@ -71,7 +73,7 @@ function FrotasTabela({ frotas, agora }: { frotas: Frota[]; agora: Date }) {
 }
 
 /** Lista em cards para telas abaixo de md; substitui a tabela (ver FrotasTabela). */
-function FrotasCards({ frotas, agora }: { frotas: Frota[]; agora: Date }) {
+function FrotasCards({ frotas, agora, podeExcluir }: { frotas: Frota[]; agora: Date; podeExcluir: boolean }) {
   return (
     <div className="space-y-3 md:hidden">
       {frotas.map((frota) => (
@@ -82,7 +84,7 @@ function FrotasCards({ frotas, agora }: { frotas: Frota[]; agora: Date }) {
             </div>
             <StatusFrotaBadge frota={frota} agora={agora} />
           </div>
-          <AcoesFrota frota={frota} />
+          <AcoesFrota frota={frota} podeExcluir={podeExcluir} />
         </div>
       ))}
     </div>
@@ -90,7 +92,10 @@ function FrotasCards({ frotas, agora }: { frotas: Frota[]; agora: Date }) {
 }
 
 export default async function FrotasPage() {
-  const frotas = await buscarFrotas()
+  const session = await getServerSession(authOptions)
+  const filialId = session!.user.filialId!
+  const podeExcluir = session?.user?.role === "ADMIN"
+  const frotas = await buscarFrotas(filialId)
   const agora = new Date()
 
   return (
@@ -103,7 +108,7 @@ export default async function FrotasPage() {
           </p>
         </div>
         <Link href="/frotas/novo">
-          <Button className="bg-blue-600 hover:bg-blue-700 text-white">
+          <Button>
             <PlusCircle className="w-5 h-5 mr-2" />
             Novo Conjunto
           </Button>
@@ -123,8 +128,8 @@ export default async function FrotasPage() {
             <h2 className="text-xl font-semibold text-slate-900">Todos os conjuntos</h2>
             <Badge variant="outline">{frotas.length}</Badge>
           </div>
-          <FrotasTabela frotas={frotas} agora={agora} />
-          <FrotasCards frotas={frotas} agora={agora} />
+          <FrotasTabela frotas={frotas} agora={agora} podeExcluir={podeExcluir} />
+          <FrotasCards frotas={frotas} agora={agora} podeExcluir={podeExcluir} />
         </section>
       )}
     </div>

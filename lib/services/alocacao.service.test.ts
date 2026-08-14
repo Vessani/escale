@@ -66,23 +66,28 @@ describe("alocacao.service", () => {
   })
 
   describe("calcularIntegracaoExigida", () => {
+    const CLIENTES_TESTE = new Set(["GEMP - AMBEV - BEBIDAS - N2L. (GRUPO AMB", "WEG"])
+
     it("retorna null quando nenhum cliente exige integração", () => {
-      expect(calcularIntegracaoExigida([{ cliente: "Cliente Comum" }, { cliente: "Outro" }])).toBeNull()
+      expect(calcularIntegracaoExigida([{ cliente: "Cliente Comum" }, { cliente: "Outro" }], CLIENTES_TESTE)).toBeNull()
     })
 
     it("detecta o cliente do grupo AMBEV e a WEG normalizando maiúsculas/espaços", () => {
-      expect(calcularIntegracaoExigida([{ cliente: "  gemp - ambev - bebidas - n2l. (grupo amb  " }])).toBe(
+      expect(calcularIntegracaoExigida([{ cliente: "  gemp - ambev - bebidas - n2l. (grupo amb  " }], CLIENTES_TESTE)).toBe(
         "GEMP - AMBEV - BEBIDAS - N2L. (GRUPO AMB",
       )
-      expect(calcularIntegracaoExigida([{ cliente: "weg" }])).toBe("WEG")
+      expect(calcularIntegracaoExigida([{ cliente: "weg" }], CLIENTES_TESTE)).toBe("WEG")
     })
 
     it("retorna o primeiro cliente da lista que exige integração", () => {
-      const resultado = calcularIntegracaoExigida([
-        { cliente: "Cliente Comum" },
-        { cliente: "weg" },
-        { cliente: "ambev" },
-      ])
+      const resultado = calcularIntegracaoExigida(
+        [
+          { cliente: "Cliente Comum" },
+          { cliente: "weg" },
+          { cliente: "ambev" },
+        ],
+        CLIENTES_TESTE,
+      )
       expect(resultado).toBe("WEG")
     })
   })
@@ -440,9 +445,19 @@ describe("alocacao.service", () => {
   })
 
   describe("periodosConflitamComDescanso", () => {
-    it("exige 1 dia calendário completo de descanso após o fim de uma viagem", () => {
-      // Termina dia 9 às 03h; a próxima começa dia 9 às 09h — mesmo sem
-      // sobrepor o horário exato, ainda é o mesmo dia calendário.
+    it("detecta conflito quando os períodos se sobrepõem no tempo", () => {
+      expect(
+        periodosConflitamComDescanso(
+          new Date("2026-07-10T08:00:00"),
+          new Date("2026-07-10T12:00:00"),
+          new Date("2026-07-10T10:00:00"),
+          new Date("2026-07-10T14:00:00"),
+        ),
+      ).toBe(true)
+    })
+
+    it("exige 11h reais de descanso entre o fim de uma viagem e o início da outra", () => {
+      // Termina 03h; a próxima começa 09h do mesmo dia — só 6h de intervalo.
       expect(
         periodosConflitamComDescanso(
           new Date("2026-07-08T08:00:00"),
@@ -453,19 +468,55 @@ describe("alocacao.service", () => {
       ).toBe(true)
     })
 
-    it("libera a partir do primeiro dia calendário seguinte ao fim da viagem anterior", () => {
+    it("não conflita quando o intervalo é de exatamente 11h (mínimo legal)", () => {
       expect(
         periodosConflitamComDescanso(
           new Date("2026-07-08T08:00:00"),
           new Date("2026-07-09T03:00:00"),
-          new Date("2026-07-10T05:00:00"),
-          new Date("2026-07-10T20:00:00"),
+          new Date("2026-07-09T14:00:00"), // 03:00 + 11h
+          new Date("2026-07-09T20:00:00"),
         ),
       ).toBe(false)
+    })
+
+    it("conflita mesmo cruzando a meia-noite quando o intervalo real é bem menor que 11h", () => {
+      // Termina 23h50 de um dia; a próxima começa 00h10 do dia seguinte —
+      // calendário "libera no dia seguinte", mas só 20 minutos de descanso real.
+      expect(
+        periodosConflitamComDescanso(
+          new Date("2026-07-08T08:00:00"),
+          new Date("2026-07-08T23:50:00"),
+          new Date("2026-07-09T00:10:00"),
+          new Date("2026-07-09T10:00:00"),
+        ),
+      ).toBe(true)
+    })
+
+    it("não conflita com um intervalo de vários dias entre as viagens", () => {
+      expect(
+        periodosConflitamComDescanso(
+          new Date("2026-07-08T08:00:00"),
+          new Date("2026-07-09T03:00:00"),
+          new Date("2026-07-15T05:00:00"),
+          new Date("2026-07-15T20:00:00"),
+        ),
+      ).toBe(false)
+    })
+
+    it("é simétrica: a ordem dos argumentos (qual viagem é 'A' ou 'B') não muda o resultado", () => {
+      const inicioA = new Date("2026-07-08T08:00:00")
+      const fimA = new Date("2026-07-09T03:00:00")
+      const inicioB = new Date("2026-07-09T09:00:00")
+      const fimB = new Date("2026-07-10T03:00:00")
+
+      expect(periodosConflitamComDescanso(inicioA, fimA, inicioB, fimB)).toBe(
+        periodosConflitamComDescanso(inicioB, fimB, inicioA, fimA),
+      )
     })
   })
 
   describe("motoristaEstaDisponivelNoPeriodo", () => {
+    const hoje = new Date("2026-07-08T00:00:00")
     const inicioNovaViagem = new Date("2026-07-10T09:00:00")
     const fimNovaViagem = new Date("2026-07-11T09:00:00")
 
@@ -483,10 +534,10 @@ describe("alocacao.service", () => {
         ],
       }
 
-      expect(motoristaEstaDisponivelNoPeriodo(motorista, inicioNovaViagem, fimNovaViagem)).toBe(false)
+      expect(motoristaEstaDisponivelNoPeriodo(motorista, inicioNovaViagem, fimNovaViagem, hoje)).toBe(false)
     })
 
-    it("ignora viagens CANCELADA e FINALIZADA ao calcular disponibilidade", () => {
+    it("ignora viagens CANCELADA ao calcular disponibilidade (a viagem não aconteceu)", () => {
       const motorista = {
         ...criarMotorista({}),
         viagens: [
@@ -497,8 +548,18 @@ describe("alocacao.service", () => {
             status: "CANCELADA" as const,
             deletadoEm: null,
           },
+        ],
+      }
+
+      expect(motoristaEstaDisponivelNoPeriodo(motorista, inicioNovaViagem, fimNovaViagem, hoje)).toBe(true)
+    })
+
+    it("considera viagens FINALIZADA ao calcular disponibilidade (o descanso ainda se aplica a uma viagem já concluída)", () => {
+      const motorista = {
+        ...criarMotorista({}),
+        viagens: [
           {
-            id: 2,
+            id: 1,
             inicioPrevisto: new Date("2026-07-10T08:00:00"),
             fimPrevisto: new Date("2026-07-10T12:00:00"),
             status: "FINALIZADA" as const,
@@ -507,7 +568,7 @@ describe("alocacao.service", () => {
         ],
       }
 
-      expect(motoristaEstaDisponivelNoPeriodo(motorista, inicioNovaViagem, fimNovaViagem)).toBe(true)
+      expect(motoristaEstaDisponivelNoPeriodo(motorista, inicioNovaViagem, fimNovaViagem, hoje)).toBe(false)
     })
 
     it("ignora viagens com deletadoEm preenchido (soft delete)", () => {
@@ -524,12 +585,53 @@ describe("alocacao.service", () => {
         ],
       }
 
-      expect(motoristaEstaDisponivelNoPeriodo(motorista, inicioNovaViagem, fimNovaViagem)).toBe(true)
+      expect(motoristaEstaDisponivelNoPeriodo(motorista, inicioNovaViagem, fimNovaViagem, hoje)).toBe(true)
+    })
+
+    it("exige 35h (não 11h) quando a viagem anterior encerra o 6º dia consecutivo do motorista", () => {
+      // Motorista no 6º dia hoje (08/07); a última viagem (já FINALIZADA —
+      // e ainda assim considerada, ver viagemBloqueiaAgenda) termina às 19h
+      // do próprio dia 08 — amanhã (09/07) é Folga por rotação, mas isso
+      // sozinho não garante 35h reais: só bloqueia o calendário do dia de Folga.
+      const motorista = {
+        ...criarMotorista({ diasTrabalhados: 6 }),
+        viagens: [
+          {
+            id: 1,
+            inicioPrevisto: new Date("2026-07-08T07:00:00"),
+            fimPrevisto: new Date("2026-07-08T19:00:00"),
+            status: "FINALIZADA" as const,
+            deletadoEm: null,
+          },
+        ],
+      }
+
+      // 19h (08/07) + 24h de Folga + 11h de interjornada = 35h → só libera 06h do dia 10/07.
+      // Uma viagem pouco depois da virada do dia 10 (~29h de intervalo) ainda viola.
+      expect(
+        motoristaEstaDisponivelNoPeriodo(
+          motorista,
+          new Date("2026-07-10T00:30:00"),
+          new Date("2026-07-10T12:00:00"),
+          hoje,
+        ),
+      ).toBe(false)
+
+      // Exatamente 35h depois (06h do dia 10/07): respeita o descanso.
+      expect(
+        motoristaEstaDisponivelNoPeriodo(
+          motorista,
+          new Date("2026-07-10T06:00:00"),
+          new Date("2026-07-10T18:00:00"),
+          hoje,
+        ),
+      ).toBe(true)
     })
   })
 
   describe("filtrarMotoristasDisponiveisNoPeriodo", () => {
     it("mantém apenas quem não tem conflito de agenda no período", () => {
+      const hoje = new Date("2026-07-08T00:00:00")
       const inicioNovaViagem = new Date("2026-07-10T09:00:00")
       const fimNovaViagem = new Date("2026-07-11T09:00:00")
 
@@ -550,7 +652,7 @@ describe("alocacao.service", () => {
         viagens: [],
       }
 
-      const resultado = filtrarMotoristasDisponiveisNoPeriodo([ocupado, livre], inicioNovaViagem, fimNovaViagem)
+      const resultado = filtrarMotoristasDisponiveisNoPeriodo([ocupado, livre], inicioNovaViagem, fimNovaViagem, hoje)
 
       expect(resultado.map((m) => m.nome)).toEqual(["Livre"])
     })

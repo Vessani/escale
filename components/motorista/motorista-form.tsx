@@ -19,9 +19,11 @@ type MotoristaFormProps = {
   onSubmit: (dados: MotoristaComIntegracoesFormValues) => Promise<RespostaAcao>
   submitLabel: string
   submittingLabel: string
+  /** Cadastro de clientes (ver app/clientes) — alimenta o select de "Cliente" de cada integração. */
+  clientes: Array<{ id: number; nome: string }>
 }
 
-export default function MotoristaForm({ defaultValues, onSubmit, submitLabel, submittingLabel }: MotoristaFormProps) {
+export default function MotoristaForm({ defaultValues, onSubmit, submitLabel, submittingLabel, clientes }: MotoristaFormProps) {
   const router = useRouter()
   const [erroGlobal, setErroGlobal] = useState("")
 
@@ -90,10 +92,13 @@ export default function MotoristaForm({ defaultValues, onSubmit, submitLabel, su
 
               <FormField control={form.control} name="diasTrabalhados" render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Dias Trabalhados (1-10)</FormLabel>
+                  <FormLabel>Código de Jornada Atual</FormLabel>
                   <FormControl>
                     <Input type="number" min={1} max={10} placeholder="Ex: 1 a 10" {...field} value={normalizeFormValue(field.value)} />
                   </FormControl>
+                  <FormDescription>
+                    1–6 = dias seguidos trabalhados · 7 = Folga · 8 = Férias · 9 = Exames · 10 = Interno
+                  </FormDescription>
                   <FormMessage />
                 </FormItem>
               )} />
@@ -175,6 +180,7 @@ export default function MotoristaForm({ defaultValues, onSubmit, submitLabel, su
                     size="icon"
                     className="absolute right-2 top-2 text-red-500"
                     onClick={() => remove(index)}
+                    aria-label="Remover integração"
                   >
                     <Trash2 className="w-4 h-4" />
                   </Button>
@@ -185,9 +191,23 @@ export default function MotoristaForm({ defaultValues, onSubmit, submitLabel, su
                     render={({ field }) => (
                       <FormItem className="md:col-span-5">
                         <FormLabel>Cliente</FormLabel>
-                        <FormControl>
-                          <Input {...field} value={normalizeFormValue(field.value)} />
-                        </FormControl>
+                        <Select
+                          value={typeof field.value === "string" ? field.value : ""}
+                          onValueChange={field.onChange}
+                        >
+                          <FormControl>
+                            <SelectTrigger>
+                              <SelectValue placeholder="Selecione o cliente" />
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent>
+                            {clientes.map((cliente) => (
+                              <SelectItem key={cliente.id} value={cliente.nome}>
+                                {cliente.nome}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
                         <FormMessage />
                       </FormItem>
                     )}
@@ -242,7 +262,7 @@ export default function MotoristaForm({ defaultValues, onSubmit, submitLabel, su
           <Button variant="outline" type="button" onClick={() => router.back()}>
             Cancelar
           </Button>
-          <Button type="submit" disabled={form.formState.isSubmitting} className="bg-blue-600 hover:bg-blue-700 w-40 shadow-sm">
+          <Button type="submit" disabled={form.formState.isSubmitting} className="w-40 shadow-sm">
             <Save className="w-4 h-4 mr-2" />
             {form.formState.isSubmitting ? submittingLabel : submitLabel}
           </Button>

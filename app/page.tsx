@@ -1,4 +1,6 @@
 import Link from "next/link"
+import { getServerSession } from "next-auth"
+import { authOptions } from "@/lib/auth"
 import { Button } from "@/components/ui/button"
 import { Pencil, Route } from "lucide-react"
 import { Alert } from "@/components/ui/alert"
@@ -17,10 +19,10 @@ import AlocarMotoristasDashboard from "./alocar-motoristas-dashboard"
 import QuadroDeObservacoes from "./quadro-de-observacoes"
 import { buscarQuadroObservacoes } from "@/lib/queries/quadro"
 
-async function buscarDadosDashboard(hoje: Date, filtroStatus: ReturnType<typeof parseStatusFiltro>) {
+async function buscarDadosDashboard(filialId: number, hoje: Date, filtroStatus: ReturnType<typeof parseStatusFiltro>) {
   const [viagens, motoristasBrutos] = await Promise.all([
-    buscarViagensDoDashboard(hoje, filtroStatus),
-    buscarMotoristasParaSelect(),
+    buscarViagensDoDashboard(filialId, hoje, filtroStatus),
+    buscarMotoristasParaSelect(filialId),
   ])
 
   // Disponibilidade é calculada por viagem (exclui a própria viagem da agenda
@@ -32,6 +34,7 @@ async function buscarDadosDashboard(hoje: Date, filtroStatus: ReturnType<typeof 
         { ...motorista, viagens: agenda.filter((v) => v.id !== viagem.id) },
         new Date(viagem.inicioPrevisto),
         new Date(viagem.fimPrevisto),
+        hoje,
       )
       return { ...dadosMotorista, disponivel }
     })
@@ -226,9 +229,11 @@ export default async function DashboardPage({
 }) {
   const parametros = (await searchParams) ?? {}
   const filtroStatus = parseStatusFiltro(parametros.status)
+  const session = await getServerSession(authOptions)
+  const filialId = session!.user.filialId!
   const [itens, quadroObservacoes] = await Promise.all([
-    buscarDadosDashboard(new Date(), filtroStatus),
-    buscarQuadroObservacoes(),
+    buscarDadosDashboard(filialId, new Date(), filtroStatus),
+    buscarQuadroObservacoes(filialId),
   ])
 
   return (

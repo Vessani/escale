@@ -1,6 +1,9 @@
 import Link from "next/link"
+import { getServerSession } from "next-auth"
+import { authOptions } from "@/lib/auth"
 import { buscarMotoristas } from "@/lib/queries/motoristas"
 import { buscarViagensSemMotorista } from "@/lib/queries/viagens"
+import { buscarNomesClientesQueExigemIntegracao } from "@/lib/queries/clientes"
 import type { ViagemAlocacao } from "@/lib/types/alocacao"
 import {
   calcularAvisoInterjornada,
@@ -21,7 +24,12 @@ type MotoristaBase = Awaited<ReturnType<typeof buscarMotoristas>>[number]
 type EntregaBase = ViagemBase["entregas"][number]
 
 /** Monta o view-model da tela de alocação a partir das viagens pendentes e da sugestão em lote. */
-function serializarViagens(viagensBrutas: ViagemBase[], motoristasBrutos: MotoristaBase[], hoje: Date): ViagemAlocacao[] {
+function serializarViagens(
+  viagensBrutas: ViagemBase[],
+  motoristasBrutos: MotoristaBase[],
+  hoje: Date,
+  clientesQueExigemIntegracao: Set<string>,
+): ViagemAlocacao[] {
   const viagensPendentes = viagensBrutas.filter((viagem) => viagem.motoristaId === null)
 
   const motoristas = motoristasBrutos.map((motorista) => ({
@@ -35,7 +43,7 @@ function serializarViagens(viagensBrutas: ViagemBase[], motoristasBrutos: Motori
     diasViagem: viagem.diasViagem,
     inicioPrevisto: new Date(viagem.inicioPrevisto),
     fimPrevisto: new Date(viagem.fimPrevisto),
-    integracaoExigida: viagem.integracaoExigida ?? calcularIntegracaoExigida(viagem.entregas),
+    integracaoExigida: viagem.integracaoExigida ?? calcularIntegracaoExigida(viagem.entregas, clientesQueExigemIntegracao),
   }))
 
   const sugestoesPorViagemId = new Map(
@@ -58,7 +66,7 @@ function serializarViagens(viagensBrutas: ViagemBase[], motoristasBrutos: Motori
       fimPrevisto: new Date(viagem.fimPrevisto).toISOString(),
       turno: viagem.turno,
       motoristaId: viagem.motoristaId,
-      integracaoExigida: viagem.integracaoExigida ?? calcularIntegracaoExigida(viagem.entregas),
+      integracaoExigida: viagem.integracaoExigida ?? calcularIntegracaoExigida(viagem.entregas, clientesQueExigemIntegracao),
       entregas: viagem.entregas.map((entrega: EntregaBase) => ({
         id: entrega.id,
         dataEntrega: new Date(entrega.dataEntrega).toISOString(),
@@ -113,13 +121,16 @@ function serializarViagens(viagensBrutas: ViagemBase[], motoristasBrutos: Motori
 }
 
 export default async function PaginaAlocacaoViagens() {
-  const [viagensBrutas, motoristasBrutos] = await Promise.all([
-    buscarViagensSemMotorista(),
-    buscarMotoristas(),
+  const session = await getServerSession(authOptions)
+  const filialId = session!.user.filialId!
+  const [viagensBrutas, motoristasBrutos, clientesQueExigemIntegracao] = await Promise.all([
+    buscarViagensSemMotorista(filialId),
+    buscarMotoristas(filialId),
+    buscarNomesClientesQueExigemIntegracao(),
   ])
 
   const hoje = inicioDoDia(new Date())
-  const viagens = serializarViagens(viagensBrutas, motoristasBrutos, hoje)
+  const viagens = serializarViagens(viagensBrutas, motoristasBrutos, hoje, clientesQueExigemIntegracao)
 
   return (
     <div className="space-y-6">
@@ -136,7 +147,7 @@ export default async function PaginaAlocacaoViagens() {
             <Button variant="outline">Voltar para Viagens</Button>
           </Link>
           <Link href="/viagens/nova">
-            <Button className="bg-blue-600 text-white hover:bg-blue-700">
+            <Button>
               <ArrowRightLeft className="mr-2 h-4 w-4" />
               Nova Viagem
             </Button>

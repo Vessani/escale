@@ -20,7 +20,7 @@ export async function GET(
   { params }: { params: Promise<{ id: string }> },
 ) {
   const session = await getServerSession(authOptions)
-  if (!session) {
+  if (!session || session.user.filialId === null) {
     return new Response("Não autorizado.", { status: 401 })
   }
 
@@ -30,7 +30,7 @@ export async function GET(
     return new Response("ID de viagem inválido.", { status: 400 })
   }
 
-  const viagem = await buscarViagemPorId(viagemId)
+  const viagem = await buscarViagemPorId(session.user.filialId, viagemId)
   if (!viagem) {
     return new Response("Viagem não encontrada.", { status: 404 })
   }

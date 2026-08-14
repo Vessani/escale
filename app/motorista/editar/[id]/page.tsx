@@ -1,5 +1,8 @@
 import { notFound } from "next/navigation"
+import { getServerSession } from "next-auth"
+import { authOptions } from "@/lib/auth"
 import { buscarMotoristaPorId } from "@/lib/queries/motoristas"
+import { buscarClientes } from "@/lib/queries/clientes"
 import FormEditarMotorista from "./form-editar"
 import { serializeData } from "@/lib/serialization"
 import { mapearRegistrosJornada, projetarCodigoNoDia } from "@/lib/services/jornada.service"
@@ -13,7 +16,13 @@ export default async function EditarMotoristaPage({ params }: { params: Promise<
     notFound()
   }
 
-  const motorista = await buscarMotoristaPorId(motoristaId)
+  const session = await getServerSession(authOptions)
+  const filialId = session!.user.filialId!
+
+  const [motorista, clientes] = await Promise.all([
+    buscarMotoristaPorId(filialId, motoristaId),
+    buscarClientes(),
+  ])
 
   if (!motorista) {
     notFound()
@@ -38,7 +47,7 @@ export default async function EditarMotoristaPage({ params }: { params: Promise<
         <h1 className="text-3xl font-bold tracking-tight text-slate-900">Editar Motorista</h1>
         <p className="text-slate-500 mt-1">Atualize os dados operacionais do condutor.</p>
       </div>
-      <FormEditarMotorista key={motorista.id} motorista={motoristaSerializado} />
+      <FormEditarMotorista key={motorista.id} motorista={motoristaSerializado} clientes={clientes} />
     </div>
   )
 }

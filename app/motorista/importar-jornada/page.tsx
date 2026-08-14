@@ -160,7 +160,6 @@ export default function ImportarJornadaPage() {
               type="button"
               disabled={importando}
               onClick={confirmarImportacao}
-              className="bg-blue-600 hover:bg-blue-700"
             >
               {importando ? "Importando..." : `Confirmar importação`}
             </Button>

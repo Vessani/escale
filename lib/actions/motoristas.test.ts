@@ -34,6 +34,15 @@ import {
   atualizarJornadaRelatorio,
 } from "@/lib/actions/motoristas"
 
+const motoristaValido = {
+  nome: "João da Silva",
+  seva: 12345,
+  diasTrabalhados: 1,
+  turno: "MANHA",
+  liberado: true,
+  integracao: [{ cliente: "Cliente X", dataValidade: "2026-12-31", status: "ATIVO" }],
+}
+
 describe("lib/actions/motoristas — controle de acesso", () => {
   beforeEach(() => {
     vi.clearAllMocks()
@@ -82,16 +91,51 @@ describe("lib/actions/motoristas — controle de acesso", () => {
 
   describe("com sessão", () => {
     beforeEach(() => {
-      vi.mocked(getServerSession).mockResolvedValue({ user: { id: "1" } } as never)
+      vi.mocked(getServerSession).mockResolvedValue({ user: { id: "1", role: "DESPACHANTE" } } as never)
     })
 
     it("criarMotorista segue em frente e chama o service", async () => {
       vi.mocked(motoristaService.criarMotoristaService).mockResolvedValue({} as never)
 
-      const resposta = await criarMotorista({} as never)
+      const resposta = await criarMotorista(motoristaValido as never)
 
       expect(resposta).toEqual({ sucesso: true })
       expect(motoristaService.criarMotoristaService).toHaveBeenCalledTimes(1)
+    })
+
+    it("criarMotorista aceita dataValidade como Date (fluxo do formulário converte antes de chamar)", async () => {
+      vi.mocked(motoristaService.criarMotoristaService).mockResolvedValue({} as never)
+
+      const resposta = await criarMotorista({
+        ...motoristaValido,
+        integracao: [{ cliente: "Cliente X", dataValidade: new Date("2026-12-31"), status: "ATIVO" }],
+      } as never)
+
+      expect(resposta).toEqual({ sucesso: true })
+      expect(motoristaService.criarMotoristaService).toHaveBeenCalledTimes(1)
+    })
+
+    it("criarMotorista recusa dados inválidos e não chama o service", async () => {
+      const resposta = await criarMotorista({} as never)
+
+      expect(resposta.sucesso).toBe(false)
+      expect(motoristaService.criarMotoristaService).not.toHaveBeenCalled()
+    })
+
+    it("editarMotorista segue em frente e chama o service", async () => {
+      vi.mocked(motoristaService.editarMotoristaService).mockResolvedValue({} as never)
+
+      const resposta = await editarMotorista(1, motoristaValido as never)
+
+      expect(resposta).toEqual({ sucesso: true })
+      expect(motoristaService.editarMotoristaService).toHaveBeenCalledTimes(1)
+    })
+
+    it("deletarMotorista recusa para usuário DESPACHANTE e não chama o service", async () => {
+      const resposta = await deletarMotorista(1)
+
+      expect(resposta.sucesso).toBe(false)
+      expect(motoristaService.deletarMotoristaService).not.toHaveBeenCalled()
     })
 
     it("atualizarJornadaMotoristaNoCalendario segue em frente e chama o service", async () => {
@@ -111,6 +155,21 @@ describe("lib/actions/motoristas — controle de acesso", () => {
 
       expect(resposta).toEqual({ sucesso: true, resultado })
       expect(jornadaRelatorioService.atualizarJornadaRelatorioDosMotoristas).toHaveBeenCalledTimes(1)
+    })
+  })
+
+  describe("com sessão de ADMIN", () => {
+    beforeEach(() => {
+      vi.mocked(getServerSession).mockResolvedValue({ user: { id: "1", role: "ADMIN" } } as never)
+    })
+
+    it("deletarMotorista segue em frente e chama o service", async () => {
+      vi.mocked(motoristaService.deletarMotoristaService).mockResolvedValue({} as never)
+
+      const resposta = await deletarMotorista(1)
+
+      expect(resposta).toEqual({ sucesso: true })
+      expect(motoristaService.deletarMotoristaService).toHaveBeenCalledTimes(1)
     })
   })
 })

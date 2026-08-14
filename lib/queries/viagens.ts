@@ -4,24 +4,26 @@ import type { FiltroStatusViagem } from "@/lib/services/viagem-status.service";
 import { fimDoDia, inicioDoDia } from "@/lib/utils/date-format";
 
 // 1. A Busca Principal (Para a tabela de listagem geral)
-export async function buscarViagens() {
+export async function buscarViagens(filialId: number) {
   return await prisma.viagem.findMany({
-    where: { 
-      deletadoEm: null 
+    where: {
+      deletadoEm: null,
+      filialId,
     },
     orderBy: { inicioPrevisto: 'desc' },
-    include: { 
+    include: {
       entregas: true,
-      motorista: true 
+      motorista: true
     },
   });
 }
 
 
-export async function buscarViagemPorId(id: number) {
+export async function buscarViagemPorId(filialId: number, id: number) {
   return await prisma.viagem.findFirst({
     where: {
       id: id,
+      filialId,
       deletadoEm: null
     },
     include: {
@@ -33,10 +35,11 @@ export async function buscarViagemPorId(id: number) {
 }
 
 
-export async function buscarViagensSemMotorista() {
+export async function buscarViagensSemMotorista(filialId: number) {
   return await prisma.viagem.findMany({
     where: {
       deletadoEm: null,
+      filialId,
       status: 'CRIADA'
     },
     orderBy: { inicioPrevisto: 'asc' },
@@ -56,7 +59,7 @@ export async function buscarViagensSemMotorista() {
  * mais esse conjunto quando não é "TODOS"; na visão padrão ("TODOS"),
  * "Finalizada" já sai da tela na hora, em vez de esperar a virada do dia.
  */
-export async function buscarViagensDoDashboard(hoje: Date, filtroStatus: FiltroStatusViagem) {
+export async function buscarViagensDoDashboard(filialId: number, hoje: Date, filtroStatus: FiltroStatusViagem) {
   const inicioHoje = inicioDoDia(hoje);
   const fimHoje = fimDoDia(hoje);
 
@@ -75,6 +78,7 @@ export async function buscarViagensDoDashboard(hoje: Date, filtroStatus: FiltroS
   return await prisma.viagem.findMany({
     where: {
       deletadoEm: null,
+      filialId,
       ...janelaOuAtividadeRecente,
       ...filtroStatusExplicito,
     },

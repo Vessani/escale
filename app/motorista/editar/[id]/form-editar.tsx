@@ -25,9 +25,10 @@ type MotoristaComIntegracoes = {
 
 type FormEditarMotoristaProps = {
   motorista: MotoristaComIntegracoes
+  clientes: Array<{ id: number; nome: string }>
 }
 
-export default function FormEditarMotorista({ motorista }: FormEditarMotoristaProps) {
+export default function FormEditarMotorista({ motorista, clientes }: FormEditarMotoristaProps) {
   const handleSubmit = async (dados: MotoristaComIntegracoesFormValues) => {
     const pacote: EditarMotoristaInput = {
       ...dados,
@@ -59,7 +60,8 @@ export default function FormEditarMotorista({ motorista }: FormEditarMotoristaPr
       }}
       onSubmit={handleSubmit}
       submitLabel="Atualizar"
-      submittingLabel="A guardar..."
+      submittingLabel="Salvando..."
+      clientes={clientes}
     />
   )
 }

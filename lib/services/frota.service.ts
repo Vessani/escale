@@ -18,6 +18,7 @@ export type FrotaInput = {
  * avisoInterjornada (ver alocacao.service.ts / viagem.service.ts).
  */
 export async function calcularAvisoFrotaIndisponivel(
+  filialId: number,
   cavalo: string,
   carreta: string,
   inicioNovo: Date,
@@ -27,7 +28,7 @@ export async function calcularAvisoFrotaIndisponivel(
   }
 
   const frota = await prisma.frota.findFirst({
-    where: { cavalo, carreta, deletadoEm: null },
+    where: { cavalo, carreta, filialId, deletadoEm: null },
   })
 
   if (!frota?.disponivelEm || frota.disponivelEm <= inicioNovo) {
@@ -46,6 +47,7 @@ export async function calcularAvisoFrotaIndisponivel(
  */
 export async function registrarOuAtualizarDisponibilidadeFrota(
   tx: Prisma.TransactionClient,
+  filialId: number,
   cavalo: string,
   carreta: string,
   fimNovo: Date,
@@ -58,26 +60,26 @@ export async function registrarOuAtualizarDisponibilidadeFrota(
   // Frota) — não dá pra usar upsert pela dupla, então busca a ativa e
   // decide entre update/create à mão.
   const existente = await tx.frota.findFirst({
-    where: { cavalo, carreta, deletadoEm: null },
+    where: { cavalo, carreta, filialId, deletadoEm: null },
   })
 
   if (existente) {
     await tx.frota.update({
-      where: { id: existente.id },
+      where: { id: existente.id, filialId },
       data: { disponivelEm: fimNovo },
     })
     return
   }
 
   await tx.frota.create({
-    data: { cavalo, carreta, disponivelEm: fimNovo },
+    data: { cavalo, carreta, disponivelEm: fimNovo, filialId },
   })
 }
 
 /** Cria um conjunto manualmente pelo cadastro — separado do auto-registro feito ao criar/editar viagem. */
-export async function criarFrotaService(dados: FrotaInput) {
+export async function criarFrotaService(filialId: number, dados: FrotaInput) {
   const existente = await prisma.frota.findFirst({
-    where: { cavalo: dados.cavalo, carreta: dados.carreta, deletadoEm: null },
+    where: { cavalo: dados.cavalo, carreta: dados.carreta, filialId, deletadoEm: null },
   })
 
   if (existente) {
@@ -89,13 +91,14 @@ export async function criarFrotaService(dados: FrotaInput) {
       cavalo: dados.cavalo,
       carreta: dados.carreta,
       disponivelEm: dados.disponivelEm ? new Date(dados.disponivelEm) : null,
+      filialId,
     },
   })
 }
 
-export async function editarFrotaService(id: number, dados: FrotaInput) {
+export async function editarFrotaService(filialId: number, id: number, dados: FrotaInput) {
   const existente = await prisma.frota.findFirst({
-    where: { cavalo: dados.cavalo, carreta: dados.carreta, deletadoEm: null, id: { not: id } },
+    where: { cavalo: dados.cavalo, carreta: dados.carreta, filialId, deletadoEm: null, id: { not: id } },
   })
 
   if (existente) {
@@ -103,7 +106,7 @@ export async function editarFrotaService(id: number, dados: FrotaInput) {
   }
 
   return prisma.frota.update({
-    where: { id },
+    where: { id, filialId },
     data: {
       cavalo: dados.cavalo,
       carreta: dados.carreta,
@@ -112,9 +115,9 @@ export async function editarFrotaService(id: number, dados: FrotaInput) {
   })
 }
 
-export async function deletarFrotaService(id: number) {
+export async function deletarFrotaService(filialId: number, id: number) {
   return prisma.frota.update({
-    where: { id },
+    where: { id, filialId },
     data: { deletadoEm: new Date() },
   })
 }

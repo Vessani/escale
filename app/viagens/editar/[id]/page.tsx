@@ -1,5 +1,8 @@
+import { getServerSession } from "next-auth"
+import { authOptions } from "@/lib/auth"
 import { buscarViagemPorId } from "@/lib/queries/viagens"
 import { buscarMotoristasParaSelect } from "@/lib/queries/motoristas"
+import { buscarNomesClientesQueExigemIntegracao } from "@/lib/queries/clientes"
 import { motoristaEstaDisponivelNoPeriodo } from "@/lib/services/alocacao.service"
 import { notFound } from "next/navigation"
 import FormEditarViagem from "./form-editar"
@@ -16,13 +19,20 @@ export default async function EditarViagemPage({ params }: { params: Promise<{ i
     notFound()
   }
 
-  const viagem = await buscarViagemPorId(viagemId)
+  const session = await getServerSession(authOptions)
+  const filialId = session!.user.filialId!
+
+  const viagem = await buscarViagemPorId(filialId, viagemId)
 
   if (!viagem) {
     notFound()
   }
 
-  const motoristas = await buscarMotoristasParaSelect()
+  const [motoristas, clientesQueExigemIntegracao] = await Promise.all([
+    buscarMotoristasParaSelect(filialId),
+    buscarNomesClientesQueExigemIntegracao(),
+  ])
+  const hoje = new Date()
 
   const inicioViagem = new Date(viagem.inicioPrevisto)
   const fimViagem = new Date(viagem.fimPrevisto)
@@ -36,6 +46,7 @@ export default async function EditarViagemPage({ params }: { params: Promise<{ i
       { ...motorista, viagens: viagens.filter((v) => v.id !== viagem.id) },
       inicioViagem,
       fimViagem,
+      hoje,
     )
 
     return { ...dadosMotorista, disponivel }
@@ -61,7 +72,12 @@ export default async function EditarViagemPage({ params }: { params: Promise<{ i
         </Link>
       </div>
 
-      <FormEditarViagem key={viagem.id} viagem={viagemSerializada} motoristas={motoristasSerializados} />
+      <FormEditarViagem
+        key={viagem.id}
+        viagem={viagemSerializada}
+        motoristas={motoristasSerializados}
+        clientesQueExigemIntegracao={[...clientesQueExigemIntegracao]}
+      />
     </div>
   )
 }

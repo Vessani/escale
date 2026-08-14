@@ -28,7 +28,7 @@ export default function FormEditarFrota({ frota }: FormEditarFrotaProps) {
       }}
       onSubmit={handleSubmit}
       submitLabel="Atualizar"
-      submittingLabel="A guardar..."
+      submittingLabel="Salvando..."
     />
   )
 }

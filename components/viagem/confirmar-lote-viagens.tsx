@@ -5,7 +5,8 @@ import type { MotoristaCompativel, MotoristaSugerido } from "@/lib/types/alocaca
 import type { NovaViagemFormValues } from "@/lib/validation/viagens"
 import type { ResultadoImportacaoLote } from "@/lib/types/types"
 import { criarViagensEmLoteComAlocacao } from "@/lib/actions/viagens"
-import { periodoConflita, periodosConflitamComDescanso } from "@/lib/services/alocacao.service"
+import { periodoConflita } from "@/lib/services/alocacao.service"
+import { useConflitosAlocacao } from "@/lib/hooks/use-conflitos-alocacao"
 import { viagensCompartilhamFrota } from "@/lib/services/frota-regras"
 import { Alert } from "@/components/ui/alert"
 import { Badge } from "@/components/ui/badge"
@@ -43,47 +44,18 @@ export default function ConfirmarLoteViagens({ viagens, onConcluido, onCancelar 
   )
   const [erro, setErro] = useState("")
 
-  // Motorista selecionado por viagem (explícito ou, na falta, a sugestão automática),
-  // usado só para detectar conflitos de agenda dentro do próprio lote em revisão.
-  const selecaoEfetivaPorViagem = useMemo(() => {
-    const mapa: Record<string, string> = {}
-    for (const viagem of viagens) {
-      const sugestao = viagem.motoristaSugerido ? String(viagem.motoristaSugerido.id) : ""
-      mapa[viagem.dados.numViagem] = selecoes[viagem.dados.numViagem] || sugestao
-    }
-    return mapa
-  }, [viagens, selecoes])
-
-  // Viagens que têm o mesmo motorista selecionado sem 1 dia de descanso entre elas.
-  // Só avisa — não troca nada automaticamente, quem decide é o usuário.
-  const conflitosPorViagem = useMemo(() => {
-    const mapa: Record<string, string[]> = {}
-
-    for (const viagemA of viagens) {
-      const motoristaA = selecaoEfetivaPorViagem[viagemA.dados.numViagem]
-      if (!motoristaA) continue
-
-      const numerosConflitantes = viagens
-        .filter((viagemB) => {
-          if (viagemB.dados.numViagem === viagemA.dados.numViagem) return false
-          if (selecaoEfetivaPorViagem[viagemB.dados.numViagem] !== motoristaA) return false
-
-          return periodosConflitamComDescanso(
-            new Date(viagemA.dados.inicioPrevisto),
-            new Date(viagemA.dados.fimPrevisto),
-            new Date(viagemB.dados.inicioPrevisto),
-            new Date(viagemB.dados.fimPrevisto),
-          )
-        })
-        .map((viagemB) => viagemB.dados.numViagem)
-
-      if (numerosConflitantes.length > 0) {
-        mapa[viagemA.dados.numViagem] = numerosConflitantes
-      }
-    }
-
-    return mapa
-  }, [viagens, selecaoEfetivaPorViagem])
+  const itensParaConflito = useMemo(
+    () =>
+      viagens.map((viagem) => ({
+        chave: viagem.dados.numViagem,
+        numViagem: viagem.dados.numViagem,
+        motoristaSugeridoId: viagem.motoristaSugerido ? String(viagem.motoristaSugerido.id) : "",
+        inicioPrevisto: viagem.dados.inicioPrevisto,
+        fimPrevisto: viagem.dados.fimPrevisto,
+      })),
+    [viagens],
+  )
+  const { conflitosPorViagem } = useConflitosAlocacao(itensParaConflito, selecoes)
 
   // Frota (cavalo/carreta) usada em mais de uma viagem do próprio lote, em período sobreposto.
   // sugerirAlocacaoParaViagens só verifica cada viagem contra o banco — nenhuma delas existe
@@ -240,7 +212,7 @@ export default function ConfirmarLoteViagens({ viagens, onConcluido, onCancelar 
                   {conflitosPorViagem[numViagem] && (
                     <Alert variant="warning">
                       Esse motorista também está selecionado na(s) viagem(ns) {conflitosPorViagem[numViagem].join(", ")},
-                      sem 1 dia de descanso entre elas.
+                      sem 11h de descanso entre elas.
                     </Alert>
                   )}
                 </div>
@@ -258,7 +230,7 @@ export default function ConfirmarLoteViagens({ viagens, onConcluido, onCancelar 
         <Button type="button" variant="outline" disabled={isPending} onClick={onCancelar}>
           Cancelar
         </Button>
-        <Button type="button" className="bg-blue-600 hover:bg-blue-700" disabled={isPending} onClick={confirmarCriacao}>
+        <Button type="button" disabled={isPending} onClick={confirmarCriacao}>
           {isPending ? (
             "Criando viagens..."
           ) : (

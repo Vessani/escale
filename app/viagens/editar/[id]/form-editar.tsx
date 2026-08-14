@@ -81,12 +81,13 @@ type ViagemComRelacionamentos = {
 type FormEditarViagemProps = {
   viagem: ViagemComRelacionamentos
   motoristas: MotoristaParaSelect[]
+  clientesQueExigemIntegracao: string[]
 }
 
-export default function FormEditarViagem({ viagem, motoristas }: FormEditarViagemProps) {
+export default function FormEditarViagem({ viagem, motoristas, clientesQueExigemIntegracao }: FormEditarViagemProps) {
   const router = useRouter()
   const [erroGlobal, setErroGlobal] = useState("")
-  const integracaoExigida = viagem.integracaoExigida ?? calcularIntegracaoExigida(viagem.entregas)
+  const integracaoExigida = viagem.integracaoExigida ?? calcularIntegracaoExigida(viagem.entregas, new Set(clientesQueExigemIntegracao))
   const statusInicial = normalizarStatusViagem(viagem.status)
   // "Hoje" do navegador — essa checagem é só um aviso na seleção manual (ver
   // texto de ajuda abaixo), não é reforçada no servidor, então não precisa
@@ -301,13 +302,13 @@ export default function FormEditarViagem({ viagem, motoristas }: FormEditarViage
 
         <EntregasFieldArray control={form.control} />
 
-        <div className="fixed bottom-0 left-0 right-0 md:left-64 flex justify-end border-t border-slate-200 bg-white p-4 shadow-md">
+        <div className="sticky bottom-0 -mx-4 -mb-4 mt-6 flex justify-end border-t border-slate-200 bg-white p-4 shadow-md md:-mx-8 md:-mb-8">
           <Button type="button" variant="outline" className="mr-3" onClick={() => router.back()}>
             Cancelar
           </Button>
-          <Button type="submit" disabled={form.formState.isSubmitting} className="w-48 bg-blue-600 hover:bg-blue-700">
+          <Button type="submit" disabled={form.formState.isSubmitting} className="w-48">
             <Save className="mr-2 h-4 w-4" />
-            {form.formState.isSubmitting ? "A processar..." : "Atualizar Viagem"}
+            {form.formState.isSubmitting ? "Processando..." : "Atualizar Viagem"}
           </Button>
         </div>
       </form>

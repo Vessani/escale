@@ -64,7 +64,7 @@ export default function AlocarMotoristasDashboard({
         motoristaAcompanhanteId: novoAcompanhante,
       })
       if (!resposta.sucesso) {
-        setErro(resposta.erro ?? "Erro ao atualizar alocação.")
+        setErro(resposta.erro ?? "Não foi possível atualizar a alocação.")
         return
       }
       router.refresh()

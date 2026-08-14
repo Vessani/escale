@@ -38,33 +38,62 @@ function calcularCodigoDoDiasSemFolga(diasSemFolga: number) {
  * import, só o registro de horário — evita tirar alguém de licença sozinho.
  * Matrículas sem motorista correspondente, ou com mais de um (seva
  * duplicado), são reportadas em vez de derrubar o import inteiro.
+ *
+ * Busca todos os motoristas do lote numa única query (por matrícula) e grava
+ * tudo numa única transação — evita 1 findMany + 1 transaction por linha do
+ * relatório, que em planilhas grandes vira uma fila longa de round-trips
+ * sequenciais ao banco.
  */
 export async function atualizarJornadaRelatorioDosMotoristas(
+  filialId: number,
   registros: RegistroJornadaRelatorio[],
 ): Promise<ResultadoImportacaoJornada> {
-  let atualizados = 0
+  if (registros.length === 0) {
+    return { atualizados: 0, naoEncontrados: [], duplicados: [] }
+  }
+
+  const matriculas = registros.map((registro) => registro.matricula)
+  const motoristasEncontrados = await prisma.motorista.findMany({
+    where: { seva: { in: matriculas }, filialId, deletadoEm: null },
+    select: { id: true, seva: true, diasTrabalhados: true },
+  })
+
+  const motoristasPorMatricula = new Map<number, typeof motoristasEncontrados>()
+  for (const motorista of motoristasEncontrados) {
+    const lista = motoristasPorMatricula.get(motorista.seva) ?? []
+    lista.push(motorista)
+    motoristasPorMatricula.set(motorista.seva, lista)
+  }
+
   const naoEncontrados: number[] = []
   const duplicados: number[] = []
+  const paraAtualizar: Array<{
+    registro: RegistroJornadaRelatorio
+    motorista: { id: number; diasTrabalhados: number }
+  }> = []
 
   for (const registro of registros) {
-    const motoristas = await prisma.motorista.findMany({
-      where: { seva: registro.matricula, deletadoEm: null },
-      select: { id: true, diasTrabalhados: true },
-    })
+    const encontrados = motoristasPorMatricula.get(registro.matricula) ?? []
 
-    if (motoristas.length === 0) {
+    if (encontrados.length === 0) {
       naoEncontrados.push(registro.matricula)
       continue
     }
 
-    if (motoristas.length > 1) {
+    if (encontrados.length > 1) {
       duplicados.push(registro.matricula)
       continue
     }
 
-    const motorista = motoristas[0]
+    paraAtualizar.push({ registro, motorista: encontrados[0] })
+  }
 
-    await prisma.$transaction(async (tx) => {
+  if (paraAtualizar.length === 0) {
+    return { atualizados: 0, naoEncontrados, duplicados }
+  }
+
+  await prisma.$transaction(async (tx) => {
+    for (const { registro, motorista } of paraAtualizar) {
       await tx.motorista.update({
         where: { id: motorista.id },
         data: {
@@ -78,10 +107,8 @@ export async function atualizarJornadaRelatorioDosMotoristas(
         const codigo = calcularCodigoDoDiasSemFolga(registro.diasSemFolga)
         await registrarJornadaNoDia(tx, motorista.id, new Date(registro.dia), codigo)
       }
-    })
+    }
+  })
 
-    atualizados++
-  }
-
-  return { atualizados, naoEncontrados, duplicados }
+  return { atualizados: paraAtualizar.length, naoEncontrados, duplicados }
 }

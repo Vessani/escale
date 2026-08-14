@@ -1,25 +1,86 @@
 'use client'
 
-import { ReactNode, useState } from "react"
+import { ReactNode, useState, useSyncExternalStore } from "react"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
 import { signOut } from "next-auth/react"
-import { Truck, Users, LayoutDashboard, LogOut, Route, Container, Menu, X } from "lucide-react"
+import {
+  Truck,
+  Users,
+  LayoutDashboard,
+  LogOut,
+  Route,
+  Container,
+  Menu,
+  X,
+  Building2,
+  UserCog,
+  Building,
+  ChevronsLeft,
+  ChevronsRight,
+} from "lucide-react"
 import { Session } from "next-auth"
 import { Dialog } from "radix-ui"
 
+const CHAVE_SIDEBAR_COLAPSADA = "escalador:sidebar-colapsada"
+
+// Preferência de sidebar colapsada/expandida, lembrada por navegador via
+// localStorage. Usa useSyncExternalStore (não useState+useEffect) pra ler o
+// valor real do cliente sem gerar mismatch de hidratação: no servidor
+// sempre "expandida" (getServerSnapshot), e só troca pro valor salvo depois
+// que o React reconcilia no cliente — sem piscar nem duplicar render.
+const ouvintesColapsada = new Set<() => void>()
+
+function lerColapsadaSalva() {
+  return window.localStorage.getItem(CHAVE_SIDEBAR_COLAPSADA) === "true"
+}
+
+function lerColapsadaNoServidor() {
+  return false
+}
+
+function inscreverColapsada(ouvinte: () => void) {
+  ouvintesColapsada.add(ouvinte)
+  return () => ouvintesColapsada.delete(ouvinte)
+}
+
+function definirColapsadaSalva(valor: boolean) {
+  window.localStorage.setItem(CHAVE_SIDEBAR_COLAPSADA, String(valor))
+  ouvintesColapsada.forEach((ouvinte) => ouvinte())
+}
+
 // Lista de rotas do sistema para montarmos o menu automaticamente
-const menuItems = [
+const menuItemsOperacional = [
   { href: "/", label: "Dashboard", icon: LayoutDashboard },
   { href: "/viagens", label: "Gestão de Viagens", icon: Truck },
   { href: "/viagens/alocacao", label: "Alocação", icon: Route },
   { href: "/motorista", label: "Motoristas", icon: Users },
   { href: "/frotas", label: "Frotas", icon: Container },
+  { href: "/clientes", label: "Clientes", icon: Building },
 ]
 
-function LinksDoMenu({ pathname, aoNavegar }: { pathname: string; aoNavegar?: () => void }) {
+// SUPERADMIN não pertence a nenhuma filial — só gerencia o cadastro de
+// filiais e usuários, sem acesso às telas operacionais (ver proxy.ts).
+const menuItemsSuperAdmin = [
+  { href: "/admin/filiais", label: "Filiais", icon: Building2 },
+  { href: "/admin/usuarios", label: "Usuários", icon: UserCog },
+]
+
+function LinksDoMenu({
+  pathname,
+  role,
+  colapsado = false,
+  aoNavegar,
+}: {
+  pathname: string
+  role?: string
+  colapsado?: boolean
+  aoNavegar?: () => void
+}) {
+  const menuItems = role === "SUPERADMIN" ? menuItemsSuperAdmin : menuItemsOperacional
+
   return (
-    <nav aria-label="Navegação principal" className="flex-1 px-4 py-6 space-y-2 overflow-y-auto">
+    <nav aria-label="Navegação principal" className="flex-1 px-3 py-6 space-y-2 overflow-y-auto">
       {menuItems.map((item) => {
         const Icon = item.icon
         const isActive = pathname === item.href || pathname.startsWith(`${item.href}/`)
@@ -30,7 +91,10 @@ function LinksDoMenu({ pathname, aoNavegar }: { pathname: string; aoNavegar?: ()
             href={item.href}
             onClick={aoNavegar}
             aria-current={isActive ? "page" : undefined}
-            className={`flex items-center px-3 py-2.5 rounded-lg transition-colors group ${
+            title={colapsado ? item.label : undefined}
+            className={`flex items-center rounded-lg transition-colors group ${
+              colapsado ? "justify-center px-2 py-2.5" : "px-3 py-2.5"
+            } ${
               isActive
                 ? "bg-blue-600/10 text-blue-400 font-medium"
                 : "hover:bg-slate-800 hover:text-white"
@@ -38,9 +102,9 @@ function LinksDoMenu({ pathname, aoNavegar }: { pathname: string; aoNavegar?: ()
           >
             <Icon
               aria-hidden="true"
-              className={`w-5 h-5 mr-3 ${isActive ? "text-blue-500" : "text-slate-400 group-hover:text-slate-300"}`}
+              className={`w-5 h-5 shrink-0 ${colapsado ? "" : "mr-3"} ${isActive ? "text-blue-500" : "text-slate-400 group-hover:text-slate-300"}`}
             />
-            {item.label}
+            <span className={colapsado ? "sr-only" : ""}>{item.label}</span>
           </Link>
         )
       })}
@@ -48,26 +112,43 @@ function LinksDoMenu({ pathname, aoNavegar }: { pathname: string; aoNavegar?: ()
   )
 }
 
-function PainelUsuario({ usuario }: { usuario: Session["user"] }) {
+function PainelUsuario({ usuario, colapsado = false }: { usuario: Session["user"]; colapsado?: boolean }) {
   return (
-    <div className="p-4 bg-slate-950/50 border-t border-slate-800">
-      <div className="flex items-center mb-4">
-        <div className="w-10 h-10 rounded-full bg-blue-600 flex items-center justify-center text-white font-bold uppercase mr-3 shrink-0">
+    <div className="p-3 bg-slate-950/50 border-t border-slate-800">
+      <div className={`flex items-center ${colapsado ? "justify-center" : "mb-4"}`}>
+        <div
+          className="w-10 h-10 rounded-full bg-blue-600 flex items-center justify-center text-white font-bold uppercase shrink-0"
+          title={colapsado ? usuario?.name ?? undefined : undefined}
+        >
           {usuario?.name?.charAt(0) || "U"}
         </div>
-        <div className="overflow-hidden">
-          <p className="text-sm font-medium text-white truncate">{usuario?.name}</p>
-          <p className="text-xs text-slate-500 truncate">{usuario?.role}</p>
-        </div>
+        {!colapsado && (
+          <div className="ml-3 overflow-hidden">
+            <p className="text-sm font-medium text-white truncate">{usuario?.name}</p>
+            <p className="text-xs text-slate-500 truncate">{usuario?.role}</p>
+          </div>
+        )}
       </div>
 
-      <button
-        onClick={() => signOut({ callbackUrl: '/login' })}
-        className="w-full flex items-center justify-center px-3 py-2 text-sm text-red-400 bg-red-400/10 hover:bg-red-400/20 rounded-md transition-colors"
-      >
-        <LogOut aria-hidden="true" className="w-4 h-4 mr-2" />
-        Sair do Sistema
-      </button>
+      {!colapsado && (
+        <button
+          onClick={() => signOut({ callbackUrl: '/login' })}
+          className="w-full flex items-center justify-center px-3 py-2 text-sm text-red-400 bg-red-400/10 hover:bg-red-400/20 rounded-md transition-colors"
+        >
+          <LogOut aria-hidden="true" className="w-4 h-4 mr-2" />
+          Sair do Sistema
+        </button>
+      )}
+      {colapsado && (
+        <button
+          onClick={() => signOut({ callbackUrl: '/login' })}
+          title="Sair do Sistema"
+          className="mt-3 w-full flex items-center justify-center px-3 py-2 text-sm text-red-400 bg-red-400/10 hover:bg-red-400/20 rounded-md transition-colors"
+        >
+          <LogOut aria-hidden="true" className="w-4 h-4" />
+          <span className="sr-only">Sair do Sistema</span>
+        </button>
+      )}
     </div>
   )
 }
@@ -82,6 +163,19 @@ export function LayoutWrapper({
   const pathname = usePathname()
   // Fecha automaticamente ao clicar num link (ver `aoNavegar` passado a LinksDoMenu)
   const [menuAberto, setMenuAberto] = useState(false)
+  // Colapsada = só ícones, dá mais espaço pro conteúdo em telas menores/tabelas
+  // largas. Preferência lembrada por navegador (ver definirColapsadaSalva acima).
+  const colapsada = useSyncExternalStore(inscreverColapsada, lerColapsadaSalva, lerColapsadaNoServidor)
+  // Só liga a transição de largura depois do primeiro toggle manual — sem
+  // isso, quem já estava com a sidebar colapsada veria uma animação de
+  // "fechando" a cada carregamento de página, por causa da correção de
+  // hidratação (primeiro render sempre parte de "expandida").
+  const [animarColapso, setAnimarColapso] = useState(false)
+
+  const alternarColapso = () => {
+    setAnimarColapso(true)
+    definirColapsadaSalva(!colapsada)
+  }
 
   return (
     <div className="flex h-screen bg-slate-100 overflow-hidden">
@@ -93,13 +187,27 @@ export function LayoutWrapper({
       </a>
 
       {/* Sidebar fixa, visível a partir do breakpoint md */}
-      <aside className="hidden md:flex w-64 bg-slate-900 text-slate-300 flex-col shadow-xl">
-        <div className="h-16 flex items-center px-6 bg-slate-950/50 text-white font-bold text-lg tracking-wider">
-          <Truck aria-hidden="true" className="w-5 h-5 mr-3 text-blue-500" />
-          ESCALADOR
+      <aside
+        className={`hidden md:flex relative flex-col bg-slate-900 text-slate-300 shadow-xl ${
+          animarColapso ? "transition-[width] duration-200" : ""
+        } ${colapsada ? "w-16" : "w-64"}`}
+      >
+        <div className="h-16 flex items-center px-4 bg-slate-950/50 text-white font-bold text-lg tracking-wider overflow-hidden">
+          <Truck aria-hidden="true" className="w-5 h-5 mr-3 text-blue-500 shrink-0" />
+          {!colapsada && "ESCALADOR"}
         </div>
-        <LinksDoMenu pathname={pathname} />
-        <PainelUsuario usuario={usuario} />
+        <LinksDoMenu pathname={pathname} role={usuario?.role} colapsado={colapsada} />
+        <PainelUsuario usuario={usuario} colapsado={colapsada} />
+
+        <button
+          type="button"
+          onClick={alternarColapso}
+          aria-label={colapsada ? "Expandir menu lateral" : "Recolher menu lateral"}
+          title={colapsada ? "Expandir menu" : "Recolher menu"}
+          className="absolute -right-3 top-[4.5rem] flex h-6 w-6 items-center justify-center rounded-full border border-slate-700 bg-slate-800 text-slate-300 shadow hover:bg-slate-700 hover:text-white"
+        >
+          {colapsada ? <ChevronsRight className="h-3.5 w-3.5" /> : <ChevronsLeft className="h-3.5 w-3.5" />}
+        </button>
       </aside>
 
       {/* Menu em drawer, só abaixo do breakpoint md */}
@@ -123,7 +231,7 @@ export function LayoutWrapper({
                 <X className="w-5 h-5" />
               </Dialog.Close>
             </div>
-            <LinksDoMenu pathname={pathname} aoNavegar={() => setMenuAberto(false)} />
+            <LinksDoMenu pathname={pathname} role={usuario?.role} aoNavegar={() => setMenuAberto(false)} />
             <PainelUsuario usuario={usuario} />
           </Dialog.Content>
         </Dialog.Portal>

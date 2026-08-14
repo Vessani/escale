@@ -15,6 +15,8 @@ import {
   deletarFrotaService,
 } from "@/lib/services/frota.service"
 
+const FILIAL_ID = 1
+
 function criarTx() {
   return {
     frota: { findFirst: vi.fn(), create: vi.fn(), update: vi.fn() },
@@ -27,7 +29,7 @@ describe("calcularAvisoFrotaIndisponivel", () => {
   })
 
   it("retorna null pra código inválido (vazio ou placeholder '0000'), sem consultar o banco", async () => {
-    const resultado = await calcularAvisoFrotaIndisponivel("0000", "908", new Date("2026-07-20T08:00:00"))
+    const resultado = await calcularAvisoFrotaIndisponivel(FILIAL_ID, "0000", "908", new Date("2026-07-20T08:00:00"))
 
     expect(resultado).toBeNull()
     expect(prisma.frota.findUnique).not.toHaveBeenCalled()
@@ -36,10 +38,10 @@ describe("calcularAvisoFrotaIndisponivel", () => {
   it("retorna null quando o conjunto não está cadastrado", async () => {
     vi.mocked(prisma.frota.findFirst).mockResolvedValue(null)
 
-    const resultado = await calcularAvisoFrotaIndisponivel("75", "908", new Date("2026-07-20T08:00:00"))
+    const resultado = await calcularAvisoFrotaIndisponivel(FILIAL_ID, "75", "908", new Date("2026-07-20T08:00:00"))
 
     expect(resultado).toBeNull()
-    expect(prisma.frota.findFirst).toHaveBeenCalledWith({ where: { cavalo: "75", carreta: "908", deletadoEm: null } })
+    expect(prisma.frota.findFirst).toHaveBeenCalledWith({ where: { cavalo: "75", carreta: "908", filialId: FILIAL_ID, deletadoEm: null } })
   })
 
   it("retorna null quando disponivelEm já passou", async () => {
@@ -47,7 +49,7 @@ describe("calcularAvisoFrotaIndisponivel", () => {
       id: 1, cavalo: "75", carreta: "908", disponivelEm: new Date("2026-07-19T10:00:00"),
     } as never)
 
-    const resultado = await calcularAvisoFrotaIndisponivel("75", "908", new Date("2026-07-20T08:00:00"))
+    const resultado = await calcularAvisoFrotaIndisponivel(FILIAL_ID, "75", "908", new Date("2026-07-20T08:00:00"))
 
     expect(resultado).toBeNull()
   })
@@ -57,7 +59,7 @@ describe("calcularAvisoFrotaIndisponivel", () => {
       id: 1, cavalo: "75", carreta: "908", disponivelEm: new Date("2026-07-22T18:30:00"),
     } as never)
 
-    const resultado = await calcularAvisoFrotaIndisponivel("75", "908", new Date("2026-07-20T08:00:00"))
+    const resultado = await calcularAvisoFrotaIndisponivel(FILIAL_ID, "75", "908", new Date("2026-07-20T08:00:00"))
 
     expect(resultado).toBe("Frota 75/908 só estará disponível a partir de 22/07/2026, 18:30.")
   })
@@ -68,7 +70,7 @@ describe("calcularAvisoFrotaIndisponivel", () => {
       id: 1, cavalo: "75", carreta: "908", disponivelEm: mesmoHorario,
     } as never)
 
-    const resultado = await calcularAvisoFrotaIndisponivel("75", "908", mesmoHorario)
+    const resultado = await calcularAvisoFrotaIndisponivel(FILIAL_ID, "75", "908", mesmoHorario)
 
     expect(resultado).toBeNull()
   })
@@ -80,11 +82,11 @@ describe("registrarOuAtualizarDisponibilidadeFrota", () => {
     vi.mocked(tx.frota.findFirst).mockResolvedValue(null)
     const fim = new Date("2026-07-20T18:00:00")
 
-    await registrarOuAtualizarDisponibilidadeFrota(tx as never, "75", "908", fim)
+    await registrarOuAtualizarDisponibilidadeFrota(tx as never, FILIAL_ID, "75", "908", fim)
 
-    expect(tx.frota.findFirst).toHaveBeenCalledWith({ where: { cavalo: "75", carreta: "908", deletadoEm: null } })
+    expect(tx.frota.findFirst).toHaveBeenCalledWith({ where: { cavalo: "75", carreta: "908", filialId: FILIAL_ID, deletadoEm: null } })
     expect(tx.frota.create).toHaveBeenCalledWith({
-      data: { cavalo: "75", carreta: "908", disponivelEm: fim },
+      data: { cavalo: "75", carreta: "908", disponivelEm: fim, filialId: FILIAL_ID },
     })
     expect(tx.frota.update).not.toHaveBeenCalled()
   })
@@ -94,10 +96,10 @@ describe("registrarOuAtualizarDisponibilidadeFrota", () => {
     vi.mocked(tx.frota.findFirst).mockResolvedValue({ id: 7, cavalo: "75", carreta: "908" } as never)
     const fim = new Date("2026-07-20T18:00:00")
 
-    await registrarOuAtualizarDisponibilidadeFrota(tx as never, "75", "908", fim)
+    await registrarOuAtualizarDisponibilidadeFrota(tx as never, FILIAL_ID, "75", "908", fim)
 
     expect(tx.frota.update).toHaveBeenCalledWith({
-      where: { id: 7 },
+      where: { id: 7, filialId: FILIAL_ID },
       data: { disponivelEm: fim },
     })
     expect(tx.frota.create).not.toHaveBeenCalled()
@@ -106,7 +108,7 @@ describe("registrarOuAtualizarDisponibilidadeFrota", () => {
   it("não faz nada quando cavalo ou carreta é inválido (vazio/placeholder)", async () => {
     const tx = criarTx()
 
-    await registrarOuAtualizarDisponibilidadeFrota(tx as never, "0000", "908", new Date())
+    await registrarOuAtualizarDisponibilidadeFrota(tx as never, FILIAL_ID, "0000", "908", new Date())
 
     expect(tx.frota.findFirst).not.toHaveBeenCalled()
     expect(tx.frota.create).not.toHaveBeenCalled()
@@ -123,17 +125,17 @@ describe("criarFrotaService", () => {
     vi.mocked(prisma.frota.findFirst).mockResolvedValue(null)
     vi.mocked(prisma.frota.create).mockResolvedValue({ id: 1 } as never)
 
-    await criarFrotaService({ cavalo: "75", carreta: "908", disponivelEm: "2026-07-22T18:30" })
+    await criarFrotaService(FILIAL_ID, { cavalo: "75", carreta: "908", disponivelEm: "2026-07-22T18:30" })
 
     expect(prisma.frota.create).toHaveBeenCalledWith({
-      data: { cavalo: "75", carreta: "908", disponivelEm: new Date("2026-07-22T18:30") },
+      data: { cavalo: "75", carreta: "908", disponivelEm: new Date("2026-07-22T18:30"), filialId: FILIAL_ID },
     })
   })
 
   it("lança erro quando já existe um conjunto ativo com a mesma dupla", async () => {
     vi.mocked(prisma.frota.findFirst).mockResolvedValue({ id: 1 } as never)
 
-    await expect(criarFrotaService({ cavalo: "75", carreta: "908", disponivelEm: null })).rejects.toThrow(
+    await expect(criarFrotaService(FILIAL_ID, { cavalo: "75", carreta: "908", disponivelEm: null })).rejects.toThrow(
       "Já existe um conjunto cadastrado com essa frota (cavalo/carreta).",
     )
     expect(prisma.frota.create).not.toHaveBeenCalled()
@@ -143,10 +145,10 @@ describe("criarFrotaService", () => {
     vi.mocked(prisma.frota.findFirst).mockResolvedValue(null)
     vi.mocked(prisma.frota.create).mockResolvedValue({ id: 1 } as never)
 
-    await criarFrotaService({ cavalo: "75", carreta: "908", disponivelEm: null })
+    await criarFrotaService(FILIAL_ID, { cavalo: "75", carreta: "908", disponivelEm: null })
 
     expect(prisma.frota.create).toHaveBeenCalledWith({
-      data: { cavalo: "75", carreta: "908", disponivelEm: null },
+      data: { cavalo: "75", carreta: "908", disponivelEm: null, filialId: FILIAL_ID },
     })
   })
 })
@@ -160,13 +162,13 @@ describe("editarFrotaService", () => {
     vi.mocked(prisma.frota.findFirst).mockResolvedValue(null)
     vi.mocked(prisma.frota.update).mockResolvedValue({ id: 1 } as never)
 
-    await editarFrotaService(1, { cavalo: "75", carreta: "908", disponivelEm: "2026-07-22T18:30" })
+    await editarFrotaService(FILIAL_ID, 1, { cavalo: "75", carreta: "908", disponivelEm: "2026-07-22T18:30" })
 
     expect(prisma.frota.findFirst).toHaveBeenCalledWith({
-      where: { cavalo: "75", carreta: "908", deletadoEm: null, id: { not: 1 } },
+      where: { cavalo: "75", carreta: "908", filialId: FILIAL_ID, deletadoEm: null, id: { not: 1 } },
     })
     expect(prisma.frota.update).toHaveBeenCalledWith({
-      where: { id: 1 },
+      where: { id: 1, filialId: FILIAL_ID },
       data: { cavalo: "75", carreta: "908", disponivelEm: new Date("2026-07-22T18:30") },
     })
   })
@@ -174,7 +176,7 @@ describe("editarFrotaService", () => {
   it("lança erro quando a dupla já pertence a outro conjunto ativo", async () => {
     vi.mocked(prisma.frota.findFirst).mockResolvedValue({ id: 2 } as never)
 
-    await expect(editarFrotaService(1, { cavalo: "75", carreta: "908", disponivelEm: null })).rejects.toThrow(
+    await expect(editarFrotaService(FILIAL_ID, 1, { cavalo: "75", carreta: "908", disponivelEm: null })).rejects.toThrow(
       "Já existe um conjunto cadastrado com essa frota (cavalo/carreta).",
     )
     expect(prisma.frota.update).not.toHaveBeenCalled()
@@ -185,10 +187,10 @@ describe("deletarFrotaService", () => {
   it("marca deletadoEm", async () => {
     vi.mocked(prisma.frota.update).mockResolvedValue({ id: 1 } as never)
 
-    await deletarFrotaService(1)
+    await deletarFrotaService(FILIAL_ID, 1)
 
     const chamada = vi.mocked(prisma.frota.update).mock.calls[0][0]
-    expect(chamada.where).toEqual({ id: 1 })
+    expect(chamada.where).toEqual({ id: 1, filialId: FILIAL_ID })
     expect(chamada.data.deletadoEm).toBeInstanceOf(Date)
   })
 })

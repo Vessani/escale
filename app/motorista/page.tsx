@@ -1,4 +1,6 @@
 import Link from "next/link"
+import { getServerSession } from "next-auth"
+import { authOptions } from "@/lib/auth"
 import { Button } from "@/components/ui/button"
 import { ChevronLeft, ChevronRight, PlusCircle, Upload, Users } from "lucide-react"
 import { buscarMotoristasComAgenda } from "@/lib/queries/motoristas"
@@ -32,7 +34,10 @@ export default async function MotoristasPage({
   const janelaSeguinte = new Date(inicioJanela)
   janelaSeguinte.setDate(janelaSeguinte.getDate() + TAMANHO_JANELA_CALENDARIO)
 
-  const motoristas = await buscarMotoristasComAgenda(inicioJanela, fimJanela)
+  const session = await getServerSession(authOptions)
+  const filialId = session!.user.filialId!
+  const podeExcluir = session?.user?.role === "ADMIN"
+  const motoristas = await buscarMotoristasComAgenda(filialId, inicioJanela, fimJanela)
   const inicioParam = formatarDataDia(inicioJanela)
   const diasIso = dias.map((dia) => formatarDataDia(dia))
   const calendarioSerializado = serializeData(
@@ -88,7 +93,7 @@ export default async function MotoristasPage({
             </Button>
           </Link>
           <Link href="/motorista/novo">
-            <Button className="bg-blue-600 hover:bg-blue-700 text-white shadow-sm">
+            <Button className="shadow-sm">
               <PlusCircle className="w-5 h-5 mr-2" />
               Novo Motorista
             </Button>
@@ -109,6 +114,7 @@ export default async function MotoristasPage({
           hojeIso={hoje.toISOString()}
           dias={diasIso}
           motoristas={calendarioSerializado}
+          podeExcluir={podeExcluir}
         />
       )}
     </div>

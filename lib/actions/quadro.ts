@@ -1,18 +1,18 @@
 'use server'
 import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
-import { requireSession } from "@/lib/auth-guard";
+import { requireSessionComFilial } from "@/lib/auth-guard";
 import { errorToMessage } from "@/lib/action-error";
 import type { RespostaAcao } from "@/lib/types/types";
 
-/** Sobrescreve o texto do quadro de observações (bloco único, id fixo 1 — sem histórico). */
+/** Sobrescreve o texto do quadro de observações (um bloco por filial, sem histórico). */
 export async function atualizarObservacoes(texto: string): Promise<RespostaAcao> {
   try {
-    await requireSession();
+    const { filialId } = await requireSessionComFilial();
 
     await prisma.quadroObservacao.upsert({
-      where: { id: 1 },
-      create: { id: 1, texto },
+      where: { filialId },
+      create: { filialId, texto },
       update: { texto },
     });
 

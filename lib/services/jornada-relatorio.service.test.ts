@@ -11,6 +11,8 @@ vi.mock("@/lib/prisma", () => ({
 import { prisma } from "@/lib/prisma"
 import { atualizarJornadaRelatorioDosMotoristas } from "@/lib/services/jornada-relatorio.service"
 
+const FILIAL_ID = 1
+
 function criarRegistro(parcial: Partial<RegistroJornadaRelatorio> = {}): RegistroJornadaRelatorio {
   return {
     matricula: 815,
@@ -47,9 +49,9 @@ describe("atualizarJornadaRelatorioDosMotoristas", () => {
   })
 
   it("atualiza jornadaRelatorio* e grava o código do dia (Dias Sem Folga) quando a matrícula bate com um motorista em ciclo normal", async () => {
-    vi.mocked(prisma.motorista.findMany).mockResolvedValue([{ id: 42, diasTrabalhados: 2 }] as never)
+    vi.mocked(prisma.motorista.findMany).mockResolvedValue([{ id: 42, seva: 815, diasTrabalhados: 2 }] as never)
 
-    const resultado = await atualizarJornadaRelatorioDosMotoristas([criarRegistro({ diasSemFolga: 4 })])
+    const resultado = await atualizarJornadaRelatorioDosMotoristas(FILIAL_ID, [criarRegistro({ diasSemFolga: 4 })])
 
     expect(resultado).toEqual({ atualizados: 1, naoEncontrados: [], duplicados: [] })
     expect(tx.motorista.update).toHaveBeenCalledWith({
@@ -69,18 +71,18 @@ describe("atualizarJornadaRelatorioDosMotoristas", () => {
   })
 
   it("capa em 6 quando Dias Sem Folga vem maior (7+) — evita colidir com o código 7 (Folga)", async () => {
-    vi.mocked(prisma.motorista.findMany).mockResolvedValue([{ id: 42, diasTrabalhados: 6 }] as never)
+    vi.mocked(prisma.motorista.findMany).mockResolvedValue([{ id: 42, seva: 815, diasTrabalhados: 6 }] as never)
 
-    await atualizarJornadaRelatorioDosMotoristas([criarRegistro({ diasSemFolga: 9 })])
+    await atualizarJornadaRelatorioDosMotoristas(FILIAL_ID, [criarRegistro({ diasSemFolga: 9 })])
 
     const upsertArgs = vi.mocked(tx.registroJornada.upsert).mock.calls[0][0] as { create: { codigo: number } }
     expect(upsertArgs.create.codigo).toBe(6)
   })
 
   it("não sobrescreve o código de quem está em Férias/Exames/Interno (8-10), só o registro de horário", async () => {
-    vi.mocked(prisma.motorista.findMany).mockResolvedValue([{ id: 42, diasTrabalhados: 8 }] as never)
+    vi.mocked(prisma.motorista.findMany).mockResolvedValue([{ id: 42, seva: 815, diasTrabalhados: 8 }] as never)
 
-    await atualizarJornadaRelatorioDosMotoristas([criarRegistro({ diasSemFolga: 2 })])
+    await atualizarJornadaRelatorioDosMotoristas(FILIAL_ID, [criarRegistro({ diasSemFolga: 2 })])
 
     expect(tx.motorista.update).toHaveBeenCalledTimes(1)
     expect(tx.registroJornada.upsert).not.toHaveBeenCalled()
@@ -89,7 +91,7 @@ describe("atualizarJornadaRelatorioDosMotoristas", () => {
   it("reporta matrícula sem motorista correspondente, sem abrir transação", async () => {
     vi.mocked(prisma.motorista.findMany).mockResolvedValue([] as never)
 
-    const resultado = await atualizarJornadaRelatorioDosMotoristas([criarRegistro({ matricula: 999 })])
+    const resultado = await atualizarJornadaRelatorioDosMotoristas(FILIAL_ID, [criarRegistro({ matricula: 999 })])
 
     expect(resultado).toEqual({ atualizados: 0, naoEncontrados: [999], duplicados: [] })
     expect(prisma.$transaction).not.toHaveBeenCalled()
@@ -97,20 +99,38 @@ describe("atualizarJornadaRelatorioDosMotoristas", () => {
 
   it("reporta matrícula duplicada (mais de um motorista ativo), sem abrir transação", async () => {
     vi.mocked(prisma.motorista.findMany).mockResolvedValue([
-      { id: 1, diasTrabalhados: 1 },
-      { id: 2, diasTrabalhados: 1 },
+      { id: 1, seva: 815, diasTrabalhados: 1 },
+      { id: 2, seva: 815, diasTrabalhados: 1 },
     ] as never)
 
-    const resultado = await atualizarJornadaRelatorioDosMotoristas([criarRegistro({ matricula: 815 })])
+    const resultado = await atualizarJornadaRelatorioDosMotoristas(FILIAL_ID, [criarRegistro({ matricula: 815 })])
 
     expect(resultado).toEqual({ atualizados: 0, naoEncontrados: [], duplicados: [815] })
     expect(prisma.$transaction).not.toHaveBeenCalled()
   })
 
   it("não consulta o banco quando a lista de registros está vazia", async () => {
-    const resultado = await atualizarJornadaRelatorioDosMotoristas([])
+    const resultado = await atualizarJornadaRelatorioDosMotoristas(FILIAL_ID, [])
 
     expect(resultado).toEqual({ atualizados: 0, naoEncontrados: [], duplicados: [] })
     expect(prisma.motorista.findMany).not.toHaveBeenCalled()
+  })
+
+  it("busca todos os motoristas do lote numa única query e grava tudo numa única transação", async () => {
+    vi.mocked(prisma.motorista.findMany).mockResolvedValue([
+      { id: 1, seva: 111, diasTrabalhados: 2 },
+      { id: 2, seva: 222, diasTrabalhados: 3 },
+    ] as never)
+
+    const resultado = await atualizarJornadaRelatorioDosMotoristas(FILIAL_ID, [
+      criarRegistro({ matricula: 111 }),
+      criarRegistro({ matricula: 222 }),
+      criarRegistro({ matricula: 999 }),
+    ])
+
+    expect(resultado).toEqual({ atualizados: 2, naoEncontrados: [999], duplicados: [] })
+    expect(prisma.motorista.findMany).toHaveBeenCalledTimes(1)
+    expect(prisma.$transaction).toHaveBeenCalledTimes(1)
+    expect(tx.motorista.update).toHaveBeenCalledTimes(2)
   })
 })

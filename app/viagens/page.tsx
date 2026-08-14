@@ -1,4 +1,6 @@
 import Link from "next/link"
+import { getServerSession } from "next-auth"
+import { authOptions } from "@/lib/auth"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Alert } from "@/components/ui/alert"
@@ -57,7 +59,7 @@ function FrotaCelula({ viagem }: { viagem: Viagem }) {
   )
 }
 
-function AcoesViagem({ viagem }: { viagem: Viagem }) {
+function AcoesViagem({ viagem, podeExcluir }: { viagem: Viagem; podeExcluir: boolean }) {
   return (
     <div className="flex flex-wrap justify-end gap-2">
       <Link href={`/api/viagens/${viagem.id}/pdf`}>
@@ -69,13 +71,13 @@ function AcoesViagem({ viagem }: { viagem: Viagem }) {
       <Link href={`/viagens/editar/${viagem.id}`}>
         <Button variant="outline" size="sm">Editar</Button>
       </Link>
-      <ExcluirViagemButton viagemId={viagem.id} numeroViagem={viagem.numViagem} />
+      {podeExcluir && <ExcluirViagemButton viagemId={viagem.id} numeroViagem={viagem.numViagem} />}
     </div>
   )
 }
 
 /** Tabela para telas a partir de md; em telas menores vira lista de cards (ver ViagensCards). */
-function ViagensTabela({ viagens }: { viagens: Viagem[] }) {
+function ViagensTabela({ viagens, podeExcluir }: { viagens: Viagem[]; podeExcluir: boolean }) {
   return (
     <div className="hidden rounded-lg border bg-white shadow-sm overflow-hidden md:block">
       <Table>
@@ -117,7 +119,7 @@ function ViagensTabela({ viagens }: { viagens: Viagem[] }) {
                 <MotoristaCelula viagem={viagem} />
               </TableCell>
               <TableCell className="text-right">
-                <AcoesViagem viagem={viagem} />
+                <AcoesViagem viagem={viagem} podeExcluir={podeExcluir} />
               </TableCell>
             </TableRow>
           ))}
@@ -128,7 +130,7 @@ function ViagensTabela({ viagens }: { viagens: Viagem[] }) {
 }
 
 /** Lista em cards para telas abaixo de md; substitui a tabela (ver ViagensTabela). */
-function ViagensCards({ viagens }: { viagens: Viagem[] }) {
+function ViagensCards({ viagens, podeExcluir }: { viagens: Viagem[]; podeExcluir: boolean }) {
   return (
     <div className="space-y-3 md:hidden">
       {viagens.map((viagem) => (
@@ -168,7 +170,7 @@ function ViagensCards({ viagens }: { viagens: Viagem[] }) {
             </div>
           </dl>
 
-          <AcoesViagem viagem={viagem} />
+          <AcoesViagem viagem={viagem} podeExcluir={podeExcluir} />
         </div>
       ))}
     </div>
@@ -186,7 +188,10 @@ export default async function ViagensPage({
 }) {
   const parametros = (await searchParams) ?? {}
   const filtroStatus = parseStatusFiltro(parametros.status)
-  const viagens = await buscarViagens()
+  const session = await getServerSession(authOptions)
+  const filialId = session!.user.filialId!
+  const podeExcluir = session?.user?.role === "ADMIN"
+  const viagens = await buscarViagens(filialId)
   const viagensFiltradas =
     filtroStatus === "TODOS" ? viagens : viagens.filter((viagem) => viagem.status === filtroStatus)
 
@@ -212,7 +217,7 @@ export default async function ViagensPage({
             <Button variant="outline">Alocação Manual</Button>
           </Link>
           <Link href="/viagens/nova">
-            <Button className="bg-blue-600 hover:bg-blue-700 text-white">
+            <Button>
               <PlusCircle className="w-5 h-5 mr-2" />
               Nova Viagem
             </Button>
@@ -235,8 +240,8 @@ export default async function ViagensPage({
             </h2>
             <Badge variant="outline">{viagensFiltradas.length}</Badge>
           </div>
-          <ViagensTabela viagens={viagensFiltradas} />
-          <ViagensCards viagens={viagensFiltradas} />
+          <ViagensTabela viagens={viagensFiltradas} podeExcluir={podeExcluir} />
+          <ViagensCards viagens={viagensFiltradas} podeExcluir={podeExcluir} />
         </section>
       )}
     </div>

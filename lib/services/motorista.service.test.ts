@@ -18,9 +18,11 @@ import {
   registrarJornadaNoDiaService,
 } from "@/lib/services/motorista.service"
 
+const FILIAL_ID = 1
+
 function criarTx() {
   return {
-    motorista: { create: vi.fn(), update: vi.fn() },
+    motorista: { create: vi.fn(), update: vi.fn(), findUniqueOrThrow: vi.fn() },
     registroJornada: { upsert: vi.fn() },
   }
 }
@@ -54,12 +56,13 @@ describe("motorista.service", () => {
         integracao: [{ dataValidade: "2026-12-31", cliente: "AMBEV", status: "ATIVO" }],
       }
 
-      const resultado = await criarMotoristaService(dados)
+      const resultado = await criarMotoristaService(FILIAL_ID, dados)
 
       expect(resultado).toEqual({ id: 42 })
       const dadosCriados = vi.mocked(tx.motorista.create).mock.calls[0][0].data
       expect(dadosCriados.nome).toBe("Ana")
       expect(dadosCriados.liberado).toBe(true)
+      expect(dadosCriados.filialId).toBe(FILIAL_ID)
       expect(dadosCriados.integracao.create[0].cliente).toBe("AMBEV")
 
       expect(tx.registroJornada.upsert).toHaveBeenCalledTimes(1)
@@ -80,7 +83,7 @@ describe("motorista.service", () => {
       vi.mocked(tx.registroJornada.upsert).mockResolvedValue({})
       usarTransacaoCom(tx)
 
-      await criarMotoristaService({
+      await criarMotoristaService(FILIAL_ID, {
         nome: "Bruno",
         seva: 2,
         diasTrabalhados: 1,
@@ -99,6 +102,7 @@ describe("motorista.service", () => {
       vi.mocked(prisma.motorista.update).mockResolvedValue({ id: 5 } as never)
 
       const tx = criarTx()
+      vi.mocked(tx.motorista.findUniqueOrThrow).mockResolvedValue({ id: 5 })
       vi.mocked(tx.registroJornada.upsert).mockResolvedValue({})
       usarTransacaoCom(tx)
 
@@ -114,11 +118,13 @@ describe("motorista.service", () => {
         ],
       }
 
-      await editarMotoristaService(5, dados)
+      await editarMotoristaService(FILIAL_ID, 5, dados)
 
       const chamada = vi.mocked(prisma.motorista.update).mock.calls[0][0] as {
+        where: { id: number; filialId: number }
         data: { liberado: boolean; integracao: { deleteMany: { id: { notIn: number[] } }; update: unknown[]; create: unknown[] } }
       }
+      expect(chamada.where).toEqual({ id: 5, filialId: FILIAL_ID })
       expect(chamada.data.liberado).toBe(true)
       expect(chamada.data.integracao.deleteMany.id.notIn).toEqual([10])
       expect(chamada.data.integracao.update).toHaveLength(1)
@@ -133,9 +139,10 @@ describe("motorista.service", () => {
     it("marca deletadoEm em vez de apagar o registro", async () => {
       vi.mocked(prisma.motorista.update).mockResolvedValue({ id: 9 } as never)
 
-      await deletarMotoristaService(9)
+      await deletarMotoristaService(FILIAL_ID, 9)
 
-      const chamada = vi.mocked(prisma.motorista.update).mock.calls[0][0] as { data: { deletadoEm: Date } }
+      const chamada = vi.mocked(prisma.motorista.update).mock.calls[0][0] as { where: { id: number; filialId: number }; data: { deletadoEm: Date } }
+      expect(chamada.where).toEqual({ id: 9, filialId: FILIAL_ID })
       expect(chamada.data.deletadoEm).toBeInstanceOf(Date)
     })
   })
@@ -162,15 +169,29 @@ describe("motorista.service", () => {
   })
 
   describe("registrarJornadaNoDiaService", () => {
-    it("abre uma transação e delega para registrarJornadaNoDia", async () => {
+    it("confirma que o motorista pertence à filial, abre uma transação e delega para registrarJornadaNoDia", async () => {
       const tx = criarTx()
+      vi.mocked(tx.motorista.findUniqueOrThrow).mockResolvedValue({ id: 3 })
       vi.mocked(tx.registroJornada.upsert).mockResolvedValue({ codigo: 2 })
       usarTransacaoCom(tx)
 
-      await registrarJornadaNoDiaService(3, new Date(), 2)
+      await registrarJornadaNoDiaService(FILIAL_ID, 3, new Date(), 2)
 
+      expect(tx.motorista.findUniqueOrThrow).toHaveBeenCalledWith({
+        where: { id: 3, filialId: FILIAL_ID },
+        select: { id: true },
+      })
       expect(prisma.$transaction).toHaveBeenCalledTimes(1)
       expect(tx.registroJornada.upsert).toHaveBeenCalledTimes(1)
+    })
+
+    it("propaga o erro (registro não encontrado) sem chamar registrarJornadaNoDia quando o motorista não é da filial", async () => {
+      const tx = criarTx()
+      vi.mocked(tx.motorista.findUniqueOrThrow).mockRejectedValue(new Error("Registro não encontrado."))
+      usarTransacaoCom(tx)
+
+      await expect(registrarJornadaNoDiaService(FILIAL_ID, 3, new Date(), 2)).rejects.toThrow()
+      expect(tx.registroJornada.upsert).not.toHaveBeenCalled()
     })
   })
 })

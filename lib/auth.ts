@@ -39,6 +39,7 @@ export const authOptions: NextAuthOptions = {
           name: usuario.nome,
           email: usuario.email,
           role: usuario.role,
+          filialId: usuario.filialId,
         };
       }
     })
@@ -53,7 +54,8 @@ export const authOptions: NextAuthOptions = {
     async jwt({ token, user }) {
       if (user) {
         token.id = user.id;
-        token.role = user.role; 
+        token.role = user.role;
+        token.filialId = user.filialId;
       }
       return token;
     },
@@ -62,6 +64,7 @@ export const authOptions: NextAuthOptions = {
       if (token && session.user) {
         session.user.id = token.id;
         session.user.role = token.role;
+        session.user.filialId = token.filialId;
       }
       return session;
     }

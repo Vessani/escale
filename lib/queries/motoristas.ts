@@ -1,12 +1,37 @@
 import { prisma } from "@/lib/prisma";
 import { Prisma, Turno } from "@prisma/client";
 
+/**
+ * Margem sobre o maior descanso legal (35h, descanso semanal) usada pra
+ * decidir até quando uma viagem FINALIZADA ainda é relevante pro cálculo de
+ * disponibilidade — ver limiteFinalizadaRelevante/filtroViagemAtiva.
+ */
+export const HORAS_FINALIZADA_RELEVANTE = 48
 
-/** Mesmo filtro de viagem "ativa" usado nas duas agendas (principal e acompanhante) — ver motivo em buscarMotoristas/buscarMotoristasParaSelect. */
-const FILTRO_VIAGEM_ATIVA = {
-  deletadoEm: null,
-  status: { notIn: ["CANCELADA", "FINALIZADA"] },
-} satisfies Prisma.ViagemWhereInput
+/** A partir de que instante uma viagem FINALIZADA ainda pode influenciar o descanso mínimo de uma nova alocação. */
+export function limiteFinalizadaRelevante(agora: Date): Date {
+  return new Date(agora.getTime() - HORAS_FINALIZADA_RELEVANTE * 60 * 60 * 1000)
+}
+
+/**
+ * Filtro de viagem "ativa" usado nas duas agendas (principal e acompanhante)
+ * — ver motivo em buscarMotoristas/buscarMotoristasParaSelect. CANCELADA
+ * nunca conta (a viagem não aconteceu, não gera descanso a cumprir).
+ * FINALIZADA conta só se terminou há pouco tempo — o suficiente pra ainda
+ * poder violar o descanso mínimo de uma nova alocação (ver
+ * MINIMO_HORAS_ENTRE_FOLGAS em alocacao.service.ts); sem esse limite, toda
+ * viagem já finalizada na história do motorista seria carregada pra sempre
+ * nessa consulta.
+ */
+function filtroViagemAtiva(agora: Date) {
+  return {
+    deletadoEm: null,
+    OR: [
+      { status: { notIn: ["CANCELADA", "FINALIZADA"] } },
+      { status: "FINALIZADA", fimPrevisto: { gte: limiteFinalizadaRelevante(agora) } },
+    ],
+  } satisfies Prisma.ViagemWhereInput
+}
 
 const SELECT_VIAGEM_AGENDA = {
   id: true,
@@ -16,19 +41,21 @@ const SELECT_VIAGEM_AGENDA = {
   deletadoEm: true,
 } as const
 
-export async function buscarMotoristas() {
+export async function buscarMotoristas(filialId: number) {
+  const filtroViagem = filtroViagemAtiva(new Date())
   const motoristas = await prisma.motorista.findMany({
     where: {
-      deletadoEm: null
+      deletadoEm: null,
+      filialId,
     },
     orderBy: { nome: 'asc' },
     include: {
       integracao: true,
-      viagens: { where: FILTRO_VIAGEM_ATIVA, select: SELECT_VIAGEM_AGENDA },
+      viagens: { where: filtroViagem, select: SELECT_VIAGEM_AGENDA },
       // Viagens onde ele é acompanhante também contam como agenda ocupada —
       // unidas com `viagens` abaixo, pra quem aloca (alocacao.service.ts) só
       // precisar considerar "as viagens desse motorista", sem saber do papel.
-      viagensComoAcompanhante: { where: FILTRO_VIAGEM_ATIVA, select: SELECT_VIAGEM_AGENDA },
+      viagensComoAcompanhante: { where: filtroViagem, select: SELECT_VIAGEM_AGENDA },
       // Histórico de jornada: permite projetar o código do motorista na data
       // real de início de cada viagem (ver alocacao.service.ts).
       registrosJornada: {
@@ -44,10 +71,11 @@ export async function buscarMotoristas() {
 }
 
 
-export async function buscarMotoristaPorId(id: number) {
+export async function buscarMotoristaPorId(filialId: number, id: number) {
   return await prisma.motorista.findFirst({
     where: {
       id: id,
+      filialId,
       deletadoEm: null
     },
     include: {
@@ -64,10 +92,12 @@ export async function buscarMotoristaPorId(id: number) {
 }
 
 
-export async function buscarMotoristasParaSelect(turnoDaViagem?: Turno) {
+export async function buscarMotoristasParaSelect(filialId: number, turnoDaViagem?: Turno) {
+  const filtroViagem = filtroViagemAtiva(new Date())
   const motoristas = await prisma.motorista.findMany({
     where: {
       deletadoEm: null,
+      filialId,
 
       ...(turnoDaViagem ? { turno: turnoDaViagem } : {})
     },
@@ -86,8 +116,8 @@ export async function buscarMotoristasParaSelect(turnoDaViagem?: Turno) {
           dataValidade: true,
         },
       },
-      viagens: { where: FILTRO_VIAGEM_ATIVA, select: SELECT_VIAGEM_AGENDA },
-      viagensComoAcompanhante: { where: FILTRO_VIAGEM_ATIVA, select: SELECT_VIAGEM_AGENDA },
+      viagens: { where: filtroViagem, select: SELECT_VIAGEM_AGENDA },
+      viagensComoAcompanhante: { where: filtroViagem, select: SELECT_VIAGEM_AGENDA },
       // Histórico de jornada: permite projetar o código do motorista na data
       // real de início de cada viagem (ver alocacao.service.ts).
       registrosJornada: {
@@ -104,10 +134,11 @@ export async function buscarMotoristasParaSelect(turnoDaViagem?: Turno) {
   }))
 }
 
-export async function buscarMotoristasComAgenda(inicio: Date, fim: Date) {
+export async function buscarMotoristasComAgenda(filialId: number, inicio: Date, fim: Date) {
   return await prisma.motorista.findMany({
     where: {
       deletadoEm: null,
+      filialId,
     },
     orderBy: { nome: "asc" },
     include: {

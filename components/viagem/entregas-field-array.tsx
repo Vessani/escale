@@ -66,6 +66,7 @@ export default function EntregasFieldArray<TFieldValues extends FieldValues>({
               size="icon"
               onClick={() => remove(index)}
               className="absolute top-2 right-2 text-red-400 hover:text-red-600 hover:bg-red-50"
+              aria-label="Remover entrega"
             >
               <Trash2 className="w-4 h-4" />
             </Button>

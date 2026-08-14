@@ -5,6 +5,7 @@ import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
+import { ConfirmDialog } from "@/components/ui/confirm-dialog"
 import { atualizarJornadaMotoristaNoCalendario, deletarMotorista } from "@/lib/actions/motoristas"
 import { calcularDiasDisponiveis } from "@/lib/services/alocacao.service"
 import { mapearRegistrosJornada, obterStatusJornada, projetarCodigoNoDia } from "@/lib/services/jornada.service"
@@ -47,13 +48,16 @@ type Props = {
   hojeIso: string
   dias: string[]
   motoristas: Motorista[]
+  podeExcluir: boolean
 }
 
-export default function CalendarioMotoristas({ inicioParam, hojeIso, dias, motoristas }: Props) {
+export default function CalendarioMotoristas({ inicioParam, hojeIso, dias, motoristas, podeExcluir }: Props) {
   const router = useRouter()
   const [celulaEmEdicao, setCelulaEmEdicao] = useState<string | null>(null)
   const [celulaSalvando, setCelulaSalvando] = useState<string | null>(null)
+  const [motoristaParaExcluir, setMotoristaParaExcluir] = useState<{ id: number; nome: string } | null>(null)
   const [motoristaExcluindoId, setMotoristaExcluindoId] = useState<number | null>(null)
+  const [erroExclusao, setErroExclusao] = useState<string | null>(null)
   const [mensagemErro, setMensagemErro] = useState("")
   const [filtroStatus, setFiltroStatus] = useState<FiltroStatusJornada>("TODOS")
   const [isPending, startTransition] = useTransition()
@@ -99,16 +103,11 @@ export default function CalendarioMotoristas({ inicioParam, hojeIso, dias, motor
     })
   }
 
-  const excluirMotorista = (motoristaId: number, nomeMotorista: string) => {
-    const confirmar = window.confirm(
-      `Tem certeza que deseja excluir o motorista ${nomeMotorista}?`,
-    )
+  const confirmarExclusaoMotorista = () => {
+    if (!motoristaParaExcluir) return
+    const motoristaId = motoristaParaExcluir.id
 
-    if (!confirmar) {
-      return
-    }
-
-    setMensagemErro("")
+    setErroExclusao(null)
     setMotoristaExcluindoId(motoristaId)
 
     startTransition(async () => {
@@ -116,10 +115,11 @@ export default function CalendarioMotoristas({ inicioParam, hojeIso, dias, motor
       setMotoristaExcluindoId(null)
 
       if (!resposta.sucesso) {
-        setMensagemErro(resposta.erro ?? "Não foi possível excluir o motorista.")
+        setErroExclusao(resposta.erro ?? "Não foi possível excluir o motorista.")
         return
       }
 
+      setMotoristaParaExcluir(null)
       router.replace(`/motorista?inicio=${inicioParam}`)
       router.refresh()
     })
@@ -205,15 +205,20 @@ export default function CalendarioMotoristas({ inicioParam, hojeIso, dias, motor
                             Editar
                           </Button>
                         </Link>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          className="border-rose-200 text-rose-700 hover:bg-rose-50 hover:text-rose-800"
-                          disabled={isPending}
-                          onClick={() => excluirMotorista(motorista.id, motorista.nome)}
-                        >
-                          {motoristaExcluindoId === motorista.id ? "Excluindo..." : "Excluir"}
-                        </Button>
+                        {podeExcluir && (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="border-rose-200 text-rose-700 hover:bg-rose-50 hover:text-rose-800"
+                            disabled={isPending}
+                            onClick={() => {
+                              setErroExclusao(null)
+                              setMotoristaParaExcluir({ id: motorista.id, nome: motorista.nome })
+                            }}
+                          >
+                            {motoristaExcluindoId === motorista.id ? "Excluindo..." : "Excluir"}
+                          </Button>
+                        )}
                       </div>
                       <div className="flex flex-wrap items-center gap-2 text-xs text-slate-500">
                         <span>SEVA {motorista.seva}</span>
@@ -305,6 +310,25 @@ export default function CalendarioMotoristas({ inicioParam, hojeIso, dias, motor
           </table>
         </div>
       )}
+
+      <ConfirmDialog
+        open={motoristaParaExcluir !== null}
+        onOpenChange={(aberto) => {
+          if (!aberto) {
+            setMotoristaParaExcluir(null)
+            setErroExclusao(null)
+          }
+        }}
+        title="Excluir motorista"
+        description={
+          motoristaParaExcluir
+            ? `Tem certeza que deseja excluir ${motoristaParaExcluir.nome}? Ele deixa de aparecer nas listagens e na alocação, mas as viagens já registradas com ele continuam no histórico.`
+            : ""
+        }
+        confirming={isPending}
+        erro={erroExclusao}
+        onConfirm={confirmarExclusaoMotorista}
+      />
     </div>
   )
 }

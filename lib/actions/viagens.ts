@@ -9,9 +9,9 @@ import {
 } from "@/lib/types/types";
 import type { SugestaoAlocacaoPendente } from "@/lib/types/alocacao";
 import { errorToMessage } from "@/lib/action-error";
-import { requireSession } from "@/lib/auth-guard";
+import { requireSessionComFilial } from "@/lib/auth-guard";
 import { ehStatusViagem, type StatusViagemSelecionavel } from "@/lib/services/viagem-status.service";
-import { novaViagemSchema, type NovaViagemFormValues } from "@/lib/validation/viagens";
+import { novaViagemSchema, editarViagemServerSchema, type NovaViagemFormValues } from "@/lib/validation/viagens";
 import {
   criarViagemAvulsaService,
   criarViagemComAlocacaoService,
@@ -22,6 +22,7 @@ import {
   atualizarSaidaRealService,
 } from "@/lib/services/viagem.service";
 import { buscarMotoristasParaSelect } from "@/lib/queries/motoristas";
+import { buscarNomesClientesQueExigemIntegracao } from "@/lib/queries/clientes";
 import {
   calcularAvisoInterjornada,
   calcularDiasDisponiveis,
@@ -35,8 +36,14 @@ import { formatarHoraLocal, inicioDoDia } from "@/lib/utils/date-format";
 
 export async function criarViagemAvulsa(dados: NovaViagemInput): Promise<RespostaAcao> {
   try {
-    await requireSession();
-    await criarViagemAvulsaService(dados);
+    const { filialId } = await requireSessionComFilial();
+
+    const validacao = novaViagemSchema.safeParse(dados);
+    if (!validacao.success) {
+      return { sucesso: false, erro: validacao.error.issues[0]?.message ?? "Dados inválidos." };
+    }
+
+    await criarViagemAvulsaService(filialId, validacao.data);
 
     revalidatePath("/viagens");
     revalidatePath("/motorista");
@@ -58,9 +65,12 @@ export async function criarViagemAvulsa(dados: NovaViagemInput): Promise<Respost
 export async function sugerirAlocacaoParaViagens(
   viagens: NovaViagemFormValues[],
 ): Promise<SugestaoAlocacaoPendente[]> {
-  await requireSession();
+  const { filialId } = await requireSessionComFilial();
 
-  const motoristasBrutos = await buscarMotoristasParaSelect();
+  const [motoristasBrutos, clientesQueExigemIntegracao] = await Promise.all([
+    buscarMotoristasParaSelect(filialId),
+    buscarNomesClientesQueExigemIntegracao(),
+  ]);
   const motoristas = motoristasBrutos.map((motorista) => ({
     ...motorista,
     registrosJornada: mapearRegistrosJornada(motorista.registrosJornada),
@@ -73,7 +83,7 @@ export async function sugerirAlocacaoParaViagens(
     diasViagem: viagem.diasViagem,
     inicioPrevisto: new Date(viagem.inicioPrevisto),
     fimPrevisto: new Date(viagem.fimPrevisto),
-    integracaoExigida: calcularIntegracaoExigida(viagem.entregas),
+    integracaoExigida: calcularIntegracaoExigida(viagem.entregas, clientesQueExigemIntegracao),
   }));
 
   const sugestoes = sugerirAlocacoesEmLote(viagensParaSugestao, motoristas, hoje);
@@ -81,6 +91,7 @@ export async function sugerirAlocacaoParaViagens(
   return Promise.all(sugestoes.map(async (sugestao, indice) => {
     const dataInicioViagem = new Date(viagens[indice].inicioPrevisto);
     const avisoFrotaIndisponivel = await calcularAvisoFrotaIndisponivel(
+      filialId,
       viagens[indice].cavalo,
       viagens[indice].carreta,
       dataInicioViagem,
@@ -131,8 +142,9 @@ export async function sugerirAlocacaoParaViagens(
 export async function criarViagensEmLoteComAlocacao(
   viagens: Array<{ dados: NovaViagemFormValues; motoristaId: number | null }>,
 ): Promise<ResultadoImportacaoLote> {
+  let filialId: number
   try {
-    await requireSession();
+    ({ filialId } = await requireSessionComFilial());
   } catch (erro) {
     return { sucesso: false, criadas: 0, falhas: [{ numViagem: "-", erro: errorToMessage(erro, "Não autorizado.") }] }
   }
@@ -151,7 +163,7 @@ export async function criarViagensEmLoteComAlocacao(
     }
 
     try {
-      await criarViagemComAlocacaoService(validacao.data, motoristaId)
+      await criarViagemComAlocacaoService(filialId, validacao.data, motoristaId)
       criadas++
     } catch (erro) {
       console.error(`[criarViagensEmLoteComAlocacao] Erro ao salvar viagem ${identificador}:`, erro)
@@ -168,8 +180,14 @@ export async function criarViagensEmLoteComAlocacao(
 
 export async function editarViagem(idViagem: number, dados: EditarViagemInput): Promise<RespostaAcao> {
   try {
-    await requireSession();
-    await editarViagemService(idViagem, dados);
+    const { filialId } = await requireSessionComFilial();
+
+    const validacao = editarViagemServerSchema.safeParse(dados);
+    if (!validacao.success) {
+      return { sucesso: false, erro: validacao.error.issues[0]?.message ?? "Dados inválidos." };
+    }
+
+    await editarViagemService(filialId, idViagem, validacao.data);
 
     revalidatePath("/viagens");
     revalidatePath("/motorista");
@@ -186,8 +204,8 @@ export async function editarViagem(idViagem: number, dados: EditarViagemInput): 
 
 export async function deletarViagem(id: number): Promise<RespostaAcao> {
   try {
-    await requireSession();
-    await deletarViagemService(id);
+    const { filialId } = await requireSessionComFilial(["ADMIN"]);
+    await deletarViagemService(filialId, id);
 
     revalidatePath("/viagens");
     revalidatePath("/motorista");
@@ -208,7 +226,7 @@ export async function atualizarStatusViagem(
   novaData?: { inicioPrevisto: string; fimPrevisto: string },
 ): Promise<RespostaAcao> {
   try {
-    await requireSession();
+    const { filialId } = await requireSessionComFilial();
 
     if (!ehStatusViagem(status)) {
       return { sucesso: false, erro: "Status inválido." }
@@ -219,6 +237,7 @@ export async function atualizarStatusViagem(
     }
 
     await atualizarStatusViagemService(
+      filialId,
       idViagem,
       status,
       novaData ? { inicioPrevisto: new Date(novaData.inicioPrevisto), fimPrevisto: new Date(novaData.fimPrevisto) } : undefined,
@@ -242,8 +261,8 @@ export async function atualizarAlocacaoViagem(
   dados: { motoristaId: number | null; motoristaAcompanhanteId: number | null },
 ): Promise<RespostaAcao> {
   try {
-    await requireSession();
-    await atualizarAlocacaoViagemService(idViagem, dados)
+    const { filialId } = await requireSessionComFilial();
+    await atualizarAlocacaoViagemService(filialId, idViagem, dados)
 
     revalidatePath("/")
     revalidatePath("/viagens")
@@ -263,8 +282,9 @@ export async function atualizarSaidaReal(
   dados: { horarioRealSaida: string | null; motivoAtraso: string | null },
 ): Promise<RespostaAcao> {
   try {
-    await requireSession();
+    const { filialId } = await requireSessionComFilial();
     await atualizarSaidaRealService(
+      filialId,
       idViagem,
       dados.horarioRealSaida ? new Date(dados.horarioRealSaida) : null,
       dados.motivoAtraso?.trim() ? dados.motivoAtraso.trim() : null,

@@ -21,6 +21,7 @@ export default function UploadXLSXViagem({ onDataLoaded, onError, onImportarLote
   const [sucesso, setSucesso] = useState(false)
   const [viagensDisponiveis, setViagensDisponiveis] = useState<DadosViagemPlanilha[]>([])
   const [numViagemCarregada, setNumViagemCarregada] = useState<string | null>(null)
+  const [arrastandoArquivo, setArrastandoArquivo] = useState(false)
 
   const carregarViagem = (viagem: DadosViagemPlanilha): void => {
     const dadosFormulario = XLSXParserViagem.converterParaFormulario(viagem)
@@ -43,10 +44,7 @@ export default function UploadXLSXViagem({ onDataLoaded, onError, onImportarLote
     }
   }
 
-  const handleFileChange = async (event: React.ChangeEvent<HTMLInputElement>): Promise<void> => {
-    const file = event.target.files?.[0]
-    if (!file) return
-
+  const processarArquivo = async (file: File): Promise<void> => {
     setErro('')
     setSucesso(false)
     setViagensDisponiveis([])
@@ -75,6 +73,32 @@ export default function UploadXLSXViagem({ onDataLoaded, onError, onImportarLote
     } finally {
       setCarregando(false)
     }
+  }
+
+  const handleFileChange = async (event: React.ChangeEvent<HTMLInputElement>): Promise<void> => {
+    const file = event.target.files?.[0]
+    if (!file) return
+    await processarArquivo(file)
+  }
+
+  const handleDragOver = (event: React.DragEvent<HTMLLabelElement>): void => {
+    event.preventDefault()
+    if (!carregando) setArrastandoArquivo(true)
+  }
+
+  const handleDragLeave = (event: React.DragEvent<HTMLLabelElement>): void => {
+    event.preventDefault()
+    setArrastandoArquivo(false)
+  }
+
+  const handleDrop = async (event: React.DragEvent<HTMLLabelElement>): Promise<void> => {
+    event.preventDefault()
+    setArrastandoArquivo(false)
+    if (carregando) return
+
+    const file = event.dataTransfer.files?.[0]
+    if (!file) return
+    await processarArquivo(file)
   }
 
   const handleLimpar = (): void => {
@@ -112,10 +136,14 @@ export default function UploadXLSXViagem({ onDataLoaded, onError, onImportarLote
             />
             <label
               htmlFor="xlsx-upload"
+              onDragOver={handleDragOver}
+              onDragLeave={handleDragLeave}
+              onDrop={handleDrop}
               className={`
                 flex flex-col items-center justify-center p-8 border-2 border-dashed rounded-lg
                 cursor-pointer transition-colors
                 ${carregando ? 'bg-slate-50 border-slate-300' : 'hover:border-blue-400 hover:bg-blue-50'}
+                ${arrastandoArquivo ? 'border-blue-500 bg-blue-50' : ''}
                 ${sucesso ? 'border-green-300 bg-green-50' : 'border-slate-300'}
                 ${erro ? 'border-red-300 bg-red-50' : ''}
               `}
@@ -137,6 +165,13 @@ export default function UploadXLSXViagem({ onDataLoaded, onError, onImportarLote
                   <>
                     <AlertCircle className="w-8 h-8 text-red-500" />
                     <span className="text-sm font-medium text-red-700">{erro}</span>
+                  </>
+                ) : arrastandoArquivo ? (
+                  <>
+                    <Upload className="w-8 h-8 text-blue-500" />
+                    <span className="text-sm font-medium text-blue-700">
+                      Solte o arquivo para carregar
+                    </span>
                   </>
                 ) : (
                   <>
@@ -166,7 +201,6 @@ export default function UploadXLSXViagem({ onDataLoaded, onError, onImportarLote
                     size="sm"
                     disabled={importandoLote}
                     onClick={handleImportarLote}
-                    className="bg-blue-600 hover:bg-blue-700"
                   >
                     {importandoLote
                       ? "Importando..."

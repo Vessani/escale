@@ -21,7 +21,7 @@ export default function QuadroDeObservacoes({ textoInicial }: Props) {
     startTransition(async () => {
       const resposta = await atualizarObservacoes(texto)
       if (!resposta.sucesso) {
-        setErro(resposta.erro ?? "Erro ao salvar observações.")
+        setErro(resposta.erro ?? "Não foi possível salvar as observações.")
         return
       }
       setSalvo(true)

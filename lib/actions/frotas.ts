@@ -2,8 +2,8 @@
 import { revalidatePath } from "next/cache";
 import { type RespostaAcao } from "@/lib/types/types";
 import { errorToMessage } from "@/lib/action-error";
-import { requireSession } from "@/lib/auth-guard";
-import type { FrotaFormValues } from "@/lib/validation/frotas";
+import { requireSessionComFilial } from "@/lib/auth-guard";
+import { frotaSchema, type FrotaFormValues } from "@/lib/validation/frotas";
 import {
   criarFrotaService,
   editarFrotaService,
@@ -12,8 +12,14 @@ import {
 
 export async function criarFrota(dados: FrotaFormValues): Promise<RespostaAcao> {
   try {
-    await requireSession();
-    await criarFrotaService(dados);
+    const { filialId } = await requireSessionComFilial();
+
+    const validacao = frotaSchema.safeParse(dados);
+    if (!validacao.success) {
+      return { sucesso: false, erro: validacao.error.issues[0]?.message ?? "Dados inválidos." };
+    }
+
+    await criarFrotaService(filialId, validacao.data);
 
     revalidatePath("/frotas");
     return { sucesso: true };
@@ -24,8 +30,14 @@ export async function criarFrota(dados: FrotaFormValues): Promise<RespostaAcao> 
 
 export async function editarFrota(id: number, dados: FrotaFormValues): Promise<RespostaAcao> {
   try {
-    await requireSession();
-    await editarFrotaService(id, dados);
+    const { filialId } = await requireSessionComFilial();
+
+    const validacao = frotaSchema.safeParse(dados);
+    if (!validacao.success) {
+      return { sucesso: false, erro: validacao.error.issues[0]?.message ?? "Dados inválidos." };
+    }
+
+    await editarFrotaService(filialId, id, validacao.data);
 
     revalidatePath("/frotas");
     return { sucesso: true };
@@ -36,8 +48,8 @@ export async function editarFrota(id: number, dados: FrotaFormValues): Promise<R
 
 export async function deletarFrota(id: number): Promise<RespostaAcao> {
   try {
-    await requireSession();
-    await deletarFrotaService(id);
+    const { filialId } = await requireSessionComFilial(["ADMIN"]);
+    await deletarFrotaService(filialId, id);
 
     revalidatePath("/frotas");
     return { sucesso: true };

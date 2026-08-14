@@ -39,7 +39,7 @@ export default function AtualizarSaidaReal({
         motivoAtraso: proximoMotivo || null,
       })
       if (!resposta.sucesso) {
-        setErro(resposta.erro ?? "Erro ao salvar.")
+        setErro(resposta.erro ?? "Não foi possível salvar a saída real.")
         return
       }
       router.refresh()

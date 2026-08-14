@@ -99,7 +99,7 @@ export default function FrotaForm({ defaultValues, onSubmit, submitLabel, submit
           <Button variant="outline" type="button" onClick={() => router.back()}>
             Cancelar
           </Button>
-          <Button type="submit" disabled={form.formState.isSubmitting} className="bg-blue-600 hover:bg-blue-700 w-40 shadow-sm">
+          <Button type="submit" disabled={form.formState.isSubmitting} className="w-40 shadow-sm">
             <Save className="w-4 h-4 mr-2" />
             {form.formState.isSubmitting ? submittingLabel : submitLabel}
           </Button>

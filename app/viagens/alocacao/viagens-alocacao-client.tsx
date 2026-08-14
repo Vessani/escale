@@ -6,7 +6,7 @@ import { useRouter } from "next/navigation"
 import type { EditarViagemInput } from "@/lib/types/types"
 import type { MotoristaCompativel, ViagemAlocacao } from "@/lib/types/alocacao"
 import { editarViagem } from "@/lib/actions/viagens"
-import { periodosConflitamComDescanso } from "@/lib/services/alocacao.service"
+import { useConflitosAlocacao } from "@/lib/hooks/use-conflitos-alocacao"
 import { Alert } from "@/components/ui/alert"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -93,47 +93,22 @@ export default function AlocacaoViagensClient({ viagens }: Props) {
 
   const totalPendentes = useMemo(() => viagens.length, [viagens.length])
 
-  // Motorista selecionado por viagem (explícito ou, na falta, a sugestão automática),
-  // usado só para detectar conflitos de agenda dentro do lote em revisão.
-  const selecaoEfetivaPorViagem = useMemo(() => {
-    const mapa: Record<number, string> = {}
-    for (const viagem of viagens) {
-      const sugestao = viagem.motoristaSugerido ? String(viagem.motoristaSugerido.id) : ""
-      mapa[viagem.id] = selecoes[viagem.id] || sugestao
-    }
-    return mapa
-  }, [viagens, selecoes])
-
-  // Viagens que têm o mesmo motorista selecionado sem 1 dia de descanso entre elas.
-  // Só avisa — não troca nada automaticamente, quem decide é o usuário.
-  const conflitosPorViagem = useMemo(() => {
-    const mapa: Record<number, string[]> = {}
-
-    for (const viagemA of viagens) {
-      const motoristaA = selecaoEfetivaPorViagem[viagemA.id]
-      if (!motoristaA) continue
-
-      const numerosConflitantes = viagens
-        .filter((viagemB) => {
-          if (viagemB.id === viagemA.id) return false
-          if (selecaoEfetivaPorViagem[viagemB.id] !== motoristaA) return false
-
-          return periodosConflitamComDescanso(
-            new Date(viagemA.inicioPrevisto),
-            new Date(viagemA.fimPrevisto),
-            new Date(viagemB.inicioPrevisto),
-            new Date(viagemB.fimPrevisto),
-          )
-        })
-        .map((viagemB) => viagemB.numViagem)
-
-      if (numerosConflitantes.length > 0) {
-        mapa[viagemA.id] = numerosConflitantes
-      }
-    }
-
-    return mapa
-  }, [viagens, selecaoEfetivaPorViagem])
+  const itensParaConflito = useMemo(
+    () =>
+      viagens.map((viagem) => ({
+        chave: String(viagem.id),
+        numViagem: viagem.numViagem,
+        motoristaSugeridoId: viagem.motoristaSugerido ? String(viagem.motoristaSugerido.id) : "",
+        inicioPrevisto: viagem.inicioPrevisto,
+        fimPrevisto: viagem.fimPrevisto,
+      })),
+    [viagens],
+  )
+  const selecoesPorChave = useMemo(
+    () => Object.fromEntries(Object.entries(selecoes).map(([id, motoristaId]) => [String(id), motoristaId])),
+    [selecoes],
+  )
+  const { conflitosPorViagem } = useConflitosAlocacao(itensParaConflito, selecoesPorChave)
 
   const atualizarSelecao = (viagemId: number, motoristaId: string) => {
     setSelecoes((atual) => ({
@@ -325,17 +300,17 @@ export default function AlocacaoViagensClient({ viagens }: Props) {
                     </Select>
                   </div>
 
-                  {conflitosPorViagem[viagem.id] && (
+                  {conflitosPorViagem[String(viagem.id)] && (
                     <Alert variant="warning">
                       Esse motorista também está selecionado na(s) viagem(ns){" "}
-                      {conflitosPorViagem[viagem.id].join(", ")}, sem 1 dia de descanso entre elas.
+                      {conflitosPorViagem[String(viagem.id)].join(", ")}, sem 11h de descanso entre elas.
                     </Alert>
                   )}
 
                   <div className="flex gap-2">
                     <Button
                       type="button"
-                      className="flex-1 bg-blue-600 hover:bg-blue-700"
+                      className="flex-1"
                       disabled={semCompatibilidade || salvandoId === viagem.id}
                       onClick={() => salvarAlocacao(viagem)}
                     >

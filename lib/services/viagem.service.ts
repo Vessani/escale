@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/prisma";
 import { NovaViagemInput, EditarViagemInput } from "@/lib/types/types";
 import { buscarMotoristasParaSelect } from "@/lib/queries/motoristas";
+import { buscarNomesClientesQueExigemIntegracao } from "@/lib/queries/clientes";
 import {
   calcularAvisoInterjornada,
   calcularIntegracaoExigida,
@@ -27,13 +28,15 @@ function calcularCanceladoEm(statusNovo: string, statusAntigo: string): Date | u
 
 /**
  * Sem @unique em numViagem no schema (ver comentário no model Viagem) — a
- * unicidade só vale entre viagens ativas, então o app precisa checar isso à
- * mão antes de gravar (mesmo padrão de criarFrotaService/editarFrotaService).
+ * unicidade só vale entre viagens ativas da mesma filial, então o app precisa
+ * checar isso à mão antes de gravar (mesmo padrão de
+ * criarFrotaService/editarFrotaService).
  */
-async function garantirNumViagemDisponivel(numViagem: string, idExcluido?: number) {
+async function garantirNumViagemDisponivel(filialId: number, numViagem: string, idExcluido?: number) {
   const existente = await prisma.viagem.findFirst({
     where: {
       numViagem,
+      filialId,
       deletadoEm: null,
       ...(idExcluido !== undefined ? { id: { not: idExcluido } } : {}),
     },
@@ -48,13 +51,13 @@ async function garantirNumViagemDisponivel(numViagem: string, idExcluido?: numbe
 type DadosViagemConvertidos = ReturnType<typeof converterNovaViagemParaBD>
 
 /** Busca o jornadaRelatorioFim do motorista e calcula o aviso — usado quando só se tem o id, não o objeto completo. */
-async function calcularAvisoInterjornadaPorId(motoristaId: number | null, inicioPrevisto: Date) {
+async function calcularAvisoInterjornadaPorId(filialId: number, motoristaId: number | null, inicioPrevisto: Date) {
   if (motoristaId === null) {
     return null
   }
 
   const motorista = await prisma.motorista.findUnique({
-    where: { id: motoristaId },
+    where: { id: motoristaId, filialId },
     select: { jornadaRelatorioFim: true },
   })
 
@@ -62,15 +65,17 @@ async function calcularAvisoInterjornadaPorId(motoristaId: number | null, inicio
 }
 
 async function inserirViagem(
+  filialId: number,
   dados: DadosViagemConvertidos,
   integracaoNecessaria: string | null,
   motoristaId: number | null,
   status: NovaViagemInput["status"],
   avisoInterjornada: string | null,
 ) {
-  await garantirNumViagemDisponivel(dados.numViagem)
+  await garantirNumViagemDisponivel(filialId, dados.numViagem)
 
   const avisoFrotaIndisponivel = await calcularAvisoFrotaIndisponivel(
+    filialId,
     dados.cavalo,
     dados.carreta,
     dados.inicioPrevisto as Date,
@@ -92,6 +97,7 @@ async function inserirViagem(
         motoristaId,
         avisoInterjornada,
         avisoFrotaIndisponivel,
+        filialId,
         entregas: {
           create: dados.entregas.map((entrega) => ({
             dataEntrega: entrega.dataEntrega as Date,
@@ -112,20 +118,21 @@ async function inserirViagem(
       },
     })
 
-    await registrarOuAtualizarDisponibilidadeFrota(tx, dados.cavalo, dados.carreta, dados.fimPrevisto as Date)
+    await registrarOuAtualizarDisponibilidadeFrota(tx, filialId, dados.cavalo, dados.carreta, dados.fimPrevisto as Date)
     await reconciliarFolgaMotoristasNoDiaAtual(tx, [viagemCriada.motoristaId])
 
     return viagemCriada
   })
 }
 
-export async function criarViagemAvulsaService(dadosRecebidos: NovaViagemInput) {
+export async function criarViagemAvulsaService(filialId: number, dadosRecebidos: NovaViagemInput) {
   const dados = converterNovaViagemParaBD(dadosRecebidos);
-  const integracaoNecessaria = calcularIntegracaoExigida(dados.entregas);
+  const clientesQueExigemIntegracao = await buscarNomesClientesQueExigemIntegracao();
+  const integracaoNecessaria = calcularIntegracaoExigida(dados.entregas, clientesQueExigemIntegracao);
   const inicioPrevisto = dados.inicioPrevisto as Date;
   const fimPrevisto = dados.fimPrevisto as Date;
 
-  const motoristasBrutos = await buscarMotoristasParaSelect();
+  const motoristasBrutos = await buscarMotoristasParaSelect(filialId);
   const motoristas = motoristasBrutos.map((motorista) => ({
     ...motorista,
     registrosJornada: mapearRegistrosJornada(motorista.registrosJornada),
@@ -144,7 +151,7 @@ export async function criarViagemAvulsaService(dadosRecebidos: NovaViagemInput) 
     ? calcularAvisoInterjornada(motoristaSugeridoDisponivel.jornadaRelatorioFim, inicioPrevisto)
     : null;
 
-  return inserirViagem(dados, integracaoNecessaria, motoristaEscolhidoId, dados.status, avisoInterjornada);
+  return inserirViagem(filialId, dados, integracaoNecessaria, motoristaEscolhidoId, dados.status, avisoInterjornada);
 }
 
 /**
@@ -153,24 +160,26 @@ export async function criarViagemAvulsaService(dadosRecebidos: NovaViagemInput) 
  * lote, depois que o usuário já revisou e confirmou a alocação sugerida para
  * cada viagem do arquivo.
  */
-export async function criarViagemComAlocacaoService(dadosRecebidos: NovaViagemInput, motoristaId: number | null) {
+export async function criarViagemComAlocacaoService(filialId: number, dadosRecebidos: NovaViagemInput, motoristaId: number | null) {
   const dados = converterNovaViagemParaBD(dadosRecebidos);
-  const integracaoNecessaria = calcularIntegracaoExigida(dados.entregas);
-  const avisoInterjornada = await calcularAvisoInterjornadaPorId(motoristaId, dados.inicioPrevisto as Date);
+  const clientesQueExigemIntegracao = await buscarNomesClientesQueExigemIntegracao();
+  const integracaoNecessaria = calcularIntegracaoExigida(dados.entregas, clientesQueExigemIntegracao);
+  const avisoInterjornada = await calcularAvisoInterjornadaPorId(filialId, motoristaId, dados.inicioPrevisto as Date);
 
-  return inserirViagem(dados, integracaoNecessaria, motoristaId, dados.status, avisoInterjornada);
+  return inserirViagem(filialId, dados, integracaoNecessaria, motoristaId, dados.status, avisoInterjornada);
 }
 
 
-export async function editarViagemService(idViagem: number, dadosRecebidos: EditarViagemInput) {
+export async function editarViagemService(filialId: number, idViagem: number, dadosRecebidos: EditarViagemInput) {
   const dados = converterEditarViagemParaBD(dadosRecebidos);
-  const integracaoNecessaria = calcularIntegracaoExigida(dados.entregas);
+  const clientesQueExigemIntegracao = await buscarNomesClientesQueExigemIntegracao();
+  const integracaoNecessaria = calcularIntegracaoExigida(dados.entregas, clientesQueExigemIntegracao);
 
   const entregasExistentes = dados.entregas.filter(e => e.id);
   const entregasNovas = dados.entregas.filter(e => !e.id);
   const manterEntregas = entregasExistentes.map(e => e.id as number);
   const viagemAtual = await prisma.viagem.findUnique({
-    where: { id: idViagem },
+    where: { id: idViagem, filialId },
     select: { status: true, motoristaId: true, motoristaAcompanhanteId: true },
   })
 
@@ -178,7 +187,7 @@ export async function editarViagemService(idViagem: number, dadosRecebidos: Edit
     throw new Error("Viagem não encontrada.")
   }
 
-  await garantirNumViagemDisponivel(dados.numViagem, idViagem)
+  await garantirNumViagemDisponivel(filialId, dados.numViagem, idViagem)
 
   const statusDerivado =
     dados.motoristaId !== undefined
@@ -191,8 +200,9 @@ export async function editarViagemService(idViagem: number, dadosRecebidos: Edit
       : viagemAtual.status)
 
   const motoristaIdFinal = dados.motoristaId !== undefined ? dados.motoristaId : viagemAtual.motoristaId
-  const avisoInterjornada = await calcularAvisoInterjornadaPorId(motoristaIdFinal, dados.inicioPrevisto as Date)
+  const avisoInterjornada = await calcularAvisoInterjornadaPorId(filialId, motoristaIdFinal, dados.inicioPrevisto as Date)
   const avisoFrotaIndisponivel = await calcularAvisoFrotaIndisponivel(
+    filialId,
     dados.cavalo,
     dados.carreta,
     dados.inicioPrevisto as Date,
@@ -200,7 +210,7 @@ export async function editarViagemService(idViagem: number, dadosRecebidos: Edit
 
   return await prisma.$transaction(async (tx) => {
     const viagemAtualizada = await tx.viagem.update({
-      where: { id: idViagem },
+      where: { id: idViagem, filialId },
       data: {
         numViagem: dados.numViagem,
         carreta: dados.carreta,
@@ -250,7 +260,7 @@ export async function editarViagemService(idViagem: number, dadosRecebidos: Edit
       }
     })
 
-    await registrarOuAtualizarDisponibilidadeFrota(tx, dados.cavalo, dados.carreta, dados.fimPrevisto as Date)
+    await registrarOuAtualizarDisponibilidadeFrota(tx, filialId, dados.cavalo, dados.carreta, dados.fimPrevisto as Date)
     await reconciliarFolgaMotoristasNoDiaAtual(tx, [
       viagemAtual.motoristaId,
       viagemAtualizada.motoristaId,
@@ -261,10 +271,10 @@ export async function editarViagemService(idViagem: number, dadosRecebidos: Edit
   })
 }
 
-export async function deletarViagemService(id: number) {
+export async function deletarViagemService(filialId: number, id: number) {
   return await prisma.$transaction(async (tx) => {
     const viagemDeletada = await tx.viagem.update({
-      where: { id: id },
+      where: { id: id, filialId },
       data: {
         deletadoEm: new Date(),
       }
@@ -279,6 +289,7 @@ export async function deletarViagemService(id: number) {
 export type NovaDataViagem = { inicioPrevisto: Date; fimPrevisto: Date }
 
 export async function atualizarStatusViagemService(
+  filialId: number,
   idViagem: number,
   status: EditarViagemInput["status"],
   novaData?: NovaDataViagem,
@@ -289,7 +300,7 @@ export async function atualizarStatusViagemService(
 
   return await prisma.$transaction(async (tx) => {
     const viagemAtual = await tx.viagem.findUnique({
-      where: { id: idViagem },
+      where: { id: idViagem, filialId },
       select: { status: true },
     })
 
@@ -298,7 +309,7 @@ export async function atualizarStatusViagemService(
     }
 
     const viagemAtualizada = await tx.viagem.update({
-      where: { id: idViagem },
+      where: { id: idViagem, filialId },
       data: {
         status,
         canceladoEm: calcularCanceladoEm(status, viagemAtual.status),
@@ -322,11 +333,12 @@ export async function atualizarStatusViagemService(
  * tela de edição completa.
  */
 export async function atualizarAlocacaoViagemService(
+  filialId: number,
   idViagem: number,
   dados: { motoristaId: number | null; motoristaAcompanhanteId: number | null },
 ) {
   const viagemAtual = await prisma.viagem.findUnique({
-    where: { id: idViagem },
+    where: { id: idViagem, filialId },
     select: { status: true, motoristaId: true, motoristaAcompanhanteId: true, inicioPrevisto: true },
   })
 
@@ -337,11 +349,11 @@ export async function atualizarAlocacaoViagemService(
   const statusFinal = statusPermiteAutoAjuste(viagemAtual.status)
     ? resolverStatusPorAlocacao(dados.motoristaId)
     : viagemAtual.status
-  const avisoInterjornada = await calcularAvisoInterjornadaPorId(dados.motoristaId, viagemAtual.inicioPrevisto)
+  const avisoInterjornada = await calcularAvisoInterjornadaPorId(filialId, dados.motoristaId, viagemAtual.inicioPrevisto)
 
   return await prisma.$transaction(async (tx) => {
     const viagemAtualizada = await tx.viagem.update({
-      where: { id: idViagem },
+      where: { id: idViagem, filialId },
       data: {
         motoristaId: dados.motoristaId,
         motoristaAcompanhanteId: dados.motoristaAcompanhanteId,
@@ -363,12 +375,13 @@ export async function atualizarAlocacaoViagemService(
 
 /** Registro operacional feito pelo dashboard: horário real de saída e motivo do atraso, se houver. */
 export async function atualizarSaidaRealService(
+  filialId: number,
   idViagem: number,
   horarioRealSaida: Date | null,
   motivoAtraso: string | null,
 ) {
   return await prisma.viagem.update({
-    where: { id: idViagem },
+    where: { id: idViagem, filialId },
     data: { horarioRealSaida, motivoAtraso },
   })
 }

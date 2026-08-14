@@ -107,11 +107,25 @@ export function formatarDataExcel(data: string | Date, hora?: string): string {
     // Remove espaços e pontos finais (SAP às vezes adiciona "04.07." ao invés de "04.07")
     const dataNormalizada = data.trim().replace(/\.$/, '')
     
-    // Formato DD.MM (ou DD.MM. do SAP)
+    // Formato DD.MM (ou DD.MM. do SAP) — a planilha não traz o ano, então
+    // assumimos o ano corrente. Se o resultado cair muito no futuro (ex:
+    // "30.12" importado em janeiro), a data quase certamente é do ano
+    // anterior — planilhas de operação não chegam com meses de antecedência.
     if (dataNormalizada.match(/^\d{2}\.\d{2}$/)) {
       const [dia, mes] = dataNormalizada.split('.')
-      const ano = new Date().getFullYear()
-      date = new Date(`${ano}-${mes}-${dia}T${hora || '00:00'}`)
+      let ano = new Date().getFullYear()
+      let candidata = new Date(`${ano}-${mes}-${dia}T${hora || '00:00'}`)
+
+      const LIMITE_DIAS_FUTURO = 60
+      const limiteFuturo = new Date()
+      limiteFuturo.setDate(limiteFuturo.getDate() + LIMITE_DIAS_FUTURO)
+
+      if (!isNaN(candidata.getTime()) && candidata > limiteFuturo) {
+        ano -= 1
+        candidata = new Date(`${ano}-${mes}-${dia}T${hora || '00:00'}`)
+      }
+
+      date = candidata
     }
     // Formato DD.MM.YYYY
     else if (dataNormalizada.match(/^\d{2}\.\d{2}\.\d{4}$/)) {

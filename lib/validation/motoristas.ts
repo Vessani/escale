@@ -5,7 +5,7 @@ const statusIntegracaoSchema = z.enum(["ATIVO", "INATIVO", "PENDENTE"])
 
 export const motoristaBaseSchema = z.object({
   nome: z.string().min(2, "O nome deve ter pelo menos 2 caracteres"),
-  seva: z.coerce.number().int().min(1, "O numero SEVA deve ser maior que 0"),
+  seva: z.coerce.number().int().min(1, "O número SEVA deve ser maior que 0"),
   diasTrabalhados: z
     .coerce
     .number()
@@ -18,8 +18,8 @@ export const motoristaBaseSchema = z.object({
 
 export const integracaoMotoristaSchema = z.object({
   id: z.number().optional(),
-  cliente: z.string().min(2, "Cliente obrigatorio"),
-  dataValidade: z.string().min(1, "Data de validade obrigatoria"),
+  cliente: z.string().min(2, "Cliente obrigatório"),
+  dataValidade: z.string().min(1, "Data de validade obrigatória"),
   status: statusIntegracaoSchema,
 })
 
@@ -28,3 +28,15 @@ export const motoristaComIntegracoesSchema = motoristaBaseSchema.extend({
 })
 
 export type MotoristaComIntegracoesFormValues = z.infer<typeof motoristaComIntegracoesSchema>
+
+// --- Schema de revalidação no servidor ---
+// Mesmas regras acima, mas dataValidade também aceita Date: os dois pontos de
+// chamada (app/motorista/novo e .../editar) convertem a string do formulário
+// pra Date antes de chamar a Server Action.
+export const motoristaComIntegracoesServerSchema = motoristaBaseSchema.extend({
+  integracao: z.array(
+    integracaoMotoristaSchema.extend({
+      dataValidade: z.union([z.string().min(1, "Data de validade obrigatória"), z.date()]),
+    }),
+  ),
+})

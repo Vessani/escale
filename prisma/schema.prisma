@@ -28,24 +28,61 @@
     NOITE
   }
 
+  // Cadastro global de clientes (compartilhado entre filiais — um cliente
+  // como AMBEV pode ser atendido por mais de uma). exigeIntegracao substitui
+  // a lista fixa que existia no código (CLIENTES_COM_INTEGRACAO_OBRIGATORIA em
+  // alocacao.service.ts): quando true, uma entrega pra esse cliente exige que
+  // o motorista tenha uma Integracao ativa e válida com o mesmo nome. Sem FK
+  // pra Entrega.cliente/Integracao.cliente de propósito — ambos continuam
+  // VarChar livres pra não quebrar histórico com nomes que não batem exatos;
+  // este cadastro só passa a ser a fonte de verdade nos formulários novos.
+  model Cliente {
+    id              Int       @id @default(autoincrement())
+    nome            String    @db.VarChar(100)
+    exigeIntegracao Boolean   @default(false)
+
+    criadoEm        DateTime  @default(now())
+    atualizadoEm    DateTime  @updatedAt
+    deletadoEm      DateTime?
+
+    @@index([nome])
+  }
+
+  // Cada filial opera de forma isolada: motoristas, viagens, frotas e o
+  // quadro de observações são todos escopados por filialId, sem visão
+  // cruzada entre filiais (nem para ADMIN — só SUPERADMIN, que não pertence
+  // a nenhuma, gerencia o cadastro de filiais/usuários).
+  model Filial {
+    id       Int      @id @default(autoincrement())
+    nome     String   @db.VarChar(100)
+    criadoEm DateTime @default(now())
+
+    usuarios         Usuario[]
+    motoristas       Motorista[]
+    viagens          Viagem[]
+    frotas           Frota[]
+    quadroObservacao QuadroObservacao?
+  }
+
   model Viagem {
     id                Int          @id @default(autoincrement())
     // Sem @unique aqui de propósito: a unicidade real só vale entre viagens
-    // ativas (deletadoEm IS NULL) e é aplicada por um índice único parcial
-    // escrito à mão na migration — do contrário, um número reaproveitado
-    // depois de deletar a viagem original ficaria bloqueado para sempre.
+    // ativas (deletadoEm IS NULL) da mesma filial, e é aplicada por um índice
+    // único parcial escrito à mão na migration — do contrário, um número
+    // reaproveitado depois de deletar a viagem original ficaria bloqueado
+    // para sempre (ou colidiria entre filiais diferentes).
     numViagem         String       @db.VarChar(12)
-    
+
     carreta           String       @db.VarChar(7)
     cavalo            String       @db.VarChar(7)
     tanque            String       @db.VarChar(10)
-    
-    
+
+
     inicioPrevisto    DateTime     @db.Timestamp(6)
     fimPrevisto       DateTime     @db.Timestamp(6)
     turno             Turno
     diasViagem        Int
-    
+
 
     integracaoExigida String?      @db.VarChar(50)
     status            StatusViagem @default(CRIADA)
@@ -66,6 +103,9 @@
     motoristaAcompanhanteId Int?
     motoristaAcompanhante   Motorista? @relation("MotoristaAcompanhante", fields: [motoristaAcompanhanteId], references: [id])
 
+    filialId          Int
+    filial            Filial       @relation(fields: [filialId], references: [id])
+
     criadoEm          DateTime     @default(now())
     atualizadoEm      DateTime     @updatedAt
     deletadoEm        DateTime?    // Para o Soft Delete
@@ -79,15 +119,19 @@
     @@index([cavalo])
     @@index([carreta])
     @@index([numViagem])
+    @@index([filialId])
   }
 
   // Bloco único de recados gerais da operação (ex: "frota 2024 com problema no
   // freio"), editado por qualquer despachante direto no rodapé do Dashboard.
-  // Sempre um registro só (id fixo em 1, upsert).
+  // Um registro por filial (upsert por filialId).
   model QuadroObservacao {
     id           Int      @id @default(autoincrement())
     texto        String   @db.Text
     atualizadoEm DateTime @updatedAt
+
+    filialId     Int      @unique
+    filial       Filial   @relation(fields: [filialId], references: [id])
   }
 
   // Cadastro de conjuntos (cavalo + carreta — pra truck, os dois com o mesmo
@@ -102,20 +146,25 @@
     carreta      String    @db.VarChar(7)
     disponivelEm DateTime? @db.Timestamp(6)
 
+    filialId     Int
+    filial       Filial    @relation(fields: [filialId], references: [id])
+
     criadoEm     DateTime  @default(now())
     atualizadoEm DateTime  @updatedAt
     deletadoEm   DateTime?
 
     // Sem @@unique aqui de propósito: a unicidade real só vale entre
-    // conjuntos ativos (deletadoEm IS NULL) e é aplicada por um índice único
-    // parcial escrito à mão na migration — do contrário, cavalo/carreta
-    // reaproveitados depois de deletar o conjunto original ficariam
-    // bloqueados para sempre. Por isso mesmo, nenhum código deve usar
-    // findUnique/upsert pela dupla cavalo+carreta (não existe mais um
-    // WhereUniqueInput pra isso) — sempre findFirst filtrando deletadoEm: null.
+    // conjuntos ativos (deletadoEm IS NULL) da mesma filial, e é aplicada por
+    // um índice único parcial escrito à mão na migration — do contrário,
+    // cavalo/carreta reaproveitados depois de deletar o conjunto original
+    // ficariam bloqueados para sempre (ou colidiriam entre filiais). Por isso
+    // mesmo, nenhum código deve usar findUnique/upsert pela dupla
+    // cavalo+carreta (não existe mais um WhereUniqueInput pra isso) — sempre
+    // findFirst filtrando deletadoEm: null e filialId.
     @@index([cavalo, carreta])
     @@index([cavalo])
     @@index([carreta])
+    @@index([filialId])
   }
 
   model Entrega {
@@ -160,6 +209,9 @@
     jornadaRelatorioFim    DateTime? @db.Timestamp(6)
     jornadaRelatorioDia    DateTime? @db.Date
 
+    filialId        Int
+    filial          Filial       @relation(fields: [filialId], references: [id])
+
     criadoEm        DateTime     @default(now())
     atualizadoEm    DateTime     @updatedAt
     deletadoEm      DateTime?
@@ -170,6 +222,7 @@
     registrosJornada RegistroJornada[]
 
     @@index([seva])
+    @@index([filialId])
   }
 
   // Histórico de jornada por dia. diasTrabalhados no Motorista continua sendo
@@ -208,11 +261,17 @@
     id            String    @id @default(cuid())
     nome          String?
     email         String?   @unique
-    senha         String?   
-    role          String    @default("DESPACHANTE") // Ex: ADMIN, DESPACHANTE
+    senha         String?
+    // Ex: SUPERADMIN (sem filial — gerencia filiais/usuários), ADMIN, DESPACHANTE
+    role          String    @default("DESPACHANTE")
     emailVerified DateTime?
     image         String?
-    
+
+    // Nulo só pra SUPERADMIN — ADMIN/DESPACHANTE sempre têm filial (regra
+    // aplicada na action de criar usuário, não dá pra expressar isso no schema).
+    filialId      Int?
+    filial        Filial?   @relation(fields: [filialId], references: [id])
+
     accounts      Account[]
     sessions      Session[]
   }

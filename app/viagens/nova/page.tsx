@@ -207,10 +207,10 @@ export default function NovaViagemPage() {
 
                 <EntregasFieldArray control={form.control} mostrarCamposComplementares />
 
-                <div className="fixed bottom-0 left-0 right-0 md:left-64 p-4 bg-white border-t border-slate-200 flex justify-end shadow-[0_-4px_6px_-1px_rgb(0,0,0,0.05)]">
-                  <Button type="submit" disabled={form.formState.isSubmitting} className="bg-blue-600 hover:bg-blue-700 w-48 shadow-md">
+                <div className="sticky bottom-0 -mx-4 -mb-4 mt-6 p-4 bg-white border-t border-slate-200 flex justify-end shadow-[0_-4px_6px_-1px_rgb(0,0,0,0.05)] md:-mx-8 md:-mb-8">
+                  <Button type="submit" disabled={form.formState.isSubmitting} className="w-48 shadow-md">
                     <Save className="w-4 h-4 mr-2" />
-                    {form.formState.isSubmitting ? "A processar..." : "Finalizar Viagem"}
+                    {form.formState.isSubmitting ? "Processando..." : "Finalizar Viagem"}
                   </Button>
                 </div>
               </form>

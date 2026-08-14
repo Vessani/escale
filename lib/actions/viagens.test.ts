@@ -26,6 +26,10 @@ vi.mock("@/lib/queries/motoristas", () => ({
   buscarMotoristasParaSelect: vi.fn(),
 }))
 
+vi.mock("@/lib/queries/clientes", () => ({
+  buscarNomesClientesQueExigemIntegracao: vi.fn(),
+}))
+
 import * as viagemService from "@/lib/services/viagem.service"
 import * as motoristasQueries from "@/lib/queries/motoristas"
 import {
@@ -37,6 +41,30 @@ import {
   atualizarStatusViagem,
   atualizarSaidaReal,
 } from "@/lib/actions/viagens"
+
+const viagemValida = {
+  numViagem: "123",
+  carreta: "ABC123",
+  cavalo: "XYZ456",
+  tanque: "TANQUE1",
+  diasViagem: 1,
+  inicioPrevisto: "2026-08-12T08:00",
+  fimPrevisto: "2026-08-13T08:00",
+  turno: "MANHA",
+  entregas: [
+    {
+      dataEntrega: "2026-08-12T08:00",
+      cliente: "Cliente Teste",
+      cidade: "Cidade Teste",
+      uf: "SC",
+      kg: 10,
+      m3: 1,
+      obs: "Observação teste",
+      sapcode: "",
+      codewhite: "",
+    },
+  ],
+}
 
 describe("lib/actions/viagens — controle de acesso", () => {
   beforeEach(() => {
@@ -100,25 +128,79 @@ describe("lib/actions/viagens — controle de acesso", () => {
 
   describe("com sessão", () => {
     beforeEach(() => {
-      vi.mocked(getServerSession).mockResolvedValue({ user: { id: "1" } } as never)
+      vi.mocked(getServerSession).mockResolvedValue({ user: { id: "1", role: "DESPACHANTE" } } as never)
     })
 
     it("criarViagemAvulsa segue em frente e chama o service", async () => {
       vi.mocked(viagemService.criarViagemAvulsaService).mockResolvedValue({} as never)
 
-      const resposta = await criarViagemAvulsa({} as never)
+      const resposta = await criarViagemAvulsa(viagemValida as never)
 
       expect(resposta).toEqual({ sucesso: true })
       expect(viagemService.criarViagemAvulsaService).toHaveBeenCalledTimes(1)
     })
 
+    it("criarViagemAvulsa recusa dados inválidos e não chama o service", async () => {
+      const resposta = await criarViagemAvulsa({} as never)
+
+      expect(resposta.sucesso).toBe(false)
+      expect(viagemService.criarViagemAvulsaService).not.toHaveBeenCalled()
+    })
+
+    it("criarViagemAvulsa recusa data de fim antes do início", async () => {
+      const resposta = await criarViagemAvulsa({
+        ...viagemValida,
+        inicioPrevisto: "2026-08-13T08:00",
+        fimPrevisto: "2026-08-12T08:00",
+      } as never)
+
+      expect(resposta).toEqual({ sucesso: false, erro: "A data de término não pode ser antes da data de início." })
+      expect(viagemService.criarViagemAvulsaService).not.toHaveBeenCalled()
+    })
+
     it("editarViagem segue em frente e chama o service", async () => {
       vi.mocked(viagemService.editarViagemService).mockResolvedValue({} as never)
 
-      const resposta = await editarViagem(1, {} as never)
+      const resposta = await editarViagem(1, viagemValida as never)
 
       expect(resposta).toEqual({ sucesso: true })
       expect(viagemService.editarViagemService).toHaveBeenCalledTimes(1)
+    })
+
+    it("editarViagem aceita datas como Date (fluxo de alocação/edição converte antes de chamar)", async () => {
+      vi.mocked(viagemService.editarViagemService).mockResolvedValue({} as never)
+
+      const resposta = await editarViagem(1, {
+        ...viagemValida,
+        inicioPrevisto: new Date("2026-08-12T08:00:00"),
+        fimPrevisto: new Date("2026-08-13T08:00:00"),
+        entregas: [{ ...viagemValida.entregas[0], dataEntrega: new Date("2026-08-12T08:00:00") }],
+      } as never)
+
+      expect(resposta).toEqual({ sucesso: true })
+      expect(viagemService.editarViagemService).toHaveBeenCalledTimes(1)
+    })
+
+    it("deletarViagem recusa para usuário DESPACHANTE e não chama o service", async () => {
+      const resposta = await deletarViagem(1)
+
+      expect(resposta).toEqual({ sucesso: false, erro: "Não autorizado." })
+      expect(viagemService.deletarViagemService).not.toHaveBeenCalled()
+    })
+  })
+
+  describe("com sessão de ADMIN", () => {
+    beforeEach(() => {
+      vi.mocked(getServerSession).mockResolvedValue({ user: { id: "1", role: "ADMIN" } } as never)
+    })
+
+    it("deletarViagem segue em frente e chama o service", async () => {
+      vi.mocked(viagemService.deletarViagemService).mockResolvedValue({} as never)
+
+      const resposta = await deletarViagem(1)
+
+      expect(resposta).toEqual({ sucesso: true })
+      expect(viagemService.deletarViagemService).toHaveBeenCalledTimes(1)
     })
   })
 })

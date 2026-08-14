@@ -3,7 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { NovoMotoristaInput, EditarMotoristaInput } from "@/lib/types/types";
 import { dataParaColunaDate, inicioDoDia } from "@/lib/utils/date-format";
 
-export async function criarMotoristaService(dados: NovoMotoristaInput) {
+export async function criarMotoristaService(filialId: number, dados: NovoMotoristaInput) {
   const hoje = inicioDoDia(new Date());
 
   return await prisma.$transaction(async (tx) => {
@@ -14,6 +14,7 @@ export async function criarMotoristaService(dados: NovoMotoristaInput) {
         diasTrabalhados: dados.diasTrabalhados,
         turno: dados.turno,
         liberado: dados.liberado,
+        filialId,
         integracao: {
           create: dados.integracao.map((integ) => ({
             dataValidade: new Date(integ.dataValidade),
@@ -34,13 +35,13 @@ export async function criarMotoristaService(dados: NovoMotoristaInput) {
   });
 }
 
-export async function editarMotoristaService(idMotorista: number, dados: EditarMotoristaInput) {
+export async function editarMotoristaService(filialId: number, idMotorista: number, dados: EditarMotoristaInput) {
   const integracaoExistentes = dados.integracao.filter(i => i.id);
   const integracaoNovas = dados.integracao.filter(i => !i.id);
   const manterIntegracao = integracaoExistentes.map(i => i.id as number);
 
   const motoristaAtualizado = await prisma.motorista.update({
-    where: { id: idMotorista },
+    where: { id: idMotorista, filialId },
     data: {
       nome: dados.nome,
       seva: dados.seva,
@@ -70,14 +71,14 @@ export async function editarMotoristaService(idMotorista: number, dados: EditarM
 
   // O campo "Dias Trabalhados" no formulário representa a jornada de hoje —
   // mantém isso registrado no histórico também (ver registrarJornadaNoDiaService).
-  await registrarJornadaNoDiaService(idMotorista, inicioDoDia(new Date()), dados.diasTrabalhados);
+  await registrarJornadaNoDiaService(filialId, idMotorista, inicioDoDia(new Date()), dados.diasTrabalhados);
 
   return motoristaAtualizado;
 }
 
-export async function deletarMotoristaService(id: number) {
+export async function deletarMotoristaService(filialId: number, id: number) {
   return await prisma.motorista.update({
-    where: { id: id },
+    where: { id: id, filialId },
     data: {
       deletadoEm: new Date(),
     }
@@ -121,6 +122,16 @@ export async function registrarJornadaNoDia(
   return registro;
 }
 
-export async function registrarJornadaNoDiaService(idMotorista: number, data: Date, codigo: number) {
-  return await prisma.$transaction((tx) => registrarJornadaNoDia(tx, idMotorista, data, codigo));
+/**
+ * Ponto de entrada usado pela action de calendário (edição direta de um dia
+ * específico) — diferente de registrarJornadaNoDia (chamada interna, já
+ * confia no id porque veio de uma operação já escopada por filial), aqui o
+ * id do motorista vem direto do cliente, então confirma antes que ele
+ * pertence à filial de quem está editando.
+ */
+export async function registrarJornadaNoDiaService(filialId: number, idMotorista: number, data: Date, codigo: number) {
+  return await prisma.$transaction(async (tx) => {
+    await tx.motorista.findUniqueOrThrow({ where: { id: idMotorista, filialId }, select: { id: true } })
+    return registrarJornadaNoDia(tx, idMotorista, data, codigo)
+  });
 }

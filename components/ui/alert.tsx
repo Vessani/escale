@@ -39,7 +39,7 @@ function Alert({ className, variant = "info", inline = false, children, ...props
   return (
     <div
       data-slot="alert"
-      role="status"
+      role={variant === "error" ? "alert" : "status"}
       className={cn(
         "flex items-start gap-1.5 text-xs",
         ALERT_COLOR_CLASSES[variant],
