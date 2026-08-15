@@ -14,7 +14,7 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { classeBadgeTurno } from "@/app/viagens/badge-styles"
 import { formatarDataHoraPtBr } from "@/lib/utils/date-format"
-import { formatarOpcaoMotoristaCompativel } from "@/lib/utils/motorista-format"
+import { formatarDetalheMotoristaCompativel, formatarOpcaoMotoristaCompativel } from "@/lib/utils/motorista-format"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { CheckCircle2, UserCheck } from "lucide-react"
 
@@ -133,8 +133,8 @@ export default function ConfirmarLoteViagens({ viagens, onConcluido, onCancelar 
           const sugestao = viagem.motoristaSugerido ? String(viagem.motoristaSugerido.id) : ""
           const motoristaSelecionado = selecoes[numViagem] || sugestao
           const semCompatibilidade = viagem.motoristasCompativeis.length === 0
-          // Fechado, o campo mostra só o nome — os detalhes completos (dias
-          // disponíveis, horário) ficam pra quando a lista abre.
+          // Fechado, o campo mostra dias disponíveis + horário livre, sem repetir
+          // o nome (esse já tá na carta de sugestão ao lado).
           const motoristaAtual = viagem.motoristasCompativeis.find((m) => String(m.id) === motoristaSelecionado)
 
           return (
@@ -194,7 +194,9 @@ export default function ConfirmarLoteViagens({ viagens, onConcluido, onCancelar 
                     <p className="text-sm font-medium text-slate-900">Motorista</p>
                     <Select value={motoristaSelecionado} onValueChange={(value) => atualizarSelecao(numViagem, value)}>
                       <SelectTrigger className="bg-white">
-                        <SelectValue placeholder="Selecione um motorista (ou deixe sem alocar)">{motoristaAtual?.nome}</SelectValue>
+                        <SelectValue placeholder="Selecione um motorista (ou deixe sem alocar)">
+                          {motoristaAtual && formatarDetalheMotoristaCompativel(motoristaAtual)}
+                        </SelectValue>
                       </SelectTrigger>
                       <SelectContent>
                         {viagem.motoristasCompativeis.length === 0 ? (

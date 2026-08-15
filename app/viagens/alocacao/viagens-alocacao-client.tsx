@@ -13,7 +13,7 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { classeBadgeTurno } from "../badge-styles"
 import { formatarDataHoraPtBr } from "@/lib/utils/date-format"
-import { formatarOpcaoMotoristaCompativel } from "@/lib/utils/motorista-format"
+import { formatarDetalheMotoristaCompativel, formatarOpcaoMotoristaCompativel } from "@/lib/utils/motorista-format"
 import {
   Select,
   SelectContent,
@@ -206,9 +206,8 @@ export default function AlocacaoViagensClient({ viagens }: Props) {
           const sugestao = viagem.motoristaSugerido ? String(viagem.motoristaSugerido.id) : ""
           const motoristaSelecionado = selecoes[viagem.id] || sugestao
           const semCompatibilidade = viagem.motoristasCompativeis.length === 0
-          // Fechado, o campo mostra só o nome (o resto já tá na carta de sugestão
-          // ao lado) — os detalhes completos (dias disponíveis, horário) ficam
-          // pra quando a lista abre e dá pra comparar as opções.
+          // Fechado, o campo mostra dias disponíveis + horário livre, sem repetir
+          // o nome (esse já tá na carta de sugestão ao lado).
           const motoristaAtual = viagem.motoristasCompativeis.find((m) => String(m.id) === motoristaSelecionado)
 
           return (
@@ -286,7 +285,9 @@ export default function AlocacaoViagensClient({ viagens }: Props) {
                       onValueChange={(value) => atualizarSelecao(viagem.id, value)}
                     >
                       <SelectTrigger className="bg-white">
-                        <SelectValue placeholder="Selecione um motorista">{motoristaAtual?.nome}</SelectValue>
+                        <SelectValue placeholder="Selecione um motorista">
+                          {motoristaAtual && formatarDetalheMotoristaCompativel(motoristaAtual)}
+                        </SelectValue>
                       </SelectTrigger>
                       <SelectContent>
                         {viagem.motoristasCompativeis.length === 0 ? (

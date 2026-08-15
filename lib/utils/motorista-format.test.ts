@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest"
-import { formatarOpcaoMotoristaCompativel, rotularMotoristaParaSelect } from "./motorista-format"
+import { formatarDetalheMotoristaCompativel, formatarOpcaoMotoristaCompativel, rotularMotoristaParaSelect } from "./motorista-format"
 import type { MotoristaCompativel } from "@/lib/types/alocacao"
 
 function criarMotorista(parcial: Partial<MotoristaCompativel> = {}): MotoristaCompativel {
@@ -39,6 +39,23 @@ describe("formatarOpcaoMotoristaCompativel", () => {
     const texto = formatarOpcaoMotoristaCompativel(motorista)
 
     expect(texto).toBe("JOSE ROCHA · 1 dia disponível")
+  })
+})
+
+describe("formatarDetalheMotoristaCompativel", () => {
+  it("mostra dias disponíveis e livre a partir, sem o nome — pra usar onde o nome já apareceu em outro lugar", () => {
+    const motorista = criarMotorista({ diasDisponiveis: 1, proximoInicioDisponivel: "03:32" })
+
+    const texto = formatarDetalheMotoristaCompativel(motorista)
+
+    expect(texto).toBe("1 dia disponível · livre a partir de 03:32")
+    expect(texto).not.toContain("JOSE ROCHA")
+  })
+
+  it("é exatamente o que sobra de formatarOpcaoMotoristaCompativel ao tirar o nome", () => {
+    const motorista = criarMotorista({ diasDisponiveis: 3, proximoInicioDisponivel: "14:00" })
+
+    expect(formatarOpcaoMotoristaCompativel(motorista)).toBe(`${motorista.nome} · ${formatarDetalheMotoristaCompativel(motorista)}`)
   })
 })
 
