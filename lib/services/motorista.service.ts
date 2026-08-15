@@ -91,6 +91,12 @@ export async function deletarMotoristaService(filialId: number, id: number) {
  * Só atualiza o cache `Motorista.diasTrabalhados` quando o dia registrado é
  * hoje; editar um dia passado ou futuro nunca afeta o que "hoje" mostra.
  *
+ * `horas` (opcional) grava o horário real de início/fim daquele dia — só o
+ * import do Relatório de Jornada tem esse dado (ver jornada-relatorio.service.ts).
+ * Omitido, nunca apaga um horário já gravado num `update` (edição manual do
+ * calendário, criação de motorista e reconciliação de folga não têm horário
+ * real, então não devem sobrescrever um que já exista).
+ *
  * Recebe a transação (`tx`) de fora para poder ser chamada tanto isoladamente
  * quanto dentro de uma transação maior já aberta (ex: reconciliação de folga).
  */
@@ -99,6 +105,7 @@ export async function registrarJornadaNoDia(
   idMotorista: number,
   data: Date,
   codigo: number,
+  horas?: { inicioJornada: Date; fimJornada: Date },
 ) {
   const diaRegistro = inicioDoDia(data);
   const hoje = inicioDoDia(new Date());
@@ -108,8 +115,17 @@ export async function registrarJornadaNoDia(
 
   const registro = await tx.registroJornada.upsert({
     where: { motoristaId_data: { motoristaId: idMotorista, data: dataColuna } },
-    create: { motoristaId: idMotorista, data: dataColuna, codigo },
-    update: { codigo },
+    create: {
+      motoristaId: idMotorista,
+      data: dataColuna,
+      codigo,
+      inicioJornada: horas?.inicioJornada ?? null,
+      fimJornada: horas?.fimJornada ?? null,
+    },
+    update: {
+      codigo,
+      ...(horas ? { inicioJornada: horas.inicioJornada, fimJornada: horas.fimJornada } : {}),
+    },
   });
 
   if (ehHoje) {

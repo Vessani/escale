@@ -2,8 +2,11 @@ import * as XLSX from "xlsx"
 import { inicioDoDia, parseDataHoraBr } from "@/lib/utils/date-format"
 
 /**
- * Um registro por matrícula: o mais recente ("último dia de trabalho") entre
- * as várias jornadas que o relatório lista pra cada motorista.
+ * Um registro por (matrícula, dia): o relatório lista vários turnos por
+ * motorista, um por dia trabalhado, e todos são mantidos — só uma duplicata
+ * de matrícula no MESMO dia colapsa (fica a de `Início de Jornada` mais
+ * recente). Alimenta tanto o histórico do calendário quanto, pra cada
+ * matrícula, o turno mais recente do lote (ver jornada-relatorio.service.ts).
  *
  * Datas como string (não Date) — Server Actions não serializam Date objects
  * como argumento vindo do cliente (mesma restrição documentada em xlsx-parser.ts).
@@ -26,27 +29,30 @@ const LINHA_CABECALHO = 2
 
 /**
  * Extrator de dados brutos do relatório
- * Responsabilidade única: ler o XLSX e ficar só com o registro mais recente de cada matrícula
+ * Responsabilidade única: ler o XLSX e ficar com um registro por (matrícula,
+ * dia) — dias diferentes da mesma matrícula sobrevivem todos; só duplicata
+ * no mesmo dia colapsa, ficando a de início mais recente.
  */
 class JornadaRelatorioExtractor {
   static extract(jsonData: LinhaRelatorio[]): RegistroJornadaRelatorio[] {
-    const porMatricula = new Map<number, RegistroJornadaRelatorio>()
+    const porMatriculaEDia = new Map<string, RegistroJornadaRelatorio>()
 
     for (let i = LINHA_CABECALHO + 1; i < jsonData.length; i++) {
       const registro = this.extrairLinha(jsonData[i])
       if (!registro) continue
 
-      const atual = porMatricula.get(registro.matricula)
+      const chave = `${registro.matricula}-${registro.dia}`
+      const atual = porMatriculaEDia.get(chave)
       if (!atual || new Date(registro.inicioJornada) > new Date(atual.inicioJornada)) {
-        porMatricula.set(registro.matricula, registro)
+        porMatriculaEDia.set(chave, registro)
       }
     }
 
-    if (porMatricula.size === 0) {
+    if (porMatriculaEDia.size === 0) {
       throw new Error("Nenhum registro de jornada encontrado no relatório. Verifique se a coluna A contém a matrícula.")
     }
 
-    return [...porMatricula.values()]
+    return [...porMatriculaEDia.values()]
   }
 
   /** Linhas malformadas (data inválida, matrícula ausente) são ignoradas, não derrubam o import inteiro. */

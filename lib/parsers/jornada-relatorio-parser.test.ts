@@ -18,7 +18,20 @@ function linha(matricula: string | number, inicio: string, fim: string, diasSemF
 }
 
 describe("jornada-relatorio-parser", () => {
-  it("pega o registro mais recente quando há várias jornadas pra mesma matrícula", () => {
+  it("na mesma matrícula e mesmo dia, mantém só a jornada com início mais recente", () => {
+    const linhas = comCabecalho(
+      linha(815, "10/07/2026 01:10:08", "10/07/2026 02:00:00"),
+      linha(815, "10/07/2026 20:15:00", "11/07/2026 03:52:45"),
+    )
+
+    const resultado = JornadaRelatorioParser.extrairDeLinhas(linhas)
+
+    expect(resultado).toHaveLength(1)
+    expect(resultado[0].matricula).toBe(815)
+    expect(resultado[0].inicioJornada).toBe(new Date(2026, 6, 10, 20, 15, 0).toISOString())
+  })
+
+  it("mantém todas as jornadas de dias diferentes da mesma matrícula — o relatório lista vários turnos por motorista", () => {
     const linhas = comCabecalho(
       linha(815, "01/07/2026 21:09:49", "02/07/2026 05:04:14"),
       linha(815, "10/07/2026 01:10:08", "10/07/2026 05:52:45"),
@@ -27,12 +40,11 @@ describe("jornada-relatorio-parser", () => {
 
     const resultado = JornadaRelatorioParser.extrairDeLinhas(linhas)
 
-    expect(resultado).toHaveLength(1)
-    expect(resultado[0].matricula).toBe(815)
-    expect(resultado[0].inicioJornada).toBe(new Date(2026, 6, 10, 1, 10, 8).toISOString())
+    expect(resultado).toHaveLength(3)
+    expect(resultado.every((r) => r.matricula === 815)).toBe(true)
   })
 
-  it("retorna um registro por matrícula, cada um com sua própria jornada mais recente", () => {
+  it("retorna um registro por (matrícula, dia) — dias diferentes da mesma matrícula não são descartados", () => {
     const linhas = comCabecalho(
       linha(398, "12/07/2026 12:36:45", "12/07/2026 12:39:34"),
       linha(261, "01/07/2026 04:37:24", "01/07/2026 17:24:58"),
@@ -41,9 +53,23 @@ describe("jornada-relatorio-parser", () => {
 
     const resultado = JornadaRelatorioParser.extrairDeLinhas(linhas)
 
-    expect(resultado).toHaveLength(2)
-    const registro261 = resultado.find((r) => r.matricula === 261)
-    expect(registro261?.inicioJornada).toBe(new Date(2026, 6, 8, 4, 37, 3).toISOString())
+    expect(resultado).toHaveLength(3)
+    const registros261 = resultado.filter((r) => r.matricula === 261)
+    expect(registros261).toHaveLength(2)
+  })
+
+  it("soma corretamente múltiplas matrículas, cada uma com múltiplos dias", () => {
+    const linhas = comCabecalho(
+      linha(111, "01/07/2026 08:00:00", "01/07/2026 18:00:00"),
+      linha(111, "02/07/2026 08:00:00", "02/07/2026 18:00:00"),
+      linha(222, "01/07/2026 20:00:00", "02/07/2026 04:00:00"),
+      linha(222, "02/07/2026 20:00:00", "03/07/2026 04:00:00"),
+      linha(222, "03/07/2026 20:00:00", "04/07/2026 04:00:00"),
+    )
+
+    const resultado = JornadaRelatorioParser.extrairDeLinhas(linhas)
+
+    expect(resultado).toHaveLength(5)
   })
 
   it("ignora as 3 primeiras linhas (título/período/cabeçalho), mesmo que pareçam dado válido", () => {

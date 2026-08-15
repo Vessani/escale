@@ -210,7 +210,9 @@
 
     // Último registro do Relatório Sintético de Jornada importado pra esse
     // motorista (busca por `seva` = Matrícula do relatório) — ver
-    // jornada-relatorio.service.ts. Só o mais recente é mantido.
+    // jornada-relatorio.service.ts. O mais recente entre todas as jornadas
+    // do lote de import (o relatório traz vários turnos por motorista; cada
+    // um também vira uma linha em RegistroJornada — ver abaixo).
     jornadaRelatorioInicio DateTime? @db.Timestamp(6)
     jornadaRelatorioFim    DateTime? @db.Timestamp(6)
     jornadaRelatorioDia    DateTime? @db.Date
@@ -239,6 +241,13 @@
     motoristaId  Int
     data         DateTime  @db.Date
     codigo       Int
+
+    // Horário real de início/fim desse dia, vindo do Relatório Sintético de
+    // Jornada (ver jornada-relatorio.service.ts) — nulo pra linhas criadas por
+    // edição manual do calendário, cadastro de motorista ou reconciliação de
+    // folga; só o import de jornada preenche.
+    inicioJornada DateTime? @db.Timestamp(6)
+    fimJornada    DateTime? @db.Timestamp(6)
 
     criadoEm     DateTime  @default(now())
     atualizadoEm DateTime  @updatedAt

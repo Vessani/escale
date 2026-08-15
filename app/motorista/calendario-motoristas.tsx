@@ -9,7 +9,7 @@ import { ConfirmDialog } from "@/components/ui/confirm-dialog"
 import { atualizarJornadaMotoristaNoCalendario, deletarMotorista } from "@/lib/actions/motoristas"
 import { calcularDiasDisponiveis } from "@/lib/services/alocacao.service"
 import { mapearRegistrosJornada, obterStatusJornada, projetarCodigoNoDia } from "@/lib/services/jornada.service"
-import { fimDoDia, inicioDoDia } from "@/lib/utils/date-format"
+import { colunaDateParaLocal, fimDoDia, formatarHoraLocal, inicioDoDia } from "@/lib/utils/date-format"
 import { classeBadgeTurno } from "../viagens/badge-styles"
 import {
   formatarSemana,
@@ -30,6 +30,21 @@ type Viagem = {
 type RegistroJornada = {
   data: string
   codigo: number
+  /** Horário real daquele dia — só o import do Relatório de Jornada preenche; dias só projetados/editados manualmente vêm null. */
+  inicioJornada: string | null
+  fimJornada: string | null
+}
+
+/** Jornada real (não projetada) de um dia exato — null se aquele dia não tem uma linha real importada, ou tem mas sem horário. */
+function buscarJornadaRealNoDia(registros: RegistroJornada[], dia: Date) {
+  const alvo = inicioDoDia(dia).getTime()
+  const registro = registros.find((r) => colunaDateParaLocal(new Date(r.data)).getTime() === alvo)
+
+  if (!registro?.inicioJornada || !registro?.fimJornada) {
+    return null
+  }
+
+  return { inicioJornada: registro.inicioJornada, fimJornada: registro.fimJornada }
 }
 
 type Motorista = {
@@ -71,9 +86,12 @@ export default function CalendarioMotoristas({ inicioParam, hojeIso, dias, motor
   const motoristasComHoje = useMemo(
     () =>
       motoristas.map((motorista) => {
-        const registrosJornada = mapearRegistrosJornada(motorista.registrosJornada)
-        const codigoHoje = projetarCodigoNoDia(registrosJornada, hoje, hoje, motorista.diasTrabalhados)
-        return { ...motorista, registrosJornada, codigoHoje }
+        // registrosProjetados alimenta só a projeção/rotação (projetarCodigoNoDia);
+        // motorista.registrosJornada (bruto, preservado pelo spread) é usado à parte
+        // pra achar o horário real de um dia exato — ver buscarJornadaRealNoDia.
+        const registrosProjetados = mapearRegistrosJornada(motorista.registrosJornada)
+        const codigoHoje = projetarCodigoNoDia(registrosProjetados, hoje, hoje, motorista.diasTrabalhados)
+        return { ...motorista, registrosProjetados, codigoHoje }
       }),
     [motoristas, hoje],
   )
@@ -181,7 +199,8 @@ export default function CalendarioMotoristas({ inicioParam, hojeIso, dias, motor
               const diasDisponiveis = calcularDiasDisponiveis(motorista.codigoHoje)
               const statusJornada = obterStatusJornada(motorista.codigoHoje)
               const fundoColunaFixa = indiceMotorista % 2 === 0 ? "bg-white" : "bg-slate-50"
-              const registrosJornada = motorista.registrosJornada
+              const registrosProjetados = motorista.registrosProjetados
+              const registrosJornadaBrutos = motorista.registrosJornada
               const classeTurnoBadge = classeBadgeTurno(motorista.turno)
 
               return (
@@ -236,8 +255,9 @@ export default function CalendarioMotoristas({ inicioParam, hojeIso, dias, motor
                     const chaveCelula = `${motorista.id}-${diaIso}`
                     const dia = new Date(`${diaIso}T00:00:00`)
                     const ehHoje = inicioDoDia(dia).getTime() === inicioDoDia(hoje).getTime()
-                    const codigoNoDia = projetarCodigoNoDia(registrosJornada, dia, hoje, motorista.diasTrabalhados)
+                    const codigoNoDia = projetarCodigoNoDia(registrosProjetados, dia, hoje, motorista.diasTrabalhados)
                     const statusNoDia = obterStatusJornada(codigoNoDia)
+                    const jornadaReal = buscarJornadaRealNoDia(registrosJornadaBrutos, dia)
                     const celulaAberta = celulaEmEdicao === chaveCelula
                     const celulaOcupada = celulaSalvando === chaveCelula
 
@@ -275,13 +295,20 @@ export default function CalendarioMotoristas({ inicioParam, hojeIso, dias, motor
                               ))}
                             </select>
                           ) : (
-                            <button
-                              type="button"
-                              onClick={() => setCelulaEmEdicao(chaveCelula)}
-                              className={`inline-flex rounded px-2 py-0.5 text-xs font-semibold hover:brightness-95 ${classeBadgeJornada(codigoNoDia)}`}
-                            >
-                              {statusNoDia.texto}
-                            </button>
+                            <>
+                              <button
+                                type="button"
+                                onClick={() => setCelulaEmEdicao(chaveCelula)}
+                                className={`inline-flex rounded px-2 py-0.5 text-xs font-semibold hover:brightness-95 ${classeBadgeJornada(codigoNoDia)}`}
+                              >
+                                {statusNoDia.texto}
+                              </button>
+                              {jornadaReal && (
+                                <span className="block text-[10px] text-slate-400">
+                                  {formatarHoraLocal(jornadaReal.inicioJornada)}–{formatarHoraLocal(jornadaReal.fimJornada)}
+                                </span>
+                              )}
+                            </>
                           )}
 
                           {viagensNoDia.length > 0 ? (

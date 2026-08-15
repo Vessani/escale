@@ -153,8 +153,10 @@ export default function ImportarJornadaPage() {
         <Card className="shadow-sm border-slate-200">
           <CardHeader className="bg-slate-50 border-b flex flex-row items-center justify-between">
             <div>
-              <CardTitle className="text-lg">{registros.length} matrícula(s) encontrada(s)</CardTitle>
-              <CardDescription>Confira antes de confirmar — a importação atualiza o cadastro dos motoristas.</CardDescription>
+              <CardTitle className="text-lg">
+                {new Set(registros.map((r) => r.matricula)).size} motorista(s) — {registros.length} jornada(s) encontrada(s)
+              </CardTitle>
+              <CardDescription>Confira antes de confirmar — a importação atualiza o cadastro dos motoristas e o histórico do calendário.</CardDescription>
             </div>
             <Button
               type="button"
@@ -178,7 +180,7 @@ export default function ImportarJornadaPage() {
                 </TableHeader>
                 <TableBody>
                   {registros.map((registro) => (
-                    <TableRow key={registro.matricula}>
+                    <TableRow key={`${registro.matricula}-${registro.dia}`}>
                       <TableCell>{registro.matricula}</TableCell>
                       <TableCell>{registro.nome}</TableCell>
                       <TableCell>{formatarDataHoraPtBr(registro.inicioJornada)}</TableCell>

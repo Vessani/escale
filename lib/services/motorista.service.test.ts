@@ -166,6 +166,34 @@ describe("motorista.service", () => {
 
       expect(tx.motorista.update).not.toHaveBeenCalled()
     })
+
+    it("grava inicioJornada/fimJornada quando horas é informado (import do relatório)", async () => {
+      const tx = criarTx()
+      vi.mocked(tx.registroJornada.upsert).mockResolvedValue({ codigo: 5 })
+      const inicio = new Date("2026-07-10T08:00:00")
+      const fim = new Date("2026-07-10T18:00:00")
+
+      await registrarJornadaNoDia(tx as never, 1, new Date("2026-07-10"), 5, { inicioJornada: inicio, fimJornada: fim })
+
+      const chamada = vi.mocked(tx.registroJornada.upsert).mock.calls[0][0] as {
+        create: { inicioJornada: Date; fimJornada: Date }
+        update: { inicioJornada?: Date; fimJornada?: Date }
+      }
+      expect(chamada.create.inicioJornada).toEqual(inicio)
+      expect(chamada.update.inicioJornada).toEqual(inicio)
+      expect(chamada.update.fimJornada).toEqual(fim)
+    })
+
+    it("não manda inicioJornada/fimJornada no update quando horas não é informado — não apaga um horário real já gravado nesse dia (edição manual do calendário)", async () => {
+      const tx = criarTx()
+      vi.mocked(tx.registroJornada.upsert).mockResolvedValue({ codigo: 3 })
+
+      await registrarJornadaNoDia(tx as never, 1, new Date("2026-07-10"), 3)
+
+      const chamada = vi.mocked(tx.registroJornada.upsert).mock.calls[0][0] as { update: object }
+      expect(chamada.update).not.toHaveProperty("inicioJornada")
+      expect(chamada.update).not.toHaveProperty("fimJornada")
+    })
   })
 
   describe("registrarJornadaNoDiaService", () => {

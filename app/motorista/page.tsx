@@ -57,6 +57,8 @@ export default async function MotoristasPage({
       registrosJornada: motorista.registrosJornada.map((registro) => ({
         data: registro.data,
         codigo: registro.codigo,
+        inicioJornada: registro.inicioJornada,
+        fimJornada: registro.fimJornada,
       })),
     })),
   )

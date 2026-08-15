@@ -28,21 +28,33 @@ function calcularCodigoDoDiasSemFolga(diasSemFolga: number) {
   return Math.max(1, Math.min(diasSemFolga, MAX_DIAS_CONSECUTIVOS))
 }
 
+/** Entre as jornadas de um motorista no lote, a de `inicioJornada` mais recente — mesmo critério que já valia quando só existia uma linha por matrícula. */
+function jornadaMaisRecente(registros: RegistroJornadaRelatorio[]): RegistroJornadaRelatorio {
+  return registros.reduce((maisRecente, atual) =>
+    new Date(atual.inicioJornada) > new Date(maisRecente.inicioJornada) ? atual : maisRecente,
+  )
+}
+
 /**
- * Grava, pra cada matrícula do relatório, o último registro de jornada
- * (início, fim, dia) no motorista correspondente (busca por `seva`) e usa
- * "Dias Sem Folga" pra atualizar o código de jornada do dia — essa é agora a
- * fonte principal do controle de dias trabalhados; o preenchimento manual no
+ * Grava, pra cada motorista do relatório (busca por `seva` = matrícula), o
+ * turno mais recente do lote nos campos `jornadaRelatorioInicio/Fim/Dia`, e
+ * usa "Dias Sem Folga" de CADA dia listado pra alimentar o histórico do
+ * calendário (`RegistroJornada`) — o relatório traz vários turnos por
+ * motorista, um por dia trabalhado, não só o mais recente. Essa é a fonte
+ * principal do controle de dias trabalhados; o preenchimento manual no
  * calendário fica só pra emergência. Motoristas manualmente marcados como
- * Férias/Exames/Interno (código 8-10) não têm o código sobrescrito pelo
- * import, só o registro de horário — evita tirar alguém de licença sozinho.
- * Matrículas sem motorista correspondente, ou com mais de um (seva
- * duplicado), são reportadas em vez de derrubar o import inteiro.
+ * Férias/Exames/Interno (código 8-10) não têm nenhum dia do lote sobrescrito
+ * no calendário, só o registro de horário mais recente — evita tirar alguém
+ * de licença sozinho.
  *
- * Busca todos os motoristas do lote numa única query (por matrícula) e grava
- * tudo numa única transação — evita 1 findMany + 1 transaction por linha do
- * relatório, que em planilhas grandes vira uma fila longa de round-trips
- * sequenciais ao banco.
+ * Matrículas sem motorista correspondente, ou com mais de um (seva
+ * duplicado), são reportadas uma única vez cada (não por linha) e não
+ * derrubam o import inteiro.
+ *
+ * Busca todos os motoristas do lote numa única query (por matrícula) — evita
+ * 1 findMany por linha do relatório. A gravação em si usa uma transação por
+ * motorista (ver comentário mais abaixo): agrupar todo o lote numa transação
+ * só estourava o timeout do Prisma em relatórios grandes.
  */
 export async function atualizarJornadaRelatorioDosMotoristas(
   filialId: number,
@@ -52,7 +64,7 @@ export async function atualizarJornadaRelatorioDosMotoristas(
     return { atualizados: 0, naoEncontrados: [], duplicados: [] }
   }
 
-  const matriculas = registros.map((registro) => registro.matricula)
+  const matriculas = [...new Set(registros.map((registro) => registro.matricula))]
   const motoristasEncontrados = await prisma.motorista.findMany({
     where: { seva: { in: matriculas }, filialId, deletadoEm: null },
     select: { id: true, seva: true, diasTrabalhados: true },
@@ -65,50 +77,73 @@ export async function atualizarJornadaRelatorioDosMotoristas(
     motoristasPorMatricula.set(motorista.seva, lista)
   }
 
+  const registrosPorMatricula = new Map<number, RegistroJornadaRelatorio[]>()
+  for (const registro of registros) {
+    const lista = registrosPorMatricula.get(registro.matricula) ?? []
+    lista.push(registro)
+    registrosPorMatricula.set(registro.matricula, lista)
+  }
+
   const naoEncontrados: number[] = []
   const duplicados: number[] = []
   const paraAtualizar: Array<{
-    registro: RegistroJornadaRelatorio
+    registrosDoMotorista: RegistroJornadaRelatorio[]
     motorista: { id: number; diasTrabalhados: number }
   }> = []
 
-  for (const registro of registros) {
-    const encontrados = motoristasPorMatricula.get(registro.matricula) ?? []
+  for (const matricula of matriculas) {
+    const encontrados = motoristasPorMatricula.get(matricula) ?? []
 
     if (encontrados.length === 0) {
-      naoEncontrados.push(registro.matricula)
+      naoEncontrados.push(matricula)
       continue
     }
 
     if (encontrados.length > 1) {
-      duplicados.push(registro.matricula)
+      duplicados.push(matricula)
       continue
     }
 
-    paraAtualizar.push({ registro, motorista: encontrados[0] })
+    paraAtualizar.push({
+      registrosDoMotorista: registrosPorMatricula.get(matricula) ?? [],
+      motorista: encontrados[0],
+    })
   }
 
   if (paraAtualizar.length === 0) {
     return { atualizados: 0, naoEncontrados, duplicados }
   }
 
-  await prisma.$transaction(async (tx) => {
-    for (const { registro, motorista } of paraAtualizar) {
+  // Uma transação por motorista, não uma só pro lote inteiro — o relatório
+  // pode trazer dezenas de dias por motorista, e centenas de upserts
+  // sequenciais numa única transação contra um banco remoto estouram o
+  // timeout padrão do Prisma (5s) bem antes de terminar. Isolar por motorista
+  // também limita o "prejuízo" de uma falha no meio do lote: quem já foi
+  // processado continua salvo.
+  for (const { registrosDoMotorista, motorista } of paraAtualizar) {
+    await prisma.$transaction(async (tx) => {
+      const registroMaisRecente = jornadaMaisRecente(registrosDoMotorista)
+
       await tx.motorista.update({
         where: { id: motorista.id },
         data: {
-          jornadaRelatorioInicio: new Date(registro.inicioJornada),
-          jornadaRelatorioFim: new Date(registro.fimJornada),
-          jornadaRelatorioDia: new Date(registro.dia),
+          jornadaRelatorioInicio: new Date(registroMaisRecente.inicioJornada),
+          jornadaRelatorioFim: new Date(registroMaisRecente.fimJornada),
+          jornadaRelatorioDia: new Date(registroMaisRecente.dia),
         },
       })
 
       if (!motoristaEmStatusEspecial(motorista.diasTrabalhados)) {
-        const codigo = calcularCodigoDoDiasSemFolga(registro.diasSemFolga)
-        await registrarJornadaNoDia(tx, motorista.id, new Date(registro.dia), codigo)
+        for (const registro of registrosDoMotorista) {
+          const codigo = calcularCodigoDoDiasSemFolga(registro.diasSemFolga)
+          await registrarJornadaNoDia(tx, motorista.id, new Date(registro.dia), codigo, {
+            inicioJornada: new Date(registro.inicioJornada),
+            fimJornada: new Date(registro.fimJornada),
+          })
+        }
       }
-    }
-  })
+    })
+  }
 
   return { atualizados: paraAtualizar.length, naoEncontrados, duplicados }
 }
