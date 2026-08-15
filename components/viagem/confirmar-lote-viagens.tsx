@@ -177,7 +177,7 @@ export default function ConfirmarLoteViagens({ viagens, onConcluido, onCancelar 
                         </p>
                         <p className="text-sm font-medium text-slate-900">{viagem.motoristaSugerido?.nome}</p>
                         <p className="text-xs text-slate-500">
-                          Priorizado por horário habitual de jornada mais próximo (dias disponíveis desempata).
+                          Priorizado por quem libera mais perto do horário ideal, respeitando o descanso legal (dias disponíveis desempata).
                         </p>
                       </div>
                     )}

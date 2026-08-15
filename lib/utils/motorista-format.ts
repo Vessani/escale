@@ -1,11 +1,19 @@
 import type { MotoristaCompativel } from "@/lib/types/alocacao"
 
-/** Texto padrão de um motorista compatível pra opção de `<Select>` — usado onde não dá pra ter layout rico (avatar/linhas). */
+/**
+ * Texto padrão de um motorista compatível pra opção de `<Select>` — usado
+ * onde não dá pra ter layout rico (avatar/linhas). Mostra
+ * `proximoInicioDisponivel` (quando ele pode legalmente começar, respeitando
+ * o descanso), não `horarioHabitual` (só o horário do último turno
+ * importado) — é o primeiro que decide a ordem de sugestão (ver
+ * `filtrarMotoristasCompativeis` em alocacao.service.ts); mostrar o segundo
+ * aqui confundia, porque os dois números não têm relação direta entre si.
+ */
 export function formatarOpcaoMotoristaCompativel(motorista: MotoristaCompativel): string {
   const partes = [motorista.nome, `${motorista.diasDisponiveis}d disponível`]
 
-  if (motorista.horarioHabitual) {
-    partes.push(`jornada ${motorista.horarioHabitual}`)
+  if (motorista.proximoInicioDisponivel) {
+    partes.push(`livre a partir de ${motorista.proximoInicioDisponivel}`)
   }
 
   return partes.join(" · ")
