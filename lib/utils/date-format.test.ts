@@ -40,12 +40,20 @@ describe("formatarDataExcel", () => {
 })
 
 describe("calcularDiasEntre", () => {
-  it("conta o intervalo inclusivo do primeiro ao último dia", () => {
-    expect(calcularDiasEntre(new Date("2026-08-01T00:00:00"), new Date("2026-08-03T00:00:00"))).toBe(3)
+  it("conta por horas corridas (48h = 2 dias), não por quantidade de datas de calendário tocadas", () => {
+    expect(calcularDiasEntre(new Date("2026-08-01T00:00:00"), new Date("2026-08-03T00:00:00"))).toBe(2)
   })
 
   it("nunca retorna menos que 1 dia (mesmo início e fim)", () => {
     expect(calcularDiasEntre(new Date("2026-08-05T10:00:00"), new Date("2026-08-05T10:00:00"))).toBe(1)
+  })
+
+  it("viagem de 14/08 08:00 a 15/08 19:00 (35h) gasta 2 dias do ciclo do motorista, não 3", () => {
+    expect(calcularDiasEntre(new Date("2026-08-14T08:00:00"), new Date("2026-08-15T19:00:00"))).toBe(2)
+  })
+
+  it("arredonda pra cima quando sobra fração de dia (25h vira 2 dias)", () => {
+    expect(calcularDiasEntre(new Date("2026-08-01T08:00:00"), new Date("2026-08-02T09:00:00"))).toBe(2)
   })
 })
 

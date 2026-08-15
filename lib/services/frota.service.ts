@@ -9,13 +9,16 @@ export type FrotaInput = {
   cavalo: string
   carreta: string
   disponivelEm?: string | Date | null
+  emManutencao?: boolean
 }
 
 /**
  * Verifica se o conjunto (cavalo + carreta) cadastrado ainda não está
- * disponível no início da nova viagem. Não bloqueia a criação/edição — só
- * retorna uma mensagem de aviso (ou null), no mesmo espírito do
- * avisoInterjornada (ver alocacao.service.ts / viagem.service.ts).
+ * disponível no início da nova viagem — seja porque está marcado como em
+ * manutenção (manual), seja porque uma viagem anterior só libera depois.
+ * Não bloqueia a criação/edição — só retorna uma mensagem de aviso (ou
+ * null), no mesmo espírito do avisoInterjornada (ver alocacao.service.ts /
+ * viagem.service.ts).
  */
 export async function calcularAvisoFrotaIndisponivel(
   filialId: number,
@@ -31,7 +34,15 @@ export async function calcularAvisoFrotaIndisponivel(
     where: { cavalo, carreta, filialId, deletadoEm: null },
   })
 
-  if (!frota?.disponivelEm || frota.disponivelEm <= inicioNovo) {
+  if (!frota) {
+    return null
+  }
+
+  if (frota.emManutencao) {
+    return `Frota ${cavalo}/${carreta} está marcada como em manutenção.`
+  }
+
+  if (!frota.disponivelEm || frota.disponivelEm <= inicioNovo) {
     return null
   }
 
@@ -91,6 +102,7 @@ export async function criarFrotaService(filialId: number, dados: FrotaInput) {
       cavalo: dados.cavalo,
       carreta: dados.carreta,
       disponivelEm: dados.disponivelEm ? new Date(dados.disponivelEm) : null,
+      emManutencao: dados.emManutencao ?? false,
       filialId,
     },
   })
@@ -111,6 +123,7 @@ export async function editarFrotaService(filialId: number, id: number, dados: Fr
       cavalo: dados.cavalo,
       carreta: dados.carreta,
       disponivelEm: dados.disponivelEm ? new Date(dados.disponivelEm) : null,
+      emManutencao: dados.emManutencao ?? false,
     },
   })
 }

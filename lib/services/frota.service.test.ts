@@ -74,6 +74,26 @@ describe("calcularAvisoFrotaIndisponivel", () => {
 
     expect(resultado).toBeNull()
   })
+
+  it("avisa quando o conjunto está marcado como em manutenção, mesmo sem disponivelEm no futuro", async () => {
+    vi.mocked(prisma.frota.findFirst).mockResolvedValue({
+      id: 1, cavalo: "75", carreta: "908", disponivelEm: null, emManutencao: true,
+    } as never)
+
+    const resultado = await calcularAvisoFrotaIndisponivel(FILIAL_ID, "75", "908", new Date("2026-07-20T08:00:00"))
+
+    expect(resultado).toBe("Frota 75/908 está marcada como em manutenção.")
+  })
+
+  it("manutenção avisa mesmo com disponivelEm já passado (manual sempre vence)", async () => {
+    vi.mocked(prisma.frota.findFirst).mockResolvedValue({
+      id: 1, cavalo: "75", carreta: "908", disponivelEm: new Date("2026-07-19T10:00:00"), emManutencao: true,
+    } as never)
+
+    const resultado = await calcularAvisoFrotaIndisponivel(FILIAL_ID, "75", "908", new Date("2026-07-20T08:00:00"))
+
+    expect(resultado).toBe("Frota 75/908 está marcada como em manutenção.")
+  })
 })
 
 describe("registrarOuAtualizarDisponibilidadeFrota", () => {
@@ -128,7 +148,7 @@ describe("criarFrotaService", () => {
     await criarFrotaService(FILIAL_ID, { cavalo: "75", carreta: "908", disponivelEm: "2026-07-22T18:30" })
 
     expect(prisma.frota.create).toHaveBeenCalledWith({
-      data: { cavalo: "75", carreta: "908", disponivelEm: new Date("2026-07-22T18:30"), filialId: FILIAL_ID },
+      data: { cavalo: "75", carreta: "908", disponivelEm: new Date("2026-07-22T18:30"), emManutencao: false, filialId: FILIAL_ID },
     })
   })
 
@@ -148,7 +168,18 @@ describe("criarFrotaService", () => {
     await criarFrotaService(FILIAL_ID, { cavalo: "75", carreta: "908", disponivelEm: null })
 
     expect(prisma.frota.create).toHaveBeenCalledWith({
-      data: { cavalo: "75", carreta: "908", disponivelEm: null, filialId: FILIAL_ID },
+      data: { cavalo: "75", carreta: "908", disponivelEm: null, emManutencao: false, filialId: FILIAL_ID },
+    })
+  })
+
+  it("grava emManutencao true quando marcado no cadastro", async () => {
+    vi.mocked(prisma.frota.findFirst).mockResolvedValue(null)
+    vi.mocked(prisma.frota.create).mockResolvedValue({ id: 1 } as never)
+
+    await criarFrotaService(FILIAL_ID, { cavalo: "75", carreta: "908", disponivelEm: null, emManutencao: true })
+
+    expect(prisma.frota.create).toHaveBeenCalledWith({
+      data: { cavalo: "75", carreta: "908", disponivelEm: null, emManutencao: true, filialId: FILIAL_ID },
     })
   })
 })
@@ -169,7 +200,7 @@ describe("editarFrotaService", () => {
     })
     expect(prisma.frota.update).toHaveBeenCalledWith({
       where: { id: 1, filialId: FILIAL_ID },
-      data: { cavalo: "75", carreta: "908", disponivelEm: new Date("2026-07-22T18:30") },
+      data: { cavalo: "75", carreta: "908", disponivelEm: new Date("2026-07-22T18:30"), emManutencao: false },
     })
   })
 

@@ -42,18 +42,26 @@ describe("calcularStatusFrota", () => {
   const agora = new Date("2026-07-21T12:00:00")
 
   it("é DISPONIVEL quando disponivelEm é nulo", () => {
-    expect(calcularStatusFrota(null, agora)).toBe("DISPONIVEL")
+    expect(calcularStatusFrota(false, null, agora)).toBe("DISPONIVEL")
   })
 
   it("é DISPONIVEL quando disponivelEm já passou", () => {
-    expect(calcularStatusFrota(new Date("2026-07-20T12:00:00"), agora)).toBe("DISPONIVEL")
+    expect(calcularStatusFrota(false, new Date("2026-07-20T12:00:00"), agora)).toBe("DISPONIVEL")
   })
 
   it("é DISPONIVEL quando disponivelEm é exatamente agora", () => {
-    expect(calcularStatusFrota(agora, agora)).toBe("DISPONIVEL")
+    expect(calcularStatusFrota(false, agora, agora)).toBe("DISPONIVEL")
   })
 
-  it("é MANUTENCAO quando disponivelEm é no futuro", () => {
-    expect(calcularStatusFrota(new Date("2026-07-22T18:30:00"), agora)).toBe("MANUTENCAO")
+  it("é EM_VIAGEM quando disponivelEm é no futuro (reservada por uma viagem)", () => {
+    expect(calcularStatusFrota(false, new Date("2026-07-22T18:30:00"), agora)).toBe("EM_VIAGEM")
+  })
+
+  it("é MANUTENCAO quando emManutencao é true, mesmo sem disponivelEm no futuro", () => {
+    expect(calcularStatusFrota(true, null, agora)).toBe("MANUTENCAO")
+  })
+
+  it("emManutencao vence sobre disponivelEm no futuro — não vira EM_VIAGEM", () => {
+    expect(calcularStatusFrota(true, new Date("2026-07-22T18:30:00"), agora)).toBe("MANUTENCAO")
   })
 })

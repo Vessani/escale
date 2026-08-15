@@ -225,7 +225,7 @@ export default function FormEditarViagem({ viagem, motoristas, clientesQueExigem
                     </SelectContent>
                   </Select>
                   <p className="text-xs text-slate-500">
-                  A seleção manual aceita exceções para emergência (turno, integração ou jornada fora da regra) e também permite escolher um motorista sem 1 dia de descanso completo após a última viagem dele, ou já em outra viagem no período — mas isso não é impedido nem verificado automaticamente, então confira o aviso antes de confirmar.
+                  Aceita exceções de emergência (turno, integração, jornada ou descanso fora da regra) — nada é bloqueado automaticamente, confira o aviso antes de confirmar.
                   </p>
                   <FormMessage />
                 </FormItem>
@@ -257,7 +257,7 @@ export default function FormEditarViagem({ viagem, motoristas, clientesQueExigem
                     </SelectContent>
                   </Select>
                   <p className="text-xs text-slate-500">
-                    Vaga extra sem checagem de compatibilidade (turno/integração/jornada) — aceita qualquer motorista, inclusive em treinamento (não liberado). Só é bloqueado se ele já estiver em outra viagem no mesmo período.
+                    Vaga extra sem checagem de compatibilidade — aceita qualquer motorista, inclusive em treinamento. Só bloqueia se ele já estiver em outra viagem no período.
                   </p>
                   <FormMessage />
                 </FormItem>

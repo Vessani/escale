@@ -1,5 +1,5 @@
 import * as XLSX from 'xlsx'
-import { formatarDataExcel, formatarDateTimeLocal, normalizarHora, validarNumeroPositivo } from '@/lib/utils/date-format'
+import { calcularDiasEntre, formatarDataExcel, formatarDateTimeLocal, normalizarHora, validarNumeroPositivo } from '@/lib/utils/date-format'
 
 export interface DadosViagemPlanilha {
   numViagem: string
@@ -229,16 +229,9 @@ class XLSXToFormDataConverter {
     }
   }
 
-  /**
-   * Calcula dias entre duas datas STRING (datetime-local)
-   * Sem manter Date objects
-   */
+  /** Dias entre duas datas STRING (datetime-local) — mesma regra de calcularDiasEntre (date-format.ts). */
   private static calcularDiasViagemComoString(dataInicioStr: string, dataFimStr: string): number {
-    const dataInicio = new Date(dataInicioStr)
-    const dataFim = new Date(dataFimStr)
-    const diffMs = dataFim.getTime() - dataInicio.getTime()
-    const diffDays = Math.ceil(diffMs / (1000 * 60 * 60 * 24))
-    return Math.max(1, diffDays + 1)
+    return calcularDiasEntre(new Date(dataInicioStr), new Date(dataFimStr))
   }
 
   /**

@@ -19,13 +19,22 @@ export function viagensCompartilhamFrota(cavaloA: string, carretaA: string, cava
   return [cavaloA, carretaA].filter(frotaEhValida).some((codigo) => codigosB.has(codigo))
 }
 
-export type StatusFrota = "DISPONIVEL" | "MANUTENCAO"
+export type StatusFrota = "DISPONIVEL" | "EM_VIAGEM" | "MANUTENCAO"
 
-/** disponivelEm nulo ou no passado = disponível agora; no futuro = em manutenção/ocupado até lá. */
-export function calcularStatusFrota(disponivelEm: Date | string | null, agora: Date): StatusFrota {
+/**
+ * `emManutencao` é manual e sempre vence — só muda por ação explícita no
+ * cadastro (ver components/frota/frota-form.tsx). Sem isso, `disponivelEm`
+ * no futuro decide: reservada por uma viagem (o sistema grava isso sozinho,
+ * ver registrarOuAtualizarDisponibilidadeFrota) ou já disponível.
+ */
+export function calcularStatusFrota(emManutencao: boolean, disponivelEm: Date | string | null, agora: Date): StatusFrota {
+  if (emManutencao) {
+    return "MANUTENCAO"
+  }
+
   if (!disponivelEm) {
     return "DISPONIVEL"
   }
 
-  return new Date(disponivelEm) > agora ? "MANUTENCAO" : "DISPONIVEL"
+  return new Date(disponivelEm) > agora ? "EM_VIAGEM" : "DISPONIVEL"
 }

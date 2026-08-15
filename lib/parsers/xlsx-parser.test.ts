@@ -85,7 +85,7 @@ describe('XLSXParserViagem.converterParaFormulario', () => {
           ],
         }),
       )
-      expect(resultado.diasViagem).toBe(3) // 4, 5 e 6 de julho
+      expect(resultado.diasViagem).toBe(2) // horas corridas entre o início (04.07 08:45) e a entrega mais distante (06.07), não a quantidade de datas de calendário tocadas
     })
   })
 

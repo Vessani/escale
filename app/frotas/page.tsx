@@ -20,13 +20,17 @@ import {
 type Frota = Awaited<ReturnType<typeof buscarFrotas>>[number]
 
 function StatusFrotaBadge({ frota, agora }: { frota: Frota; agora: Date }) {
-  const status = calcularStatusFrota(frota.disponivelEm, agora)
+  const status = calcularStatusFrota(frota.emManutencao, frota.disponivelEm, agora)
 
   if (status === "DISPONIVEL") {
     return <Badge variant="success">Disponível</Badge>
   }
 
-  return <Badge variant="warning">Em manutenção até {formatarDataHoraPtBr(frota.disponivelEm as Date)}</Badge>
+  if (status === "EM_VIAGEM") {
+    return <Badge variant="info">Em viagem até {formatarDataHoraPtBr(frota.disponivelEm as Date)}</Badge>
+  }
+
+  return <Badge variant="warning">Em manutenção</Badge>
 }
 
 function AcoesFrota({ frota, podeExcluir }: { frota: Frota; podeExcluir: boolean }) {

@@ -145,6 +145,12 @@
     cavalo       String    @db.VarChar(7)
     carreta      String    @db.VarChar(7)
     disponivelEm DateTime? @db.Timestamp(6)
+    // Manual — só muda por ação explícita no cadastro. Independente de
+    // disponivelEm, que o sistema também escreve sozinho ao alocar a frota
+    // numa viagem (ver registrarOuAtualizarDisponibilidadeFrota); sem esse
+    // campo não dava pra diferenciar "em manutenção de verdade" de
+    // "reservada porque está numa viagem" (ver calcularStatusFrota).
+    emManutencao Boolean   @default(false)
 
     filialId     Int
     filial       Filial    @relation(fields: [filialId], references: [id])

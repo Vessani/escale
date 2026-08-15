@@ -227,13 +227,17 @@ export function parseDataHoraBr(texto: string): Date {
 }
 
 /**
- * Calcula dias entre duas datas (span inclusivo)
- * Retorna número de dias (mínimo 1)
+ * Quantos dias do ciclo de trabalho do motorista uma viagem consome —
+ * horas corridas divididas por 24, arredondado pra cima (mínimo 1). Ex:
+ * 14/08 08:00 → 15/08 19:00 são 35h reais = 2 dias, não 3 — contar por
+ * "datas de calendário tocadas" (como uma versão antiga fazia, com um "+1")
+ * inflava a conta sempre que o horário de início não era meia-noite, e
+ * bloqueava motoristas que na prática tinham dias de ciclo suficientes.
  */
 export function calcularDiasEntre(dataInicio: Date, dataFim: Date): number {
   const diffMs = dataFim.getTime() - dataInicio.getTime()
   const diffDays = Math.ceil(diffMs / (1000 * 60 * 60 * 24))
-  return Math.max(1, diffDays + 1) // +1 para incluir o primeiro dia
+  return Math.max(1, diffDays)
 }
 
 /**

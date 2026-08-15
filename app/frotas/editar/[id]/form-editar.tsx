@@ -10,6 +10,7 @@ type FrotaParaEditar = {
   cavalo: string
   carreta: string
   disponivelEm: string | Date | null
+  emManutencao: boolean
 }
 
 type FormEditarFrotaProps = {
@@ -25,6 +26,7 @@ export default function FormEditarFrota({ frota }: FormEditarFrotaProps) {
         cavalo: frota.cavalo,
         carreta: frota.carreta,
         disponivelEm: frota.disponivelEm ? formatDateTimeForInput(frota.disponivelEm) : "",
+        emManutencao: frota.emManutencao,
       }}
       onSubmit={handleSubmit}
       submitLabel="Atualizar"

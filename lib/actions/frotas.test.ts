@@ -22,7 +22,7 @@ vi.mock("@/lib/services/frota.service", () => ({
 import * as frotaService from "@/lib/services/frota.service"
 import { criarFrota, editarFrota, deletarFrota } from "@/lib/actions/frotas"
 
-const frotaValida = { cavalo: "ABC1234", carreta: "XYZ5678", disponivelEm: null }
+const frotaValida = { cavalo: "ABC1234", carreta: "XYZ5678", disponivelEm: null, emManutencao: false }
 
 describe("lib/actions/frotas — controle de acesso", () => {
   beforeEach(() => {

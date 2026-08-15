@@ -5,6 +5,7 @@ export const frotaSchema = z.object({
   cavalo: z.string().min(1, "Obrigatório").max(7, "Máximo de 7 caracteres"),
   carreta: z.string().min(1, "Obrigatório").max(7, "Máximo de 7 caracteres"),
   disponivelEm: z.string().optional().nullable(),
+  emManutencao: z.boolean(),
 })
 
 export type FrotaFormValues = z.infer<typeof frotaSchema>

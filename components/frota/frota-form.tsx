@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Save } from "lucide-react"
 import { normalizeFormValue } from "@/lib/form-utils"
 import { frotaSchema, type FrotaFormValues } from "@/lib/validation/frotas"
@@ -82,13 +83,34 @@ export default function FrotaForm({ defaultValues, onSubmit, submitLabel, submit
               )} />
             </div>
 
+            <FormField control={form.control} name="emManutencao" render={({ field }) => (
+              <FormItem>
+                <FormLabel>Situação</FormLabel>
+                <Select value={field.value ? "true" : "false"} onValueChange={(value) => field.onChange(value === "true")}>
+                  <FormControl>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Selecione a situação" />
+                    </SelectTrigger>
+                  </FormControl>
+                  <SelectContent>
+                    <SelectItem value="false">Disponível</SelectItem>
+                    <SelectItem value="true">Em manutenção</SelectItem>
+                  </SelectContent>
+                </Select>
+                <FormDescription>
+                  Marcação manual — não muda sozinha quando a frota é alocada numa viagem.
+                </FormDescription>
+                <FormMessage />
+              </FormItem>
+            )} />
+
             <FormField control={form.control} name="disponivelEm" render={({ field }) => (
               <FormItem>
                 <FormLabel>Disponível a partir de</FormLabel>
                 <FormControl>
                   <Input type="datetime-local" {...field} value={normalizeFormValue(field.value)} />
                 </FormControl>
-                <FormDescription>Deixe em branco se já está disponível agora.</FormDescription>
+                <FormDescription>Deixe em branco se já está disponível agora. Também é preenchido sozinho quando a frota é alocada numa viagem.</FormDescription>
                 <FormMessage />
               </FormItem>
             )} />
