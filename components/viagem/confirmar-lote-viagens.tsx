@@ -133,6 +133,9 @@ export default function ConfirmarLoteViagens({ viagens, onConcluido, onCancelar 
           const sugestao = viagem.motoristaSugerido ? String(viagem.motoristaSugerido.id) : ""
           const motoristaSelecionado = selecoes[numViagem] || sugestao
           const semCompatibilidade = viagem.motoristasCompativeis.length === 0
+          // Fechado, o campo mostra só o nome — os detalhes completos (dias
+          // disponíveis, horário) ficam pra quando a lista abre.
+          const motoristaAtual = viagem.motoristasCompativeis.find((m) => String(m.id) === motoristaSelecionado)
 
           return (
             <Card key={numViagem} className="border-slate-200 shadow-sm">
@@ -191,7 +194,7 @@ export default function ConfirmarLoteViagens({ viagens, onConcluido, onCancelar 
                     <p className="text-sm font-medium text-slate-900">Motorista</p>
                     <Select value={motoristaSelecionado} onValueChange={(value) => atualizarSelecao(numViagem, value)}>
                       <SelectTrigger className="bg-white">
-                        <SelectValue placeholder="Selecione um motorista (ou deixe sem alocar)" />
+                        <SelectValue placeholder="Selecione um motorista (ou deixe sem alocar)">{motoristaAtual?.nome}</SelectValue>
                       </SelectTrigger>
                       <SelectContent>
                         {viagem.motoristasCompativeis.length === 0 ? (

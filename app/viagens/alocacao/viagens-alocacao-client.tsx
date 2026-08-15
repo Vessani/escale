@@ -206,6 +206,10 @@ export default function AlocacaoViagensClient({ viagens }: Props) {
           const sugestao = viagem.motoristaSugerido ? String(viagem.motoristaSugerido.id) : ""
           const motoristaSelecionado = selecoes[viagem.id] || sugestao
           const semCompatibilidade = viagem.motoristasCompativeis.length === 0
+          // Fechado, o campo mostra só o nome (o resto já tá na carta de sugestão
+          // ao lado) — os detalhes completos (dias disponíveis, horário) ficam
+          // pra quando a lista abre e dá pra comparar as opções.
+          const motoristaAtual = viagem.motoristasCompativeis.find((m) => String(m.id) === motoristaSelecionado)
 
           return (
             <Card key={viagem.id} className="border-slate-200 shadow-sm">
@@ -282,7 +286,7 @@ export default function AlocacaoViagensClient({ viagens }: Props) {
                       onValueChange={(value) => atualizarSelecao(viagem.id, value)}
                     >
                       <SelectTrigger className="bg-white">
-                        <SelectValue placeholder="Selecione um motorista" />
+                        <SelectValue placeholder="Selecione um motorista">{motoristaAtual?.nome}</SelectValue>
                       </SelectTrigger>
                       <SelectContent>
                         {viagem.motoristasCompativeis.length === 0 ? (

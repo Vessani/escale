@@ -10,7 +10,8 @@ import type { MotoristaCompativel } from "@/lib/types/alocacao"
  * aqui confundia, porque os dois números não têm relação direta entre si.
  */
 export function formatarOpcaoMotoristaCompativel(motorista: MotoristaCompativel): string {
-  const partes = [motorista.nome, `${motorista.diasDisponiveis}d disponível`]
+  const dias = motorista.diasDisponiveis === 1 ? "1 dia disponível" : `${motorista.diasDisponiveis} dias disponíveis`
+  const partes = [motorista.nome, dias]
 
   if (motorista.proximoInicioDisponivel) {
     partes.push(`livre a partir de ${motorista.proximoInicioDisponivel}`)

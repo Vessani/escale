@@ -21,7 +21,7 @@ describe("formatarOpcaoMotoristaCompativel", () => {
 
     const texto = formatarOpcaoMotoristaCompativel(motorista)
 
-    expect(texto).toBe("JOSE ROCHA · 5d disponível · livre a partir de 06:00")
+    expect(texto).toBe("JOSE ROCHA · 5 dias disponíveis · livre a partir de 06:00")
     expect(texto).not.toContain("10:28")
   })
 
@@ -30,7 +30,15 @@ describe("formatarOpcaoMotoristaCompativel", () => {
 
     const texto = formatarOpcaoMotoristaCompativel(motorista)
 
-    expect(texto).toBe("JOSE ROCHA · 5d disponível")
+    expect(texto).toBe("JOSE ROCHA · 5 dias disponíveis")
+  })
+
+  it("usa singular pra 1 dia disponível", () => {
+    const motorista = criarMotorista({ diasDisponiveis: 1, proximoInicioDisponivel: null })
+
+    const texto = formatarOpcaoMotoristaCompativel(motorista)
+
+    expect(texto).toBe("JOSE ROCHA · 1 dia disponível")
   })
 })
 
