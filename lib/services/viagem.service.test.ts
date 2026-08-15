@@ -29,14 +29,14 @@ vi.mock("@/lib/services/folga.service", () => ({
 
 vi.mock("@/lib/services/frota.service", () => ({
   calcularAvisoFrotaIndisponivel: vi.fn(),
-  registrarOuAtualizarDisponibilidadeFrota: vi.fn(),
+  sincronizarDisponibilidadeFrota: vi.fn(),
 }))
 
 import { prisma } from "@/lib/prisma"
 import { buscarMotoristasParaSelect } from "@/lib/queries/motoristas"
 import { buscarNomesClientesQueExigemIntegracao } from "@/lib/queries/clientes"
 import { reconciliarFolgaMotoristasNoDiaAtual } from "@/lib/services/folga.service"
-import { calcularAvisoFrotaIndisponivel, registrarOuAtualizarDisponibilidadeFrota } from "@/lib/services/frota.service"
+import { calcularAvisoFrotaIndisponivel, sincronizarDisponibilidadeFrota } from "@/lib/services/frota.service"
 import {
   criarViagemAvulsaService,
   criarViagemComAlocacaoService,
@@ -269,7 +269,7 @@ describe("viagem.service", () => {
       expect(calcularAvisoFrotaIndisponivel).toHaveBeenCalledWith(FILIAL_ID, "2064", "908", expect.any(Date))
       const dadosCriados = vi.mocked(tx.viagem.create).mock.calls[0][0].data
       expect(dadosCriados.avisoFrotaIndisponivel).toBe("Frota 2064 só estará disponível a partir das 10:00 (em uso na viagem V-1).")
-      expect(registrarOuAtualizarDisponibilidadeFrota).toHaveBeenCalledWith(tx, FILIAL_ID, "2064", "908", expect.any(Date))
+      expect(sincronizarDisponibilidadeFrota).toHaveBeenCalledWith(tx, FILIAL_ID, "2064", "908")
     })
   })
 
@@ -480,8 +480,8 @@ describe("viagem.service", () => {
       expect(dados.avisoInterjornada).toContain("Interjornada")
     })
 
-    it("verifica disponibilidade de frota e atualiza o cadastro com o novo fim previsto", async () => {
-      vi.mocked(prisma.viagem.findUnique).mockResolvedValue({ status: "ALOCADA", motoristaId: 9 } as never)
+    it("verifica disponibilidade de frota e sincroniza o cadastro pra dupla atual", async () => {
+      vi.mocked(prisma.viagem.findUnique).mockResolvedValue({ status: "ALOCADA", motoristaId: 9, cavalo: "2064", carreta: "908" } as never)
       vi.mocked(calcularAvisoFrotaIndisponivel).mockResolvedValue("Frota 2064/908 só estará disponível a partir de 22/07/2026, 12:00.")
 
       const tx = criarTx()
@@ -493,14 +493,30 @@ describe("viagem.service", () => {
       expect(calcularAvisoFrotaIndisponivel).toHaveBeenCalledWith(FILIAL_ID, "2064", "908", expect.any(Date))
       const dados = vi.mocked(tx.viagem.update).mock.calls[0][0].data
       expect(dados.avisoFrotaIndisponivel).toBe("Frota 2064/908 só estará disponível a partir de 22/07/2026, 12:00.")
-      expect(registrarOuAtualizarDisponibilidadeFrota).toHaveBeenCalledWith(tx, FILIAL_ID, "2064", "908", expect.any(Date))
+      expect(sincronizarDisponibilidadeFrota).toHaveBeenCalledWith(tx, FILIAL_ID, "2064", "908")
+      // Cavalo/carreta não mudou — não deve mexer em nenhuma outra dupla.
+      expect(sincronizarDisponibilidadeFrota).toHaveBeenCalledTimes(1)
+    })
+
+    it("ao trocar de cavalo/carreta, sincroniza também a dupla antiga (senão ela fica presa)", async () => {
+      vi.mocked(prisma.viagem.findUnique).mockResolvedValue({ status: "ALOCADA", motoristaId: 9, cavalo: "2064", carreta: "908" } as never)
+
+      const tx = criarTx()
+      vi.mocked(tx.viagem.update).mockResolvedValue({ id: 1, motoristaId: 9 })
+      usarTransacaoCom(tx)
+
+      await editarViagemService(FILIAL_ID, 1, criarEdicaoInput({ cavalo: "9999", carreta: "8888" }))
+
+      expect(sincronizarDisponibilidadeFrota).toHaveBeenCalledWith(tx, FILIAL_ID, "9999", "8888")
+      expect(sincronizarDisponibilidadeFrota).toHaveBeenCalledWith(tx, FILIAL_ID, "2064", "908")
+      expect(sincronizarDisponibilidadeFrota).toHaveBeenCalledTimes(2)
     })
   })
 
   describe("deletarViagemService", () => {
     it("marca deletadoEm e reconcilia a folga do motorista da viagem", async () => {
       const tx = criarTx()
-      vi.mocked(tx.viagem.update).mockResolvedValue({ id: 1, motoristaId: 7, motoristaAcompanhanteId: null })
+      vi.mocked(tx.viagem.update).mockResolvedValue({ id: 1, motoristaId: 7, motoristaAcompanhanteId: null, cavalo: "2064", carreta: "908" })
       usarTransacaoCom(tx)
 
       await deletarViagemService(FILIAL_ID, 1)
@@ -508,6 +524,16 @@ describe("viagem.service", () => {
       const dados = vi.mocked(tx.viagem.update).mock.calls[0][0].data
       expect(dados.deletadoEm).toBeInstanceOf(Date)
       expect(reconciliarFolgaMotoristasNoDiaAtual).toHaveBeenCalledWith(tx, [7, null])
+    })
+
+    it("sincroniza a disponibilidade da frota — excluir a viagem pode liberar o conjunto", async () => {
+      const tx = criarTx()
+      vi.mocked(tx.viagem.update).mockResolvedValue({ id: 1, motoristaId: 7, motoristaAcompanhanteId: null, cavalo: "2064", carreta: "908" })
+      usarTransacaoCom(tx)
+
+      await deletarViagemService(FILIAL_ID, 1)
+
+      expect(sincronizarDisponibilidadeFrota).toHaveBeenCalledWith(tx, FILIAL_ID, "2064", "908")
     })
   })
 
@@ -527,7 +553,7 @@ describe("viagem.service", () => {
     it("atualiza o status e reconcilia a folga", async () => {
       const tx = criarTx()
       vi.mocked(tx.viagem.findUnique).mockResolvedValue({ status: "ALOCADA" })
-      vi.mocked(tx.viagem.update).mockResolvedValue({ id: 1, motoristaId: 3, motoristaAcompanhanteId: null })
+      vi.mocked(tx.viagem.update).mockResolvedValue({ id: 1, motoristaId: 3, motoristaAcompanhanteId: null, cavalo: "2064", carreta: "908" })
       usarTransacaoCom(tx)
 
       await atualizarStatusViagemService(FILIAL_ID, 1, "INICIADA")
@@ -537,6 +563,28 @@ describe("viagem.service", () => {
         data: { status: "INICIADA", canceladoEm: undefined },
       })
       expect(reconciliarFolgaMotoristasNoDiaAtual).toHaveBeenCalledWith(tx, [3, null])
+    })
+
+    it("cancelar a viagem sincroniza a frota — é o que libera o conjunto ao cancelar/finalizar", async () => {
+      const tx = criarTx()
+      vi.mocked(tx.viagem.findUnique).mockResolvedValue({ status: "ALOCADA" })
+      vi.mocked(tx.viagem.update).mockResolvedValue({ id: 1, motoristaId: 3, motoristaAcompanhanteId: null, cavalo: "2064", carreta: "908" })
+      usarTransacaoCom(tx)
+
+      await atualizarStatusViagemService(FILIAL_ID, 1, "CANCELADA")
+
+      expect(sincronizarDisponibilidadeFrota).toHaveBeenCalledWith(tx, FILIAL_ID, "2064", "908")
+    })
+
+    it("finalizar a viagem também sincroniza a frota", async () => {
+      const tx = criarTx()
+      vi.mocked(tx.viagem.findUnique).mockResolvedValue({ status: "INICIADA" })
+      vi.mocked(tx.viagem.update).mockResolvedValue({ id: 1, motoristaId: 3, motoristaAcompanhanteId: null, cavalo: "2064", carreta: "908" })
+      usarTransacaoCom(tx)
+
+      await atualizarStatusViagemService(FILIAL_ID, 1, "FINALIZADA")
+
+      expect(sincronizarDisponibilidadeFrota).toHaveBeenCalledWith(tx, FILIAL_ID, "2064", "908")
     })
 
     it("grava canceladoEm ao transicionar para CANCELADA", async () => {

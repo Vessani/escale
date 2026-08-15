@@ -50,22 +50,42 @@ export async function calcularAvisoFrotaIndisponivel(
 }
 
 /**
- * Cadastra (ou atualiza) a disponibilidade do conjunto cavalo+carreta com o
- * fim previsto da viagem mais recente — a viagem mais recente pra aquela
- * dupla sempre sobrescreve o valor guardado. Se precisar corrigir manualmente
- * (viagem cancelada, liberação de manutenção), o cadastro (ver
- * criarFrotaService/editarFrotaService) permite editar o valor à mão.
+ * Recalcula a disponibilidade de um conjunto cavalo+carreta a partir de
+ * TODAS as viagens ativas dele na filial (nem CANCELADA nem FINALIZADA, sem
+ * soft delete) — disponivelEm vira o maior fimPrevisto entre elas, ou null
+ * se não sobrar nenhuma (frota livre agora).
+ *
+ * Substitui a versão antiga, que só "carimbava" o fim da viagem que acabou
+ * de ser criada/editada — sem recalcular, cancelar ou finalizar uma viagem
+ * nunca liberava a frota (ela ficava presa no fim previsto original pra
+ * sempre), e editar uma viagem trocando de cavalo/carreta também não
+ * liberava o conjunto antigo. Por isso precisa ser chamado sempre que uma
+ * viagem que usa essa frota muda de estado: criada, editada (nas duas duplas,
+ * se cavalo/carreta mudou), teve o status alterado, ou foi excluída.
  */
-export async function registrarOuAtualizarDisponibilidadeFrota(
+export async function sincronizarDisponibilidadeFrota(
   tx: Prisma.TransactionClient,
   filialId: number,
   cavalo: string,
   carreta: string,
-  fimNovo: Date,
 ): Promise<void> {
   if (!frotaEhValida(cavalo) || !frotaEhValida(carreta)) {
     return
   }
+
+  const viagemAtiva = await tx.viagem.findFirst({
+    where: {
+      cavalo,
+      carreta,
+      filialId,
+      deletadoEm: null,
+      status: { notIn: ["CANCELADA", "FINALIZADA"] },
+    },
+    orderBy: { fimPrevisto: "desc" },
+    select: { fimPrevisto: true },
+  })
+
+  const disponivelEm = viagemAtiva?.fimPrevisto ?? null
 
   // Sem @@unique em (cavalo, carreta) no schema (ver comentário no model
   // Frota) — não dá pra usar upsert pela dupla, então busca a ativa e
@@ -77,14 +97,17 @@ export async function registrarOuAtualizarDisponibilidadeFrota(
   if (existente) {
     await tx.frota.update({
       where: { id: existente.id, filialId },
-      data: { disponivelEm: fimNovo },
+      data: { disponivelEm },
     })
     return
   }
 
-  await tx.frota.create({
-    data: { cavalo, carreta, disponivelEm: fimNovo, filialId },
-  })
+  // Sem conjunto cadastrado e sem viagem ativa: nada a guardar.
+  if (disponivelEm) {
+    await tx.frota.create({
+      data: { cavalo, carreta, disponivelEm, filialId },
+    })
+  }
 }
 
 /** Cria um conjunto manualmente pelo cadastro — separado do auto-registro feito ao criar/editar viagem. */

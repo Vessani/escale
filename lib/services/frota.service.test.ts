@@ -9,7 +9,7 @@ vi.mock("@/lib/prisma", () => ({
 import { prisma } from "@/lib/prisma"
 import {
   calcularAvisoFrotaIndisponivel,
-  registrarOuAtualizarDisponibilidadeFrota,
+  sincronizarDisponibilidadeFrota,
   criarFrotaService,
   editarFrotaService,
   deletarFrotaService,
@@ -20,6 +20,7 @@ const FILIAL_ID = 1
 function criarTx() {
   return {
     frota: { findFirst: vi.fn(), create: vi.fn(), update: vi.fn() },
+    viagem: { findFirst: vi.fn() },
   }
 }
 
@@ -96,27 +97,33 @@ describe("calcularAvisoFrotaIndisponivel", () => {
   })
 })
 
-describe("registrarOuAtualizarDisponibilidadeFrota", () => {
-  it("cadastra o conjunto com disponivelEm = fim da viagem quando ainda não existe uma dupla ativa", async () => {
+describe("sincronizarDisponibilidadeFrota", () => {
+  it("cadastra o conjunto com disponivelEm = fim da viagem ativa quando ainda não existe uma dupla cadastrada", async () => {
     const tx = criarTx()
-    vi.mocked(tx.frota.findFirst).mockResolvedValue(null)
     const fim = new Date("2026-07-20T18:00:00")
+    vi.mocked(tx.viagem.findFirst).mockResolvedValue({ fimPrevisto: fim } as never)
+    vi.mocked(tx.frota.findFirst).mockResolvedValue(null)
 
-    await registrarOuAtualizarDisponibilidadeFrota(tx as never, FILIAL_ID, "75", "908", fim)
+    await sincronizarDisponibilidadeFrota(tx as never, FILIAL_ID, "75", "908")
 
-    expect(tx.frota.findFirst).toHaveBeenCalledWith({ where: { cavalo: "75", carreta: "908", filialId: FILIAL_ID, deletadoEm: null } })
+    expect(tx.viagem.findFirst).toHaveBeenCalledWith({
+      where: { cavalo: "75", carreta: "908", filialId: FILIAL_ID, deletadoEm: null, status: { notIn: ["CANCELADA", "FINALIZADA"] } },
+      orderBy: { fimPrevisto: "desc" },
+      select: { fimPrevisto: true },
+    })
     expect(tx.frota.create).toHaveBeenCalledWith({
       data: { cavalo: "75", carreta: "908", disponivelEm: fim, filialId: FILIAL_ID },
     })
     expect(tx.frota.update).not.toHaveBeenCalled()
   })
 
-  it("atualiza disponivelEm da dupla ativa já cadastrada, sem criar outra", async () => {
+  it("atualiza disponivelEm da dupla já cadastrada com o maior fim entre as viagens ativas, sem criar outra", async () => {
     const tx = criarTx()
-    vi.mocked(tx.frota.findFirst).mockResolvedValue({ id: 7, cavalo: "75", carreta: "908" } as never)
     const fim = new Date("2026-07-20T18:00:00")
+    vi.mocked(tx.viagem.findFirst).mockResolvedValue({ fimPrevisto: fim } as never)
+    vi.mocked(tx.frota.findFirst).mockResolvedValue({ id: 7, cavalo: "75", carreta: "908" } as never)
 
-    await registrarOuAtualizarDisponibilidadeFrota(tx as never, FILIAL_ID, "75", "908", fim)
+    await sincronizarDisponibilidadeFrota(tx as never, FILIAL_ID, "75", "908")
 
     expect(tx.frota.update).toHaveBeenCalledWith({
       where: { id: 7, filialId: FILIAL_ID },
@@ -125,11 +132,47 @@ describe("registrarOuAtualizarDisponibilidadeFrota", () => {
     expect(tx.frota.create).not.toHaveBeenCalled()
   })
 
+  it("libera o conjunto (disponivelEm null) quando não sobra nenhuma viagem ativa — ex: a única foi cancelada", async () => {
+    const tx = criarTx()
+    vi.mocked(tx.viagem.findFirst).mockResolvedValue(null)
+    vi.mocked(tx.frota.findFirst).mockResolvedValue({ id: 7, cavalo: "75", carreta: "908" } as never)
+
+    await sincronizarDisponibilidadeFrota(tx as never, FILIAL_ID, "75", "908")
+
+    expect(tx.frota.update).toHaveBeenCalledWith({
+      where: { id: 7, filialId: FILIAL_ID },
+      data: { disponivelEm: null },
+    })
+  })
+
+  it("ignora viagens CANCELADA e FINALIZADA ao calcular a viagem ativa mais tardia", async () => {
+    const tx = criarTx()
+    vi.mocked(tx.viagem.findFirst).mockResolvedValue(null)
+    vi.mocked(tx.frota.findFirst).mockResolvedValue({ id: 7 } as never)
+
+    await sincronizarDisponibilidadeFrota(tx as never, FILIAL_ID, "75", "908")
+
+    const chamada = vi.mocked(tx.viagem.findFirst).mock.calls[0][0] as { where: { status: { notIn: string[] } } }
+    expect(chamada.where.status.notIn).toEqual(["CANCELADA", "FINALIZADA"])
+  })
+
+  it("sem conjunto cadastrado e sem viagem ativa, não cria nada", async () => {
+    const tx = criarTx()
+    vi.mocked(tx.viagem.findFirst).mockResolvedValue(null)
+    vi.mocked(tx.frota.findFirst).mockResolvedValue(null)
+
+    await sincronizarDisponibilidadeFrota(tx as never, FILIAL_ID, "75", "908")
+
+    expect(tx.frota.create).not.toHaveBeenCalled()
+    expect(tx.frota.update).not.toHaveBeenCalled()
+  })
+
   it("não faz nada quando cavalo ou carreta é inválido (vazio/placeholder)", async () => {
     const tx = criarTx()
 
-    await registrarOuAtualizarDisponibilidadeFrota(tx as never, FILIAL_ID, "0000", "908", new Date())
+    await sincronizarDisponibilidadeFrota(tx as never, FILIAL_ID, "0000", "908")
 
+    expect(tx.viagem.findFirst).not.toHaveBeenCalled()
     expect(tx.frota.findFirst).not.toHaveBeenCalled()
     expect(tx.frota.create).not.toHaveBeenCalled()
     expect(tx.frota.update).not.toHaveBeenCalled()

@@ -8,7 +8,7 @@ import {
   sugerirMotoristaAutomatico,
 } from "./alocacao.service";
 import { reconciliarFolgaMotoristasNoDiaAtual } from "./folga.service";
-import { calcularAvisoFrotaIndisponivel, registrarOuAtualizarDisponibilidadeFrota } from "./frota.service";
+import { calcularAvisoFrotaIndisponivel, sincronizarDisponibilidadeFrota } from "./frota.service";
 import { converterEditarViagemParaBD, converterNovaViagemParaBD } from "./viagem-data-converter.service";
 import { mapearRegistrosJornada } from "./jornada.service";
 import { calcularDiasEntre, inicioDoDia } from "@/lib/utils/date-format";
@@ -118,7 +118,7 @@ async function inserirViagem(
       },
     })
 
-    await registrarOuAtualizarDisponibilidadeFrota(tx, filialId, dados.cavalo, dados.carreta, dados.fimPrevisto as Date)
+    await sincronizarDisponibilidadeFrota(tx, filialId, dados.cavalo, dados.carreta)
     await reconciliarFolgaMotoristasNoDiaAtual(tx, [viagemCriada.motoristaId])
 
     return viagemCriada
@@ -180,7 +180,7 @@ export async function editarViagemService(filialId: number, idViagem: number, da
   const manterEntregas = entregasExistentes.map(e => e.id as number);
   const viagemAtual = await prisma.viagem.findUnique({
     where: { id: idViagem, filialId },
-    select: { status: true, motoristaId: true, motoristaAcompanhanteId: true },
+    select: { status: true, motoristaId: true, motoristaAcompanhanteId: true, cavalo: true, carreta: true },
   })
 
   if (!viagemAtual) {
@@ -260,7 +260,13 @@ export async function editarViagemService(filialId: number, idViagem: number, da
       }
     })
 
-    await registrarOuAtualizarDisponibilidadeFrota(tx, filialId, dados.cavalo, dados.carreta, dados.fimPrevisto as Date)
+    await sincronizarDisponibilidadeFrota(tx, filialId, dados.cavalo, dados.carreta)
+    // Trocou de cavalo/carreta na edição: a dupla antiga também precisa
+    // recalcular, senão fica "presa" no fim previsto desta viagem mesmo
+    // depois dela ter saído de lá.
+    if (dados.cavalo !== viagemAtual.cavalo || dados.carreta !== viagemAtual.carreta) {
+      await sincronizarDisponibilidadeFrota(tx, filialId, viagemAtual.cavalo, viagemAtual.carreta)
+    }
     await reconciliarFolgaMotoristasNoDiaAtual(tx, [
       viagemAtual.motoristaId,
       viagemAtualizada.motoristaId,
@@ -280,6 +286,7 @@ export async function deletarViagemService(filialId: number, id: number) {
       }
     })
 
+    await sincronizarDisponibilidadeFrota(tx, filialId, viagemDeletada.cavalo, viagemDeletada.carreta)
     await reconciliarFolgaMotoristasNoDiaAtual(tx, [viagemDeletada.motoristaId, viagemDeletada.motoristaAcompanhanteId])
     return viagemDeletada
   })
@@ -321,6 +328,9 @@ export async function atualizarStatusViagemService(
       },
     })
 
+    // Cancelar/finalizar (ou postergar a data) muda se essa viagem ainda
+    // "segura" a frota — sincroniza sempre, não só quando novaData é enviado.
+    await sincronizarDisponibilidadeFrota(tx, filialId, viagemAtualizada.cavalo, viagemAtualizada.carreta)
     await reconciliarFolgaMotoristasNoDiaAtual(tx, [viagemAtualizada.motoristaId, viagemAtualizada.motoristaAcompanhanteId])
     return viagemAtualizada
   })
