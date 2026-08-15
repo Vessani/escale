@@ -7,6 +7,7 @@ import { signOut } from "next-auth/react"
 import {
   Truck,
   Users,
+  UserX,
   LayoutDashboard,
   LogOut,
   Route,
@@ -56,6 +57,7 @@ const menuItemsOperacional = [
   { href: "/viagens", label: "Gestão de Viagens", icon: Truck },
   { href: "/viagens/alocacao", label: "Alocação", icon: Route },
   { href: "/motorista", label: "Motoristas", icon: Users },
+  { href: "/motorista/sem-viagem", label: "Motoristas Ociosos", icon: UserX },
   { href: "/frotas", label: "Frotas", icon: Container },
   { href: "/clientes", label: "Clientes", icon: Building },
 ]

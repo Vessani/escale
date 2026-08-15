@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/prisma";
 import { Prisma, Turno } from "@prisma/client";
+import { fimDoDia, inicioDoDia } from "@/lib/utils/date-format";
 
 /**
  * Margem sobre o maior descanso legal (35h, descanso semanal) usada pra
@@ -132,6 +133,50 @@ export async function buscarMotoristasParaSelect(filialId: number, turnoDaViagem
     ...motorista,
     viagens: [...motorista.viagens, ...viagensComoAcompanhante],
   }))
+}
+
+/**
+ * Motoristas ativos sem nenhuma viagem cobrindo o dia de referência (nem
+ * como principal, nem como acompanhante) — mesma definição de "sem
+ * atividade hoje" usada por reconciliarFolgaMotoristasNoDiaAtual
+ * (folga.service.ts), só que aqui pra listar todo mundo de uma vez em vez
+ * de reconciliar reativamente um motorista específico.
+ */
+export async function buscarMotoristasSemViagemHoje(filialId: number, dataReferencia = new Date()) {
+  const inicioDia = inicioDoDia(dataReferencia)
+  const fimDia = fimDoDia(dataReferencia)
+  const filtroAtividadeNoDia = {
+    deletadoEm: null,
+    status: { notIn: ["CANCELADA", "FINALIZADA"] },
+    inicioPrevisto: { lte: fimDia },
+    fimPrevisto: { gte: inicioDia },
+  } satisfies Prisma.ViagemWhereInput
+
+  return prisma.motorista.findMany({
+    where: {
+      deletadoEm: null,
+      filialId,
+      viagens: { none: filtroAtividadeNoDia },
+      viagensComoAcompanhante: { none: filtroAtividadeNoDia },
+    },
+    select: {
+      id: true,
+      nome: true,
+      seva: true,
+      turno: true,
+      diasTrabalhados: true,
+      liberado: true,
+      registrosJornada: {
+        select: { data: true, codigo: true },
+        orderBy: { data: "asc" },
+      },
+    },
+    orderBy: { nome: "asc" },
+  })
+}
+
+export async function contarMotoristasAtivos(filialId: number) {
+  return prisma.motorista.count({ where: { deletadoEm: null, filialId } })
 }
 
 export async function buscarMotoristasComAgenda(filialId: number, inicio: Date, fim: Date) {

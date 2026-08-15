@@ -81,6 +81,7 @@ export async function atualizarJornadaMotoristaNoCalendario(
 
     await registrarJornadaNoDiaService(filialId, idMotorista, data, codigoNoDia)
     revalidatePath("/motorista")
+    revalidatePath("/motorista/sem-viagem")
     return { sucesso: true }
   } catch (error) {
     return { sucesso: false, erro: errorToMessage(error, "Erro ao atualizar jornada no calendário.") }
