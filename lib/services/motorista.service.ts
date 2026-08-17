@@ -151,3 +151,26 @@ export async function registrarJornadaNoDiaService(filialId: number, idMotorista
     return registrarJornadaNoDia(tx, idMotorista, data, codigo)
   });
 }
+
+/**
+ * Fim da última jornada real (com horário importado) estritamente anterior
+ * ao início da viagem sendo avaliada — versão que consulta direto o banco por
+ * um único motorista/viagem, usada onde só se tem o id do motorista (sem o
+ * objeto completo, com o histórico já carregado — nesse caso, prefira
+ * `encontrarFimJornadaAnterior` em jornada.service.ts, sem I/O extra). Ver o
+ * comentário lá pra explicação completa do porquê isso substitui
+ * `Motorista.jornadaRelatorioFim` como referência de interjornada.
+ */
+export async function buscarFimJornadaAnterior(filialId: number, motoristaId: number, inicioViagem: Date): Promise<Date | null> {
+  const registro = await prisma.registroJornada.findFirst({
+    where: {
+      motoristaId,
+      motorista: { filialId },
+      fimJornada: { not: null, lt: inicioViagem },
+    },
+    orderBy: { fimJornada: "desc" },
+    select: { fimJornada: true },
+  })
+
+  return registro?.fimJornada ?? null
+}

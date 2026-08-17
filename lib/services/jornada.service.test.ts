@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest"
 import {
   calcularCodigoJornadaNoDia,
   diferencaEmDias,
+  encontrarFimJornadaAnterior,
   mapearRegistrosJornada,
   obterStatusJornada,
   projetarCodigoNoDia,
@@ -38,6 +39,61 @@ describe("jornada.service", () => {
       expect(registros).toHaveLength(2)
       expect(registros[0].codigo).toBe(1)
       expect(registros[1].codigo).toBe(5)
+    })
+  })
+
+  describe("encontrarFimJornadaAnterior", () => {
+    const inicioViagem = new Date("2026-07-08T09:00:00")
+
+    it("retorna null quando não há nenhum registro", () => {
+      expect(encontrarFimJornadaAnterior([], inicioViagem)).toBeNull()
+    })
+
+    it("retorna null quando só há registros de origem manual (fimJornada nulo/ausente)", () => {
+      const registros = [
+        { fimJornada: null },
+        { data: new Date("2026-07-07"), codigo: 3 }, // sem a chave fimJornada — mesmo caso, edição manual
+      ]
+      expect(encontrarFimJornadaAnterior(registros, inicioViagem)).toBeNull()
+    })
+
+    it("encontra o fim mais recente estritamente anterior ao início da viagem", () => {
+      const registros = [
+        { fimJornada: new Date("2026-07-05T18:00:00") },
+        { fimJornada: new Date("2026-07-07T20:15:00") }, // o mais recente antes da viagem
+        { fimJornada: new Date("2026-07-06T10:00:00") },
+      ]
+      expect(encontrarFimJornadaAnterior(registros, inicioViagem)).toEqual(new Date("2026-07-07T20:15:00"))
+    })
+
+    it("ignora jornadas posteriores (ou exatamente iguais) ao início da viagem — a causa raiz do aviso de interjornada incorreto", () => {
+      const registros = [
+        { fimJornada: new Date("2026-07-07T20:00:00") }, // anterior — deve ser escolhido
+        { fimJornada: new Date("2026-07-08T15:38:00") }, // posterior ao início da viagem — deve ser ignorado
+        { fimJornada: inicioViagem }, // exatamente igual — também ignorado (não é "anterior")
+      ]
+      expect(encontrarFimJornadaAnterior(registros, inicioViagem)).toEqual(new Date("2026-07-07T20:00:00"))
+    })
+
+    it("ignora registros de origem manual mesmo misturados com jornadas reais válidas", () => {
+      const registros = [
+        { fimJornada: new Date("2026-07-06T10:00:00") },
+        { fimJornada: null }, // edição manual do calendário / reconciliação de folga
+        { fimJornada: new Date("2026-07-07T18:00:00") },
+      ]
+      expect(encontrarFimJornadaAnterior(registros, inicioViagem)).toEqual(new Date("2026-07-07T18:00:00"))
+    })
+
+    it("é indiferente à ordem dos registros na lista de entrada", () => {
+      const registrosEmOrdem = [
+        { fimJornada: new Date("2026-07-05T18:00:00") },
+        { fimJornada: new Date("2026-07-07T20:15:00") },
+      ]
+      const registrosForaDeOrdem = [...registrosEmOrdem].reverse()
+
+      expect(encontrarFimJornadaAnterior(registrosForaDeOrdem, inicioViagem)).toEqual(
+        encontrarFimJornadaAnterior(registrosEmOrdem, inicioViagem),
+      )
     })
   })
 

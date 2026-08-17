@@ -24,7 +24,7 @@ type MotoristaMock = {
   diasTrabalhados: number
   liberado: boolean
   integracao: Array<{ cliente: string; status: StatusIntegracao; dataValidade: Date }>
-  registrosJornada: Array<{ data: Date; codigo: number }>
+  registrosJornada: Array<{ data: Date; codigo: number; fimJornada?: Date | string | null }>
   jornadaRelatorioInicio: Date | string | null
   jornadaRelatorioFim: Date | string | null
 }
@@ -42,6 +42,17 @@ function criarMotorista(parcial: Partial<MotoristaMock>): MotoristaMock {
     jornadaRelatorioFim: null,
     ...parcial,
   }
+}
+
+/**
+ * Simula o histórico de jornada real de um motorista já carregado (mesmo
+ * formato que buscarMotoristasParaSelect/buscarMotoristas trazem hoje) — usado
+ * pra testar a ordenação/aviso a partir de `encontrarFimJornadaAnterior`, em
+ * vez do agregado jornadaRelatorioFim (que não reflete mais o comportamento
+ * real do código, ver a correção de interjornada).
+ */
+function comFimJornadaAnterior(fim: Date): MotoristaMock["registrosJornada"] {
+  return [{ data: fim, codigo: 1, fimJornada: fim }]
 }
 
 describe("alocacao.service", () => {
@@ -349,13 +360,12 @@ describe("alocacao.service", () => {
         id: 1,
         nome: "Libera Perto",
         diasTrabalhados: 5, // só 1 dia disponível
-        jornadaRelatorioFim: new Date("2026-07-07T10:00:00"), // +11h = 21:00, folga de 120min até o ideal
+        registrosJornada: comFimJornadaAnterior(new Date("2026-07-07T10:00:00")), // +11h = 21:00, folga de 120min até o ideal
       })
       const semDadoDeRelatorio = criarMotorista({
         id: 2,
         nome: "Sem Relatorio",
         diasTrabalhados: 1, // 5 dias disponíveis
-        jornadaRelatorioFim: null,
       })
 
       const resultado = filtrarMotoristasCompativeis([semDadoDeRelatorio, liberaPerto], contexto)
@@ -364,8 +374,8 @@ describe("alocacao.service", () => {
     })
 
     it("motorista sem dado de relatório vai pro fim da lista, não é excluído", () => {
-      const comDado = criarMotorista({ id: 1, nome: "Com Dado", jornadaRelatorioFim: new Date("2026-07-07T10:00:00") })
-      const semDado = criarMotorista({ id: 2, nome: "Sem Dado", jornadaRelatorioFim: null })
+      const comDado = criarMotorista({ id: 1, nome: "Com Dado", registrosJornada: comFimJornadaAnterior(new Date("2026-07-07T10:00:00")) })
+      const semDado = criarMotorista({ id: 2, nome: "Sem Dado" })
 
       const resultado = filtrarMotoristasCompativeis([semDado, comDado], contexto)
 
@@ -377,13 +387,13 @@ describe("alocacao.service", () => {
         id: 1,
         nome: "Menos Livre",
         diasTrabalhados: 5,
-        jornadaRelatorioFim: new Date("2026-07-07T10:00:00"),
+        registrosJornada: comFimJornadaAnterior(new Date("2026-07-07T10:00:00")),
       })
       const mesmaFolgaMaisLivre = criarMotorista({
         id: 2,
         nome: "Mais Livre",
         diasTrabalhados: 1,
-        jornadaRelatorioFim: new Date("2026-07-07T10:00:00"), // mesmo fim = mesma folga até o ideal
+        registrosJornada: comFimJornadaAnterior(new Date("2026-07-07T10:00:00")), // mesmo fim = mesma folga até o ideal
       })
 
       const resultado = filtrarMotoristasCompativeis([mesmaFolgaMenosLivre, mesmaFolgaMaisLivre], contexto)
@@ -395,12 +405,12 @@ describe("alocacao.service", () => {
       const respeita = criarMotorista({
         id: 1,
         nome: "Respeita",
-        jornadaRelatorioFim: new Date("2026-07-07T10:00:00"), // +11h = 21:00, antes do ideal (23:00) — respeita
+        registrosJornada: comFimJornadaAnterior(new Date("2026-07-07T10:00:00")), // +11h = 21:00, antes do ideal (23:00) — respeita
       })
       const viola = criarMotorista({
         id: 2,
         nome: "Viola",
-        jornadaRelatorioFim: new Date("2026-07-07T20:00:00"), // +11h = 07:00 do dia 08 — depois do ideal (23:00) — viola
+        registrosJornada: comFimJornadaAnterior(new Date("2026-07-07T20:00:00")), // +11h = 07:00 do dia 08 — depois do ideal (23:00) — viola
       })
 
       const resultado = filtrarMotoristasCompativeis([viola, respeita], contexto)
@@ -858,6 +868,13 @@ describe("alocacao.service", () => {
       const fimJornada = new Date("2026-07-08T10:00:00")
       const inicioViagem = new Date("2026-07-08T08:00:00")
       const aviso = calcularAvisoInterjornada(fimJornada, inicioViagem)
+
+      expect(aviso).toBe("Interjornada: motorista teve apenas 0.0h de descanso (mínimo 11h).")
+    })
+
+    it("gera aviso de 0.0h quando o fim da jornada anterior é exatamente igual ao início da nova viagem (caso limite, 0h de descanso)", () => {
+      const mesmoInstante = new Date("2026-07-08T08:00:00")
+      const aviso = calcularAvisoInterjornada(mesmoInstante, mesmoInstante)
 
       expect(aviso).toBe("Interjornada: motorista teve apenas 0.0h de descanso (mínimo 11h).")
     })

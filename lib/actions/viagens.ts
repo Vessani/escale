@@ -31,7 +31,7 @@ import {
   sugerirAlocacoesEmLote,
 } from "@/lib/services/alocacao.service";
 import { calcularAvisoFrotaIndisponivel } from "@/lib/services/frota.service";
-import { mapearRegistrosJornada, projetarCodigoNoDia } from "@/lib/services/jornada.service";
+import { encontrarFimJornadaAnterior, mapearRegistrosJornada, projetarCodigoNoDia } from "@/lib/services/jornada.service";
 import { formatarHoraLocal, inicioDoDia } from "@/lib/utils/date-format";
 
 export async function criarViagemAvulsa(dados: NovaViagemInput): Promise<RespostaAcao> {
@@ -102,8 +102,15 @@ export async function sugerirAlocacaoParaViagens(
       motoristaSugerido: sugestao.motoristaSugerido
         ? { id: sugestao.motoristaSugerido.id, nome: sugestao.motoristaSugerido.nome }
         : null,
+      // Fim real da jornada anterior à viagem, achado em memória a partir do
+      // histórico já carregado (não o agregado jornadaRelatorioFim, que só
+      // guarda o turno mais recente do último lote importado, sem relação
+      // com esta viagem — ver encontrarFimJornadaAnterior).
       avisoInterjornada: sugestao.motoristaSugerido
-        ? calcularAvisoInterjornada(sugestao.motoristaSugerido.jornadaRelatorioFim, dataInicioViagem)
+        ? calcularAvisoInterjornada(
+            encontrarFimJornadaAnterior(sugestao.motoristaSugerido.registrosJornada, dataInicioViagem),
+            dataInicioViagem,
+          )
         : null,
       avisoFrotaIndisponivel,
       motoristasCompativeis: sugestao.motoristasCompativeis.map((motorista) => {
@@ -117,7 +124,7 @@ export async function sugerirAlocacaoParaViagens(
         );
 
         const proximoInicioDisponivel = calcularProximoInicioDisponivel(
-          motorista.jornadaRelatorioFim,
+          encontrarFimJornadaAnterior(motorista.registrosJornada, dataInicioViagem),
           motorista.diasTrabalhados,
         )
 

@@ -120,9 +120,11 @@ export async function buscarMotoristasParaSelect(filialId: number, turnoDaViagem
       viagens: { where: filtroViagem, select: SELECT_VIAGEM_AGENDA },
       viagensComoAcompanhante: { where: filtroViagem, select: SELECT_VIAGEM_AGENDA },
       // Histórico de jornada: permite projetar o código do motorista na data
-      // real de início de cada viagem (ver alocacao.service.ts).
+      // real de início de cada viagem, e achar o fim real da jornada anterior
+      // pra referência de interjornada (ver alocacao.service.ts e
+      // encontrarFimJornadaAnterior em jornada.service.ts).
       registrosJornada: {
-        select: { data: true, codigo: true },
+        select: { data: true, codigo: true, fimJornada: true },
         orderBy: { data: "asc" },
       },
     },

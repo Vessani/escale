@@ -12,7 +12,7 @@ import {
   calcularProximoInicioDisponivel,
   sugerirAlocacoesEmLote,
 } from "@/lib/services/alocacao.service"
-import { mapearRegistrosJornada, projetarCodigoNoDia } from "@/lib/services/jornada.service"
+import { encontrarFimJornadaAnterior, mapearRegistrosJornada, projetarCodigoNoDia } from "@/lib/services/jornada.service"
 import { formatarHoraLocal, inicioDoDia } from "@/lib/utils/date-format"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -85,8 +85,15 @@ function serializarViagens(
             nome: motoristaSugerido.nome,
           }
         : null,
+      // Fim real da jornada anterior à viagem, achado em memória a partir do
+      // histórico já carregado (não o agregado jornadaRelatorioFim, que só
+      // guarda o turno mais recente do último lote importado, sem relação
+      // com esta viagem — ver encontrarFimJornadaAnterior).
       avisoInterjornada: motoristaSugerido
-        ? calcularAvisoInterjornada(motoristaSugerido.jornadaRelatorioFim, new Date(viagem.inicioPrevisto))
+        ? calcularAvisoInterjornada(
+            encontrarFimJornadaAnterior(motoristaSugerido.registrosJornada, new Date(viagem.inicioPrevisto)),
+            new Date(viagem.inicioPrevisto),
+          )
         : null,
       // Já calculado e persistido na criação/edição da viagem — ver calcularAvisoFrotaIndisponivel (frota.service.ts).
       avisoFrotaIndisponivel: viagem.avisoFrotaIndisponivel,
@@ -102,7 +109,7 @@ function serializarViagens(
         )
 
         const proximoInicioDisponivel = calcularProximoInicioDisponivel(
-          motorista.jornadaRelatorioFim,
+          encontrarFimJornadaAnterior(motorista.registrosJornada, new Date(viagem.inicioPrevisto)),
           motorista.diasTrabalhados,
         )
 

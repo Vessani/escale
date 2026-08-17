@@ -10,7 +10,8 @@ import {
 import { reconciliarFolgaMotoristasNoDiaAtual } from "./folga.service";
 import { calcularAvisoFrotaIndisponivel, sincronizarDisponibilidadeFrota } from "./frota.service";
 import { converterEditarViagemParaBD, converterNovaViagemParaBD } from "./viagem-data-converter.service";
-import { mapearRegistrosJornada } from "./jornada.service";
+import { buscarFimJornadaAnterior } from "./motorista.service";
+import { encontrarFimJornadaAnterior, mapearRegistrosJornada } from "./jornada.service";
 import { calcularDiasEntre, inicioDoDia } from "@/lib/utils/date-format";
 
 function resolverStatusPorAlocacao(motoristaId: number | null) {
@@ -50,18 +51,14 @@ async function garantirNumViagemDisponivel(filialId: number, numViagem: string, 
 
 type DadosViagemConvertidos = ReturnType<typeof converterNovaViagemParaBD>
 
-/** Busca o jornadaRelatorioFim do motorista e calcula o aviso — usado quando só se tem o id, não o objeto completo. */
+/** Busca o fim da jornada real anterior à viagem e calcula o aviso — usado quando só se tem o id do motorista, não o objeto completo com o histórico já carregado (ver buscarFimJornadaAnterior). */
 async function calcularAvisoInterjornadaPorId(filialId: number, motoristaId: number | null, inicioPrevisto: Date) {
   if (motoristaId === null) {
     return null
   }
 
-  const motorista = await prisma.motorista.findUnique({
-    where: { id: motoristaId, filialId },
-    select: { jornadaRelatorioFim: true },
-  })
-
-  return calcularAvisoInterjornada(motorista?.jornadaRelatorioFim ?? null, inicioPrevisto)
+  const fimJornadaAnterior = await buscarFimJornadaAnterior(filialId, motoristaId, inicioPrevisto)
+  return calcularAvisoInterjornada(fimJornadaAnterior, inicioPrevisto)
 }
 
 async function inserirViagem(
@@ -147,9 +144,13 @@ export async function criarViagemAvulsaService(filialId: number, dadosRecebidos:
     hoje,
   });
   const motoristaEscolhidoId = motoristaSugeridoDisponivel?.id ?? null;
-  const avisoInterjornada = motoristaSugeridoDisponivel
-    ? calcularAvisoInterjornada(motoristaSugeridoDisponivel.jornadaRelatorioFim, inicioPrevisto)
+  // motoristaSugeridoDisponivel já vem com o histórico de jornada carregado
+  // (ver `motoristas` acima) — encontra o fim real anterior em memória, sem
+  // precisar de outra consulta (ver encontrarFimJornadaAnterior).
+  const fimJornadaAnterior = motoristaSugeridoDisponivel
+    ? encontrarFimJornadaAnterior(motoristaSugeridoDisponivel.registrosJornada, inicioPrevisto)
     : null;
+  const avisoInterjornada = calcularAvisoInterjornada(fimJornadaAnterior, inicioPrevisto);
 
   return inserirViagem(filialId, dados, integracaoNecessaria, motoristaEscolhidoId, dados.status, avisoInterjornada);
 }

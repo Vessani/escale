@@ -6,6 +6,7 @@ vi.mock("@/lib/prisma", () => ({
   prisma: {
     $transaction: vi.fn(),
     motorista: { update: vi.fn() },
+    registroJornada: { findFirst: vi.fn() },
   },
 }))
 
@@ -16,6 +17,7 @@ import {
   deletarMotoristaService,
   registrarJornadaNoDia,
   registrarJornadaNoDiaService,
+  buscarFimJornadaAnterior,
 } from "@/lib/services/motorista.service"
 
 const FILIAL_ID = 1
@@ -220,6 +222,52 @@ describe("motorista.service", () => {
 
       await expect(registrarJornadaNoDiaService(FILIAL_ID, 3, new Date(), 2)).rejects.toThrow()
       expect(tx.registroJornada.upsert).not.toHaveBeenCalled()
+    })
+  })
+
+  describe("buscarFimJornadaAnterior", () => {
+    it("consulta o RegistroJornada filtrando por motorista, filial, fimJornada não nulo e anterior ao início da viagem, pegando o mais recente", async () => {
+      const fimJornada = new Date("2026-07-07T20:00:00")
+      vi.mocked(prisma.registroJornada.findFirst).mockResolvedValue({ fimJornada } as never)
+      const inicioViagem = new Date("2026-07-08T09:00:00")
+
+      const resultado = await buscarFimJornadaAnterior(FILIAL_ID, 5, inicioViagem)
+
+      expect(resultado).toEqual(fimJornada)
+      expect(prisma.registroJornada.findFirst).toHaveBeenCalledWith({
+        where: {
+          motoristaId: 5,
+          motorista: { filialId: FILIAL_ID },
+          fimJornada: { not: null, lt: inicioViagem },
+        },
+        orderBy: { fimJornada: "desc" },
+        select: { fimJornada: true },
+      })
+    })
+
+    it("retorna null quando não há nenhum registro anterior (motorista sem jornada real importada, ou nenhuma antes da viagem)", async () => {
+      vi.mocked(prisma.registroJornada.findFirst).mockResolvedValue(null)
+
+      const resultado = await buscarFimJornadaAnterior(FILIAL_ID, 5, new Date("2026-07-08T09:00:00"))
+
+      expect(resultado).toBeNull()
+    })
+
+    it("a própria query já filtra fimJornada < início da viagem e ignora nulos — não depende do chamador saber disso", async () => {
+      // Cobre a causa raiz do bug relatado: uma jornada importada posterior ao
+      // início da viagem (ex: viagem às 09:00, jornada 08:15–15:38 já
+      // importada) nunca pode "vencer" aqui — o filtro `lt: inicioViagem` do
+      // Prisma já a exclui antes mesmo de chegar no `orderBy`.
+      vi.mocked(prisma.registroJornada.findFirst).mockResolvedValue(null)
+      const inicioViagem = new Date("2026-07-08T09:00:00")
+
+      await buscarFimJornadaAnterior(FILIAL_ID, 5, inicioViagem)
+
+      const chamada = vi.mocked(prisma.registroJornada.findFirst).mock.calls[0][0] as {
+        where: { fimJornada: { not: null; lt: Date } }
+      }
+      expect(chamada.where.fimJornada.lt).toEqual(inicioViagem)
+      expect(chamada.where.fimJornada.not).toBeNull()
     })
   })
 })

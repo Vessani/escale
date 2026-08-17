@@ -1,5 +1,5 @@
 import { StatusIntegracao, StatusViagem, Turno } from "@prisma/client"
-import { projetarCodigoNoDia, type PontoRegistroJornada } from "./jornada.service"
+import { encontrarFimJornadaAnterior, projetarCodigoNoDia, type PontoRegistroJornada } from "./jornada.service"
 
 /** Máximo de dias consecutivos de trabalho antes da folga obrigatória — mesmo limite usado pra capar o "Dias Sem Folga" importado do relatório (ver jornada-relatorio.service.ts). */
 export const MAX_DIAS_CONSECUTIVOS = 6
@@ -245,11 +245,17 @@ export function filtrarMotoristasCompativeis<T extends MotoristaParaAlocacao>(
     .filter((motorista) => motoristaEhCompativel(motorista, contexto))
     .sort((a, b) => {
       const folgaA = calcularFolgaAteIdeal(
-        calcularProximoInicioDisponivel(a.jornadaRelatorioFim, a.diasTrabalhados),
+        calcularProximoInicioDisponivel(
+          encontrarFimJornadaAnterior(a.registrosJornada, contexto.dataInicioViagem),
+          a.diasTrabalhados,
+        ),
         horarioIdeal,
       )
       const folgaB = calcularFolgaAteIdeal(
-        calcularProximoInicioDisponivel(b.jornadaRelatorioFim, b.diasTrabalhados),
+        calcularProximoInicioDisponivel(
+          encontrarFimJornadaAnterior(b.registrosJornada, contexto.dataInicioViagem),
+          b.diasTrabalhados,
+        ),
         horarioIdeal,
       )
 
