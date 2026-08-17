@@ -57,3 +57,12 @@ next-env.d.ts
 AR.xls
 *.xls
 *.xlsx
+
+# instrucoes de agente de IA (uso local, nao fazem parte do codigo publicado)
+CLAUDE.md
+AGENTS.md
+.cursorrules
+.cursor/
+.github/copilot-instructions.md
+.aider*
+.windsurfrules

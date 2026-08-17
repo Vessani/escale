@@ -176,8 +176,8 @@ class XLSXDataExtractor {
  * Conversor de dados XLSX para formato de formulário
  * Responsabilidade única: converter formatos de dados
  * 
- * ⚠️ IMPORTANTE: Retorna APENAS strings para datas (não Date objects)
- * Motivo: Date objects não são serializáveis em JSON para Next.js server actions
+ * Importante: retorna apenas strings para datas (não Date objects) —
+ * Date objects não são serializáveis em JSON para Next.js server actions
  */
 const HORA_CORTE_TURNO_NOITE = 16
 
