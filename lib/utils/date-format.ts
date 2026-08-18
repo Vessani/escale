@@ -145,12 +145,16 @@ export function formatDateTimeForInput(value: Date | string): string {
 }
 
 /**
- * Formata data e hora no padrão pt-BR (DD/MM/YYYY HH:MM)
+ * Formata data e hora no padrão pt-BR (DD/MM/YYYY HH:MM), sempre como horário
+ * de Brasília — sem `timeZone` explícito, o Intl usa o fuso ambiente do
+ * processo (servidor ou navegador), que nem sempre é Brasília (mesma causa
+ * raiz de OFFSET_MINUTOS_BRASILIA acima).
  */
 export function formatarDataHoraPtBr(data: Date | string): string {
   const dataNormalizada = data instanceof Date ? data : new Date(data)
 
   return new Intl.DateTimeFormat("pt-BR", {
+    timeZone: "America/Sao_Paulo",
     day: "2-digit",
     month: "2-digit",
     year: "numeric",

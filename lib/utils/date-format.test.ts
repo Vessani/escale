@@ -5,6 +5,7 @@ import {
   formatDateForDateInput,
   formatDateTimeForInput,
   formatarDataExcel,
+  formatarDataHoraPtBr,
   parseDataHoraBr,
   parseDataLocal,
   parseDateTimeFromInput,
@@ -186,5 +187,20 @@ describe("formatDateForDateInput", () => {
   it("não cruza pro dia anterior — o bug que aplicar o offset de Brasília causaria numa meia-noite UTC", () => {
     const meiaNoiteUtc = new Date(Date.UTC(2026, 7, 20, 0, 0, 0))
     expect(formatDateForDateInput(meiaNoiteUtc)).toBe("2026-08-20")
+  })
+})
+
+describe("formatarDataHoraPtBr", () => {
+  it("formata como horário de Brasília independente do fuso do processo (usa timeZone explícito no Intl)", () => {
+    // Sem `timeZone` explícito no Intl.DateTimeFormat, esse teste passaria
+    // rodando localmente (TZ do processo já em America/Sao_Paulo) e falharia
+    // só em produção/CI rodando em UTC — reproduz o bug relatado: a listagem
+    // de viagens mostrando o instante UTC cru (ex: "01:00" em vez de "22:00
+    // do dia anterior").
+    expect(formatarDataHoraPtBr(new Date("2026-08-19T01:00:00.000Z"))).toBe("18/08/2026, 22:00")
+  })
+
+  it("aceita string ISO também", () => {
+    expect(formatarDataHoraPtBr("2026-08-19T01:00:00.000Z")).toBe("18/08/2026, 22:00")
   })
 })
