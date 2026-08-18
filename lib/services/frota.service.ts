@@ -1,6 +1,6 @@
 import type { Prisma } from "@prisma/client"
 import { prisma } from "@/lib/prisma"
-import { formatarDataHoraPtBr } from "@/lib/utils/date-format"
+import { converterEntradaDeDataHora, formatarDataHoraPtBr } from "@/lib/utils/date-format"
 import { frotaEhValida } from "./frota-regras"
 
 export { frotaEhValida } from "./frota-regras"
@@ -124,7 +124,7 @@ export async function criarFrotaService(filialId: number, dados: FrotaInput) {
     data: {
       cavalo: dados.cavalo,
       carreta: dados.carreta,
-      disponivelEm: dados.disponivelEm ? new Date(dados.disponivelEm) : null,
+      disponivelEm: dados.disponivelEm ? converterEntradaDeDataHora(dados.disponivelEm) : null,
       emManutencao: dados.emManutencao ?? false,
       filialId,
     },
@@ -145,7 +145,7 @@ export async function editarFrotaService(filialId: number, id: number, dados: Fr
     data: {
       cavalo: dados.cavalo,
       carreta: dados.carreta,
-      disponivelEm: dados.disponivelEm ? new Date(dados.disponivelEm) : null,
+      disponivelEm: dados.disponivelEm ? converterEntradaDeDataHora(dados.disponivelEm) : null,
       emManutencao: dados.emManutencao ?? false,
     },
   })

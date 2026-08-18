@@ -167,7 +167,7 @@ describe("lib/actions/viagens — controle de acesso", () => {
       expect(viagemService.editarViagemService).toHaveBeenCalledTimes(1)
     })
 
-    it("editarViagem aceita datas como Date (fluxo de alocação/edição converte antes de chamar)", async () => {
+    it("editarViagem aceita datas como Date (o fluxo de alocação repassa inicioPrevisto/fimPrevisto já serializados, sem re-string)", async () => {
       vi.mocked(viagemService.editarViagemService).mockResolvedValue({} as never)
 
       const resposta = await editarViagem(1, {
@@ -186,6 +186,30 @@ describe("lib/actions/viagens — controle de acesso", () => {
 
       expect(resposta).toEqual({ sucesso: false, erro: "Não autorizado." })
       expect(viagemService.deletarViagemService).not.toHaveBeenCalled()
+    })
+
+    it("atualizarStatusViagem (POSTERGADA) interpreta a nova data como horário de Brasília, não do processo que executa o código", async () => {
+      vi.mocked(viagemService.atualizarStatusViagemService).mockResolvedValue({} as never)
+
+      const resposta = await atualizarStatusViagem(1, "POSTERGADA", {
+        inicioPrevisto: "2026-08-12T08:00",
+        fimPrevisto: "2026-08-13T08:00",
+      })
+
+      expect(resposta).toEqual({ sucesso: true })
+      const novaData = vi.mocked(viagemService.atualizarStatusViagemService).mock.calls[0][3]
+      expect(novaData?.inicioPrevisto.toISOString()).toBe("2026-08-12T11:00:00.000Z")
+      expect(novaData?.fimPrevisto.toISOString()).toBe("2026-08-13T11:00:00.000Z")
+    })
+
+    it("atualizarSaidaReal interpreta o horário como Brasília, não do processo que executa o código", async () => {
+      vi.mocked(viagemService.atualizarSaidaRealService).mockResolvedValue({} as never)
+
+      const resposta = await atualizarSaidaReal(1, { horarioRealSaida: "2026-08-12T08:15", motivoAtraso: null })
+
+      expect(resposta).toEqual({ sucesso: true })
+      const horarioRealSaida = vi.mocked(viagemService.atualizarSaidaRealService).mock.calls[0][2]
+      expect(horarioRealSaida?.toISOString()).toBe("2026-08-12T11:15:00.000Z")
     })
   })
 

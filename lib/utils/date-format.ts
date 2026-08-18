@@ -43,21 +43,105 @@ export function fimDoDia(data: Date): Date {
 }
 
 /**
- * Formata Date para string de input[type="date"] (YYYY-MM-DD)
+ * A transportadora opera só no Brasil, e desde 2019 o país não tem mais
+ * horário de verão em nenhum estado — então o offset de Brasília é constante
+ * (UTC-3) o ano inteiro. Usado pra interpretar/exibir os campos de
+ * data+hora digitados pelo usuário (inicioPrevisto, fimPrevisto, dataEntrega,
+ * horarioRealSaida, disponivelEm da frota) de forma correta independente do
+ * fuso horário do processo que executa o código — sem isso, `new Date(texto)`
+ * com uma string tipo "2026-08-20T08:00" (sem timezone, o formato que
+ * <input type="datetime-local"> sempre produz) é interpretada usando o fuso
+ * *ambiente* (o do servidor, ou o do navegador, dependendo de onde o parse
+ * acontece), e servidores em produção costumam rodar em UTC por padrão (ex:
+ * Vercel) — resultando num horário gravado até 3h errado. Se o Brasil voltar
+ * a ter horário de verão em algum estado no futuro, este valor precisa ser
+ * revisto.
  */
-export function formatDateForDateInput(value: Date | string): string {
-  const instant = new Date(value)
-  const localDate = new Date(instant.getTime() - instant.getTimezoneOffset() * 60000)
-  return localDate.toISOString().slice(0, 10)
+const OFFSET_MINUTOS_BRASILIA = 3 * 60
+
+/** Formato exato que <input type="datetime-local"> produz — sem timezone, com ou sem segundos. */
+const REGEX_DATETIME_LOCAL_SEM_FUSO = /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})(?::(\d{2})(?:\.\d+)?)?$/
+
+/**
+ * Interpreta uma string "YYYY-MM-DDTHH:MM" (ou com segundos) — o formato que
+ * <input type="datetime-local"> sempre produz — como horário de Brasília, e
+ * devolve o instante UTC correspondente. Ao contrário de `new Date(texto)`,
+ * não depende do fuso horário do processo que executa o código (ver
+ * OFFSET_MINUTOS_BRASILIA). Lança erro para datas de calendário inválidas
+ * (ex: "2026-02-30") ou fora do formato esperado.
+ */
+export function parseDateTimeFromInput(texto: string): Date {
+  const match = texto.match(REGEX_DATETIME_LOCAL_SEM_FUSO)
+
+  if (!match) {
+    throw new Error(`Data/hora inválida: ${texto}`)
+  }
+
+  const [, anoTexto, mesTexto, diaTexto, horaTexto, minutoTexto, segundoTexto] = match
+  const ano = Number(anoTexto)
+  const mes = Number(mesTexto)
+  const dia = Number(diaTexto)
+  const hora = Number(horaTexto)
+  const minuto = Number(minutoTexto)
+  const segundo = segundoTexto ? Number(segundoTexto) : 0
+
+  // Valida o calendário em UTC puro (sem aplicar o offset ainda) — Date.UTC
+  // não rejeita "30 de fevereiro" sozinho, só rola pro mês seguinte.
+  const candidato = new Date(Date.UTC(ano, mes - 1, dia, hora, minuto, segundo))
+  const valido =
+    !Number.isNaN(candidato.getTime()) &&
+    candidato.getUTCFullYear() === ano &&
+    candidato.getUTCMonth() === mes - 1 &&
+    candidato.getUTCDate() === dia &&
+    candidato.getUTCHours() === hora &&
+    candidato.getUTCMinutes() === minuto
+
+  if (!valido) {
+    throw new Error(`Data/hora inválida: ${texto}`)
+  }
+
+  return new Date(candidato.getTime() + OFFSET_MINUTOS_BRASILIA * 60 * 1000)
 }
 
 /**
- * Formata Date para string de input[type="datetime-local"] (YYYY-MM-DDTHH:MM)
+ * Converte um valor de data+hora vindo de uma server action (string de
+ * <input type="datetime-local">, ou já um Date) pro Date correto. Strings
+ * sem timezone (o formato do input) são interpretadas como horário de
+ * Brasília via `parseDateTimeFromInput`; strings que já trazem "Z" ou offset
+ * explícito (ex: vindas de `serializeData`, que sempre usa `toISOString()`)
+ * e objetos Date passam direto — reaplicar o offset de Brasília nelas
+ * corromperia um instante que já está correto.
+ */
+export function converterEntradaDeDataHora(valor: string | Date): Date {
+  if (valor instanceof Date) return valor
+  return REGEX_DATETIME_LOCAL_SEM_FUSO.test(valor) ? parseDateTimeFromInput(valor) : new Date(valor)
+}
+
+/**
+ * Formata Date para string de input[type="date"] (YYYY-MM-DD). Usado só com
+ * valores de colunas `@db.Date` (ex: validade de integração) — que o Prisma
+ * sempre devolve à meia-noite UTC (ver `colunaDateParaLocal`) — por isso lê
+ * os componentes em UTC, sem aplicar nenhum offset: aplicar o offset de
+ * Brasília aqui cruzaria a meia-noite e mostraria o dia anterior.
+ */
+export function formatDateForDateInput(value: Date | string): string {
+  const instant = new Date(value)
+  const ano = instant.getUTCFullYear()
+  const mes = String(instant.getUTCMonth() + 1).padStart(2, "0")
+  const dia = String(instant.getUTCDate()).padStart(2, "0")
+  return `${ano}-${mes}-${dia}`
+}
+
+/**
+ * Formata um instante (Date ou string) como horário de Brasília, no formato
+ * de <input type="datetime-local"> (YYYY-MM-DDTHH:MM). Usa o offset fixo de
+ * Brasília (ver OFFSET_MINUTOS_BRASILIA) em vez do fuso do navegador/processo
+ * — mostra o mesmo horário pra qualquer pessoa, em qualquer ambiente.
  */
 export function formatDateTimeForInput(value: Date | string): string {
   const instant = new Date(value)
-  const localDate = new Date(instant.getTime() - instant.getTimezoneOffset() * 60000)
-  return localDate.toISOString().slice(0, 16)
+  const brasilia = new Date(instant.getTime() - OFFSET_MINUTOS_BRASILIA * 60 * 1000)
+  return brasilia.toISOString().slice(0, 16)
 }
 
 /**

@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation"
 import { AlertTriangle } from "lucide-react"
 import { Input } from "@/components/ui/input"
 import { atualizarSaidaReal } from "@/lib/actions/viagens"
-import { formatDateTimeForInput } from "@/lib/utils/date-format"
+import { converterEntradaDeDataHora, formatDateTimeForInput } from "@/lib/utils/date-format"
 
 type Props = {
   viagemId: number
@@ -29,7 +29,7 @@ export default function AtualizarSaidaReal({
   )
   const [motivoAtraso, setMotivoAtraso] = useState(motivoAtrasoInicial ?? "")
 
-  const atrasado = Boolean(horarioRealSaida) && new Date(horarioRealSaida) > new Date(inicioPrevisto)
+  const atrasado = Boolean(horarioRealSaida) && converterEntradaDeDataHora(horarioRealSaida) > new Date(inicioPrevisto)
 
   const salvar = (proximoHorario: string, proximoMotivo: string) => {
     setErro("")

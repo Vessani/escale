@@ -190,8 +190,11 @@ describe("criarFrotaService", () => {
 
     await criarFrotaService(FILIAL_ID, { cavalo: "75", carreta: "908", disponivelEm: "2026-07-22T18:30" })
 
+    // "18:30" sem timezone é interpretado como horário de Brasília (UTC-3) —
+    // ver converterEntradaDeDataHora/parseDateTimeFromInput — não com
+    // `new Date(texto)` puro, que dependeria do fuso de quem roda o teste.
     expect(prisma.frota.create).toHaveBeenCalledWith({
-      data: { cavalo: "75", carreta: "908", disponivelEm: new Date("2026-07-22T18:30"), emManutencao: false, filialId: FILIAL_ID },
+      data: { cavalo: "75", carreta: "908", disponivelEm: new Date("2026-07-22T21:30:00.000Z"), emManutencao: false, filialId: FILIAL_ID },
     })
   })
 
@@ -243,7 +246,7 @@ describe("editarFrotaService", () => {
     })
     expect(prisma.frota.update).toHaveBeenCalledWith({
       where: { id: 1, filialId: FILIAL_ID },
-      data: { cavalo: "75", carreta: "908", disponivelEm: new Date("2026-07-22T18:30"), emManutencao: false },
+      data: { cavalo: "75", carreta: "908", disponivelEm: new Date("2026-07-22T21:30:00.000Z"), emManutencao: false },
     })
   })
 

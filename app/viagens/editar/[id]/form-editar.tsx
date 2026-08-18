@@ -128,16 +128,14 @@ export default function FormEditarViagem({ viagem, motoristas, clientesQueExigem
   const onSubmit: SubmitHandler<EditarViagemFormValues> = async (dados) => {
     setErroGlobal("")
 
+    // inicioPrevisto/fimPrevisto/dataEntrega ficam como string (o formato de
+    // <input type="datetime-local">, sem timezone) — convertê-los aqui pra
+    // Date usaria o fuso do navegador; melhor deixar o servidor interpretar
+    // com o fuso de Brasília fixo (ver converterEntradaDeDataHora).
     const pacote: EditarViagemInput = {
       ...dados,
       motoristaId: dados.motoristaId ?? null,
       motoristaAcompanhanteId: dados.motoristaAcompanhanteId ?? null,
-      inicioPrevisto: new Date(dados.inicioPrevisto),
-      fimPrevisto: new Date(dados.fimPrevisto),
-      entregas: dados.entregas.map((entrega) => ({
-        ...entrega,
-        dataEntrega: new Date(entrega.dataEntrega),
-      })),
     }
 
     try {

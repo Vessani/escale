@@ -32,7 +32,7 @@ import {
 } from "@/lib/services/alocacao.service";
 import { calcularAvisoFrotaIndisponivel } from "@/lib/services/frota.service";
 import { encontrarFimJornadaAnterior, mapearRegistrosJornada, projetarCodigoNoDia } from "@/lib/services/jornada.service";
-import { formatarHoraLocal, inicioDoDia } from "@/lib/utils/date-format";
+import { converterEntradaDeDataHora, formatarHoraLocal, inicioDoDia } from "@/lib/utils/date-format";
 
 export async function criarViagemAvulsa(dados: NovaViagemInput): Promise<RespostaAcao> {
   try {
@@ -247,7 +247,12 @@ export async function atualizarStatusViagem(
       filialId,
       idViagem,
       status,
-      novaData ? { inicioPrevisto: new Date(novaData.inicioPrevisto), fimPrevisto: new Date(novaData.fimPrevisto) } : undefined,
+      novaData
+        ? {
+            inicioPrevisto: converterEntradaDeDataHora(novaData.inicioPrevisto),
+            fimPrevisto: converterEntradaDeDataHora(novaData.fimPrevisto),
+          }
+        : undefined,
     )
 
     revalidatePath("/viagens")
@@ -293,7 +298,7 @@ export async function atualizarSaidaReal(
     await atualizarSaidaRealService(
       filialId,
       idViagem,
-      dados.horarioRealSaida ? new Date(dados.horarioRealSaida) : null,
+      dados.horarioRealSaida ? converterEntradaDeDataHora(dados.horarioRealSaida) : null,
       dados.motivoAtraso?.trim() ? dados.motivoAtraso.trim() : null,
     )
 

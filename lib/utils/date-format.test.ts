@@ -1,5 +1,14 @@
 import { afterEach, describe, expect, it, vi } from "vitest"
-import { calcularDiasEntre, formatarDataExcel, parseDataHoraBr, parseDataLocal } from "./date-format"
+import {
+  calcularDiasEntre,
+  converterEntradaDeDataHora,
+  formatDateForDateInput,
+  formatDateTimeForInput,
+  formatarDataExcel,
+  parseDataHoraBr,
+  parseDataLocal,
+  parseDateTimeFromInput,
+} from "./date-format"
 
 describe("formatarDataExcel", () => {
   afterEach(() => {
@@ -88,5 +97,94 @@ describe("parseDataHoraBr", () => {
 
   it("rejeita texto fora do formato esperado", () => {
     expect(() => parseDataHoraBr("2026-07-10 04:10")).toThrow("Data/hora inválida.")
+  })
+})
+
+describe("parseDateTimeFromInput", () => {
+  it("interpreta uma string 'YYYY-MM-DDTHH:MM' como horário de Brasília (UTC-3), retornando o instante UTC certo", () => {
+    const data = parseDateTimeFromInput("2026-08-20T08:00")
+    expect(data.toISOString()).toBe("2026-08-20T11:00:00.000Z")
+  })
+
+  it("aceita segundos opcionais", () => {
+    const data = parseDateTimeFromInput("2026-08-20T08:00:30")
+    expect(data.toISOString()).toBe("2026-08-20T11:00:30.000Z")
+  })
+
+  it("vira o dia (em UTC) corretamente perto da meia-noite de Brasília", () => {
+    // 23:30 em Brasília (UTC-3) já é 02:30 do dia seguinte em UTC.
+    const data = parseDateTimeFromInput("2026-08-20T23:30")
+    expect(data.toISOString()).toBe("2026-08-21T02:30:00.000Z")
+  })
+
+  it("rejeita strings que já trazem timezone explícito (Z ou offset) — não é o formato de datetime-local", () => {
+    expect(() => parseDateTimeFromInput("2026-08-20T08:00:00.000Z")).toThrow("Data/hora inválida")
+    expect(() => parseDateTimeFromInput("2026-08-20T08:00:00-03:00")).toThrow("Data/hora inválida")
+  })
+
+  it("rejeita formato fora do padrão", () => {
+    expect(() => parseDateTimeFromInput("20/08/2026 08:00")).toThrow("Data/hora inválida")
+  })
+
+  it("rejeita data de calendário inexistente (30 de fevereiro)", () => {
+    expect(() => parseDateTimeFromInput("2026-02-30T08:00")).toThrow("Data/hora inválida")
+  })
+
+  it("rejeita hora fora do intervalo válido (25h)", () => {
+    expect(() => parseDateTimeFromInput("2026-08-20T25:00")).toThrow("Data/hora inválida")
+  })
+})
+
+describe("converterEntradaDeDataHora", () => {
+  it("passa direto um Date já construído, sem reajuste", () => {
+    const original = new Date("2026-08-20T11:00:00.000Z")
+    expect(converterEntradaDeDataHora(original)).toBe(original)
+  })
+
+  it("interpreta string sem timezone (formato de datetime-local) como horário de Brasília", () => {
+    const data = converterEntradaDeDataHora("2026-08-20T08:00")
+    expect(data.toISOString()).toBe("2026-08-20T11:00:00.000Z")
+  })
+
+  it("NÃO reajusta uma string que já traz 'Z' — evita corromper um instante já em UTC (ex: vindo de serializeData, usado no fluxo de alocação que não toca nas datas)", () => {
+    const data = converterEntradaDeDataHora("2026-08-20T11:00:00.000Z")
+    expect(data.toISOString()).toBe("2026-08-20T11:00:00.000Z")
+  })
+
+  it("NÃO reajusta uma string com offset explícito", () => {
+    const data = converterEntradaDeDataHora("2026-08-20T08:00:00-03:00")
+    expect(data.toISOString()).toBe("2026-08-20T11:00:00.000Z")
+  })
+})
+
+describe("formatDateTimeForInput", () => {
+  it('formata um instante UTC como horário de Brasília, no formato de <input type="datetime-local">', () => {
+    expect(formatDateTimeForInput(new Date("2026-08-20T11:00:00.000Z"))).toBe("2026-08-20T08:00")
+  })
+
+  it("aceita string ISO também", () => {
+    expect(formatDateTimeForInput("2026-08-20T11:00:00.000Z")).toBe("2026-08-20T08:00")
+  })
+
+  it("é o inverso exato de parseDateTimeFromInput — ida e volta preserva o horário digitado (o bug relatado: 8h virando 5h)", () => {
+    const textoOriginal = "2026-08-20T08:00"
+    const instante = parseDateTimeFromInput(textoOriginal)
+    expect(formatDateTimeForInput(instante)).toBe(textoOriginal)
+  })
+
+  it("vira o dia corretamente perto da meia-noite UTC (madrugada em Brasília)", () => {
+    // 02:30 UTC é 23:30 do dia anterior em Brasília.
+    expect(formatDateTimeForInput(new Date("2026-08-21T02:30:00.000Z"))).toBe("2026-08-20T23:30")
+  })
+})
+
+describe("formatDateForDateInput", () => {
+  it("lê o dia em UTC, sem aplicar nenhum offset (valor vem de coluna @db.Date, sempre meia-noite UTC)", () => {
+    expect(formatDateForDateInput(new Date("2026-08-20T00:00:00.000Z"))).toBe("2026-08-20")
+  })
+
+  it("não cruza pro dia anterior — o bug que aplicar o offset de Brasília causaria numa meia-noite UTC", () => {
+    const meiaNoiteUtc = new Date(Date.UTC(2026, 7, 20, 0, 0, 0))
+    expect(formatDateForDateInput(meiaNoiteUtc)).toBe("2026-08-20")
   })
 })
