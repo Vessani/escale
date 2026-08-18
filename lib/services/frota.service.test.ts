@@ -98,22 +98,15 @@ describe("calcularAvisoFrotaIndisponivel", () => {
 })
 
 describe("sincronizarDisponibilidadeFrota", () => {
-  it("cadastra o conjunto com disponivelEm = fim da viagem ativa quando ainda não existe uma dupla cadastrada", async () => {
+  it("não cadastra um conjunto novo, mesmo com viagem ativa — o cadastro de frota é fechado, só atualiza quem já existe", async () => {
     const tx = criarTx()
-    const fim = new Date("2026-07-20T18:00:00")
-    vi.mocked(tx.viagem.findFirst).mockResolvedValue({ fimPrevisto: fim } as never)
     vi.mocked(tx.frota.findFirst).mockResolvedValue(null)
 
     await sincronizarDisponibilidadeFrota(tx as never, FILIAL_ID, "75", "908")
 
-    expect(tx.viagem.findFirst).toHaveBeenCalledWith({
-      where: { cavalo: "75", carreta: "908", filialId: FILIAL_ID, deletadoEm: null, status: { notIn: ["CANCELADA", "FINALIZADA"] } },
-      orderBy: { fimPrevisto: "desc" },
-      select: { fimPrevisto: true },
-    })
-    expect(tx.frota.create).toHaveBeenCalledWith({
-      data: { cavalo: "75", carreta: "908", disponivelEm: fim, filialId: FILIAL_ID },
-    })
+    // Nem chega a olhar viagens ativas — sem conjunto cadastrado, não há o que sincronizar.
+    expect(tx.viagem.findFirst).not.toHaveBeenCalled()
+    expect(tx.frota.create).not.toHaveBeenCalled()
     expect(tx.frota.update).not.toHaveBeenCalled()
   })
 
@@ -154,17 +147,6 @@ describe("sincronizarDisponibilidadeFrota", () => {
 
     const chamada = vi.mocked(tx.viagem.findFirst).mock.calls[0][0] as { where: { status: { notIn: string[] } } }
     expect(chamada.where.status.notIn).toEqual(["CANCELADA", "FINALIZADA"])
-  })
-
-  it("sem conjunto cadastrado e sem viagem ativa, não cria nada", async () => {
-    const tx = criarTx()
-    vi.mocked(tx.viagem.findFirst).mockResolvedValue(null)
-    vi.mocked(tx.frota.findFirst).mockResolvedValue(null)
-
-    await sincronizarDisponibilidadeFrota(tx as never, FILIAL_ID, "75", "908")
-
-    expect(tx.frota.create).not.toHaveBeenCalled()
-    expect(tx.frota.update).not.toHaveBeenCalled()
   })
 
   it("não faz nada quando cavalo ou carreta é inválido (vazio/placeholder)", async () => {

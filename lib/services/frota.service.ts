@@ -55,13 +55,16 @@ export async function calcularAvisoFrotaIndisponivel(
  * soft delete) — disponivelEm vira o maior fimPrevisto entre elas, ou null
  * se não sobrar nenhuma (frota livre agora).
  *
- * Substitui a versão antiga, que só "carimbava" o fim da viagem que acabou
- * de ser criada/editada — sem recalcular, cancelar ou finalizar uma viagem
- * nunca liberava a frota (ela ficava presa no fim previsto original pra
- * sempre), e editar uma viagem trocando de cavalo/carreta também não
- * liberava o conjunto antigo. Por isso precisa ser chamado sempre que uma
- * viagem que usa essa frota muda de estado: criada, editada (nas duas duplas,
- * se cavalo/carreta mudou), teve o status alterado, ou foi excluída.
+ * Só atualiza um conjunto já cadastrado (ver criarFrotaService) — nunca
+ * cadastra um novo. O cadastro de frota é fechado: a empresa tem uma frota
+ * própria conhecida, e usar uma viagem com cavalo/carreta fora desse cadastro
+ * é considerado dado incompleto/errado na viagem, não motivo pra criar um
+ * conjunto novo sozinho.
+ *
+ * Precisa ser chamado sempre que uma viagem que usa essa frota muda de
+ * estado: criada, editada (nas duas duplas, se cavalo/carreta mudou), teve o
+ * status alterado, ou foi excluída — senão cancelar/finalizar uma viagem
+ * nunca libera a frota (fica presa no fim previsto antigo pra sempre).
  */
 export async function sincronizarDisponibilidadeFrota(
   tx: Prisma.TransactionClient,
@@ -70,6 +73,15 @@ export async function sincronizarDisponibilidadeFrota(
   carreta: string,
 ): Promise<void> {
   if (!frotaEhValida(cavalo) || !frotaEhValida(carreta)) {
+    return
+  }
+
+  const existente = await tx.frota.findFirst({
+    where: { cavalo, carreta, filialId, deletadoEm: null },
+  })
+
+  // Conjunto não cadastrado: nada a sincronizar (ver comentário acima).
+  if (!existente) {
     return
   }
 
@@ -85,29 +97,10 @@ export async function sincronizarDisponibilidadeFrota(
     select: { fimPrevisto: true },
   })
 
-  const disponivelEm = viagemAtiva?.fimPrevisto ?? null
-
-  // Sem @@unique em (cavalo, carreta) no schema (ver comentário no model
-  // Frota) — não dá pra usar upsert pela dupla, então busca a ativa e
-  // decide entre update/create à mão.
-  const existente = await tx.frota.findFirst({
-    where: { cavalo, carreta, filialId, deletadoEm: null },
+  await tx.frota.update({
+    where: { id: existente.id, filialId },
+    data: { disponivelEm: viagemAtiva?.fimPrevisto ?? null },
   })
-
-  if (existente) {
-    await tx.frota.update({
-      where: { id: existente.id, filialId },
-      data: { disponivelEm },
-    })
-    return
-  }
-
-  // Sem conjunto cadastrado e sem viagem ativa: nada a guardar.
-  if (disponivelEm) {
-    await tx.frota.create({
-      data: { cavalo, carreta, disponivelEm, filialId },
-    })
-  }
 }
 
 /** Cria um conjunto manualmente pelo cadastro — separado do auto-registro feito ao criar/editar viagem. */
