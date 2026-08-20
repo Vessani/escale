@@ -8,6 +8,7 @@ import { criarViagensEmLoteComAlocacao } from "@/lib/actions/viagens"
 import { periodoConflita } from "@/lib/services/alocacao.service"
 import { useConflitosAlocacao } from "@/lib/hooks/use-conflitos-alocacao"
 import { viagensCompartilhamFrota } from "@/lib/services/frota-regras"
+import { PRODUTO_OPCOES, ehTipoProduto } from "@/lib/services/produto.service"
 import { Alert } from "@/components/ui/alert"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -43,6 +44,12 @@ export default function ConfirmarLoteViagens({ viagens, onConcluido, onCancelar 
     ),
   )
   const [erro, setErro] = useState("")
+  // A planilha não traz produto — cada viagem do lote precisa de uma escolha
+  // explícita aqui antes de confirmar (produto passou a ser obrigatório em
+  // toda viagem nova, ver validation/viagens.ts).
+  const [produtos, setProdutos] = useState<Record<string, string>>({})
+  const atualizarProduto = (numViagem: string, produto: string) =>
+    setProdutos((atual) => ({ ...atual, [numViagem]: produto }))
 
   const itensParaConflito = useMemo(
     () =>
@@ -95,10 +102,16 @@ export default function ConfirmarLoteViagens({ viagens, onConcluido, onCancelar 
   const confirmarCriacao = () => {
     setErro("")
 
+    const semProduto = viagens.find((viagem) => !ehTipoProduto(produtos[viagem.dados.numViagem] ?? ""))
+    if (semProduto) {
+      setErro(`Escolha o produto da viagem ${semProduto.dados.numViagem} antes de confirmar.`)
+      return
+    }
+
     const payload = viagens.map((viagem) => {
       const selecionado = selecoes[viagem.dados.numViagem]
       return {
-        dados: viagem.dados,
+        dados: { ...viagem.dados, produto: produtos[viagem.dados.numViagem] } as typeof viagem.dados,
         motoristaId: selecionado ? Number(selecionado) : null,
       }
     })
@@ -156,9 +169,26 @@ export default function ConfirmarLoteViagens({ viagens, onConcluido, onCancelar 
                     </Alert>
                   )}
                 </div>
-                <Badge variant="outline" className={classeBadgeTurno(viagem.dados.turno)}>
-                  {viagem.dados.turno}
-                </Badge>
+                <div className="flex flex-col items-end gap-2">
+                  <Badge variant="outline" className={classeBadgeTurno(viagem.dados.turno)}>
+                    {viagem.dados.turno}
+                  </Badge>
+                  <Select
+                    value={produtos[numViagem] ?? ""}
+                    onValueChange={(value) => atualizarProduto(numViagem, value)}
+                  >
+                    <SelectTrigger className="h-8 w-44 bg-white text-xs">
+                      <SelectValue placeholder="Escolha o produto" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {PRODUTO_OPCOES.map((opcao) => (
+                        <SelectItem key={opcao.valor} value={opcao.valor}>
+                          {opcao.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
               </CardHeader>
 
               <CardContent className="grid gap-4 pt-6 lg:grid-cols-[1.2fr_0.8fr]">

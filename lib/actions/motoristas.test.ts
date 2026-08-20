@@ -36,10 +36,12 @@ import {
 
 const motoristaValido = {
   nome: "João da Silva",
+  cpf: "11144477735",
   seva: 12345,
   diasTrabalhados: 1,
   turno: "MANHA",
   liberado: true,
+  produtosAutorizados: ["CO2"],
   integracao: [{ cliente: "Cliente X", dataValidade: "2026-12-31", status: "ATIVO" }],
 }
 

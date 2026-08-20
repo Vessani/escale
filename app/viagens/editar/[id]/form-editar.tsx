@@ -1,6 +1,6 @@
 "use client"
 
-import type { StatusViagem } from "@prisma/client"
+import type { StatusViagem, TipoProduto } from "@prisma/client"
 import { useMemo, useState } from "react"
 import { useRouter } from "next/navigation"
 import { zodResolver } from "@hookform/resolvers/zod"
@@ -24,6 +24,7 @@ import { classeBadgeStatusViagem } from "../../badge-styles"
 import { Save, UserCheck } from "lucide-react"
 import { formatDateTimeForInput, inicioDoDia } from "@/lib/utils/date-format"
 import { rotularMotoristaParaSelect } from "@/lib/utils/motorista-format"
+import { PRODUTO_OPCOES } from "@/lib/services/produto.service"
 import { editarViagemSchema, type EditarViagemFormValues } from "@/lib/validation/viagens"
 import RotaFields from "@/components/viagem/rota-fields"
 import EntregasFieldArray from "@/components/viagem/entregas-field-array"
@@ -59,6 +60,7 @@ type MotoristaParaSelect = {
   }>
   jornadaRelatorioInicio: string | Date | null
   jornadaRelatorioFim: string | Date | null
+  produtosAutorizados: TipoProduto[]
 }
 
 type ViagemComRelacionamentos = {
@@ -69,6 +71,7 @@ type ViagemComRelacionamentos = {
   tanque: string
   diasViagem: number
   turno: EditarViagemFormValues["turno"]
+  produto: TipoProduto | null
   motoristaId: number | null
   motoristaAcompanhanteId: number | null
   inicioPrevisto: string | Date
@@ -103,6 +106,7 @@ export default function FormEditarViagem({ viagem, motoristas, clientesQueExigem
       tanque: viagem.tanque,
       diasViagem: viagem.diasViagem,
       turno: viagem.turno,
+      produto: viagem.produto ?? undefined,
       motoristaId: viagem.motoristaId,
       motoristaAcompanhanteId: viagem.motoristaAcompanhanteId,
       inicioPrevisto: formatDateTimeForInput(viagem.inicioPrevisto),
@@ -207,6 +211,7 @@ export default function FormEditarViagem({ viagem, motoristas, clientesQueExigem
                               diasViagem: viagem.diasViagem,
                               dataInicioViagem: new Date(viagem.inicioPrevisto),
                               integracaoExigida,
+                              produtoExigido: viagem.produto,
                               hoje,
                             },
                           )
@@ -295,6 +300,31 @@ export default function FormEditarViagem({ viagem, motoristas, clientesQueExigem
           </CardHeader>
           <CardContent className="grid grid-cols-1 gap-6 pt-6 md:grid-cols-4">
             <RotaFields control={form.control} />
+
+            <FormField
+              control={form.control}
+              name="produto"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Produto</FormLabel>
+                  <Select value={field.value ?? ""} onValueChange={field.onChange}>
+                    <FormControl>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Selecione o produto" />
+                      </SelectTrigger>
+                    </FormControl>
+                    <SelectContent>
+                      {PRODUTO_OPCOES.map((opcao) => (
+                        <SelectItem key={opcao.valor} value={opcao.valor}>
+                          {opcao.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
           </CardContent>
         </Card>
 

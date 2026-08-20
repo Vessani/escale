@@ -13,6 +13,7 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { classeBadgeTurno } from "../badge-styles"
 import { formatarDataHoraPtBr } from "@/lib/utils/date-format"
+import { formatarProduto } from "@/lib/services/produto.service"
 import { formatarDetalheMotoristaCompativel, formatarOpcaoMotoristaCompativel } from "@/lib/utils/motorista-format"
 import {
   Select,
@@ -125,6 +126,14 @@ export default function AlocacaoViagensClient({ viagens }: Props) {
       return
     }
 
+    // Produto passou a ser obrigatório pra salvar qualquer viagem — essa tela
+    // não tem seletor de produto (só realoca motorista), então uma viagem
+    // antiga sem produto definido precisa passar pela edição manual primeiro.
+    if (!viagem.produto) {
+      setErro('Essa viagem ainda não tem produto definido. Use "Manual" para editá-la e escolher o produto antes de alocar.')
+      return
+    }
+
     setErro("")
     setMensagem("")
     setSalvandoId(viagem.id)
@@ -138,6 +147,7 @@ export default function AlocacaoViagensClient({ viagens }: Props) {
       inicioPrevisto: viagem.inicioPrevisto,
       fimPrevisto: viagem.fimPrevisto,
       turno: viagem.turno,
+      produto: viagem.produto,
       motoristaId: Number(motoristaSelecionado),
       entregas: viagem.entregas.map((entrega) => ({
         id: entrega.id,
@@ -223,11 +233,21 @@ export default function AlocacaoViagensClient({ viagens }: Props) {
                       Frota indisponível no horário
                     </Alert>
                   )}
+                  {viagem.avisoFrotaProdutoIncompativel && (
+                    <Alert variant="warning" inline className="mt-1" title={viagem.avisoFrotaProdutoIncompativel}>
+                      Frota de outro produto
+                    </Alert>
+                  )}
                 </div>
                 <div className="flex flex-col items-end gap-2">
                   <Badge variant="outline" className={classeBadgeTurno(viagem.turno)}>
                     {viagem.turno}
                   </Badge>
+                  {viagem.produto ? (
+                    <Badge variant="outline">Produto: {formatarProduto(viagem.produto)}</Badge>
+                  ) : (
+                    <Badge variant="warning">Produto não definido</Badge>
+                  )}
                   {viagem.integracaoExigida ? (
                     <Badge variant="warning">
                       Integração: {viagem.integracaoExigida}

@@ -1,6 +1,7 @@
-import type { Prisma } from "@prisma/client"
+import type { Prisma, TipoProduto } from "@prisma/client"
 import { prisma } from "@/lib/prisma"
 import { converterEntradaDeDataHora, formatarDataHoraPtBr } from "@/lib/utils/date-format"
+import { formatarProduto } from "./produto.service"
 import { frotaEhValida } from "./frota-regras"
 
 export { frotaEhValida } from "./frota-regras"
@@ -10,6 +11,7 @@ export type FrotaInput = {
   carreta: string
   disponivelEm?: string | Date | null
   emManutencao?: boolean
+  tipoProduto?: TipoProduto | null
 }
 
 /**
@@ -47,6 +49,34 @@ export async function calcularAvisoFrotaIndisponivel(
   }
 
   return `Frota ${cavalo}/${carreta} só estará disponível a partir de ${formatarDataHoraPtBr(frota.disponivelEm)}.`
+}
+
+/**
+ * Avisa quando o conjunto cadastrado é dedicado a um produto diferente do
+ * exigido pela viagem. Só aviso, nunca bloqueia (mesmo espírito de
+ * calcularAvisoFrotaIndisponivel) — cavalo/carreta na viagem é texto livre,
+ * pode nem ter frota cadastrada ainda (ver comentário em
+ * sincronizarDisponibilidadeFrota sobre o cadastro de frota ser fechado).
+ */
+export async function calcularAvisoFrotaProduto(
+  filialId: number,
+  cavalo: string,
+  carreta: string,
+  produtoViagem: TipoProduto | null | undefined,
+): Promise<string | null> {
+  if (!produtoViagem || !frotaEhValida(cavalo) || !frotaEhValida(carreta)) {
+    return null
+  }
+
+  const frota = await prisma.frota.findFirst({
+    where: { cavalo, carreta, filialId, deletadoEm: null },
+  })
+
+  if (!frota || !frota.tipoProduto || frota.tipoProduto === produtoViagem) {
+    return null
+  }
+
+  return `Frota ${cavalo}/${carreta} está cadastrada para ${formatarProduto(frota.tipoProduto)}, não ${formatarProduto(produtoViagem)}.`
 }
 
 /**
@@ -103,7 +133,7 @@ export async function sincronizarDisponibilidadeFrota(
   })
 }
 
-/** Cria um conjunto manualmente pelo cadastro — separado do auto-registro feito ao criar/editar viagem. */
+/** Cria um conjunto manualmente pelo cadastro. */
 export async function criarFrotaService(filialId: number, dados: FrotaInput) {
   const existente = await prisma.frota.findFirst({
     where: { cavalo: dados.cavalo, carreta: dados.carreta, filialId, deletadoEm: null },
@@ -119,6 +149,7 @@ export async function criarFrotaService(filialId: number, dados: FrotaInput) {
       carreta: dados.carreta,
       disponivelEm: dados.disponivelEm ? converterEntradaDeDataHora(dados.disponivelEm) : null,
       emManutencao: dados.emManutencao ?? false,
+      tipoProduto: dados.tipoProduto ?? null,
       filialId,
     },
   })
@@ -140,6 +171,7 @@ export async function editarFrotaService(filialId: number, id: number, dados: Fr
       carreta: dados.carreta,
       disponivelEm: dados.disponivelEm ? converterEntradaDeDataHora(dados.disponivelEm) : null,
       emManutencao: dados.emManutencao ?? false,
+      tipoProduto: dados.tipoProduto ?? null,
     },
   })
 }

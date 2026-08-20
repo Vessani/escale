@@ -12,6 +12,7 @@ function criarDadosEdicao(parcial: Partial<EditarViagemInput> = {}): EditarViage
     inicioPrevisto: "2026-07-10T08:00",
     fimPrevisto: "2026-07-10T20:00",
     turno: "MANHA",
+    produto: "CO2",
     entregas: [],
     ...parcial,
   }
@@ -57,7 +58,7 @@ describe("viagem-data-converter.service", () => {
     const resultado = converterEditarViagemParaBD(
       criarDadosEdicao({
         entregas: [
-          { dataEntrega: "2026-07-10T09:00", cliente: "Cliente Teste", cidade: "Joinville", uf: "SC", kg: 100, m3: 1, obs: "" },
+          { dataEntrega: "2026-07-10T09:00", cliente: "Cliente Teste", cidade: "Joinville", uf: "SC", kg: 100, m3: 1, obs: "", sapcode: "", codewhite: "" },
         ],
       }),
     )

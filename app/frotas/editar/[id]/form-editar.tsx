@@ -1,5 +1,6 @@
 "use client"
 
+import type { TipoProduto } from "@prisma/client"
 import { editarFrota } from "@/lib/actions/frotas"
 import { formatDateTimeForInput } from "@/lib/utils/date-format"
 import FrotaForm from "@/components/frota/frota-form"
@@ -11,6 +12,7 @@ type FrotaParaEditar = {
   carreta: string
   disponivelEm: string | Date | null
   emManutencao: boolean
+  tipoProduto: TipoProduto | null
 }
 
 type FormEditarFrotaProps = {
@@ -27,6 +29,7 @@ export default function FormEditarFrota({ frota }: FormEditarFrotaProps) {
         carreta: frota.carreta,
         disponivelEm: frota.disponivelEm ? formatDateTimeForInput(frota.disponivelEm) : "",
         emManutencao: frota.emManutencao,
+        tipoProduto: frota.tipoProduto,
       }}
       onSubmit={handleSubmit}
       submitLabel="Atualizar"

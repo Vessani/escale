@@ -90,3 +90,78 @@ export async function buscarViagensDoDashboard(filialId: number, hoje: Date, fil
     },
   });
 }
+
+/**
+ * Relatório geral: viagens de qualquer status, opcionalmente filtradas por
+ * status e por janela de início previsto — usado pelo Excel de
+ * viagem+motorista+frota cruzados (ver excel-export.service.ts).
+ */
+export async function buscarViagensParaRelatorioGeral(
+  filialId: number,
+  filtros: { status?: FiltroStatusViagem; de?: Date; ate?: Date },
+) {
+  const filtroStatus =
+    filtros.status && filtros.status !== "TODOS"
+      ? ({ status: filtros.status } satisfies Prisma.ViagemWhereInput)
+      : {};
+
+  const filtroPeriodo: Prisma.ViagemWhereInput = {};
+  if (filtros.de) filtroPeriodo.inicioPrevisto = { gte: filtros.de };
+  if (filtros.ate) {
+    filtroPeriodo.fimPrevisto = { lte: fimDoDia(filtros.ate) };
+  }
+
+  return await prisma.viagem.findMany({
+    where: {
+      deletadoEm: null,
+      filialId,
+      ...filtroStatus,
+      ...filtroPeriodo,
+    },
+    orderBy: { inicioPrevisto: "desc" },
+    include: {
+      motorista: true,
+      motoristaAcompanhante: true,
+    },
+  });
+}
+
+/**
+ * Viagens de um motorista específico com status ALOCADA/INICIADA/RETORNANDO
+ * — pra montar o Excel individual que é enviado direto pra ele (ver plano,
+ * seção "3 relatórios").
+ */
+export async function buscarViagensPorMotorista(filialId: number, motoristaId: number) {
+  return await prisma.viagem.findMany({
+    where: {
+      deletadoEm: null,
+      filialId,
+      motoristaId,
+      status: { in: ["ALOCADA", "INICIADA", "RETORNANDO"] },
+    },
+    orderBy: { inicioPrevisto: "asc" },
+    include: {
+      motorista: true,
+      motoristaAcompanhante: true,
+    },
+  });
+}
+
+/**
+ * Viagens criadas (criadoEm) num dia específico — pra montar o Excel enviado
+ * pra operação com o que entrou no sistema naquele dia.
+ */
+export async function buscarViagensCriadasEm(filialId: number, data: Date) {
+  return await prisma.viagem.findMany({
+    where: {
+      deletadoEm: null,
+      filialId,
+      criadoEm: { gte: inicioDoDia(data), lte: fimDoDia(data) },
+    },
+    orderBy: { inicioPrevisto: "asc" },
+    include: {
+      motorista: true,
+      motoristaAcompanhante: true,
+    },
+  });
+}

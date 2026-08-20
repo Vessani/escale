@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest"
-import type { StatusIntegracao, Turno } from "@prisma/client"
+import type { StatusIntegracao, TipoProduto, Turno } from "@prisma/client"
 import {
   calcularAvisoInterjornada,
   calcularDiasDisponiveis,
@@ -27,6 +27,7 @@ type MotoristaMock = {
   registrosJornada: Array<{ data: Date; codigo: number; fimJornada?: Date | string | null }>
   jornadaRelatorioInicio: Date | string | null
   jornadaRelatorioFim: Date | string | null
+  produtosAutorizados: TipoProduto[]
 }
 
 function criarMotorista(parcial: Partial<MotoristaMock>): MotoristaMock {
@@ -40,6 +41,7 @@ function criarMotorista(parcial: Partial<MotoristaMock>): MotoristaMock {
     registrosJornada: [],
     jornadaRelatorioInicio: null,
     jornadaRelatorioFim: null,
+    produtosAutorizados: [],
     ...parcial,
   }
 }
@@ -325,6 +327,59 @@ describe("alocacao.service", () => {
     })
   })
 
+  describe("motoristaEhCompativel — produto", () => {
+    const hoje = new Date("2026-07-08T00:00:00")
+    const contextoBase = {
+      turnoViagem: "MANHA" as Turno,
+      diasViagem: 1,
+      dataInicioViagem: hoje,
+      integracaoExigida: null,
+      hoje,
+    }
+
+    it("bloqueia (não é só aviso) quando o motorista não está autorizado pro produto exigido", () => {
+      const motorista = criarMotorista({ diasTrabalhados: 1, produtosAutorizados: ["NITROGENIO"] })
+      expect(
+        motoristaEhCompativel(motorista, { ...contextoBase, produtoExigido: "CO2" }),
+      ).toBe(false)
+    })
+
+    it("aceita quando o produto exigido está entre os autorizados do motorista", () => {
+      const motorista = criarMotorista({ diasTrabalhados: 1, produtosAutorizados: ["CO2"] })
+      expect(
+        motoristaEhCompativel(motorista, { ...contextoBase, produtoExigido: "CO2" }),
+      ).toBe(true)
+    })
+
+    it("o exemplo literal do pedido: motorista autorizado só pra CO2 não pode ir numa viagem de Nitrogênio, mas pode numa de CO2", () => {
+      const motoristaSoCO2 = criarMotorista({ diasTrabalhados: 1, produtosAutorizados: ["CO2"] })
+
+      expect(motoristaEhCompativel(motoristaSoCO2, { ...contextoBase, produtoExigido: "NITROGENIO" })).toBe(false)
+      expect(motoristaEhCompativel(motoristaSoCO2, { ...contextoBase, produtoExigido: "CO2" })).toBe(true)
+    })
+
+    it("motorista autorizado pra vários produtos é compatível com qualquer um deles", () => {
+      const motorista = criarMotorista({ diasTrabalhados: 1, produtosAutorizados: ["CO2", "NITROGENIO", "ARGONIO"] })
+
+      expect(motoristaEhCompativel(motorista, { ...contextoBase, produtoExigido: "NITROGENIO" })).toBe(true)
+      expect(motoristaEhCompativel(motorista, { ...contextoBase, produtoExigido: "ARGONIO" })).toBe(true)
+    })
+
+    it("motorista sem nenhum produto autorizado (ex: cadastrado antes desse campo existir) não é compatível com nenhuma viagem que exija produto", () => {
+      const motorista = criarMotorista({ diasTrabalhados: 1, produtosAutorizados: [] })
+      expect(
+        motoristaEhCompativel(motorista, { ...contextoBase, produtoExigido: "CO2" }),
+      ).toBe(false)
+    })
+
+    it("viagem sem produto definido (histórico anterior a esse campo) não restringe — undefined/null se comporta como integracaoExigida", () => {
+      const motorista = criarMotorista({ diasTrabalhados: 1, produtosAutorizados: [] })
+
+      expect(motoristaEhCompativel(motorista, { ...contextoBase, produtoExigido: null })).toBe(true)
+      expect(motoristaEhCompativel(motorista, contextoBase)).toBe(true)
+    })
+  })
+
   describe("filtrarMotoristasCompativeis", () => {
     const hoje = new Date("2026-07-08T00:00:00")
     const contexto = {
@@ -343,6 +398,20 @@ describe("alocacao.service", () => {
       const resultado = filtrarMotoristasCompativeis([ocupado, livre, foraDeTurno], contexto)
 
       expect(resultado.map((m) => m.id)).toEqual([2, 1])
+    })
+
+    it("roster misto: só sobram os motoristas autorizados pro produto exigido, os demais são removidos como qualquer outro incompatível", () => {
+      const soCO2 = criarMotorista({ id: 1, nome: "Só CO2", diasTrabalhados: 1, produtosAutorizados: ["CO2"] })
+      const multiProduto = criarMotorista({ id: 2, nome: "Multi", diasTrabalhados: 1, produtosAutorizados: ["NITROGENIO", "CO2"] })
+      const semProduto = criarMotorista({ id: 3, nome: "Sem Produto", diasTrabalhados: 1, produtosAutorizados: [] })
+      const outroProduto = criarMotorista({ id: 4, nome: "Outro Produto", diasTrabalhados: 1, produtosAutorizados: ["ARGONIO"] })
+
+      const resultado = filtrarMotoristasCompativeis(
+        [soCO2, multiProduto, semProduto, outroProduto],
+        { ...contexto, produtoExigido: "CO2" },
+      )
+
+      expect(resultado.map((m) => m.id).sort()).toEqual([1, 2])
     })
 
     it("em empate de disponibilidade, desempata por nome em ordem alfabética", () => {
@@ -735,6 +804,28 @@ describe("alocacao.service", () => {
 
       expect(resultado[0].motoristaSugerido?.id).toBe(1)
       expect(resultado[1].motoristaSugerido?.id).toBe(2)
+    })
+
+    it("nunca sugere um motorista sem autorização pro produto exigido, mesmo sendo o melhor encaixe em tudo o mais", () => {
+      const melhorEncaixeMasErrado = comAgenda({ id: 1, nome: "Ana", diasTrabalhados: 1, produtosAutorizados: ["NITROGENIO"] })
+      const unicoAutorizado = comAgenda({ id: 2, nome: "Bruno", diasTrabalhados: 3, produtosAutorizados: ["CO2"] })
+      const hoje = new Date("2026-07-04T00:00:00")
+
+      const viagens = [
+        {
+          id: 10,
+          turno: "MANHA" as Turno,
+          diasViagem: 1,
+          inicioPrevisto: new Date("2026-07-04T08:00:00"),
+          fimPrevisto: new Date("2026-07-04T18:00:00"),
+          integracaoExigida: null,
+          produtoExigido: "CO2" as TipoProduto,
+        },
+      ]
+
+      const resultado = sugerirAlocacoesEmLote(viagens, [melhorEncaixeMasErrado, unicoAutorizado], hoje)
+
+      expect(resultado[0].motoristaSugerido?.id).toBe(2)
     })
 
     it("permite reaproveitar o mesmo motorista quando as viagens do lote não se sobrepõem", () => {

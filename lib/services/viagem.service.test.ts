@@ -29,6 +29,7 @@ vi.mock("@/lib/services/folga.service", () => ({
 
 vi.mock("@/lib/services/frota.service", () => ({
   calcularAvisoFrotaIndisponivel: vi.fn(),
+  calcularAvisoFrotaProduto: vi.fn(),
   sincronizarDisponibilidadeFrota: vi.fn(),
 }))
 
@@ -36,7 +37,7 @@ import { prisma } from "@/lib/prisma"
 import { buscarMotoristasParaSelect } from "@/lib/queries/motoristas"
 import { buscarNomesClientesQueExigemIntegracao } from "@/lib/queries/clientes"
 import { reconciliarFolgaMotoristasNoDiaAtual } from "@/lib/services/folga.service"
-import { calcularAvisoFrotaIndisponivel, sincronizarDisponibilidadeFrota } from "@/lib/services/frota.service"
+import { calcularAvisoFrotaIndisponivel, calcularAvisoFrotaProduto, sincronizarDisponibilidadeFrota } from "@/lib/services/frota.service"
 import {
   criarViagemAvulsaService,
   criarViagemComAlocacaoService,
@@ -79,6 +80,7 @@ function criarViagemInput(parcial: Partial<NovaViagemInput> = {}): NovaViagemInp
     inicioPrevisto: agora.toISOString(),
     fimPrevisto: fim.toISOString(),
     turno: "MANHA",
+    produto: "CO2",
     entregas: [{ dataEntrega: agora.toISOString(), cliente: "Cliente Comum", cidade: "SP", uf: "SP", kg: 100, m3: 1, obs: "obs", sapcode: "", codewhite: "" }],
     ...parcial,
   }
@@ -91,6 +93,9 @@ function criarMotoristaParaSelect(parcial: Record<string, unknown> = {}) {
     turno: "MANHA",
     diasTrabalhados: 1,
     liberado: true,
+    // Bate com o produto padrão de criarViagemInput ("CO2") — testes que
+    // querem exercitar incompatibilidade de produto sobrescrevem isso.
+    produtosAutorizados: ["CO2"],
     integracao: [],
     viagens: [],
     registrosJornada: [],
@@ -118,6 +123,7 @@ describe("viagem.service", () => {
     vi.mocked(prisma.registroJornada.findFirst).mockResolvedValue(null)
     // Sem conflito de frota por padrão — testado à parte em frota.service.test.ts.
     vi.mocked(calcularAvisoFrotaIndisponivel).mockResolvedValue(null)
+    vi.mocked(calcularAvisoFrotaProduto).mockResolvedValue(null)
     // Sem outra viagem ativa com o mesmo número por padrão — testado à parte abaixo.
     vi.mocked(prisma.viagem.findFirst).mockResolvedValue(null)
     // Mesmos clientes que antes viviam hardcoded em CLIENTES_COM_INTEGRACAO_OBRIGATORIA.

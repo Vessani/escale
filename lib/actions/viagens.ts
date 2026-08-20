@@ -30,7 +30,7 @@ import {
   calcularProximoInicioDisponivel,
   sugerirAlocacoesEmLote,
 } from "@/lib/services/alocacao.service";
-import { calcularAvisoFrotaIndisponivel } from "@/lib/services/frota.service";
+import { calcularAvisoFrotaIndisponivel, calcularAvisoFrotaProduto } from "@/lib/services/frota.service";
 import { encontrarFimJornadaAnterior, mapearRegistrosJornada, projetarCodigoNoDia } from "@/lib/services/jornada.service";
 import { converterEntradaDeDataHora, formatarHoraLocal, inicioDoDia } from "@/lib/utils/date-format";
 
@@ -84,6 +84,7 @@ export async function sugerirAlocacaoParaViagens(
     inicioPrevisto: new Date(viagem.inicioPrevisto),
     fimPrevisto: new Date(viagem.fimPrevisto),
     integracaoExigida: calcularIntegracaoExigida(viagem.entregas, clientesQueExigemIntegracao),
+    produtoExigido: viagem.produto,
   }));
 
   const sugestoes = sugerirAlocacoesEmLote(viagensParaSugestao, motoristas, hoje);
@@ -95,6 +96,12 @@ export async function sugerirAlocacaoParaViagens(
       viagens[indice].cavalo,
       viagens[indice].carreta,
       dataInicioViagem,
+    );
+    const avisoFrotaProdutoIncompativel = await calcularAvisoFrotaProduto(
+      filialId,
+      viagens[indice].cavalo,
+      viagens[indice].carreta,
+      viagens[indice].produto,
     );
 
     return {
@@ -113,6 +120,7 @@ export async function sugerirAlocacaoParaViagens(
           )
         : null,
       avisoFrotaIndisponivel,
+      avisoFrotaProdutoIncompativel,
       motoristasCompativeis: sugestao.motoristasCompativeis.map((motorista) => {
         // Mesma jornada projetada usada pra decidir compatibilidade, não o
         // cache de "hoje" — ver mesma lógica em app/viagens/alocacao/page.tsx.

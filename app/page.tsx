@@ -66,6 +66,7 @@ function AlocacaoCelula({ item }: { item: ItemDashboard }) {
         diasViagem={viagem.diasViagem}
         inicioPrevisto={viagem.inicioPrevisto}
         integracaoExigida={viagem.integracaoExigida}
+        produto={viagem.produto}
       />
       {viagem.avisoInterjornada && (
         <Alert variant="warning" inline title={viagem.avisoInterjornada}>
@@ -90,6 +91,11 @@ function FrotaCelula({ item }: { item: ItemDashboard }) {
       {viagem.avisoFrotaIndisponivel && (
         <Alert variant="warning" inline title={viagem.avisoFrotaIndisponivel}>
           Frota indisponível
+        </Alert>
+      )}
+      {viagem.avisoFrotaProdutoIncompativel && (
+        <Alert variant="warning" inline title={viagem.avisoFrotaProdutoIncompativel}>
+          Frota de outro produto
         </Alert>
       )}
     </div>
@@ -181,6 +187,11 @@ function ViagensEmAndamentoCards({ itens }: { itens: ItemDashboard[] }) {
               {item.viagem.avisoFrotaIndisponivel && (
                 <Alert variant="warning" inline className="mt-1" title={item.viagem.avisoFrotaIndisponivel}>
                   Frota indisponível
+                </Alert>
+              )}
+              {item.viagem.avisoFrotaProdutoIncompativel && (
+                <Alert variant="warning" inline className="mt-1" title={item.viagem.avisoFrotaProdutoIncompativel}>
+                  Frota de outro produto
                 </Alert>
               )}
             </div>

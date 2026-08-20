@@ -1,3 +1,5 @@
+import type { TipoProduto } from "@prisma/client"
+
 export type EntregaAlocacao = {
   id: number
   dataEntrega: string
@@ -38,6 +40,8 @@ export type ViagemAlocacao = {
   inicioPrevisto: string
   fimPrevisto: string
   turno: "MANHA" | "NOITE"
+  /** Nulo pra viagens criadas antes desse campo existir — sem restrição de compatibilidade. */
+  produto: TipoProduto | null
   motoristaId: number | null
   integracaoExigida: string | null
   entregas: EntregaAlocacao[]
@@ -46,6 +50,8 @@ export type ViagemAlocacao = {
   avisoInterjornada: string | null
   /** Ver calcularAvisoFrotaIndisponivel (frota.service.ts) — cavalo/carreta em uso em outra viagem no mesmo período. */
   avisoFrotaIndisponivel: string | null
+  /** Ver calcularAvisoFrotaProduto (frota.service.ts) — frota cadastrada pra outro produto. Só aviso, nunca bloqueia. */
+  avisoFrotaProdutoIncompativel: string | null
 }
 
 /** Sugestão de alocação para uma viagem que ainda não existe no banco (revisão antes de criar em lote). */
@@ -57,4 +63,6 @@ export type SugestaoAlocacaoPendente = {
   avisoInterjornada: string | null
   /** Ver calcularAvisoFrotaIndisponivel (frota.service.ts) — cavalo/carreta em uso em outra viagem no mesmo período. */
   avisoFrotaIndisponivel: string | null
+  /** Ver calcularAvisoFrotaProduto (frota.service.ts) — frota cadastrada pra outro produto. Só aviso, nunca bloqueia. */
+  avisoFrotaProdutoIncompativel: string | null
 }

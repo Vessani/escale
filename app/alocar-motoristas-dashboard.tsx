@@ -2,7 +2,7 @@
 
 import { useMemo, useState, useTransition } from "react"
 import { useRouter } from "next/navigation"
-import type { Turno } from "@prisma/client"
+import type { TipoProduto, Turno } from "@prisma/client"
 import { atualizarAlocacaoViagem } from "@/lib/actions/viagens"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { motoristaEhCompativel } from "@/lib/services/alocacao.service"
@@ -25,6 +25,7 @@ type MotoristaParaAlocacao = {
   registrosJornada: Array<{ data: string | Date; codigo: number }>
   jornadaRelatorioInicio: string | Date | null
   jornadaRelatorioFim: string | Date | null
+  produtosAutorizados: TipoProduto[]
 }
 
 type Props = {
@@ -36,6 +37,7 @@ type Props = {
   diasViagem: number
   inicioPrevisto: string | Date
   integracaoExigida: string | null
+  produto: TipoProduto | null
 }
 
 /** Alocação inline do Dashboard — grava direto, sem passar pela tela de edição completa (ver atualizarAlocacaoViagem). */
@@ -48,6 +50,7 @@ export default function AlocarMotoristasDashboard({
   diasViagem,
   inicioPrevisto,
   integracaoExigida,
+  produto,
 }: Props) {
   const router = useRouter()
   const [isPending, startTransition] = useTransition()
@@ -94,6 +97,7 @@ export default function AlocarMotoristasDashboard({
                 diasViagem,
                 dataInicioViagem: new Date(inicioPrevisto),
                 integracaoExigida,
+                produtoExigido: produto,
                 hoje,
               },
             )

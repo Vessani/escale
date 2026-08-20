@@ -30,7 +30,7 @@ export default function NovaFrotaPage() {
       </div>
 
       <FrotaForm
-        defaultValues={{ cavalo: "", carreta: "", disponivelEm: "", emManutencao: false }}
+        defaultValues={{ cavalo: "", carreta: "", disponivelEm: "", emManutencao: false, tipoProduto: null }}
         onSubmit={criarFrota}
         submitLabel="Cadastrar"
         submittingLabel="Salvando..."

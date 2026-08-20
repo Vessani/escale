@@ -176,7 +176,7 @@ describe("criarFrotaService", () => {
     // ver converterEntradaDeDataHora/parseDateTimeFromInput — não com
     // `new Date(texto)` puro, que dependeria do fuso de quem roda o teste.
     expect(prisma.frota.create).toHaveBeenCalledWith({
-      data: { cavalo: "75", carreta: "908", disponivelEm: new Date("2026-07-22T21:30:00.000Z"), emManutencao: false, filialId: FILIAL_ID },
+      data: { cavalo: "75", carreta: "908", disponivelEm: new Date("2026-07-22T21:30:00.000Z"), emManutencao: false, tipoProduto: null, filialId: FILIAL_ID },
     })
   })
 
@@ -196,7 +196,7 @@ describe("criarFrotaService", () => {
     await criarFrotaService(FILIAL_ID, { cavalo: "75", carreta: "908", disponivelEm: null })
 
     expect(prisma.frota.create).toHaveBeenCalledWith({
-      data: { cavalo: "75", carreta: "908", disponivelEm: null, emManutencao: false, filialId: FILIAL_ID },
+      data: { cavalo: "75", carreta: "908", disponivelEm: null, emManutencao: false, tipoProduto: null, filialId: FILIAL_ID },
     })
   })
 
@@ -207,7 +207,18 @@ describe("criarFrotaService", () => {
     await criarFrotaService(FILIAL_ID, { cavalo: "75", carreta: "908", disponivelEm: null, emManutencao: true })
 
     expect(prisma.frota.create).toHaveBeenCalledWith({
-      data: { cavalo: "75", carreta: "908", disponivelEm: null, emManutencao: true, filialId: FILIAL_ID },
+      data: { cavalo: "75", carreta: "908", disponivelEm: null, emManutencao: true, tipoProduto: null, filialId: FILIAL_ID },
+    })
+  })
+
+  it("grava tipoProduto quando informado no cadastro", async () => {
+    vi.mocked(prisma.frota.findFirst).mockResolvedValue(null)
+    vi.mocked(prisma.frota.create).mockResolvedValue({ id: 1 } as never)
+
+    await criarFrotaService(FILIAL_ID, { cavalo: "75", carreta: "908", disponivelEm: null, tipoProduto: "CO2" })
+
+    expect(prisma.frota.create).toHaveBeenCalledWith({
+      data: { cavalo: "75", carreta: "908", disponivelEm: null, emManutencao: false, tipoProduto: "CO2", filialId: FILIAL_ID },
     })
   })
 })
@@ -228,7 +239,7 @@ describe("editarFrotaService", () => {
     })
     expect(prisma.frota.update).toHaveBeenCalledWith({
       where: { id: 1, filialId: FILIAL_ID },
-      data: { cavalo: "75", carreta: "908", disponivelEm: new Date("2026-07-22T21:30:00.000Z"), emManutencao: false },
+      data: { cavalo: "75", carreta: "908", disponivelEm: new Date("2026-07-22T21:30:00.000Z"), emManutencao: false, tipoProduto: null },
     })
   })
 

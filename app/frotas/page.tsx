@@ -6,6 +6,7 @@ import { Badge } from "@/components/ui/badge"
 import { PlusCircle, Truck } from "lucide-react"
 import { buscarFrotas } from "@/lib/queries/frotas"
 import { calcularStatusFrota } from "@/lib/services/frota-regras"
+import { formatarProduto } from "@/lib/services/produto.service"
 import { formatarDataHoraPtBr } from "@/lib/utils/date-format"
 import ExcluirFrotaButton from "./excluir-frota-button"
 import {
@@ -53,6 +54,7 @@ function FrotasTabela({ frotas, agora, podeExcluir }: { frotas: Frota[]; agora: 
           <TableRow>
             <TableHead className="font-semibold text-slate-700">Cavalo</TableHead>
             <TableHead className="font-semibold text-slate-700">Carreta</TableHead>
+            <TableHead className="font-semibold text-slate-700">Produto</TableHead>
             <TableHead className="font-semibold text-slate-700">Status</TableHead>
             <TableHead className="font-semibold text-slate-700 text-right">Ações</TableHead>
           </TableRow>
@@ -62,6 +64,7 @@ function FrotasTabela({ frotas, agora, podeExcluir }: { frotas: Frota[]; agora: 
             <TableRow key={frota.id} className="hover:bg-slate-50">
               <TableCell className="font-medium">{frota.cavalo}</TableCell>
               <TableCell>{frota.carreta}</TableCell>
+              <TableCell className="text-slate-500">{formatarProduto(frota.tipoProduto)}</TableCell>
               <TableCell>
                 <StatusFrotaBadge frota={frota} agora={agora} />
               </TableCell>
@@ -85,6 +88,7 @@ function FrotasCards({ frotas, agora, podeExcluir }: { frotas: Frota[]; agora: D
           <div className="flex items-start justify-between gap-2">
             <div>
               <p className="font-semibold text-slate-900">{frota.cavalo} / {frota.carreta}</p>
+              <p className="text-xs text-slate-500">{formatarProduto(frota.tipoProduto)}</p>
             </div>
             <StatusFrotaBadge frota={frota} agora={agora} />
           </div>

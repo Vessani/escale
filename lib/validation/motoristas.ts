@@ -1,10 +1,20 @@
 import * as z from "zod"
+import { somenteDigitosCpf, validarCpf } from "@/lib/utils/cpf"
+import { PRODUTO_VALORES } from "@/lib/services/produto.service"
 
 const turnoSchema = z.enum(["MANHA", "NOITE"])
 const statusIntegracaoSchema = z.enum(["ATIVO", "INATIVO", "PENDENTE"])
+const produtoSchema = z.enum(PRODUTO_VALORES)
+
+const cpfSchema = z
+  .string()
+  .transform(somenteDigitosCpf)
+  .refine((valor) => valor.length === 11, "CPF deve ter 11 dígitos")
+  .refine(validarCpf, "CPF inválido")
 
 export const motoristaBaseSchema = z.object({
   nome: z.string().min(2, "O nome deve ter pelo menos 2 caracteres"),
+  cpf: cpfSchema,
   seva: z.coerce.number().int().min(1, "O número SEVA deve ser maior que 0"),
   diasTrabalhados: z
     .coerce
@@ -14,6 +24,7 @@ export const motoristaBaseSchema = z.object({
     .max(10, "Informe um código de 1 a 10"),
   turno: turnoSchema,
   liberado: z.boolean(),
+  produtosAutorizados: z.array(produtoSchema).default([]),
 })
 
 export const integracaoMotoristaSchema = z.object({

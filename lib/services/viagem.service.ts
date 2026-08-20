@@ -8,7 +8,7 @@ import {
   sugerirMotoristaAutomatico,
 } from "./alocacao.service";
 import { reconciliarFolgaMotoristasNoDiaAtual } from "./folga.service";
-import { calcularAvisoFrotaIndisponivel, sincronizarDisponibilidadeFrota } from "./frota.service";
+import { calcularAvisoFrotaIndisponivel, calcularAvisoFrotaProduto, sincronizarDisponibilidadeFrota } from "./frota.service";
 import { converterEditarViagemParaBD, converterNovaViagemParaBD } from "./viagem-data-converter.service";
 import { buscarFimJornadaAnterior } from "./motorista.service";
 import { encontrarFimJornadaAnterior, mapearRegistrosJornada } from "./jornada.service";
@@ -77,6 +77,7 @@ async function inserirViagem(
     dados.carreta,
     dados.inicioPrevisto as Date,
   )
+  const avisoFrotaProdutoIncompativel = await calcularAvisoFrotaProduto(filialId, dados.cavalo, dados.carreta, dados.produto)
 
   return prisma.$transaction(async (tx) => {
     const viagemCriada = await tx.viagem.create({
@@ -89,11 +90,13 @@ async function inserirViagem(
         inicioPrevisto: dados.inicioPrevisto as Date,
         fimPrevisto: dados.fimPrevisto as Date,
         turno: dados.turno,
+        produto: dados.produto,
         integracaoExigida: integracaoNecessaria,
         status: status ?? resolverStatusPorAlocacao(motoristaId),
         motoristaId,
         avisoInterjornada,
         avisoFrotaIndisponivel,
+        avisoFrotaProdutoIncompativel,
         filialId,
         entregas: {
           create: dados.entregas.map((entrega) => ({
@@ -141,6 +144,7 @@ export async function criarViagemAvulsaService(filialId: number, dadosRecebidos:
     diasViagem: dados.diasViagem,
     dataInicioViagem: inicioPrevisto,
     integracaoExigida: integracaoNecessaria,
+    produtoExigido: dados.produto,
     hoje,
   });
   const motoristaEscolhidoId = motoristaSugeridoDisponivel?.id ?? null;
@@ -208,6 +212,7 @@ export async function editarViagemService(filialId: number, idViagem: number, da
     dados.carreta,
     dados.inicioPrevisto as Date,
   )
+  const avisoFrotaProdutoIncompativel = await calcularAvisoFrotaProduto(filialId, dados.cavalo, dados.carreta, dados.produto)
 
   return await prisma.$transaction(async (tx) => {
     const viagemAtualizada = await tx.viagem.update({
@@ -221,6 +226,7 @@ export async function editarViagemService(filialId: number, idViagem: number, da
         inicioPrevisto: dados.inicioPrevisto as Date,
         fimPrevisto: dados.fimPrevisto as Date,
         turno: dados.turno,
+        produto: dados.produto,
         integracaoExigida: integracaoNecessaria,
         status: statusFinal,
         canceladoEm: calcularCanceladoEm(statusFinal, viagemAtual.status),
@@ -228,6 +234,7 @@ export async function editarViagemService(filialId: number, idViagem: number, da
         motoristaAcompanhanteId: dados.motoristaAcompanhanteId !== undefined ? dados.motoristaAcompanhanteId : undefined,
         avisoInterjornada,
         avisoFrotaIndisponivel,
+        avisoFrotaProdutoIncompativel,
         entregas: {
           deleteMany: {
             id: { notIn: manterEntregas }

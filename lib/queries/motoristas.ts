@@ -108,6 +108,7 @@ export async function buscarMotoristasParaSelect(filialId: number, turnoDaViagem
       turno: true,
       diasTrabalhados: true,
       liberado: true,
+      produtosAutorizados: true,
       jornadaRelatorioInicio: true,
       jornadaRelatorioFim: true,
       integracao: {

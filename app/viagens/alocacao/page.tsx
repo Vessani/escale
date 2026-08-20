@@ -44,6 +44,7 @@ function serializarViagens(
     inicioPrevisto: new Date(viagem.inicioPrevisto),
     fimPrevisto: new Date(viagem.fimPrevisto),
     integracaoExigida: viagem.integracaoExigida ?? calcularIntegracaoExigida(viagem.entregas, clientesQueExigemIntegracao),
+    produtoExigido: viagem.produto,
   }))
 
   const sugestoesPorViagemId = new Map(
@@ -65,6 +66,7 @@ function serializarViagens(
       inicioPrevisto: new Date(viagem.inicioPrevisto).toISOString(),
       fimPrevisto: new Date(viagem.fimPrevisto).toISOString(),
       turno: viagem.turno,
+      produto: viagem.produto,
       motoristaId: viagem.motoristaId,
       integracaoExigida: viagem.integracaoExigida ?? calcularIntegracaoExigida(viagem.entregas, clientesQueExigemIntegracao),
       entregas: viagem.entregas.map((entrega: EntregaBase) => ({
@@ -97,6 +99,7 @@ function serializarViagens(
         : null,
       // Já calculado e persistido na criação/edição da viagem — ver calcularAvisoFrotaIndisponivel (frota.service.ts).
       avisoFrotaIndisponivel: viagem.avisoFrotaIndisponivel,
+      avisoFrotaProdutoIncompativel: viagem.avisoFrotaProdutoIncompativel,
       motoristasCompativeis: motoristasCompativeis.map((motorista) => {
         // Mesma jornada projetada usada pra decidir compatibilidade, não o
         // cache de "hoje" — senão o número mostrado destoa do motivo real

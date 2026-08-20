@@ -1,12 +1,14 @@
-import type { StatusIntegracao, StatusViagem, Turno } from "@prisma/client";
+import type { StatusIntegracao, StatusViagem, TipoProduto, Turno } from "@prisma/client";
 import { DefaultSession } from "next-auth";
 
 export type NovoMotoristaInput = {
     nome: string;
+    cpf: string;
     seva: number;
     diasTrabalhados: number;
     turno: Turno;
     liberado: boolean;
+    produtosAutorizados: TipoProduto[];
     integracao: NovaIntegracaoInput[];
 };
 
@@ -37,6 +39,7 @@ export type NovaViagemInput = {
   inicioPrevisto: string | Date;
   fimPrevisto: string | Date;
   turno: Turno;
+  produto: TipoProduto;
   status?: StatusViagem;
   entregas: NovaEntregaInput[];
 };

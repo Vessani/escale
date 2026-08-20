@@ -51,10 +51,12 @@ describe("motorista.service", () => {
 
       const dados: NovoMotoristaInput = {
         nome: "Ana",
+        cpf: "11144477735",
         seva: 1,
         diasTrabalhados: 3,
         turno: "MANHA",
         liberado: true,
+        produtosAutorizados: ["CO2"],
         integracao: [{ dataValidade: "2026-12-31", cliente: "AMBEV", status: "ATIVO" }],
       }
 
@@ -87,10 +89,12 @@ describe("motorista.service", () => {
 
       await criarMotoristaService(FILIAL_ID, {
         nome: "Bruno",
+        cpf: "52998224725",
         seva: 2,
         diasTrabalhados: 1,
         turno: "MANHA",
         liberado: false,
+        produtosAutorizados: [],
         integracao: [],
       })
 
@@ -110,10 +114,12 @@ describe("motorista.service", () => {
 
       const dados: EditarMotoristaInput = {
         nome: "Ana",
+        cpf: "11144477735",
         seva: 1,
         diasTrabalhados: 4,
         turno: "NOITE",
         liberado: true,
+        produtosAutorizados: ["CO2", "NITROGENIO"],
         integracao: [
           { id: 10, dataValidade: "2026-12-31", cliente: "AMBEV", status: "ATIVO" },
           { dataValidade: "2027-01-01", cliente: "WEG", status: "ATIVO" },

@@ -33,6 +33,10 @@ function mapearErroPrisma(error: Prisma.PrismaClientKnownRequestError) {
       return "Já existe um usuário com este e-mail."
     }
 
+    if (alvo.includes("cpf")) {
+      return "Já existe um motorista cadastrado com este CPF."
+    }
+
     return "Já existe um registro com estes dados."
   }
 

@@ -1,5 +1,6 @@
 "use client"
 
+import type { TipoProduto } from "@prisma/client"
 import { editarMotorista } from "@/lib/actions/motoristas"
 import type { EditarMotoristaInput } from "@/lib/types/types"
 import { formatDateForDateInput } from "@/lib/utils/date-format"
@@ -16,10 +17,12 @@ type IntegracaoFormModel = {
 type MotoristaComIntegracoes = {
   id: number
   nome: string
+  cpf: string | null
   seva: number
   diasTrabalhados: number
   turno: MotoristaComIntegracoesFormValues["turno"]
   liberado: boolean
+  produtosAutorizados: TipoProduto[]
   integracao: IntegracaoFormModel[]
 }
 
@@ -47,10 +50,12 @@ export default function FormEditarMotorista({ motorista, clientes }: FormEditarM
     <MotoristaForm
       defaultValues={{
         nome: motorista.nome,
+        cpf: motorista.cpf ?? "",
         seva: motorista.seva,
         diasTrabalhados: motorista.diasTrabalhados,
         turno: motorista.turno,
         liberado: motorista.liberado,
+        produtosAutorizados: motorista.produtosAutorizados,
         integracao: motorista.integracao.map((integracao) => ({
           id: integracao.id,
           cliente: integracao.cliente,

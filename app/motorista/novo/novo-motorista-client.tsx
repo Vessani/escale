@@ -50,10 +50,12 @@ export default function NovoMotoristaClient({ clientes }: Props) {
       <MotoristaForm
         defaultValues={{
           nome: "",
+          cpf: "",
           seva: 0,
           diasTrabalhados: 1,
           turno: "MANHA",
           liberado: true,
+          produtosAutorizados: [],
           integracao: [],
         }}
         onSubmit={handleSubmit}

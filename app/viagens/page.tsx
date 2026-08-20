@@ -55,6 +55,11 @@ function FrotaCelula({ viagem }: { viagem: Viagem }) {
           Frota indisponível
         </Alert>
       )}
+      {viagem.avisoFrotaProdutoIncompativel && (
+        <Alert variant="warning" inline className="mt-1" title={viagem.avisoFrotaProdutoIncompativel}>
+          Frota de outro produto
+        </Alert>
+      )}
     </div>
   )
 }
@@ -62,7 +67,7 @@ function FrotaCelula({ viagem }: { viagem: Viagem }) {
 function AcoesViagem({ viagem, podeExcluir }: { viagem: Viagem; podeExcluir: boolean }) {
   return (
     <div className="flex flex-wrap justify-end gap-2">
-      <Link href={`/api/viagens/${viagem.id}/pdf`}>
+      <Link href={`/api/viagens/${viagem.id}/excel`}>
         <Button variant="outline" size="sm">
           <Download className="h-4 w-4 mr-2" />
           Download
@@ -161,6 +166,11 @@ function ViagensCards({ viagens, podeExcluir }: { viagens: Viagem[]; podeExcluir
               {viagem.avisoFrotaIndisponivel && (
                 <Alert variant="warning" inline className="mt-1" title={viagem.avisoFrotaIndisponivel}>
                   Frota indisponível
+                </Alert>
+              )}
+              {viagem.avisoFrotaProdutoIncompativel && (
+                <Alert variant="warning" inline className="mt-1" title={viagem.avisoFrotaProdutoIncompativel}>
+                  Frota de outro produto
                 </Alert>
               )}
             </div>

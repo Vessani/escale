@@ -51,6 +51,7 @@ const viagemValida = {
   inicioPrevisto: "2026-08-12T08:00",
   fimPrevisto: "2026-08-13T08:00",
   turno: "MANHA",
+  produto: "CO2",
   entregas: [
     {
       dataEntrega: "2026-08-12T08:00",

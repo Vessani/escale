@@ -10,10 +10,12 @@ export async function criarMotoristaService(filialId: number, dados: NovoMotoris
     const motoristaCriado = await tx.motorista.create({
       data: {
         nome: dados.nome,
+        cpf: dados.cpf,
         seva: dados.seva,
         diasTrabalhados: dados.diasTrabalhados,
         turno: dados.turno,
         liberado: dados.liberado,
+        produtosAutorizados: dados.produtosAutorizados,
         filialId,
         integracao: {
           create: dados.integracao.map((integ) => ({
@@ -44,10 +46,12 @@ export async function editarMotoristaService(filialId: number, idMotorista: numb
     where: { id: idMotorista, filialId },
     data: {
       nome: dados.nome,
+      cpf: dados.cpf,
       seva: dados.seva,
       diasTrabalhados: dados.diasTrabalhados,
       turno: dados.turno,
       liberado: dados.liberado,
+      produtosAutorizados: dados.produtosAutorizados,
       integracao: {
         deleteMany: {
           id: { notIn: manterIntegracao }

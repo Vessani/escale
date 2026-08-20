@@ -13,6 +13,8 @@ import { Save, PlusCircle, Trash2 } from "lucide-react"
 import { normalizeFormValue } from "@/lib/form-utils"
 import { motoristaComIntegracoesSchema, type MotoristaComIntegracoesFormValues } from "@/lib/validation/motoristas"
 import type { RespostaAcao } from "@/lib/types/types"
+import { formatarCpf, somenteDigitosCpf } from "@/lib/utils/cpf"
+import { PRODUTO_OPCOES } from "@/lib/services/produto.service"
 
 type MotoristaFormProps = {
   defaultValues: MotoristaComIntegracoesFormValues
@@ -75,6 +77,25 @@ export default function MotoristaForm({ defaultValues, onSubmit, submitLabel, su
                 <FormControl>
                   <Input placeholder="Ex: João da Silva" {...field} value={normalizeFormValue(field.value)} />
                 </FormControl>
+                <FormMessage />
+              </FormItem>
+            )} />
+
+            <FormField control={form.control} name="cpf" render={({ field }) => (
+              <FormItem>
+                <FormLabel>CPF</FormLabel>
+                <FormControl>
+                  <Input
+                    placeholder="000.000.000-00"
+                    maxLength={14}
+                    {...field}
+                    value={formatarCpf(field.value || "")}
+                    onChange={(evento) => field.onChange(somenteDigitosCpf(evento.target.value))}
+                  />
+                </FormControl>
+                <FormDescription>
+                  Motoristas cadastrados antes deste campo existir podem estar sem CPF — obrigatório para novos cadastros e edições.
+                </FormDescription>
                 <FormMessage />
               </FormItem>
             )} />
@@ -142,6 +163,46 @@ export default function MotoristaForm({ defaultValues, onSubmit, submitLabel, su
                 <FormMessage />
               </FormItem>
             )} />
+
+            <FormField control={form.control} name="produtosAutorizados" render={({ field }) => {
+              const selecionados: string[] = field.value ?? []
+
+              return (
+                <FormItem>
+                  <FormLabel>Produtos Autorizados</FormLabel>
+                  <FormDescription>
+                    Gases que este motorista está certificado a transportar — a viagem só pode ser alocada a ele se o produto exigido estiver marcado aqui.
+                  </FormDescription>
+                  <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+                    {PRODUTO_OPCOES.map((opcao) => {
+                      const marcado = selecionados.includes(opcao.valor)
+
+                      return (
+                        <label
+                          key={opcao.valor}
+                          className="flex items-center gap-2 rounded-md border border-slate-200 p-2 text-sm has-checked:border-primary has-checked:bg-primary/5"
+                        >
+                          <input
+                            type="checkbox"
+                            className="size-4"
+                            checked={marcado}
+                            onChange={(evento) => {
+                              field.onChange(
+                                evento.target.checked
+                                  ? [...selecionados, opcao.valor]
+                                  : selecionados.filter((valor) => valor !== opcao.valor),
+                              )
+                            }}
+                          />
+                          {opcao.label}
+                        </label>
+                      )
+                    })}
+                  </div>
+                  <FormMessage />
+                </FormItem>
+              )
+            }} />
 
           </CardContent>
         </Card>

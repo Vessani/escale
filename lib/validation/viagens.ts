@@ -1,8 +1,10 @@
 import * as z from "zod"
 import { STATUS_VIAGEM_VALORES } from "@/lib/services/viagem-status.service"
+import { PRODUTO_VALORES } from "@/lib/services/produto.service"
 
 const turnoSchema = z.enum(["MANHA", "NOITE"])
 const statusViagemSchema = z.enum(STATUS_VIAGEM_VALORES)
+const produtoSchema = z.enum(PRODUTO_VALORES)
 
 const MENSAGEM_PERIODO_INVALIDO = "A data de término não pode ser antes da data de início."
 
@@ -46,6 +48,10 @@ const viagemBaseSchema = z.object({
   inicioPrevisto: z.string().min(1, "Obrigatório"),
   fimPrevisto: z.string().min(1, "Obrigatório"),
   turno: turnoSchema,
+  // Obrigatório em toda viagem nova/editada a partir de agora — mesmo que a
+  // coluna no banco seja nula pra não quebrar viagens já existentes (ver
+  // Viagem.produto no schema).
+  produto: produtoSchema,
   status: statusViagemSchema.optional(),
 })
 
@@ -96,6 +102,7 @@ export const editarViagemServerSchema = z
     inicioPrevisto: dataFlexivel(),
     fimPrevisto: dataFlexivel(),
     turno: turnoSchema,
+    produto: produtoSchema,
     status: statusViagemSchema.optional(),
     motoristaId: z.number().nullable().optional(),
     motoristaAcompanhanteId: z.number().nullable().optional(),

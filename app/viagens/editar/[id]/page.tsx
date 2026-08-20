@@ -64,10 +64,10 @@ export default async function EditarViagemPage({ params }: { params: Promise<{ i
             Revise os dados da viagem Nº {viagem.numViagem} e confirme o motorista alocado.
           </p>
         </div>
-        <Link href={`/api/viagens/${viagem.id}/pdf`}>
+        <Link href={`/api/viagens/${viagem.id}/excel`}>
           <Button variant="outline">
             <Download className="h-4 w-4 mr-2" />
-            Download PDF
+            Download Excel
           </Button>
         </Link>
       </div>

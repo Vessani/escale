@@ -28,6 +28,18 @@
     NOITE
   }
 
+  // Gases transportados pela transportadora — usado pra restringir qual
+  // motorista pode ser alocado a qual viagem (ver motoristaEhCompativel em
+  // alocacao.service.ts) e pra sinalizar quando a frota escolhida não é a
+  // dedicada a esse produto (ver calcularAvisoFrotaProduto).
+  enum TipoProduto {
+    CO2
+    NITROGENIO
+    ARGONIO
+    BIOMETANO
+    OXIGENIO
+  }
+
   // Cadastro global de clientes (compartilhado entre filiais — um cliente
   // como AMBEV pode ser atendido por mais de uma). exigeIntegracao substitui
   // a lista fixa que existia no código (CLIENTES_COM_INTEGRACAO_OBRIGATORIA em
@@ -83,6 +95,12 @@
     turno             Turno
     diasViagem        Int
 
+    // Nulo pra viagens criadas antes desse campo existir — o formulário passa
+    // a exigir a partir de agora (ver validation/viagens.ts), mas o histórico
+    // não é retroativamente preenchido. Usado como produtoExigido em
+    // motoristaEhCompativel (bloqueia motorista sem essa autorização) e como
+    // base do aviso de frota incompatível (calcularAvisoFrotaProduto).
+    produto           TipoProduto?
 
     integracaoExigida String?      @db.VarChar(50)
     status            StatusViagem @default(CRIADA)
@@ -91,6 +109,7 @@
     motivoAtraso      String?      @db.VarChar(200)
     avisoInterjornada String?      @db.VarChar(200)
     avisoFrotaIndisponivel String? @db.VarChar(200)
+    avisoFrotaProdutoIncompativel String? @db.VarChar(200)
     // Gravado só na transição pra CANCELADA (ver atualizarStatusViagemService) — usado
     // pra decidir até quando ela some do dashboard (visível no dia do cancelamento).
     canceladoEm       DateTime?    @db.Timestamp(6)
@@ -152,6 +171,14 @@
     // "reservada porque está numa viagem" (ver calcularStatusFrota).
     emManutencao Boolean   @default(false)
 
+    // Produto que esse conjunto é dedicado a transportar — um só por
+    // conjunto (diferente do motorista, que pode ter vários autorizados),
+    // pra refletir contaminação cruzada entre gases. Nulo pros conjuntos já
+    // cadastrados antes desse campo existir. Só gera aviso, nunca bloqueia
+    // (ver calcularAvisoFrotaProduto em frota.service.ts) — cavalo/carreta na
+    // viagem é texto livre, pode nem ter frota cadastrada ainda.
+    tipoProduto  TipoProduto?
+
     filialId     Int
     filial       Filial    @relation(fields: [filialId], references: [id])
 
@@ -199,6 +226,14 @@
     id              Int          @id @default(autoincrement())
     nome            String       @db.VarChar(50)
     seva            Int
+
+    // Nulo pros motoristas já cadastrados antes desse campo existir — não é
+    // retroativamente preenchido, mas o formulário passa a exigir a partir de
+    // agora (validado por dígito verificador, ver lib/utils/cpf.ts). @unique
+    // padrão do Postgres permite múltiplos NULL, então isso não bloqueia os
+    // motoristas sem CPF entre si.
+    cpf             String?      @unique @db.VarChar(11)
+
     diasTrabalhados Int
 
 
@@ -207,6 +242,13 @@
     // false = em treinamento: fica de fora da sugestão automática e não pode
     // ser escolhido como motorista principal — só como acompanhante.
     liberado        Boolean      @default(true)
+
+    // Gases que esse motorista está autorizado a transportar — pode ter mais
+    // de um. Vazio ([]) pros motoristas já cadastrados antes desse campo
+    // existir, o que os torna incompatíveis com QUALQUER viagem que exija um
+    // produto (ver motoristaEhCompativel em alocacao.service.ts) até serem
+    // editados e receberem pelo menos uma autorização.
+    produtosAutorizados TipoProduto[] @default([])
 
     // Último registro do Relatório Sintético de Jornada importado pra esse
     // motorista (busca por `seva` = Matrícula do relatório) — ver

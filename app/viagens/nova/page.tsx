@@ -12,6 +12,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { PenLine, Save } from "lucide-react"
 import { criarViagemAvulsa, sugerirAlocacaoParaViagens } from "@/lib/actions/viagens"
 import { STATUS_VIAGEM_OPCOES } from "@/lib/services/viagem-status.service"
+import { PRODUTO_OPCOES } from "@/lib/services/produto.service"
 import { novaViagemSchema, type NovaViagemFormValues } from "@/lib/validation/viagens"
 import type { ResultadoImportacaoLote } from "@/lib/types/types"
 import UploadXLSXViagem from "@/components/viagem/upload-xlsx-viagem"
@@ -174,6 +175,25 @@ export default function NovaViagemPage() {
                           <SelectContent>
                             <SelectItem value="MANHA">Manhã</SelectItem>
                             <SelectItem value="NOITE">Noite</SelectItem>
+                          </SelectContent>
+                        </Select>
+                        <FormMessage/>
+                      </FormItem>
+                    )} />
+
+                    <FormField control={form.control} name="produto" render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Produto</FormLabel>
+                        <Select value={field.value ?? ""} onValueChange={field.onChange}>
+                          <FormControl>
+                            <SelectTrigger><SelectValue placeholder="Selecione o produto" /></SelectTrigger>
+                          </FormControl>
+                          <SelectContent>
+                            {PRODUTO_OPCOES.map((opcao) => (
+                              <SelectItem key={opcao.valor} value={opcao.valor}>
+                                {opcao.label}
+                              </SelectItem>
+                            ))}
                           </SelectContent>
                         </Select>
                         <FormMessage/>

@@ -14,6 +14,7 @@ import { Save } from "lucide-react"
 import { normalizeFormValue } from "@/lib/form-utils"
 import { frotaSchema, type FrotaFormValues } from "@/lib/validation/frotas"
 import type { RespostaAcao } from "@/lib/types/types"
+import { PRODUTO_OPCOES } from "@/lib/services/produto.service"
 
 type FrotaFormProps = {
   defaultValues: FrotaFormValues
@@ -99,6 +100,33 @@ export default function FrotaForm({ defaultValues, onSubmit, submitLabel, submit
                 </Select>
                 <FormDescription>
                   Marcação manual — não muda sozinha quando a frota é alocada numa viagem.
+                </FormDescription>
+                <FormMessage />
+              </FormItem>
+            )} />
+
+            <FormField control={form.control} name="tipoProduto" render={({ field }) => (
+              <FormItem>
+                <FormLabel>Produto</FormLabel>
+                <Select
+                  value={field.value ?? ""}
+                  onValueChange={(value) => field.onChange(value || null)}
+                >
+                  <FormControl>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Não definido" />
+                    </SelectTrigger>
+                  </FormControl>
+                  <SelectContent>
+                    {PRODUTO_OPCOES.map((opcao) => (
+                      <SelectItem key={opcao.valor} value={opcao.valor}>
+                        {opcao.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <FormDescription>
+                  Produto que este conjunto é dedicado a transportar. Deixe em branco se ainda não definido.
                 </FormDescription>
                 <FormMessage />
               </FormItem>

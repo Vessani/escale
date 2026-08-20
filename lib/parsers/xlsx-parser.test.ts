@@ -249,7 +249,7 @@ describe('integração: planilha → conversão de formulário → conversão pa
     expect(typeof dadosFormulario.inicioPrevisto).toBe('string')
     expect(typeof dadosFormulario.fimPrevisto).toBe('string')
 
-    const dadosParaBD = converterNovaViagemParaBD({ ...dadosFormulario, status: 'CRIADA' })
+    const dadosParaBD = converterNovaViagemParaBD({ ...dadosFormulario, status: 'CRIADA', produto: 'CO2' })
 
     expect(dadosParaBD.inicioPrevisto instanceof Date).toBe(true)
     expect(dadosParaBD.fimPrevisto instanceof Date).toBe(true)

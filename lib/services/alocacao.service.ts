@@ -1,4 +1,4 @@
-import { StatusIntegracao, StatusViagem, Turno } from "@prisma/client"
+import { StatusIntegracao, StatusViagem, TipoProduto, Turno } from "@prisma/client"
 import { encontrarFimJornadaAnterior, projetarCodigoNoDia, type PontoRegistroJornada } from "./jornada.service"
 
 /** Máximo de dias consecutivos de trabalho antes da folga obrigatória — mesmo limite usado pra capar o "Dias Sem Folga" importado do relatório (ver jornada-relatorio.service.ts). */
@@ -22,6 +22,8 @@ type MotoristaParaAlocacao = {
   /** Último registro do Relatório Sintético de Jornada importado (ver jornada-relatorio.service.ts). */
   jornadaRelatorioInicio: Date | string | null
   jornadaRelatorioFim: Date | string | null
+  /** Gases que o motorista está autorizado a transportar — [] pra quem ainda não foi editado desde que o campo existe (bloqueia qualquer viagem com produto exigido, ver motoristaEhCompativel). */
+  produtosAutorizados: TipoProduto[]
 }
 
 type ViagemParaDisponibilidade = {
@@ -41,6 +43,12 @@ type ContextoCompatibilidade = {
   diasViagem: number
   dataInicioViagem: Date
   integracaoExigida: string | null
+  /**
+   * Opcional de propósito: `undefined`/`null` (viagem sem produto definido —
+   * ex: criada antes desse campo existir) se comporta como "sem restrição",
+   * mesmo espírito de integracaoExigida. Ver motoristaEhCompativel.
+   */
+  produtoExigido?: TipoProduto | null
   /** "Hoje" do ponto de vista de quem está alocando — âncora usada para projetar a jornada do motorista em `dataInicioViagem`. */
   hoje: Date
 }
@@ -202,6 +210,13 @@ export function motoristaEhCompativel(
   const codigoNaViagem = codigoJornadaNaViagem(motorista, contexto)
 
   if (calcularDiasDisponiveis(codigoNaViagem) < contexto.diasViagem) {
+    return false
+  }
+
+  // Bloqueio rígido — mesmo nível de turno acima, não é aviso (comparar com
+  // avisoInterjornada/avisoFrotaIndisponivel, que só sinalizam). null/undefined
+  // = viagem sem produto definido, sem restrição.
+  if (contexto.produtoExigido && !motorista.produtosAutorizados.includes(contexto.produtoExigido)) {
     return false
   }
 
@@ -404,6 +419,7 @@ type ViagemParaSugestaoLote = {
   inicioPrevisto: Date
   fimPrevisto: Date
   integracaoExigida: string | null
+  produtoExigido?: TipoProduto | null
 }
 
 type AtribuicaoTentativa = {
@@ -439,6 +455,7 @@ export function sugerirAlocacoesEmLote(
       diasViagem: viagem.diasViagem,
       dataInicioViagem: viagem.inicioPrevisto,
       integracaoExigida: viagem.integracaoExigida,
+      produtoExigido: viagem.produtoExigido,
       hoje,
     }
 
