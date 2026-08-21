@@ -5,8 +5,10 @@ import { buscarNomesClientesQueExigemIntegracao } from "@/lib/queries/clientes";
 import {
   calcularAvisoInterjornada,
   calcularIntegracaoExigida,
+  motoristaAutorizadoParaProduto,
   sugerirMotoristaAutomatico,
 } from "./alocacao.service";
+import type { TipoProduto } from "@prisma/client";
 import { reconciliarFolgaMotoristasNoDiaAtual } from "./folga.service";
 import { calcularAvisoFrotaIndisponivel, calcularAvisoFrotaProduto, sincronizarDisponibilidadeFrota } from "./frota.service";
 import { converterEditarViagemParaBD, converterNovaViagemParaBD } from "./viagem-data-converter.service";
@@ -49,6 +51,34 @@ async function garantirNumViagemDisponivel(filialId: number, numViagem: string, 
   }
 }
 
+/**
+ * Bloqueio rígido: garante que o motorista informado (se houver) está
+ * autorizado a carregar o produto exigido pela viagem — mesma regra que já
+ * filtra a sugestão automática/tela de alocação (ver motoristaEhCompativel),
+ * mas reaplicada aqui no momento de *gravar* a alocação (criar, editar,
+ * alocação rápida do dashboard). Sem isso era possível contornar o
+ * bloqueio: a tela de sugestão nunca oferece um motorista incompatível, mas
+ * nada impedia editar a viagem (ou trocar só o produto) mantendo um
+ * motorista que já estava alocado antes da troca.
+ */
+async function garantirMotoristaAutorizadoParaProduto(
+  motoristaId: number | null | undefined,
+  produtoExigido: TipoProduto | null | undefined,
+) {
+  if (!motoristaId || !produtoExigido) {
+    return
+  }
+
+  const motorista = await prisma.motorista.findUnique({
+    where: { id: motoristaId },
+    select: { produtosAutorizados: true },
+  })
+
+  if (motorista && !motoristaAutorizadoParaProduto(motorista.produtosAutorizados, produtoExigido)) {
+    throw new Error("Motorista não autorizado a carregar o produto desta viagem.")
+  }
+}
+
 type DadosViagemConvertidos = ReturnType<typeof converterNovaViagemParaBD>
 
 /** Busca o fim da jornada real anterior à viagem e calcula o aviso — usado quando só se tem o id do motorista, não o objeto completo com o histórico já carregado (ver buscarFimJornadaAnterior). */
@@ -70,6 +100,7 @@ async function inserirViagem(
   avisoInterjornada: string | null,
 ) {
   await garantirNumViagemDisponivel(filialId, dados.numViagem)
+  await garantirMotoristaAutorizadoParaProduto(motoristaId, dados.produto)
 
   const avisoFrotaIndisponivel = await calcularAvisoFrotaIndisponivel(
     filialId,
@@ -205,6 +236,7 @@ export async function editarViagemService(filialId: number, idViagem: number, da
       : viagemAtual.status)
 
   const motoristaIdFinal = dados.motoristaId !== undefined ? dados.motoristaId : viagemAtual.motoristaId
+  await garantirMotoristaAutorizadoParaProduto(motoristaIdFinal, dados.produto)
   const avisoInterjornada = await calcularAvisoInterjornadaPorId(filialId, motoristaIdFinal, dados.inicioPrevisto as Date)
   const avisoFrotaIndisponivel = await calcularAvisoFrotaIndisponivel(
     filialId,
@@ -313,16 +345,28 @@ export async function atualizarStatusViagemService(
     throw new Error("Status de viagem é obrigatório.")
   }
 
+  const viagemAtual = await prisma.viagem.findUnique({
+    where: { id: idViagem, filialId },
+    select: { status: true, cavalo: true, carreta: true, produto: true, motoristaId: true },
+  })
+
+  if (!viagemAtual) {
+    throw new Error("Viagem não encontrada.")
+  }
+
+  // Postergar muda a data — os avisos de interjornada/frota gravados na
+  // criação/última edição são recalculados pra essa data nova, senão ficam
+  // "presos" no valor de quando a viagem foi criada/editada pela última vez
+  // (ex: aviso de frota indisponível que não valia mais pro horário novo).
+  const avisosRecalculados = novaData
+    ? {
+        avisoInterjornada: await calcularAvisoInterjornadaPorId(filialId, viagemAtual.motoristaId, novaData.inicioPrevisto),
+        avisoFrotaIndisponivel: await calcularAvisoFrotaIndisponivel(filialId, viagemAtual.cavalo, viagemAtual.carreta, novaData.inicioPrevisto),
+        avisoFrotaProdutoIncompativel: await calcularAvisoFrotaProduto(filialId, viagemAtual.cavalo, viagemAtual.carreta, viagemAtual.produto),
+      }
+    : {}
+
   return await prisma.$transaction(async (tx) => {
-    const viagemAtual = await tx.viagem.findUnique({
-      where: { id: idViagem, filialId },
-      select: { status: true },
-    })
-
-    if (!viagemAtual) {
-      throw new Error("Viagem não encontrada.")
-    }
-
     const viagemAtualizada = await tx.viagem.update({
       where: { id: idViagem, filialId },
       data: {
@@ -333,6 +377,7 @@ export async function atualizarStatusViagemService(
           fimPrevisto: novaData.fimPrevisto,
           diasViagem: calcularDiasEntre(novaData.inicioPrevisto, novaData.fimPrevisto),
         } : {}),
+        ...avisosRecalculados,
       },
     })
 
@@ -357,12 +402,14 @@ export async function atualizarAlocacaoViagemService(
 ) {
   const viagemAtual = await prisma.viagem.findUnique({
     where: { id: idViagem, filialId },
-    select: { status: true, motoristaId: true, motoristaAcompanhanteId: true, inicioPrevisto: true },
+    select: { status: true, motoristaId: true, motoristaAcompanhanteId: true, inicioPrevisto: true, produto: true },
   })
 
   if (!viagemAtual) {
     throw new Error("Viagem não encontrada.")
   }
+
+  await garantirMotoristaAutorizadoParaProduto(dados.motoristaId, viagemAtual.produto)
 
   const statusFinal = statusPermiteAutoAjuste(viagemAtual.status)
     ? resolverStatusPorAlocacao(dados.motoristaId)

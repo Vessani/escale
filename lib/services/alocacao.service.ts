@@ -195,6 +195,22 @@ export function calcularFolgaAteIdeal(
   return (horarioIdeal.getTime() - disponivel.getTime()) / (60 * 1000)
 }
 
+/**
+ * Bloqueio rígido de produto — mesmo nível de turno acima, não é aviso
+ * (comparar com avisoInterjornada/avisoFrotaIndisponivel, que só sinalizam).
+ * null/undefined = viagem sem produto definido, sem restrição. Extraída de
+ * motoristaEhCompativel pra ser reaplicada no momento de *gravar* a
+ * alocação (criar/editar viagem, alocação rápida do dashboard), não só na
+ * sugestão — sem isso, dava pra contornar o bloqueio editando a viagem ou
+ * alocando manualmente um motorista que a tela de sugestão nunca ofereceria.
+ */
+export function motoristaAutorizadoParaProduto(
+  produtosAutorizados: TipoProduto[],
+  produtoExigido?: TipoProduto | null,
+): boolean {
+  return !produtoExigido || produtosAutorizados.includes(produtoExigido)
+}
+
 export function motoristaEhCompativel(
   motorista: MotoristaParaAlocacao,
   contexto: ContextoCompatibilidade,
@@ -213,10 +229,7 @@ export function motoristaEhCompativel(
     return false
   }
 
-  // Bloqueio rígido — mesmo nível de turno acima, não é aviso (comparar com
-  // avisoInterjornada/avisoFrotaIndisponivel, que só sinalizam). null/undefined
-  // = viagem sem produto definido, sem restrição.
-  if (contexto.produtoExigido && !motorista.produtosAutorizados.includes(contexto.produtoExigido)) {
+  if (!motoristaAutorizadoParaProduto(motorista.produtosAutorizados, contexto.produtoExigido)) {
     return false
   }
 

@@ -2,14 +2,40 @@ import { afterEach, describe, expect, it, vi } from "vitest"
 import {
   calcularDiasEntre,
   converterEntradaDeDataHora,
+  fimDoDia,
   formatDateForDateInput,
   formatDateTimeForInput,
   formatarDataExcel,
   formatarDataHoraPtBr,
+  inicioDoDia,
   parseDataHoraBr,
   parseDataLocal,
   parseDateTimeFromInput,
 } from "./date-format"
+
+describe("inicioDoDia / fimDoDia", () => {
+  it("usa o dia calendário de Brasília, não o horário exato em UTC — instante ainda em 19/08 em Brasília, mas já 20/08 em UTC", () => {
+    // 2026-08-20T02:59:00Z = 2026-08-19T23:59:00-03:00 (Brasília) — ainda dia 19 lá.
+    const instante = new Date("2026-08-20T02:59:00.000Z")
+    expect(inicioDoDia(instante).toISOString()).toBe("2026-08-19T03:00:00.000Z")
+    expect(fimDoDia(instante).toISOString()).toBe("2026-08-20T02:59:59.999Z")
+  })
+
+  it("meia-noite exata de Brasília (03:00 UTC) já conta como o novo dia", () => {
+    const instante = new Date("2026-08-20T03:00:00.000Z")
+    expect(inicioDoDia(instante).toISOString()).toBe("2026-08-20T03:00:00.000Z")
+    expect(fimDoDia(instante).toISOString()).toBe("2026-08-21T02:59:59.999Z")
+  })
+
+  it("resultado não depende do fuso horário do processo — mesmo instante, calculado 'como se' o processo rodasse em UTC ou em Brasília, dá o mesmo resultado (ver OFFSET_MINUTOS_BRASILIA: a conta é feita só com métodos UTC, nunca com o fuso local do processo)", () => {
+    const instanteNoiteBrasilia = new Date("2026-08-21T01:00:00.000Z") // 22:00 em Brasília
+    const inicio = inicioDoDia(instanteNoiteBrasilia)
+    // Se dependesse do fuso local do processo (ex: setHours), um processo em
+    // UTC calcularia isso como início do dia 21; o valor correto (Brasília)
+    // é início do dia 20.
+    expect(inicio.toISOString()).toBe("2026-08-20T03:00:00.000Z")
+  })
+})
 
 describe("formatarDataExcel", () => {
   afterEach(() => {

@@ -9,6 +9,7 @@ const MENSAGENS_SEGURAS = new Set([
   "Data inválida.",
   "Código de jornada inválido.",
   "Já existe um conjunto cadastrado com essa frota (cavalo/carreta).",
+  "Motorista não autorizado a carregar o produto desta viagem.",
 ])
 
 function pareceMensagemTecnica(mensagem: string) {

@@ -4,12 +4,30 @@
  */
 
 /**
- * Início do dia (00:00:00.000) da data informada
+ * A transportadora opera só no Brasil, e desde 2019 o país não tem mais
+ * horário de verão em nenhum estado — então o offset de Brasília é constante
+ * (UTC-3) o ano inteiro. Usado tanto pra interpretar/exibir campos de
+ * data+hora digitados pelo usuário quanto por inicioDoDia/fimDoDia, de forma
+ * correta independente do fuso horário do processo que executa o código —
+ * sem isso, calcular "hoje" (dashboard, motoristas ociosos, relatório
+ * diário...) num servidor rodando em UTC (comum em produção, ex: Vercel;
+ * `.env.example` documenta `TZ=America/Sao_Paulo`, mas depender só da
+ * variável de ambiente é frágil — se ela não estiver setada, "hoje" adianta
+ * até 3h à noite, contando viagens do fim do dia como se fossem de amanhã).
+ * Se o Brasil voltar a ter horário de verão em algum estado no futuro, este
+ * valor precisa ser revisto.
+ */
+const OFFSET_MINUTOS_BRASILIA = 3 * 60
+
+/**
+ * Início do dia (00:00:00.000, horário de Brasília) do instante informado —
+ * ver OFFSET_MINUTOS_BRASILIA sobre por que é calculado com um offset fixo
+ * em vez de `Date.setHours` (que usa o fuso do processo).
  */
 export function inicioDoDia(data: Date): Date {
-  const dia = new Date(data)
-  dia.setHours(0, 0, 0, 0)
-  return dia
+  const brasilia = new Date(data.getTime() - OFFSET_MINUTOS_BRASILIA * 60 * 1000)
+  const meiaNoiteUtc = Date.UTC(brasilia.getUTCFullYear(), brasilia.getUTCMonth(), brasilia.getUTCDate())
+  return new Date(meiaNoiteUtc + OFFSET_MINUTOS_BRASILIA * 60 * 1000)
 }
 
 /**
@@ -34,30 +52,11 @@ export function colunaDateParaLocal(dataColuna: Date): Date {
 }
 
 /**
- * Fim do dia (23:59:59.999) da data informada
+ * Fim do dia (23:59:59.999, horário de Brasília) — ver inicioDoDia.
  */
 export function fimDoDia(data: Date): Date {
-  const dia = new Date(data)
-  dia.setHours(23, 59, 59, 999)
-  return dia
+  return new Date(inicioDoDia(data).getTime() + 24 * 60 * 60 * 1000 - 1)
 }
-
-/**
- * A transportadora opera só no Brasil, e desde 2019 o país não tem mais
- * horário de verão em nenhum estado — então o offset de Brasília é constante
- * (UTC-3) o ano inteiro. Usado pra interpretar/exibir os campos de
- * data+hora digitados pelo usuário (inicioPrevisto, fimPrevisto, dataEntrega,
- * horarioRealSaida, disponivelEm da frota) de forma correta independente do
- * fuso horário do processo que executa o código — sem isso, `new Date(texto)`
- * com uma string tipo "2026-08-20T08:00" (sem timezone, o formato que
- * <input type="datetime-local"> sempre produz) é interpretada usando o fuso
- * *ambiente* (o do servidor, ou o do navegador, dependendo de onde o parse
- * acontece), e servidores em produção costumam rodar em UTC por padrão (ex:
- * Vercel) — resultando num horário gravado até 3h errado. Se o Brasil voltar
- * a ter horário de verão em algum estado no futuro, este valor precisa ser
- * revisto.
- */
-const OFFSET_MINUTOS_BRASILIA = 3 * 60
 
 /** Formato exato que <input type="datetime-local"> produz — sem timezone, com ou sem segundos. */
 const REGEX_DATETIME_LOCAL_SEM_FUSO = /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})(?::(\d{2})(?:\.\d+)?)?$/
