@@ -130,7 +130,8 @@ describe("folga.service", () => {
       mockFindMany(tx, { saindoDaFolga: [{ id: 5 }] })
       vi.mocked(tx.registroJornada.upsert).mockResolvedValue({})
 
-      await reconciliarFolgaMotoristasNoDiaAtual(tx as never, [5], new Date())
+      const agora = new Date()
+      await reconciliarFolgaMotoristasNoDiaAtual(tx as never, [5], [{ inicioPrevisto: agora, fimPrevisto: agora }], agora)
 
       expect(tx.registroJornada.upsert).toHaveBeenCalledTimes(1)
       const upsertArgs = vi.mocked(tx.registroJornada.upsert).mock.calls[0][0] as {
@@ -147,7 +148,8 @@ describe("folga.service", () => {
       mockFindMany(tx, { paraFolga: [{ id: 8 }] })
       vi.mocked(tx.registroJornada.upsert).mockResolvedValue({})
 
-      await reconciliarFolgaMotoristasNoDiaAtual(tx as never, [8], new Date())
+      const agora = new Date()
+      await reconciliarFolgaMotoristasNoDiaAtual(tx as never, [8], [{ inicioPrevisto: agora, fimPrevisto: agora }], agora)
 
       const upsertArgs = vi.mocked(tx.registroJornada.upsert).mock.calls[0][0] as { create: { codigo: number } }
       expect(upsertArgs.create.codigo).toBe(7)
@@ -157,7 +159,7 @@ describe("folga.service", () => {
     it("não consulta o banco quando nenhum id relevante é informado", async () => {
       const tx = criarTx()
 
-      await reconciliarFolgaMotoristasNoDiaAtual(tx as never, [null, undefined])
+      await reconciliarFolgaMotoristasNoDiaAtual(tx as never, [null, undefined], [])
 
       expect(tx.motorista.findMany).not.toHaveBeenCalled()
     })
@@ -166,7 +168,8 @@ describe("folga.service", () => {
       const tx = criarTx()
       mockFindMany(tx, {})
 
-      await reconciliarFolgaMotoristasNoDiaAtual(tx as never, [5, 5, null])
+      const agora = new Date()
+      await reconciliarFolgaMotoristasNoDiaAtual(tx as never, [5, 5, null], [{ inicioPrevisto: agora, fimPrevisto: agora }], agora)
 
       const primeiraChamada = vi.mocked(tx.motorista.findMany).mock.calls[0][0] as { where: { id: { in: number[] } } }
       expect(primeiraChamada.where.id.in).toEqual([5])
@@ -194,8 +197,36 @@ describe("folga.service", () => {
       tx.motorista.findMany = criarFindManyFielAJanela(motoristas) as never
       vi.mocked(tx.registroJornada.upsert).mockResolvedValue({})
 
-      await reconciliarFolgaMotoristasNoDiaAtual(tx as never, [5], hoje)
+      // A janela relevante é a da viagem que disparou a chamada (amanhã) — não toca hoje.
+      await reconciliarFolgaMotoristasNoDiaAtual(
+        tx as never,
+        [5],
+        [{ inicioPrevisto: new Date("2026-07-11T08:00:00"), fimPrevisto: new Date("2026-07-11T20:00:00") }],
+        hoje,
+      )
 
+      expect(tx.registroJornada.upsert).not.toHaveBeenCalled()
+      expect(tx.motorista.update).not.toHaveBeenCalled()
+      // Nem chega a consultar o banco — a janela já descarta antes da query
+      // (é justamente essa checagem que faltava: criar/editar uma viagem
+      // futura não deveria mexer no status de folga de hoje).
+      expect(tx.motorista.findMany).not.toHaveBeenCalled()
+    })
+
+    it("criar uma viagem futura pra um motorista SEM nenhuma outra viagem hoje não marca ele como 'de folga hoje' — bug encontrado numa simulação de 30 dias", async () => {
+      const hoje = new Date("2026-07-10T12:00:00")
+      const tx = criarTx()
+      mockFindMany(tx, { paraFolga: [{ id: 9 }] }) // se a query rodasse, encontraria o motorista "sem atividade hoje" (não tem viagem nenhuma).
+
+      // A viagem que disparou a chamada é daqui a 4 dias — não toca hoje.
+      await reconciliarFolgaMotoristasNoDiaAtual(
+        tx as never,
+        [9],
+        [{ inicioPrevisto: new Date("2026-07-14T08:00:00"), fimPrevisto: new Date("2026-07-14T20:00:00") }],
+        hoje,
+      )
+
+      expect(tx.motorista.findMany).not.toHaveBeenCalled()
       expect(tx.registroJornada.upsert).not.toHaveBeenCalled()
       expect(tx.motorista.update).not.toHaveBeenCalled()
     })
@@ -223,7 +254,12 @@ describe("folga.service", () => {
       tx.motorista.findMany = criarFindManyFielAJanela(motoristas) as never
       vi.mocked(tx.registroJornada.upsert).mockResolvedValue({})
 
-      await reconciliarFolgaMotoristasNoDiaAtual(tx as never, [5], hoje)
+      await reconciliarFolgaMotoristasNoDiaAtual(
+        tx as never,
+        [5],
+        [{ inicioPrevisto: new Date("2026-07-10T08:00:00"), fimPrevisto: new Date("2026-07-10T20:00:00") }],
+        hoje,
+      )
 
       expect(tx.registroJornada.upsert).toHaveBeenCalledTimes(1)
       const upsertArgs = vi.mocked(tx.registroJornada.upsert).mock.calls[0][0] as { create: { codigo: number } }
@@ -259,7 +295,11 @@ describe("folga.service", () => {
         tx.motorista.findMany = criarFindManyFielAJanela(motoristas) as never
         vi.mocked(tx.registroJornada.upsert).mockResolvedValue({})
 
-        await reconciliarFolgaMotoristasNoDiaAtual(tx as never, [5])
+        await reconciliarFolgaMotoristasNoDiaAtual(
+          tx as never,
+          [5],
+          [{ inicioPrevisto: new Date("2026-07-11T08:00:00"), fimPrevisto: new Date("2026-07-11T20:00:00") }],
+        )
 
         expect(tx.registroJornada.upsert).toHaveBeenCalledTimes(1)
         expect(tx.motorista.update).toHaveBeenCalledWith({ where: { id: 5 }, data: { diasTrabalhados: 1 } })

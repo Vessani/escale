@@ -150,7 +150,9 @@ async function inserirViagem(
     })
 
     await sincronizarDisponibilidadeFrota(tx, filialId, dados.cavalo, dados.carreta)
-    await reconciliarFolgaMotoristasNoDiaAtual(tx, [viagemCriada.motoristaId])
+    await reconciliarFolgaMotoristasNoDiaAtual(tx, [viagemCriada.motoristaId], [
+      { inicioPrevisto: viagemCriada.inicioPrevisto, fimPrevisto: viagemCriada.fimPrevisto },
+    ])
 
     return viagemCriada
   })
@@ -216,7 +218,7 @@ export async function editarViagemService(filialId: number, idViagem: number, da
   const manterEntregas = entregasExistentes.map(e => e.id as number);
   const viagemAtual = await prisma.viagem.findUnique({
     where: { id: idViagem, filialId },
-    select: { status: true, motoristaId: true, motoristaAcompanhanteId: true, cavalo: true, carreta: true },
+    select: { status: true, motoristaId: true, motoristaAcompanhanteId: true, cavalo: true, carreta: true, inicioPrevisto: true, fimPrevisto: true },
   })
 
   if (!viagemAtual) {
@@ -307,12 +309,19 @@ export async function editarViagemService(filialId: number, idViagem: number, da
     if (dados.cavalo !== viagemAtual.cavalo || dados.carreta !== viagemAtual.carreta) {
       await sincronizarDisponibilidadeFrota(tx, filialId, viagemAtual.cavalo, viagemAtual.carreta)
     }
-    await reconciliarFolgaMotoristasNoDiaAtual(tx, [
-      viagemAtual.motoristaId,
-      viagemAtualizada.motoristaId,
-      viagemAtual.motoristaAcompanhanteId,
-      viagemAtualizada.motoristaAcompanhanteId,
-    ])
+    await reconciliarFolgaMotoristasNoDiaAtual(
+      tx,
+      [
+        viagemAtual.motoristaId,
+        viagemAtualizada.motoristaId,
+        viagemAtual.motoristaAcompanhanteId,
+        viagemAtualizada.motoristaAcompanhanteId,
+      ],
+      [
+        { inicioPrevisto: viagemAtual.inicioPrevisto, fimPrevisto: viagemAtual.fimPrevisto },
+        { inicioPrevisto: viagemAtualizada.inicioPrevisto, fimPrevisto: viagemAtualizada.fimPrevisto },
+      ],
+    )
     return viagemAtualizada
   })
 }
@@ -327,7 +336,11 @@ export async function deletarViagemService(filialId: number, id: number) {
     })
 
     await sincronizarDisponibilidadeFrota(tx, filialId, viagemDeletada.cavalo, viagemDeletada.carreta)
-    await reconciliarFolgaMotoristasNoDiaAtual(tx, [viagemDeletada.motoristaId, viagemDeletada.motoristaAcompanhanteId])
+    await reconciliarFolgaMotoristasNoDiaAtual(
+      tx,
+      [viagemDeletada.motoristaId, viagemDeletada.motoristaAcompanhanteId],
+      [{ inicioPrevisto: viagemDeletada.inicioPrevisto, fimPrevisto: viagemDeletada.fimPrevisto }],
+    )
     return viagemDeletada
   })
 }
@@ -347,7 +360,7 @@ export async function atualizarStatusViagemService(
 
   const viagemAtual = await prisma.viagem.findUnique({
     where: { id: idViagem, filialId },
-    select: { status: true, cavalo: true, carreta: true, produto: true, motoristaId: true },
+    select: { status: true, cavalo: true, carreta: true, produto: true, motoristaId: true, motoristaAcompanhanteId: true, inicioPrevisto: true, fimPrevisto: true },
   })
 
   if (!viagemAtual) {
@@ -384,7 +397,14 @@ export async function atualizarStatusViagemService(
     // Cancelar/finalizar (ou postergar a data) muda se essa viagem ainda
     // "segura" a frota — sincroniza sempre, não só quando novaData é enviado.
     await sincronizarDisponibilidadeFrota(tx, filialId, viagemAtualizada.cavalo, viagemAtualizada.carreta)
-    await reconciliarFolgaMotoristasNoDiaAtual(tx, [viagemAtualizada.motoristaId, viagemAtualizada.motoristaAcompanhanteId])
+    await reconciliarFolgaMotoristasNoDiaAtual(
+      tx,
+      [viagemAtualizada.motoristaId, viagemAtualizada.motoristaAcompanhanteId],
+      [
+        { inicioPrevisto: viagemAtual.inicioPrevisto, fimPrevisto: viagemAtual.fimPrevisto },
+        { inicioPrevisto: viagemAtualizada.inicioPrevisto, fimPrevisto: viagemAtualizada.fimPrevisto },
+      ],
+    )
     return viagemAtualizada
   })
 }
@@ -402,7 +422,7 @@ export async function atualizarAlocacaoViagemService(
 ) {
   const viagemAtual = await prisma.viagem.findUnique({
     where: { id: idViagem, filialId },
-    select: { status: true, motoristaId: true, motoristaAcompanhanteId: true, inicioPrevisto: true, produto: true },
+    select: { status: true, motoristaId: true, motoristaAcompanhanteId: true, inicioPrevisto: true, fimPrevisto: true, produto: true },
   })
 
   if (!viagemAtual) {
@@ -427,12 +447,16 @@ export async function atualizarAlocacaoViagemService(
       },
     })
 
-    await reconciliarFolgaMotoristasNoDiaAtual(tx, [
-      viagemAtual.motoristaId,
-      viagemAtualizada.motoristaId,
-      viagemAtual.motoristaAcompanhanteId,
-      viagemAtualizada.motoristaAcompanhanteId,
-    ])
+    await reconciliarFolgaMotoristasNoDiaAtual(
+      tx,
+      [
+        viagemAtual.motoristaId,
+        viagemAtualizada.motoristaId,
+        viagemAtual.motoristaAcompanhanteId,
+        viagemAtualizada.motoristaAcompanhanteId,
+      ],
+      [{ inicioPrevisto: viagemAtual.inicioPrevisto, fimPrevisto: viagemAtual.fimPrevisto }],
+    )
 
     return viagemAtualizada
   })

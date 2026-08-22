@@ -155,7 +155,7 @@ describe("viagem.service", () => {
       expect(dadosCriados.motoristaId).toBe(1)
       expect(dadosCriados.status).toBe("ALOCADA")
       expect(dadosCriados.filialId).toBe(FILIAL_ID)
-      expect(reconciliarFolgaMotoristasNoDiaAtual).toHaveBeenCalledWith(tx, [1])
+      expect(reconciliarFolgaMotoristasNoDiaAtual).toHaveBeenCalledWith(tx, [1], expect.anything())
     })
 
     it("grava avisoInterjornada quando o motorista sugerido teve descanso insuficiente", async () => {
@@ -433,7 +433,7 @@ describe("viagem.service", () => {
       const dados = vi.mocked(tx.viagem.update).mock.calls[0][0].data
       expect(dados.status).toBe("ALOCADA")
       expect(dados.motoristaId).toBe(5)
-      expect(reconciliarFolgaMotoristasNoDiaAtual).toHaveBeenCalledWith(tx, [null, 5, null, null])
+      expect(reconciliarFolgaMotoristasNoDiaAtual).toHaveBeenCalledWith(tx, [null, 5, null, null], expect.anything())
     })
 
     it("grava o motoristaAcompanhanteId e reconcilia a folga do antigo e do novo acompanhante", async () => {
@@ -447,7 +447,7 @@ describe("viagem.service", () => {
 
       const dados = vi.mocked(tx.viagem.update).mock.calls[0][0].data
       expect(dados.motoristaAcompanhanteId).toBe(11)
-      expect(reconciliarFolgaMotoristasNoDiaAtual).toHaveBeenCalledWith(tx, [5, 5, 8, 11])
+      expect(reconciliarFolgaMotoristasNoDiaAtual).toHaveBeenCalledWith(tx, [5, 5, 8, 11], expect.anything())
     })
 
     it("não promove o status automaticamente quando a viagem já está FINALIZADA", async () => {
@@ -589,7 +589,7 @@ describe("viagem.service", () => {
 
       const dados = vi.mocked(tx.viagem.update).mock.calls[0][0].data
       expect(dados.deletadoEm).toBeInstanceOf(Date)
-      expect(reconciliarFolgaMotoristasNoDiaAtual).toHaveBeenCalledWith(tx, [7, null])
+      expect(reconciliarFolgaMotoristasNoDiaAtual).toHaveBeenCalledWith(tx, [7, null], expect.anything())
     })
 
     it("sincroniza a disponibilidade da frota — excluir a viagem pode liberar o conjunto", async () => {
@@ -626,7 +626,7 @@ describe("viagem.service", () => {
         where: { id: 1, filialId: FILIAL_ID },
         data: { status: "INICIADA", canceladoEm: undefined },
       })
-      expect(reconciliarFolgaMotoristasNoDiaAtual).toHaveBeenCalledWith(tx, [3, null])
+      expect(reconciliarFolgaMotoristasNoDiaAtual).toHaveBeenCalledWith(tx, [3, null], expect.anything())
     })
 
     it("cancelar a viagem sincroniza a frota — é o que libera o conjunto ao cancelar/finalizar", async () => {
