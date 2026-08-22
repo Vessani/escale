@@ -162,6 +162,9 @@ export async function buscarViagensCriadasEm(filialId: number, data: Date) {
     include: {
       motorista: true,
       motoristaAcompanhante: true,
+      // Só sapcode — é o que decide se uma entrega conta no resumo do
+      // relatório (ver gerarExcelViagensCriadasHoje).
+      entregas: { select: { sapcode: true } },
     },
   });
 }

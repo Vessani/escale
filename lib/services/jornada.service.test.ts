@@ -132,16 +132,35 @@ describe("jornada.service", () => {
       expect(calcularCodigoJornadaNoDia(4, seteDiasDepois, hoje)).toBe(4)
     })
 
-    it("não rotaciona os códigos especiais 8 (Férias), 9 (Exames) e 10 (Interno)", () => {
+    it("não rotaciona os códigos especiais 10 (Interno) e 11 (Manutenção) — sem prazo, precisam ser encerrados manualmente", () => {
       const bemDepois = new Date("2026-08-01T10:00:00")
-      expect(calcularCodigoJornadaNoDia(8, bemDepois, hoje)).toBe(8)
-      expect(calcularCodigoJornadaNoDia(9, bemDepois, hoje)).toBe(9)
       expect(calcularCodigoJornadaNoDia(10, bemDepois, hoje)).toBe(10)
+      expect(calcularCodigoJornadaNoDia(11, bemDepois, hoje)).toBe(11)
     })
 
-    it("repassa sem alteração códigos fora da faixa 1-10 (dado inválido)", () => {
+    it("Exames (9) dura só 1 dia — no dia seguinte já retoma o ciclo normal a partir do código 1", () => {
+      expect(calcularCodigoJornadaNoDia(9, hoje, hoje)).toBe(9)
+      expect(calcularCodigoJornadaNoDia(9, new Date("2026-07-09T10:00:00"), hoje)).toBe(1)
+      expect(calcularCodigoJornadaNoDia(9, new Date("2026-07-10T10:00:00"), hoje)).toBe(2)
+    })
+
+    it("Férias (8) dura 30 dias — continua 8 durante o período e retoma o ciclo em 1 assim que termina", () => {
+      const dia29Depois = new Date("2026-07-08T10:00:00")
+      dia29Depois.setDate(dia29Depois.getDate() + 29)
+      expect(calcularCodigoJornadaNoDia(8, dia29Depois, hoje)).toBe(8)
+
+      const dia30Depois = new Date("2026-07-08T10:00:00")
+      dia30Depois.setDate(dia30Depois.getDate() + 30)
+      expect(calcularCodigoJornadaNoDia(8, dia30Depois, hoje)).toBe(1)
+
+      const dia31Depois = new Date("2026-07-08T10:00:00")
+      dia31Depois.setDate(dia31Depois.getDate() + 31)
+      expect(calcularCodigoJornadaNoDia(8, dia31Depois, hoje)).toBe(2)
+    })
+
+    it("repassa sem alteração códigos fora da faixa 1-11 (dado inválido)", () => {
       expect(calcularCodigoJornadaNoDia(0, new Date("2026-07-09T10:00:00"), hoje)).toBe(0)
-      expect(calcularCodigoJornadaNoDia(11, new Date("2026-07-09T10:00:00"), hoje)).toBe(11)
+      expect(calcularCodigoJornadaNoDia(12, new Date("2026-07-09T10:00:00"), hoje)).toBe(12)
     })
   })
 
@@ -157,6 +176,7 @@ describe("jornada.service", () => {
       expect(obterStatusJornada(8).texto).toBe("Férias")
       expect(obterStatusJornada(9).texto).toBe("Exames")
       expect(obterStatusJornada(10).texto).toBe("Interno")
+      expect(obterStatusJornada(11).texto).toBe("Manutenção")
     })
 
     it("usa o próprio número como texto para um código desconhecido", () => {

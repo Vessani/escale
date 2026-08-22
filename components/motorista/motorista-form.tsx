@@ -115,10 +115,10 @@ export default function MotoristaForm({ defaultValues, onSubmit, submitLabel, su
                 <FormItem>
                   <FormLabel>Código de Jornada Atual</FormLabel>
                   <FormControl>
-                    <Input type="number" min={1} max={10} placeholder="Ex: 1 a 10" {...field} value={normalizeFormValue(field.value)} />
+                    <Input type="number" min={1} max={11} placeholder="Ex: 1 a 11" {...field} value={normalizeFormValue(field.value)} />
                   </FormControl>
                   <FormDescription>
-                    1–6 = dias seguidos trabalhados · 7 = Folga · 8 = Férias · 9 = Exames · 10 = Interno
+                    1–6 = dias seguidos trabalhados · 7 = Folga · 8 = Férias · 9 = Exames · 10 = Interno · 11 = Manutenção
                   </FormDescription>
                   <FormMessage />
                 </FormItem>

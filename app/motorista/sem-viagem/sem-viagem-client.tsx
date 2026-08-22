@@ -88,13 +88,26 @@ export default function SemViagemClient({ motoristas, dataReferencia }: Props) {
           <TableCell className="max-w-xs whitespace-normal text-slate-600">{motorista.acao.texto}</TableCell>
           <TableCell>
             {motorista.acao.tipo === "DAR_FOLGA" && (
-              <Button size="sm" variant="outline" disabled={salvando || isPending} onClick={() => aplicarAcao(motorista.id, 7)}>
-                {salvando ? "Salvando..." : "Dar folga hoje"}
-              </Button>
+              <div className="flex flex-wrap gap-2">
+                <Button size="sm" variant="outline" disabled={salvando || isPending} onClick={() => aplicarAcao(motorista.id, 7)}>
+                  {salvando ? "Salvando..." : "Dar folga hoje"}
+                </Button>
+                <Button size="sm" variant="outline" disabled={salvando || isPending} onClick={() => aplicarAcao(motorista.id, 10)}>
+                  Marcar como Interno
+                </Button>
+                <Button size="sm" variant="outline" disabled={salvando || isPending} onClick={() => aplicarAcao(motorista.id, 11)}>
+                  Marcar como Manutenção
+                </Button>
+              </div>
             )}
             {motorista.acao.tipo === "REVISAR_INTERNO" && (
               <Button size="sm" variant="outline" disabled={salvando || isPending} onClick={() => aplicarAcao(motorista.id, 1)}>
                 {salvando ? "Salvando..." : "Tirar de Interno"}
+              </Button>
+            )}
+            {motorista.acao.tipo === "REVISAR_MANUTENCAO" && (
+              <Button size="sm" variant="outline" disabled={salvando || isPending} onClick={() => aplicarAcao(motorista.id, 1)}>
+                {salvando ? "Salvando..." : "Tirar de Manutenção"}
               </Button>
             )}
             {motorista.acao.tipo === "NENHUMA" && (

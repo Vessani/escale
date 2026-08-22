@@ -20,8 +20,8 @@ export const motoristaBaseSchema = z.object({
     .coerce
     .number()
     .int()
-    .min(1, "Informe um código de 1 a 10")
-    .max(10, "Informe um código de 1 a 10"),
+    .min(1, "Informe um código de 1 a 11")
+    .max(11, "Informe um código de 1 a 11"),
   turno: turnoSchema,
   liberado: z.boolean(),
   produtosAutorizados: z.array(produtoSchema).default([]),

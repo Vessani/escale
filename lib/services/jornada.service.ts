@@ -2,6 +2,10 @@ import { colunaDateParaLocal, inicioDoDia } from "@/lib/utils/date-format"
 
 const DIAS_NO_CICLO_JORNADA = 7
 
+/** Duração padrão de cada código especial com prazo — ver calcularCodigoJornadaNoDia. */
+const DIAS_EXAMES = 1
+const DIAS_FERIAS = 30
+
 export type StatusJornada = {
   texto: string
 }
@@ -12,8 +16,30 @@ export function diferencaEmDias(dataA: Date, dataB: Date) {
   return Math.round((inicioA - inicioB) / 86_400_000)
 }
 
+/**
+ * Código de jornada projetado pra um dia a partir de um código conhecido
+ * (`codigoAtual`) numa data âncora (`hoje`). Férias (8) e Exames (9) têm
+ * prazo — 30 e 1 dia respectivamente — e depois disso o motorista retoma o
+ * ciclo normal de trabalho a partir do código 1, contando desde o fim do
+ * prazo; sem isso, marcar alguém como Férias ou Exame preenchia o calendário
+ * inteiro dali em diante com o mesmo código pra sempre. Interno (10) e
+ * Manutenção (11) continuam sem prazo — precisam ser encerrados manualmente.
+ */
 export function calcularCodigoJornadaNoDia(codigoAtual: number, dia: Date, hoje: Date) {
-  if (codigoAtual >= 8 && codigoAtual <= 10) {
+  const deslocamento = diferencaEmDias(dia, hoje)
+
+  const duracao = codigoAtual === 9 ? DIAS_EXAMES : codigoAtual === 8 ? DIAS_FERIAS : null
+  if (duracao !== null) {
+    if (deslocamento < duracao) {
+      return codigoAtual
+    }
+
+    const diasDesdeRetorno = deslocamento - duracao
+    const rotacao = ((diasDesdeRetorno % DIAS_NO_CICLO_JORNADA) + DIAS_NO_CICLO_JORNADA) % DIAS_NO_CICLO_JORNADA
+    return rotacao + 1
+  }
+
+  if (codigoAtual === 10 || codigoAtual === 11) {
     return codigoAtual
   }
 
@@ -21,7 +47,6 @@ export function calcularCodigoJornadaNoDia(codigoAtual: number, dia: Date, hoje:
     return codigoAtual
   }
 
-  const deslocamento = diferencaEmDias(dia, hoje)
   const base = codigoAtual - 1
   const rotacao = ((base + deslocamento) % DIAS_NO_CICLO_JORNADA + DIAS_NO_CICLO_JORNADA) % DIAS_NO_CICLO_JORNADA
   return rotacao + 1
@@ -155,6 +180,10 @@ export function obterStatusJornada(diasTrabalhados: number): StatusJornada {
 
   if (diasTrabalhados === 10) {
     return { texto: "Interno" }
+  }
+
+  if (diasTrabalhados === 11) {
+    return { texto: "Manutenção" }
   }
 
   return { texto: String(diasTrabalhados) }

@@ -1,4 +1,4 @@
-export type TipoAcaoSugerida = "DAR_FOLGA" | "REVISAR_INTERNO" | "NENHUMA"
+export type TipoAcaoSugerida = "DAR_FOLGA" | "REVISAR_INTERNO" | "REVISAR_MANUTENCAO" | "NENHUMA"
 
 export type AcaoSugerida = {
   tipo: TipoAcaoSugerida
@@ -36,6 +36,10 @@ export function determinarAcaoSugerida(codigoHoje: number, liberado: boolean): A
 
   if (codigoHoje === 10) {
     return { tipo: "REVISAR_INTERNO", texto: "Marcado como Interno — confira se ainda faz sentido." }
+  }
+
+  if (codigoHoje === 11) {
+    return { tipo: "REVISAR_MANUTENCAO", texto: "Marcado como Manutenção — confira se ainda faz sentido." }
   }
 
   return { tipo: "NENHUMA", texto: "" }

@@ -28,11 +28,22 @@ describe("determinarAcaoSugerida", () => {
     })
   })
 
+  it("sugere revisar o status Manutenção (11)", () => {
+    expect(determinarAcaoSugerida(11, true)).toEqual({
+      tipo: "REVISAR_MANUTENCAO",
+      texto: "Marcado como Manutenção — confira se ainda faz sentido.",
+    })
+  })
+
   it("motorista em treinamento (não liberado) nunca recebe sugestão de folga ou interno, mesmo em dia de trabalho", () => {
     expect(determinarAcaoSugerida(3, false).tipo).toBe("NENHUMA")
   })
 
   it("motorista em treinamento marcado como Interno também não sugere revisar Interno", () => {
     expect(determinarAcaoSugerida(10, false).tipo).toBe("NENHUMA")
+  })
+
+  it("motorista em treinamento marcado como Manutenção também não sugere revisar Manutenção", () => {
+    expect(determinarAcaoSugerida(11, false).tipo).toBe("NENHUMA")
   })
 })

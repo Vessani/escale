@@ -27,18 +27,20 @@ describe("calendario-utils", () => {
       expect(statusJornadaCorrespondeAoFiltro(6, "JORNADA_4_5")).toBe(false)
     })
 
-    it("filtra cada status exato (6, Folga, Férias, Exames, Interno)", () => {
+    it("filtra cada status exato (6, Folga, Férias, Exames, Interno, Manutenção)", () => {
       expect(statusJornadaCorrespondeAoFiltro(6, "JORNADA_6")).toBe(true)
       expect(statusJornadaCorrespondeAoFiltro(7, "FOLGA")).toBe(true)
       expect(statusJornadaCorrespondeAoFiltro(8, "FERIAS")).toBe(true)
       expect(statusJornadaCorrespondeAoFiltro(9, "EXAMES")).toBe(true)
       expect(statusJornadaCorrespondeAoFiltro(10, "INTERNO")).toBe(true)
+      expect(statusJornadaCorrespondeAoFiltro(11, "MANUTENCAO")).toBe(true)
     })
 
     it("nega quando o código não corresponde ao filtro pedido", () => {
       expect(statusJornadaCorrespondeAoFiltro(7, "JORNADA_6")).toBe(false)
       expect(statusJornadaCorrespondeAoFiltro(6, "FOLGA")).toBe(false)
       expect(statusJornadaCorrespondeAoFiltro(1, "INTERNO")).toBe(false)
+      expect(statusJornadaCorrespondeAoFiltro(10, "MANUTENCAO")).toBe(false)
     })
   })
 

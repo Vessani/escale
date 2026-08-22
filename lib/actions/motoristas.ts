@@ -73,7 +73,7 @@ export async function atualizarJornadaMotoristaNoCalendario(
   try {
     const { filialId } = await requireSessionComFilial();
 
-    if (!Number.isInteger(codigoNoDia) || codigoNoDia < 1 || codigoNoDia > 10) {
+    if (!Number.isInteger(codigoNoDia) || codigoNoDia < 1 || codigoNoDia > 11) {
       return { sucesso: false, erro: "Código de jornada inválido." }
     }
 

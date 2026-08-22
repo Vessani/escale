@@ -7,6 +7,7 @@ import {
   CLASSE_JORNADA_FERIAS,
   CLASSE_JORNADA_FOLGA,
   CLASSE_JORNADA_INTERNO,
+  CLASSE_JORNADA_MANUTENCAO,
 } from "./jornada-status"
 
 export type OpcaoCodigoJornada = {
@@ -23,6 +24,7 @@ export type FiltroStatusJornada =
   | "FERIAS"
   | "EXAMES"
   | "INTERNO"
+  | "MANUTENCAO"
 
 export const OPCOES_CODIGO_JORNADA: OpcaoCodigoJornada[] = [
   { valor: 1, label: "1º dia" },
@@ -35,6 +37,7 @@ export const OPCOES_CODIGO_JORNADA: OpcaoCodigoJornada[] = [
   { valor: 8, label: "Férias" },
   { valor: 9, label: "Exames" },
   { valor: 10, label: "Interno" },
+  { valor: 11, label: "Manutenção" },
 ]
 
 export const OPCOES_FILTRO_STATUS: Array<{ valor: FiltroStatusJornada; label: string; classe: string }> = [
@@ -46,6 +49,7 @@ export const OPCOES_FILTRO_STATUS: Array<{ valor: FiltroStatusJornada; label: st
   { valor: "FERIAS", label: "8 Férias", classe: CLASSE_JORNADA_FERIAS },
   { valor: "EXAMES", label: "9 Exames", classe: CLASSE_JORNADA_EXAMES },
   { valor: "INTERNO", label: "10 Interno", classe: CLASSE_JORNADA_INTERNO },
+  { valor: "MANUTENCAO", label: "11 Manutenção", classe: CLASSE_JORNADA_MANUTENCAO },
 ]
 
 export function statusJornadaCorrespondeAoFiltro(
@@ -80,7 +84,11 @@ export function statusJornadaCorrespondeAoFiltro(
     return diasTrabalhados === 9
   }
 
-  return diasTrabalhados === 10
+  if (filtro === "INTERNO") {
+    return diasTrabalhados === 10
+  }
+
+  return diasTrabalhados === 11
 }
 
 /** Quantidade de dias exibidos de cada vez no calendário (uma "página" de navegação). */

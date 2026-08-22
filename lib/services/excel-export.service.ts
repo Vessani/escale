@@ -134,7 +134,39 @@ export function gerarExcelViagensMotorista(viagens: ViagemParaRelatorio[]): Buff
   return gerarBuffer([{ nome: "Viagens", linhas: viagens.map(linhaRelatorio) }])
 }
 
-/** Viagens criadas num dia — pra enviar pra operação. */
-export function gerarExcelViagensCriadasHoje(viagens: ViagemParaRelatorio[]): Buffer {
-  return gerarBuffer([{ nome: "Viagens", linhas: viagens.map(linhaRelatorio) }])
+type ViagemParaRelatorioDiario = ViagemParaRelatorio & {
+  entregas: Array<{ sapcode: string }>
+}
+
+/** Entregas sem SAP Code são placeholder/observação, não uma entrega real — ver gerarExcelViagensCriadasHoje. */
+function ehEntregaReal(entrega: { sapcode: string }) {
+  return entrega.sapcode.trim().length > 0
+}
+
+function contarEntregasReais(viagens: ViagemParaRelatorioDiario[]) {
+  return viagens.reduce((total, viagem) => total + viagem.entregas.filter(ehEntregaReal).length, 0)
+}
+
+/**
+ * Viagens criadas num dia — pra enviar pra operação. Ganha uma aba "Resumo"
+ * na frente com os totais que a operação pede pra bater o dia: viagens e
+ * entregas, separados por turno. Uma entrega só conta se tiver SAP Code —
+ * sem ele é anotação/observação na planilha, não uma entrega de verdade.
+ */
+export function gerarExcelViagensCriadasHoje(viagens: ViagemParaRelatorioDiario[]): Buffer {
+  const viagensDia = viagens.filter((viagem) => viagem.turno === "MANHA")
+  const viagensNoite = viagens.filter((viagem) => viagem.turno === "NOITE")
+
+  const resumo = [
+    { Métrica: "Total de viagens", Quantidade: viagens.length },
+    { Métrica: "Total de viagens (dia)", Quantidade: viagensDia.length },
+    { Métrica: "Total de viagens (noite)", Quantidade: viagensNoite.length },
+    { Métrica: "Total de entregas (dia)", Quantidade: contarEntregasReais(viagensDia) },
+    { Métrica: "Total de entregas (noite)", Quantidade: contarEntregasReais(viagensNoite) },
+  ]
+
+  return gerarBuffer([
+    { nome: "Resumo", linhas: resumo },
+    { nome: "Viagens", linhas: viagens.map(linhaRelatorio) },
+  ])
 }

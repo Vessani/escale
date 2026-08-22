@@ -30,6 +30,7 @@ const viagemBase = {
   motorista: null,
   motoristaAcompanhante: null,
   integracaoExigida: null,
+  entregas: [{ sapcode: "SAP1" }],
 }
 
 const CONTENT_TYPE_EXCEL = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"

@@ -9,7 +9,7 @@ export const PRODUTO_VALORES = [
 ] as const satisfies readonly TipoProduto[]
 
 const PRODUTO_LABELS: Record<TipoProduto, string> = {
-  CO2: "CO2",
+  CO2: "Carbono",
   NITROGENIO: "Nitrogênio",
   ARGONIO: "Argônio",
   BIOMETANO: "Biometano",
