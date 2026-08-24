@@ -41,6 +41,7 @@ export type NovaViagemInput = {
   turno: Turno;
   produto: TipoProduto;
   status?: StatusViagem;
+  viagemExtra?: boolean;
   entregas: NovaEntregaInput[];
 };
 

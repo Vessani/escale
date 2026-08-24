@@ -32,6 +32,7 @@ type ViagemParaExportacao = {
   motorista: { nome: string; cpf: string | null } | null
   motoristaAcompanhante: { nome: string } | null
   integracaoExigida: string | null
+  viagemExtra: boolean
   entregas: Array<{
     dataEntrega: Date | string
     cliente: string
@@ -67,6 +68,7 @@ export function gerarExcelViagem(viagem: ViagemParaExportacao): Buffer {
       Motorista: viagem.motorista?.nome ?? "Não alocado",
       Acompanhante: viagem.motoristaAcompanhante?.nome ?? "",
       "Integração Exigida": viagem.integracaoExigida ?? "Não",
+      Extra: viagem.viagemExtra ? "Sim" : "Não",
     },
   ]
 
@@ -104,6 +106,7 @@ type ViagemParaRelatorio = {
   motorista: { nome: string; cpf: string | null } | null
   motoristaAcompanhante: { nome: string } | null
   integracaoExigida: string | null
+  viagemExtra: boolean
 }
 
 function linhaRelatorio(viagem: ViagemParaRelatorio) {
@@ -121,6 +124,7 @@ function linhaRelatorio(viagem: ViagemParaRelatorio) {
     "CPF Motorista": viagem.motorista?.cpf ?? "",
     Acompanhante: viagem.motoristaAcompanhante?.nome ?? "",
     "Integração Exigida": viagem.integracaoExigida ?? "Não",
+    Extra: viagem.viagemExtra ? "Sim" : "Não",
   }
 }
 
@@ -163,6 +167,7 @@ export function gerarExcelViagensCriadasHoje(viagens: ViagemParaRelatorioDiario[
     { Métrica: "Total de viagens (noite)", Quantidade: viagensNoite.length },
     { Métrica: "Total de entregas (dia)", Quantidade: contarEntregasReais(viagensDia) },
     { Métrica: "Total de entregas (noite)", Quantidade: contarEntregasReais(viagensNoite) },
+    { Métrica: "Total de viagens extras (fora da programação)", Quantidade: viagens.filter((v) => v.viagemExtra).length },
   ]
 
   return gerarBuffer([

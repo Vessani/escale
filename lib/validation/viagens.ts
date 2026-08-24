@@ -53,6 +53,7 @@ const viagemBaseSchema = z.object({
   // Viagem.produto no schema).
   produto: produtoSchema,
   status: statusViagemSchema.optional(),
+  viagemExtra: z.boolean().optional().default(false),
 })
 
 export const novaViagemSchema = viagemBaseSchema
@@ -104,6 +105,7 @@ export const editarViagemServerSchema = z
     turno: turnoSchema,
     produto: produtoSchema,
     status: statusViagemSchema.optional(),
+    viagemExtra: z.boolean().optional().default(false),
     motoristaId: z.number().nullable().optional(),
     motoristaAcompanhanteId: z.number().nullable().optional(),
     entregas: z.array(entregaServerSchema).min(1, "A viagem precisa de pelo menos uma entrega."),

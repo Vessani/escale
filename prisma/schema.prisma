@@ -105,6 +105,12 @@
     integracaoExigida String?      @db.VarChar(50)
     status            StatusViagem @default(CRIADA)
 
+    // Marca uma viagem incluída depois que a programação do dia/período já
+    // saiu pra operação — não é um status (convive com qualquer status do
+    // fluxo normal), só uma sinalização pros relatórios e pra tela de
+    // viagens saberem que ela não fazia parte do planejamento original.
+    viagemExtra       Boolean      @default(false)
+
     horarioRealSaida  DateTime?    @db.Timestamp(6)
     motivoAtraso      String?      @db.VarChar(200)
     avisoInterjornada String?      @db.VarChar(200)

@@ -114,6 +114,11 @@ function ViagensTabela({ viagens, podeExcluir }: { viagens: Viagem[]; podeExclui
                   <Badge variant="outline" className={classeBadgeStatusViagem(viagem.status)}>
                     {formatarStatusViagem(viagem.status)}
                   </Badge>
+                  {viagem.viagemExtra && (
+                    <Badge variant="outline" className="border-purple-500/30 bg-purple-500/10 text-purple-600 hover:bg-purple-500/10">
+                      Extra
+                    </Badge>
+                  )}
                   <AtualizarStatusRapido viagemId={viagem.id} statusAtual={viagem.status} inicioPrevisto={viagem.inicioPrevisto} fimPrevisto={viagem.fimPrevisto} />
                 </div>
               </TableCell>
@@ -156,6 +161,11 @@ function ViagensCards({ viagens, podeExcluir }: { viagens: Viagem[]; podeExcluir
             <Badge variant="outline" className={classeBadgeStatusViagem(viagem.status)}>
               {formatarStatusViagem(viagem.status)}
             </Badge>
+            {viagem.viagemExtra && (
+              <Badge variant="outline" className="border-purple-500/30 bg-purple-500/10 text-purple-600 hover:bg-purple-500/10">
+                Extra
+              </Badge>
+            )}
             <AtualizarStatusRapido viagemId={viagem.id} statusAtual={viagem.status} inicioPrevisto={viagem.inicioPrevisto} fimPrevisto={viagem.fimPrevisto} />
           </div>
 

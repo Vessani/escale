@@ -38,6 +38,7 @@ const viagemBase = {
   motorista: { nome: "João da Silva", cpf: "11144477735" },
   motoristaAcompanhante: null,
   integracaoExigida: null,
+  viagemExtra: false,
   entregas: [
     {
       dataEntrega: new Date("2026-08-12T10:00:00Z"),
@@ -105,6 +106,7 @@ const relatorioBase = {
   motorista: { nome: "Maria Souza", cpf: "52998224725" },
   motoristaAcompanhante: null,
   integracaoExigida: "Cliente X",
+  viagemExtra: false,
 }
 
 describe("gerarExcelRelatorioGeral", () => {
@@ -119,6 +121,13 @@ describe("gerarExcelRelatorioGeral", () => {
     expect(linhas[0]["CPF Motorista"]).toBe("52998224725")
     expect(linhas[0]["Cavalo"]).toBe("AAA1111")
     expect(linhas[0]["Integração Exigida"]).toBe("Cliente X")
+    expect(linhas[0]["Extra"]).toBe("Não")
+  })
+
+  it("marca Extra como Sim pra viagem fora da programação", () => {
+    const buffer = gerarExcelRelatorioGeral([{ ...relatorioBase, viagemExtra: true }])
+    const { linhas } = lerPrimeiraAba(buffer)
+    expect(linhas[0]["Extra"]).toBe("Sim")
   })
 })
 
@@ -187,5 +196,17 @@ describe("gerarExcelViagensCriadasHoje", () => {
     expect(valorDe("Total de entregas (dia)")).toBe(3)
     // N1 tem 1 entrega com SAP Code (a só com espaços em branco não conta).
     expect(valorDe("Total de entregas (noite)")).toBe(1)
+  })
+
+  it("o Resumo conta viagens extras (fora da programação)", () => {
+    const viagens = [
+      viagemDiaria({ numViagem: "D1", viagemExtra: true }),
+      viagemDiaria({ numViagem: "D2", viagemExtra: false }),
+    ]
+    const buffer = gerarExcelViagensCriadasHoje(viagens)
+    const resumo = XLSX.utils.sheet_to_json<Record<string, unknown>>(XLSX.read(buffer, { type: "buffer" }).Sheets["Resumo"])
+    const valorDe = (metrica: string) => resumo.find((linha) => linha["Métrica"] === metrica)?.["Quantidade"]
+
+    expect(valorDe("Total de viagens extras (fora da programação)")).toBe(1)
   })
 })

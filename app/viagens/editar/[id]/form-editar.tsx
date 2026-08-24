@@ -78,6 +78,7 @@ type ViagemComRelacionamentos = {
   fimPrevisto: string | Date
   status: StatusViagem
   integracaoExigida: string | null
+  viagemExtra: boolean
   entregas: EntregaFormModel[]
 }
 
@@ -107,6 +108,7 @@ export default function FormEditarViagem({ viagem, motoristas, clientesQueExigem
       diasViagem: viagem.diasViagem,
       turno: viagem.turno,
       produto: viagem.produto ?? undefined,
+      viagemExtra: viagem.viagemExtra,
       motoristaId: viagem.motoristaId,
       motoristaAcompanhanteId: viagem.motoristaAcompanhanteId,
       inicioPrevisto: formatDateTimeForInput(viagem.inicioPrevisto),
@@ -322,6 +324,26 @@ export default function FormEditarViagem({ viagem, motoristas, clientesQueExigem
                     </SelectContent>
                   </Select>
                   <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <FormField
+              control={form.control}
+              name="viagemExtra"
+              render={({ field }) => (
+                <FormItem className="flex flex-row items-center gap-2 space-y-0 self-end pb-2">
+                  <FormControl>
+                    <input
+                      type="checkbox"
+                      checked={field.value ?? false}
+                      onChange={(e) => field.onChange(e.target.checked)}
+                      className="h-4 w-4 rounded border-slate-300"
+                    />
+                  </FormControl>
+                  <FormLabel className="cursor-pointer font-normal">
+                    Viagem extra (fora da programação)
+                  </FormLabel>
                 </FormItem>
               )}
             />
