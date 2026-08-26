@@ -85,7 +85,7 @@ function LinksDoMenu({
   const menuItems = role === "SUPERADMIN" ? menuItemsSuperAdmin : menuItemsOperacional
 
   return (
-    <nav aria-label="Navegação principal" className="flex-1 px-3 py-6 space-y-2 overflow-y-auto">
+    <nav aria-label="Navegação principal" className="flex-1 px-3 py-3 space-y-1 overflow-y-auto">
       {menuItems.map((item) => {
         const Icon = item.icon
         const isActive = pathname === item.href || pathname.startsWith(`${item.href}/`)
@@ -98,7 +98,7 @@ function LinksDoMenu({
             aria-current={isActive ? "page" : undefined}
             title={colapsado ? item.label : undefined}
             className={`flex items-center rounded-lg transition-colors group ${
-              colapsado ? "justify-center px-2 py-2.5" : "px-3 py-2.5"
+              colapsado ? "justify-center px-2 py-2" : "px-3 py-2"
             } ${
               isActive
                 ? "bg-blue-600/10 text-blue-400 font-medium"
@@ -119,8 +119,8 @@ function LinksDoMenu({
 
 function PainelUsuario({ usuario, colapsado = false }: { usuario: Session["user"]; colapsado?: boolean }) {
   return (
-    <div className="p-3 bg-slate-950/50 border-t border-slate-800">
-      <div className={`flex items-center ${colapsado ? "justify-center" : "mb-4"}`}>
+    <div className="p-2.5 bg-slate-950/50 border-t border-slate-800">
+      <div className={`flex items-center ${colapsado ? "justify-center" : "mb-2.5"}`}>
         <div
           className="w-10 h-10 rounded-full bg-blue-600 flex items-center justify-center text-white font-bold uppercase shrink-0"
           title={colapsado ? usuario?.name ?? undefined : undefined}
