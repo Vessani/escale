@@ -2,7 +2,8 @@ import Link from "next/link"
 import { getServerSession } from "next-auth"
 import { authOptions } from "@/lib/auth"
 import { Button } from "@/components/ui/button"
-import { Pencil, Route } from "lucide-react"
+import { Input } from "@/components/ui/input"
+import { Pencil, Route, CalendarDays } from "lucide-react"
 import { Alert } from "@/components/ui/alert"
 import { Badge } from "@/components/ui/badge"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
@@ -11,8 +12,8 @@ import { buscarMotoristasParaSelect } from "@/lib/queries/motoristas"
 import { motoristaEstaDisponivelNoPeriodo } from "@/lib/services/alocacao.service"
 import { serializeData } from "@/lib/serialization"
 import { classeBadgeStatusViagem } from "./viagens/badge-styles"
-import { STATUS_VIAGEM_OPCOES, formatarStatusViagem, parseStatusFiltro } from "@/lib/services/viagem-status.service"
-import { formatarDataHoraPtBr } from "@/lib/utils/date-format"
+import { STATUS_VIAGEM_OPCOES, formatarStatusViagem, parseStatusFiltro, type FiltroStatusViagem } from "@/lib/services/viagem-status.service"
+import { formatarDataHoraPtBr, parseDataLocal } from "@/lib/utils/date-format"
 import AtualizarSaidaReal from "./atualizar-saida-real"
 import AtualizarStatusRapido from "./viagens/atualizar-status-rapido"
 import AlocarMotoristasDashboard from "./alocar-motoristas-dashboard"
@@ -231,6 +232,24 @@ function ViagensEmAndamentoCards({ itens }: { itens: ItemDashboard[] }) {
 
 type SearchParamsInput = {
   status?: string
+  data?: string
+}
+
+/** YYYY-MM-DD local (sem componente de hora) — mesmo formato de <input type="date">. */
+function dataLocalParaInput(data: Date): string {
+  const ano = data.getFullYear()
+  const mes = String(data.getMonth() + 1).padStart(2, "0")
+  const dia = String(data.getDate()).padStart(2, "0")
+  return `${ano}-${mes}-${dia}`
+}
+
+/** Preserva o filtro de status/data ao trocar um dos dois — omite o parâmetro quando está no padrão, pra manter a URL limpa em "hoje". */
+function construirHref(status: FiltroStatusViagem, dataTexto?: string) {
+  const params = new URLSearchParams()
+  if (status !== "TODOS") params.set("status", status)
+  if (dataTexto) params.set("data", dataTexto)
+  const query = params.toString()
+  return `/${query ? `?${query}` : ""}`
 }
 
 export default async function DashboardPage({
@@ -240,10 +259,14 @@ export default async function DashboardPage({
 }) {
   const parametros = (await searchParams) ?? {}
   const filtroStatus = parseStatusFiltro(parametros.status)
+  const dataSelecionada = parametros.data ? parseDataLocal(parametros.data) : new Date()
+  const dataTextoInput = parametros.data ?? dataLocalParaInput(new Date())
+  const vendoOutroDia = Boolean(parametros.data)
+
   const session = await getServerSession(authOptions)
   const filialId = session!.user.filialId!
   const [itens, quadroObservacoes] = await Promise.all([
-    buscarDadosDashboard(filialId, new Date(), filtroStatus),
+    buscarDadosDashboard(filialId, dataSelecionada, filtroStatus),
     buscarQuadroObservacoes(filialId),
   ])
 
@@ -253,15 +276,16 @@ export default async function DashboardPage({
         <div>
           <h1 className="text-3xl font-bold tracking-tight text-slate-900">Dashboard</h1>
           <p className="text-slate-500 mt-1">
-            Quadro digital da operação: viagens de hoje em qualquer status, mais Retornando de dias anteriores e Canceladas só até a virada do dia.
+            Quadro digital da operação: viagens do dia selecionado em qualquer status, mais Retornando de dias anteriores e Canceladas só até a virada do dia.
+            {vendoOutroDia && " Status mostrado é o atual da viagem, não uma foto de como estava naquele dia — pra ver a mudança em si, use o Histórico."}
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
-          <Link href="/">
+          <Link href={construirHref("TODOS", parametros.data)}>
             <Button variant={filtroStatus === "TODOS" ? "default" : "outline"}>Todos</Button>
           </Link>
           {STATUS_VIAGEM_OPCOES.map((status) => (
-            <Link key={status.valor} href={`/?status=${status.valor}`}>
+            <Link key={status.valor} href={construirHref(status.valor, parametros.data)}>
               <Button variant={filtroStatus === status.valor ? "default" : "outline"}>
                 {status.label}
               </Button>
@@ -269,6 +293,20 @@ export default async function DashboardPage({
           ))}
         </div>
       </div>
+
+      <form method="get" className="flex flex-wrap items-center gap-2">
+        {filtroStatus !== "TODOS" && <input type="hidden" name="status" value={filtroStatus} />}
+        <Input type="date" name="data" defaultValue={dataTextoInput} className="w-40" />
+        <Button type="submit" variant="outline" size="sm">
+          <CalendarDays className="w-4 h-4 mr-2" />
+          Ver dia
+        </Button>
+        {vendoOutroDia && (
+          <Link href={construirHref(filtroStatus)}>
+            <Button type="button" variant="ghost" size="sm">Voltar pra hoje</Button>
+          </Link>
+        )}
+      </form>
 
       {itens.length === 0 ? (
         <div className="border rounded-lg bg-white shadow-sm p-12">
@@ -281,7 +319,9 @@ export default async function DashboardPage({
         <section className="space-y-3">
           <div className="flex items-center justify-between">
             <h2 className="text-xl font-semibold text-slate-900">
-              {filtroStatus === "TODOS" ? "Hoje" : `Status: ${formatarStatusViagem(filtroStatus)}`}
+              {vendoOutroDia
+                ? dataTextoInput.split("-").reverse().join("/")
+                : filtroStatus === "TODOS" ? "Hoje" : `Status: ${formatarStatusViagem(filtroStatus)}`}
             </h2>
             <Badge variant="outline">{itens.length}</Badge>
           </div>
