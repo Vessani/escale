@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma"
 import { converterEntradaDeDataHora, formatarDataHoraPtBr } from "@/lib/utils/date-format"
 import { formatarProduto } from "./produto.service"
 import { frotaEhValida } from "./frota-regras"
+import { registrarAuditoria, type Ator } from "./auditoria.service"
 
 export { frotaEhValida } from "./frota-regras"
 
@@ -95,6 +96,10 @@ export async function calcularAvisoFrotaProduto(
  * estado: criada, editada (nas duas duplas, se cavalo/carreta mudou), teve o
  * status alterado, ou foi excluída — senão cancelar/finalizar uma viagem
  * nunca libera a frota (fica presa no fim previsto antigo pra sempre).
+ *
+ * Sem RegistroAuditoria própria de propósito: é um recálculo automático
+ * disparado por escrita de Viagem, não uma decisão de alguém — a viagem que
+ * disparou essa sincronização já tem sua própria auditoria.
  */
 export async function sincronizarDisponibilidadeFrota(
   tx: Prisma.TransactionClient,
@@ -134,7 +139,7 @@ export async function sincronizarDisponibilidadeFrota(
 }
 
 /** Cria um conjunto manualmente pelo cadastro. */
-export async function criarFrotaService(filialId: number, dados: FrotaInput) {
+export async function criarFrotaService(filialId: number, dados: FrotaInput, ator: Ator | null) {
   const existente = await prisma.frota.findFirst({
     where: { cavalo: dados.cavalo, carreta: dados.carreta, filialId, deletadoEm: null },
   })
@@ -143,19 +148,32 @@ export async function criarFrotaService(filialId: number, dados: FrotaInput) {
     throw new Error("Já existe um conjunto cadastrado com essa frota (cavalo/carreta).")
   }
 
-  return prisma.frota.create({
-    data: {
-      cavalo: dados.cavalo,
-      carreta: dados.carreta,
-      disponivelEm: dados.disponivelEm ? converterEntradaDeDataHora(dados.disponivelEm) : null,
-      emManutencao: dados.emManutencao ?? false,
-      tipoProduto: dados.tipoProduto ?? null,
+  return prisma.$transaction(async (tx) => {
+    const frotaCriada = await tx.frota.create({
+      data: {
+        cavalo: dados.cavalo,
+        carreta: dados.carreta,
+        disponivelEm: dados.disponivelEm ? converterEntradaDeDataHora(dados.disponivelEm) : null,
+        emManutencao: dados.emManutencao ?? false,
+        tipoProduto: dados.tipoProduto ?? null,
+        filialId,
+      },
+    })
+
+    await registrarAuditoria(tx, {
+      entidade: "Frota",
+      entidadeId: frotaCriada.id,
+      acao: "CRIACAO",
+      depois: frotaCriada,
+      ator,
       filialId,
-    },
+    })
+
+    return frotaCriada
   })
 }
 
-export async function editarFrotaService(filialId: number, id: number, dados: FrotaInput) {
+export async function editarFrotaService(filialId: number, id: number, dados: FrotaInput, ator: Ator | null) {
   const existente = await prisma.frota.findFirst({
     where: { cavalo: dados.cavalo, carreta: dados.carreta, filialId, deletadoEm: null, id: { not: id } },
   })
@@ -164,21 +182,53 @@ export async function editarFrotaService(filialId: number, id: number, dados: Fr
     throw new Error("Já existe um conjunto cadastrado com essa frota (cavalo/carreta).")
   }
 
-  return prisma.frota.update({
-    where: { id, filialId },
-    data: {
-      cavalo: dados.cavalo,
-      carreta: dados.carreta,
-      disponivelEm: dados.disponivelEm ? converterEntradaDeDataHora(dados.disponivelEm) : null,
-      emManutencao: dados.emManutencao ?? false,
-      tipoProduto: dados.tipoProduto ?? null,
-    },
+  const frotaAntes = await prisma.frota.findUniqueOrThrow({ where: { id, filialId } })
+
+  return prisma.$transaction(async (tx) => {
+    const frotaAtualizada = await tx.frota.update({
+      where: { id, filialId },
+      data: {
+        cavalo: dados.cavalo,
+        carreta: dados.carreta,
+        disponivelEm: dados.disponivelEm ? converterEntradaDeDataHora(dados.disponivelEm) : null,
+        emManutencao: dados.emManutencao ?? false,
+        tipoProduto: dados.tipoProduto ?? null,
+      },
+    })
+
+    await registrarAuditoria(tx, {
+      entidade: "Frota",
+      entidadeId: id,
+      acao: "ATUALIZACAO",
+      antes: frotaAntes,
+      depois: frotaAtualizada,
+      ator,
+      filialId,
+    })
+
+    return frotaAtualizada
   })
 }
 
-export async function deletarFrotaService(filialId: number, id: number) {
-  return prisma.frota.update({
-    where: { id, filialId },
-    data: { deletadoEm: new Date() },
+export async function deletarFrotaService(filialId: number, id: number, ator: Ator | null) {
+  const frotaAntes = await prisma.frota.findUniqueOrThrow({ where: { id, filialId } })
+
+  return prisma.$transaction(async (tx) => {
+    const frotaDeletada = await tx.frota.update({
+      where: { id, filialId },
+      data: { deletadoEm: new Date() },
+    })
+
+    await registrarAuditoria(tx, {
+      entidade: "Frota",
+      entidadeId: id,
+      acao: "EXCLUSAO",
+      antes: frotaAntes,
+      depois: frotaDeletada,
+      ator,
+      filialId,
+    })
+
+    return frotaDeletada
   })
 }

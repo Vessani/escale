@@ -5,7 +5,7 @@ import { inicioDoDia } from "@/lib/utils/date-format"
 vi.mock("@/lib/prisma", () => ({
   prisma: {
     $transaction: vi.fn(),
-    motorista: { update: vi.fn() },
+    motorista: { update: vi.fn(), findUniqueOrThrow: vi.fn() },
     registroJornada: { findFirst: vi.fn() },
   },
 }))
@@ -19,13 +19,16 @@ import {
   registrarJornadaNoDiaService,
   buscarFimJornadaAnterior,
 } from "@/lib/services/motorista.service"
+import type { Ator } from "@/lib/services/auditoria.service"
 
 const FILIAL_ID = 1
+const ATOR: Ator = { usuarioId: "u1", usuarioNome: "Ana" }
 
 function criarTx() {
   return {
     motorista: { create: vi.fn(), update: vi.fn(), findUniqueOrThrow: vi.fn() },
     registroJornada: { upsert: vi.fn() },
+    registroAuditoria: { create: vi.fn() },
   }
 }
 
@@ -60,7 +63,7 @@ describe("motorista.service", () => {
         integracao: [{ dataValidade: "2026-12-31", cliente: "AMBEV", status: "ATIVO" }],
       }
 
-      const resultado = await criarMotoristaService(FILIAL_ID, dados)
+      const resultado = await criarMotoristaService(FILIAL_ID, dados, ATOR)
 
       expect(resultado).toEqual({ id: 42 })
       const dadosCriados = vi.mocked(tx.motorista.create).mock.calls[0][0].data
@@ -96,7 +99,7 @@ describe("motorista.service", () => {
         liberado: false,
         produtosAutorizados: [],
         integracao: [],
-      })
+      }, ATOR)
 
       const dadosCriados = vi.mocked(tx.motorista.create).mock.calls[0][0].data
       expect(dadosCriados.liberado).toBe(false)
@@ -105,10 +108,10 @@ describe("motorista.service", () => {
 
   describe("editarMotoristaService", () => {
     it("separa integrações existentes (update) de novas (create) e mantém só as informadas", async () => {
-      vi.mocked(prisma.motorista.update).mockResolvedValue({ id: 5 } as never)
+      vi.mocked(prisma.motorista.findUniqueOrThrow).mockResolvedValue({ id: 5, liberado: false } as never)
 
       const tx = criarTx()
-      vi.mocked(tx.motorista.findUniqueOrThrow).mockResolvedValue({ id: 5 })
+      vi.mocked(tx.motorista.update).mockResolvedValue({ id: 5, liberado: true })
       vi.mocked(tx.registroJornada.upsert).mockResolvedValue({})
       usarTransacaoCom(tx)
 
@@ -126,9 +129,9 @@ describe("motorista.service", () => {
         ],
       }
 
-      await editarMotoristaService(FILIAL_ID, 5, dados)
+      await editarMotoristaService(FILIAL_ID, 5, dados, ATOR)
 
-      const chamada = vi.mocked(prisma.motorista.update).mock.calls[0][0] as {
+      const chamada = vi.mocked(tx.motorista.update).mock.calls[0][0] as {
         where: { id: number; filialId: number }
         data: { liberado: boolean; integracao: { deleteMany: { id: { notIn: number[] } }; update: unknown[]; create: unknown[] } }
       }
@@ -138,20 +141,27 @@ describe("motorista.service", () => {
       expect(chamada.data.integracao.update).toHaveLength(1)
       expect(chamada.data.integracao.create).toHaveLength(1)
 
-      // Também grava "diasTrabalhados" no histórico de hoje.
+      // Também grava "diasTrabalhados" no histórico de hoje, e a auditoria — tudo na mesma transação.
       expect(prisma.$transaction).toHaveBeenCalledTimes(1)
+      expect(tx.registroJornada.upsert).toHaveBeenCalledTimes(1)
+      expect(tx.registroAuditoria.create).toHaveBeenCalledTimes(1)
     })
   })
 
   describe("deletarMotoristaService", () => {
     it("marca deletadoEm em vez de apagar o registro", async () => {
-      vi.mocked(prisma.motorista.update).mockResolvedValue({ id: 9 } as never)
+      vi.mocked(prisma.motorista.findUniqueOrThrow).mockResolvedValue({ id: 9 } as never)
 
-      await deletarMotoristaService(FILIAL_ID, 9)
+      const tx = criarTx()
+      vi.mocked(tx.motorista.update).mockResolvedValue({ id: 9, deletadoEm: new Date() })
+      usarTransacaoCom(tx)
 
-      const chamada = vi.mocked(prisma.motorista.update).mock.calls[0][0] as { where: { id: number; filialId: number }; data: { deletadoEm: Date } }
+      await deletarMotoristaService(FILIAL_ID, 9, ATOR)
+
+      const chamada = vi.mocked(tx.motorista.update).mock.calls[0][0] as { where: { id: number; filialId: number }; data: { deletadoEm: Date } }
       expect(chamada.where).toEqual({ id: 9, filialId: FILIAL_ID })
       expect(chamada.data.deletadoEm).toBeInstanceOf(Date)
+      expect(tx.registroAuditoria.create).toHaveBeenCalledTimes(1)
     })
   })
 
@@ -211,7 +221,7 @@ describe("motorista.service", () => {
       vi.mocked(tx.registroJornada.upsert).mockResolvedValue({ codigo: 2 })
       usarTransacaoCom(tx)
 
-      await registrarJornadaNoDiaService(FILIAL_ID, 3, new Date(), 2)
+      await registrarJornadaNoDiaService(FILIAL_ID, 3, new Date(), 2, ATOR)
 
       expect(tx.motorista.findUniqueOrThrow).toHaveBeenCalledWith({
         where: { id: 3, filialId: FILIAL_ID },
@@ -226,7 +236,7 @@ describe("motorista.service", () => {
       vi.mocked(tx.motorista.findUniqueOrThrow).mockRejectedValue(new Error("Registro não encontrado."))
       usarTransacaoCom(tx)
 
-      await expect(registrarJornadaNoDiaService(FILIAL_ID, 3, new Date(), 2)).rejects.toThrow()
+      await expect(registrarJornadaNoDiaService(FILIAL_ID, 3, new Date(), 2, ATOR)).rejects.toThrow()
       expect(tx.registroJornada.upsert).not.toHaveBeenCalled()
     })
   })

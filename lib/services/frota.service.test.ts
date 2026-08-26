@@ -2,7 +2,8 @@ import { describe, expect, it, vi, beforeEach } from "vitest"
 
 vi.mock("@/lib/prisma", () => ({
   prisma: {
-    frota: { findUnique: vi.fn(), findFirst: vi.fn(), create: vi.fn(), update: vi.fn() },
+    $transaction: vi.fn(),
+    frota: { findUnique: vi.fn(), findFirst: vi.fn(), findUniqueOrThrow: vi.fn(), create: vi.fn(), update: vi.fn() },
   },
 }))
 
@@ -14,14 +15,25 @@ import {
   editarFrotaService,
   deletarFrotaService,
 } from "@/lib/services/frota.service"
+import type { Ator } from "@/lib/services/auditoria.service"
 
 const FILIAL_ID = 1
+const ATOR: Ator = { usuarioId: "u1", usuarioNome: "Ana" }
 
 function criarTx() {
   return {
     frota: { findFirst: vi.fn(), create: vi.fn(), update: vi.fn() },
     viagem: { findFirst: vi.fn() },
+    registroAuditoria: { create: vi.fn() },
   }
+}
+
+type Tx = ReturnType<typeof criarTx>
+
+/** Faz `prisma.$transaction(callback)` invocar `callback(tx)` — o cast contorna a assinatura real (sobrecarregada) do Prisma, que não importa aqui. */
+function usarTransacaoCom(tx: Tx) {
+  vi.mocked(prisma.$transaction).mockImplementation(((callback: (tx: Tx) => unknown) =>
+    Promise.resolve(callback(tx))) as never)
 }
 
 describe("calcularAvisoFrotaIndisponivel", () => {
@@ -168,22 +180,25 @@ describe("criarFrotaService", () => {
 
   it("cria o conjunto quando não há duplicidade ativa", async () => {
     vi.mocked(prisma.frota.findFirst).mockResolvedValue(null)
-    vi.mocked(prisma.frota.create).mockResolvedValue({ id: 1 } as never)
+    const tx = criarTx()
+    vi.mocked(tx.frota.create).mockResolvedValue({ id: 1 })
+    usarTransacaoCom(tx)
 
-    await criarFrotaService(FILIAL_ID, { cavalo: "75", carreta: "908", disponivelEm: "2026-07-22T18:30" })
+    await criarFrotaService(FILIAL_ID, { cavalo: "75", carreta: "908", disponivelEm: "2026-07-22T18:30" }, ATOR)
 
     // "18:30" sem timezone é interpretado como horário de Brasília (UTC-3) —
     // ver converterEntradaDeDataHora/parseDateTimeFromInput — não com
     // `new Date(texto)` puro, que dependeria do fuso de quem roda o teste.
-    expect(prisma.frota.create).toHaveBeenCalledWith({
+    expect(tx.frota.create).toHaveBeenCalledWith({
       data: { cavalo: "75", carreta: "908", disponivelEm: new Date("2026-07-22T21:30:00.000Z"), emManutencao: false, tipoProduto: null, filialId: FILIAL_ID },
     })
+    expect(tx.registroAuditoria.create).toHaveBeenCalledTimes(1)
   })
 
   it("lança erro quando já existe um conjunto ativo com a mesma dupla", async () => {
     vi.mocked(prisma.frota.findFirst).mockResolvedValue({ id: 1 } as never)
 
-    await expect(criarFrotaService(FILIAL_ID, { cavalo: "75", carreta: "908", disponivelEm: null })).rejects.toThrow(
+    await expect(criarFrotaService(FILIAL_ID, { cavalo: "75", carreta: "908", disponivelEm: null }, ATOR)).rejects.toThrow(
       "Já existe um conjunto cadastrado com essa frota (cavalo/carreta).",
     )
     expect(prisma.frota.create).not.toHaveBeenCalled()
@@ -191,33 +206,39 @@ describe("criarFrotaService", () => {
 
   it("grava disponivelEm null quando não informado", async () => {
     vi.mocked(prisma.frota.findFirst).mockResolvedValue(null)
-    vi.mocked(prisma.frota.create).mockResolvedValue({ id: 1 } as never)
+    const tx = criarTx()
+    vi.mocked(tx.frota.create).mockResolvedValue({ id: 1 })
+    usarTransacaoCom(tx)
 
-    await criarFrotaService(FILIAL_ID, { cavalo: "75", carreta: "908", disponivelEm: null })
+    await criarFrotaService(FILIAL_ID, { cavalo: "75", carreta: "908", disponivelEm: null }, ATOR)
 
-    expect(prisma.frota.create).toHaveBeenCalledWith({
+    expect(tx.frota.create).toHaveBeenCalledWith({
       data: { cavalo: "75", carreta: "908", disponivelEm: null, emManutencao: false, tipoProduto: null, filialId: FILIAL_ID },
     })
   })
 
   it("grava emManutencao true quando marcado no cadastro", async () => {
     vi.mocked(prisma.frota.findFirst).mockResolvedValue(null)
-    vi.mocked(prisma.frota.create).mockResolvedValue({ id: 1 } as never)
+    const tx = criarTx()
+    vi.mocked(tx.frota.create).mockResolvedValue({ id: 1 })
+    usarTransacaoCom(tx)
 
-    await criarFrotaService(FILIAL_ID, { cavalo: "75", carreta: "908", disponivelEm: null, emManutencao: true })
+    await criarFrotaService(FILIAL_ID, { cavalo: "75", carreta: "908", disponivelEm: null, emManutencao: true }, ATOR)
 
-    expect(prisma.frota.create).toHaveBeenCalledWith({
+    expect(tx.frota.create).toHaveBeenCalledWith({
       data: { cavalo: "75", carreta: "908", disponivelEm: null, emManutencao: true, tipoProduto: null, filialId: FILIAL_ID },
     })
   })
 
   it("grava tipoProduto quando informado no cadastro", async () => {
     vi.mocked(prisma.frota.findFirst).mockResolvedValue(null)
-    vi.mocked(prisma.frota.create).mockResolvedValue({ id: 1 } as never)
+    const tx = criarTx()
+    vi.mocked(tx.frota.create).mockResolvedValue({ id: 1 })
+    usarTransacaoCom(tx)
 
-    await criarFrotaService(FILIAL_ID, { cavalo: "75", carreta: "908", disponivelEm: null, tipoProduto: "CO2" })
+    await criarFrotaService(FILIAL_ID, { cavalo: "75", carreta: "908", disponivelEm: null, tipoProduto: "CO2" }, ATOR)
 
-    expect(prisma.frota.create).toHaveBeenCalledWith({
+    expect(tx.frota.create).toHaveBeenCalledWith({
       data: { cavalo: "75", carreta: "908", disponivelEm: null, emManutencao: false, tipoProduto: "CO2", filialId: FILIAL_ID },
     })
   })
@@ -226,27 +247,31 @@ describe("criarFrotaService", () => {
 describe("editarFrotaService", () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    vi.mocked(prisma.frota.findUniqueOrThrow).mockResolvedValue({ id: 1 } as never)
   })
 
   it("edita quando não conflita com outro conjunto ativo", async () => {
     vi.mocked(prisma.frota.findFirst).mockResolvedValue(null)
-    vi.mocked(prisma.frota.update).mockResolvedValue({ id: 1 } as never)
+    const tx = criarTx()
+    vi.mocked(tx.frota.update).mockResolvedValue({ id: 1 })
+    usarTransacaoCom(tx)
 
-    await editarFrotaService(FILIAL_ID, 1, { cavalo: "75", carreta: "908", disponivelEm: "2026-07-22T18:30" })
+    await editarFrotaService(FILIAL_ID, 1, { cavalo: "75", carreta: "908", disponivelEm: "2026-07-22T18:30" }, ATOR)
 
     expect(prisma.frota.findFirst).toHaveBeenCalledWith({
       where: { cavalo: "75", carreta: "908", filialId: FILIAL_ID, deletadoEm: null, id: { not: 1 } },
     })
-    expect(prisma.frota.update).toHaveBeenCalledWith({
+    expect(tx.frota.update).toHaveBeenCalledWith({
       where: { id: 1, filialId: FILIAL_ID },
       data: { cavalo: "75", carreta: "908", disponivelEm: new Date("2026-07-22T21:30:00.000Z"), emManutencao: false, tipoProduto: null },
     })
+    expect(tx.registroAuditoria.create).toHaveBeenCalledTimes(1)
   })
 
   it("lança erro quando a dupla já pertence a outro conjunto ativo", async () => {
     vi.mocked(prisma.frota.findFirst).mockResolvedValue({ id: 2 } as never)
 
-    await expect(editarFrotaService(FILIAL_ID, 1, { cavalo: "75", carreta: "908", disponivelEm: null })).rejects.toThrow(
+    await expect(editarFrotaService(FILIAL_ID, 1, { cavalo: "75", carreta: "908", disponivelEm: null }, ATOR)).rejects.toThrow(
       "Já existe um conjunto cadastrado com essa frota (cavalo/carreta).",
     )
     expect(prisma.frota.update).not.toHaveBeenCalled()
@@ -255,12 +280,16 @@ describe("editarFrotaService", () => {
 
 describe("deletarFrotaService", () => {
   it("marca deletadoEm", async () => {
-    vi.mocked(prisma.frota.update).mockResolvedValue({ id: 1 } as never)
+    vi.mocked(prisma.frota.findUniqueOrThrow).mockResolvedValue({ id: 1 } as never)
+    const tx = criarTx()
+    vi.mocked(tx.frota.update).mockResolvedValue({ id: 1, deletadoEm: new Date() })
+    usarTransacaoCom(tx)
 
-    await deletarFrotaService(FILIAL_ID, 1)
+    await deletarFrotaService(FILIAL_ID, 1, ATOR)
 
-    const chamada = vi.mocked(prisma.frota.update).mock.calls[0][0]
+    const chamada = vi.mocked(tx.frota.update).mock.calls[0][0]
     expect(chamada.where).toEqual({ id: 1, filialId: FILIAL_ID })
     expect(chamada.data.deletadoEm).toBeInstanceOf(Date)
+    expect(tx.registroAuditoria.create).toHaveBeenCalledTimes(1)
   })
 })

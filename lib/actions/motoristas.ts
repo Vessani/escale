@@ -3,6 +3,7 @@ import { revalidatePath } from "next/cache";
 import { NovoMotoristaInput, EditarMotoristaInput, type RespostaAcao } from "@/lib/types/types";
 import { errorToMessage } from "@/lib/action-error";
 import { requireSessionComFilial } from "@/lib/auth-guard";
+import { atorDaSessao } from "@/lib/services/auditoria.service";
 import { parseDataLocal } from "@/lib/utils/date-format";
 import { motoristaComIntegracoesServerSchema } from "@/lib/validation/motoristas";
 import {
@@ -19,14 +20,14 @@ import type { RegistroJornadaRelatorio } from "@/lib/parsers/jornada-relatorio-p
 
 export async function criarMotorista(dados: NovoMotoristaInput): Promise<RespostaAcao> {
   try {
-    const { filialId } = await requireSessionComFilial();
+    const { session, filialId } = await requireSessionComFilial();
 
     const validacao = motoristaComIntegracoesServerSchema.safeParse(dados);
     if (!validacao.success) {
       return { sucesso: false, erro: validacao.error.issues[0]?.message ?? "Dados inválidos." };
     }
 
-    await criarMotoristaService(filialId, validacao.data);
+    await criarMotoristaService(filialId, validacao.data, atorDaSessao(session));
 
     revalidatePath("/motorista");
     return { sucesso: true };
@@ -37,14 +38,14 @@ export async function criarMotorista(dados: NovoMotoristaInput): Promise<Respost
 
 export async function editarMotorista(idMotorista: number, dados: EditarMotoristaInput): Promise<RespostaAcao> {
   try {
-    const { filialId } = await requireSessionComFilial();
+    const { session, filialId } = await requireSessionComFilial();
 
     const validacao = motoristaComIntegracoesServerSchema.safeParse(dados);
     if (!validacao.success) {
       return { sucesso: false, erro: validacao.error.issues[0]?.message ?? "Dados inválidos." };
     }
 
-    await editarMotoristaService(filialId, idMotorista, validacao.data);
+    await editarMotoristaService(filialId, idMotorista, validacao.data, atorDaSessao(session));
 
     revalidatePath("/motorista");
     return { sucesso: true };
@@ -55,8 +56,8 @@ export async function editarMotorista(idMotorista: number, dados: EditarMotorist
 
 export async function deletarMotorista(id: number): Promise<RespostaAcao> {
   try {
-    const { filialId } = await requireSessionComFilial(["ADMIN"]);
-    await deletarMotoristaService(filialId, id);
+    const { session, filialId } = await requireSessionComFilial(["ADMIN"]);
+    await deletarMotoristaService(filialId, id, atorDaSessao(session));
 
     revalidatePath("/motorista");
     return { sucesso: true };
@@ -71,7 +72,7 @@ export async function atualizarJornadaMotoristaNoCalendario(
   codigoNoDia: number,
 ): Promise<RespostaAcao> {
   try {
-    const { filialId } = await requireSessionComFilial();
+    const { session, filialId } = await requireSessionComFilial();
 
     if (!Number.isInteger(codigoNoDia) || codigoNoDia < 1 || codigoNoDia > 11) {
       return { sucesso: false, erro: "Código de jornada inválido." }
@@ -79,7 +80,7 @@ export async function atualizarJornadaMotoristaNoCalendario(
 
     const data = parseDataLocal(dataReferencia)
 
-    await registrarJornadaNoDiaService(filialId, idMotorista, data, codigoNoDia)
+    await registrarJornadaNoDiaService(filialId, idMotorista, data, codigoNoDia, atorDaSessao(session))
     revalidatePath("/motorista")
     revalidatePath("/motorista/sem-viagem")
     return { sucesso: true }

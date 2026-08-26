@@ -55,6 +55,10 @@ function jornadaMaisRecente(registros: RegistroJornadaRelatorio[]): RegistroJorn
  * 1 findMany por linha do relatório. A gravação em si usa uma transação por
  * motorista (ver comentário mais abaixo): agrupar todo o lote numa transação
  * só estourava o timeout do Prisma em relatórios grandes.
+ *
+ * Sem RegistroAuditoria própria de propósito: é um import em lote (pode
+ * tocar centenas de RegistroJornada de uma vez), não uma decisão pontual de
+ * alguém — auditar linha a linha aqui não agregaria sinal, só ruído.
  */
 export async function atualizarJornadaRelatorioDosMotoristas(
   filialId: number,

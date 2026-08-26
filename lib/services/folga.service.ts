@@ -27,6 +27,10 @@ export function deveRetirarMotoristaDaFolga(diasTrabalhados: number, possuiViage
  * motorista como "de folga hoje" só por não ter nenhuma viagem cobrindo o
  * dia de hoje especificamente — mesmo que ele estivesse no meio de um ciclo
  * de trabalho normal, sem nenhuma relação real com a viagem tocada.
+ *
+ * Sem RegistroAuditoria própria de propósito: é um efeito colateral
+ * automático de uma escrita de Viagem, não uma decisão de alguém — a viagem
+ * que disparou essa reconciliação já tem sua própria auditoria.
  */
 export async function reconciliarFolgaMotoristasNoDiaAtual(
   tx: Prisma.TransactionClient,

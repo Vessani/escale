@@ -4,6 +4,7 @@ import { type RespostaAcao } from "@/lib/types/types";
 import { errorToMessage } from "@/lib/action-error";
 import { requireSessionComFilial } from "@/lib/auth-guard";
 import { frotaSchema, type FrotaFormValues } from "@/lib/validation/frotas";
+import { atorDaSessao } from "@/lib/services/auditoria.service";
 import {
   criarFrotaService,
   editarFrotaService,
@@ -12,14 +13,14 @@ import {
 
 export async function criarFrota(dados: FrotaFormValues): Promise<RespostaAcao> {
   try {
-    const { filialId } = await requireSessionComFilial();
+    const { session, filialId } = await requireSessionComFilial();
 
     const validacao = frotaSchema.safeParse(dados);
     if (!validacao.success) {
       return { sucesso: false, erro: validacao.error.issues[0]?.message ?? "Dados inválidos." };
     }
 
-    await criarFrotaService(filialId, validacao.data);
+    await criarFrotaService(filialId, validacao.data, atorDaSessao(session));
 
     revalidatePath("/frotas");
     return { sucesso: true };
@@ -30,14 +31,14 @@ export async function criarFrota(dados: FrotaFormValues): Promise<RespostaAcao> 
 
 export async function editarFrota(id: number, dados: FrotaFormValues): Promise<RespostaAcao> {
   try {
-    const { filialId } = await requireSessionComFilial();
+    const { session, filialId } = await requireSessionComFilial();
 
     const validacao = frotaSchema.safeParse(dados);
     if (!validacao.success) {
       return { sucesso: false, erro: validacao.error.issues[0]?.message ?? "Dados inválidos." };
     }
 
-    await editarFrotaService(filialId, id, validacao.data);
+    await editarFrotaService(filialId, id, validacao.data, atorDaSessao(session));
 
     revalidatePath("/frotas");
     return { sucesso: true };
@@ -48,8 +49,8 @@ export async function editarFrota(id: number, dados: FrotaFormValues): Promise<R
 
 export async function deletarFrota(id: number): Promise<RespostaAcao> {
   try {
-    const { filialId } = await requireSessionComFilial(["ADMIN"]);
-    await deletarFrotaService(filialId, id);
+    const { session, filialId } = await requireSessionComFilial(["ADMIN"]);
+    await deletarFrotaService(filialId, id, atorDaSessao(session));
 
     revalidatePath("/frotas");
     return { sucesso: true };
