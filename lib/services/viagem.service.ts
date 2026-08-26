@@ -10,6 +10,7 @@ import {
 } from "./alocacao.service";
 import type { TipoProduto } from "@prisma/client";
 import { reconciliarFolgaMotoristasNoDiaAtual } from "./folga.service";
+import { registrarAuditoria, type Ator } from "./auditoria.service";
 import { calcularAvisoFrotaIndisponivel, calcularAvisoFrotaProduto, sincronizarDisponibilidadeFrota } from "./frota.service";
 import { converterEditarViagemParaBD, converterNovaViagemParaBD } from "./viagem-data-converter.service";
 import { buscarFimJornadaAnterior } from "./motorista.service";
@@ -98,6 +99,7 @@ async function inserirViagem(
   motoristaId: number | null,
   status: NovaViagemInput["status"],
   avisoInterjornada: string | null,
+  ator: Ator | null,
 ) {
   await garantirNumViagemDisponivel(filialId, dados.numViagem)
   await garantirMotoristaAutorizadoParaProduto(motoristaId, dados.produto)
@@ -154,12 +156,20 @@ async function inserirViagem(
     await reconciliarFolgaMotoristasNoDiaAtual(tx, [viagemCriada.motoristaId], [
       { inicioPrevisto: viagemCriada.inicioPrevisto, fimPrevisto: viagemCriada.fimPrevisto },
     ])
+    await registrarAuditoria(tx, {
+      entidade: "Viagem",
+      entidadeId: viagemCriada.id,
+      acao: "CRIACAO",
+      depois: viagemCriada,
+      ator,
+      filialId,
+    })
 
     return viagemCriada
   })
 }
 
-export async function criarViagemAvulsaService(filialId: number, dadosRecebidos: NovaViagemInput) {
+export async function criarViagemAvulsaService(filialId: number, dadosRecebidos: NovaViagemInput, ator: Ator | null) {
   const dados = converterNovaViagemParaBD(dadosRecebidos);
   const clientesQueExigemIntegracao = await buscarNomesClientesQueExigemIntegracao();
   const integracaoNecessaria = calcularIntegracaoExigida(dados.entregas, clientesQueExigemIntegracao);
@@ -190,7 +200,7 @@ export async function criarViagemAvulsaService(filialId: number, dadosRecebidos:
     : null;
   const avisoInterjornada = calcularAvisoInterjornada(fimJornadaAnterior, inicioPrevisto);
 
-  return inserirViagem(filialId, dados, integracaoNecessaria, motoristaEscolhidoId, dados.status, avisoInterjornada);
+  return inserirViagem(filialId, dados, integracaoNecessaria, motoristaEscolhidoId, dados.status, avisoInterjornada, ator);
 }
 
 /**
@@ -199,17 +209,17 @@ export async function criarViagemAvulsaService(filialId: number, dadosRecebidos:
  * lote, depois que o usuário já revisou e confirmou a alocação sugerida para
  * cada viagem do arquivo.
  */
-export async function criarViagemComAlocacaoService(filialId: number, dadosRecebidos: NovaViagemInput, motoristaId: number | null) {
+export async function criarViagemComAlocacaoService(filialId: number, dadosRecebidos: NovaViagemInput, motoristaId: number | null, ator: Ator | null) {
   const dados = converterNovaViagemParaBD(dadosRecebidos);
   const clientesQueExigemIntegracao = await buscarNomesClientesQueExigemIntegracao();
   const integracaoNecessaria = calcularIntegracaoExigida(dados.entregas, clientesQueExigemIntegracao);
   const avisoInterjornada = await calcularAvisoInterjornadaPorId(filialId, motoristaId, dados.inicioPrevisto as Date);
 
-  return inserirViagem(filialId, dados, integracaoNecessaria, motoristaId, dados.status, avisoInterjornada);
+  return inserirViagem(filialId, dados, integracaoNecessaria, motoristaId, dados.status, avisoInterjornada, ator);
 }
 
 
-export async function editarViagemService(filialId: number, idViagem: number, dadosRecebidos: EditarViagemInput) {
+export async function editarViagemService(filialId: number, idViagem: number, dadosRecebidos: EditarViagemInput, ator: Ator | null) {
   const dados = converterEditarViagemParaBD(dadosRecebidos);
   const clientesQueExigemIntegracao = await buscarNomesClientesQueExigemIntegracao();
   const integracaoNecessaria = calcularIntegracaoExigida(dados.entregas, clientesQueExigemIntegracao);
@@ -217,9 +227,10 @@ export async function editarViagemService(filialId: number, idViagem: number, da
   const entregasExistentes = dados.entregas.filter(e => e.id);
   const entregasNovas = dados.entregas.filter(e => !e.id);
   const manterEntregas = entregasExistentes.map(e => e.id as number);
+  // Linha completa (não um select estreito) — vira o snapshot "antes" da
+  // auditoria, além de alimentar a lógica de negócio abaixo.
   const viagemAtual = await prisma.viagem.findUnique({
     where: { id: idViagem, filialId },
-    select: { status: true, motoristaId: true, motoristaAcompanhanteId: true, cavalo: true, carreta: true, inicioPrevisto: true, fimPrevisto: true },
   })
 
   if (!viagemAtual) {
@@ -324,11 +335,22 @@ export async function editarViagemService(filialId: number, idViagem: number, da
         { inicioPrevisto: viagemAtualizada.inicioPrevisto, fimPrevisto: viagemAtualizada.fimPrevisto },
       ],
     )
+    await registrarAuditoria(tx, {
+      entidade: "Viagem",
+      entidadeId: idViagem,
+      acao: "ATUALIZACAO",
+      antes: viagemAtual,
+      depois: viagemAtualizada,
+      ator,
+      filialId,
+    })
     return viagemAtualizada
   })
 }
 
-export async function deletarViagemService(filialId: number, id: number) {
+export async function deletarViagemService(filialId: number, id: number, ator: Ator | null) {
+  const viagemAntes = await prisma.viagem.findUniqueOrThrow({ where: { id, filialId } })
+
   return await prisma.$transaction(async (tx) => {
     const viagemDeletada = await tx.viagem.update({
       where: { id: id, filialId },
@@ -343,6 +365,15 @@ export async function deletarViagemService(filialId: number, id: number) {
       [viagemDeletada.motoristaId, viagemDeletada.motoristaAcompanhanteId],
       [{ inicioPrevisto: viagemDeletada.inicioPrevisto, fimPrevisto: viagemDeletada.fimPrevisto }],
     )
+    await registrarAuditoria(tx, {
+      entidade: "Viagem",
+      entidadeId: id,
+      acao: "EXCLUSAO",
+      antes: viagemAntes,
+      depois: viagemDeletada,
+      ator,
+      filialId,
+    })
     return viagemDeletada
   })
 }
@@ -354,15 +385,16 @@ export async function atualizarStatusViagemService(
   filialId: number,
   idViagem: number,
   status: EditarViagemInput["status"],
+  ator: Ator | null,
   novaData?: NovaDataViagem,
 ) {
   if (!status) {
     throw new Error("Status de viagem é obrigatório.")
   }
 
+  // Linha completa — vira o snapshot "antes" da auditoria.
   const viagemAtual = await prisma.viagem.findUnique({
     where: { id: idViagem, filialId },
-    select: { status: true, cavalo: true, carreta: true, produto: true, motoristaId: true, motoristaAcompanhanteId: true, inicioPrevisto: true, fimPrevisto: true },
   })
 
   if (!viagemAtual) {
@@ -407,6 +439,15 @@ export async function atualizarStatusViagemService(
         { inicioPrevisto: viagemAtualizada.inicioPrevisto, fimPrevisto: viagemAtualizada.fimPrevisto },
       ],
     )
+    await registrarAuditoria(tx, {
+      entidade: "Viagem",
+      entidadeId: idViagem,
+      acao: "ATUALIZACAO",
+      antes: viagemAtual,
+      depois: viagemAtualizada,
+      ator,
+      filialId,
+    })
     return viagemAtualizada
   })
 }
@@ -421,10 +462,11 @@ export async function atualizarAlocacaoViagemService(
   filialId: number,
   idViagem: number,
   dados: { motoristaId: number | null; motoristaAcompanhanteId: number | null },
+  ator: Ator | null,
 ) {
+  // Linha completa — vira o snapshot "antes" da auditoria.
   const viagemAtual = await prisma.viagem.findUnique({
     where: { id: idViagem, filialId },
-    select: { status: true, motoristaId: true, motoristaAcompanhanteId: true, inicioPrevisto: true, fimPrevisto: true, produto: true },
   })
 
   if (!viagemAtual) {
@@ -459,6 +501,15 @@ export async function atualizarAlocacaoViagemService(
       ],
       [{ inicioPrevisto: viagemAtual.inicioPrevisto, fimPrevisto: viagemAtual.fimPrevisto }],
     )
+    await registrarAuditoria(tx, {
+      entidade: "Viagem",
+      entidadeId: idViagem,
+      acao: "ATUALIZACAO",
+      antes: viagemAtual,
+      depois: viagemAtualizada,
+      ator,
+      filialId,
+    })
 
     return viagemAtualizada
   })
@@ -470,9 +521,24 @@ export async function atualizarSaidaRealService(
   idViagem: number,
   horarioRealSaida: Date | null,
   motivoAtraso: string | null,
+  ator: Ator | null,
 ) {
-  return await prisma.viagem.update({
-    where: { id: idViagem, filialId },
-    data: { horarioRealSaida, motivoAtraso },
+  const viagemAntes = await prisma.viagem.findUniqueOrThrow({ where: { id: idViagem, filialId } })
+
+  return await prisma.$transaction(async (tx) => {
+    const viagemDepois = await tx.viagem.update({
+      where: { id: idViagem, filialId },
+      data: { horarioRealSaida, motivoAtraso },
+    })
+    await registrarAuditoria(tx, {
+      entidade: "Viagem",
+      entidadeId: idViagem,
+      acao: "ATUALIZACAO",
+      antes: viagemAntes,
+      depois: viagemDepois,
+      ator,
+      filialId,
+    })
+    return viagemDepois
   })
 }

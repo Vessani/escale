@@ -198,7 +198,7 @@ describe("lib/actions/viagens — controle de acesso", () => {
       })
 
       expect(resposta).toEqual({ sucesso: true })
-      const novaData = vi.mocked(viagemService.atualizarStatusViagemService).mock.calls[0][3]
+      const novaData = vi.mocked(viagemService.atualizarStatusViagemService).mock.calls[0][4]
       expect(novaData?.inicioPrevisto.toISOString()).toBe("2026-08-12T11:00:00.000Z")
       expect(novaData?.fimPrevisto.toISOString()).toBe("2026-08-13T11:00:00.000Z")
     })

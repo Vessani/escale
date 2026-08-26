@@ -6,6 +6,7 @@ vi.mock("@/lib/prisma", () => ({
     $transaction: vi.fn(),
     viagem: {
       findUnique: vi.fn(),
+      findUniqueOrThrow: vi.fn(),
       findFirst: vi.fn(),
       update: vi.fn(),
     },
@@ -50,8 +51,10 @@ import {
   atualizarAlocacaoViagemService,
   atualizarSaidaRealService,
 } from "@/lib/services/viagem.service"
+import type { Ator } from "@/lib/services/auditoria.service"
 
 const FILIAL_ID = 1
+const ATOR: Ator = { usuarioId: "u1", usuarioNome: "Ana" }
 
 function criarTx() {
   return {
@@ -60,6 +63,7 @@ function criarTx() {
       update: vi.fn(),
       findUnique: vi.fn(),
     },
+    registroAuditoria: { create: vi.fn() },
   }
 }
 
@@ -133,6 +137,9 @@ describe("viagem.service", () => {
     vi.mocked(prisma.motorista.findUnique).mockResolvedValue({ produtosAutorizados: ["CO2"] } as never)
     // Sem outra viagem ativa com o mesmo número por padrão — testado à parte abaixo.
     vi.mocked(prisma.viagem.findFirst).mockResolvedValue(null)
+    // Snapshot "antes" da auditoria em deletarViagemService/atualizarSaidaRealService —
+    // sobrescrito nos testes que se importam com o conteúdo exato.
+    vi.mocked(prisma.viagem.findUniqueOrThrow).mockResolvedValue({} as never)
     // Mesmos clientes que antes viviam hardcoded em CLIENTES_COM_INTEGRACAO_OBRIGATORIA.
     vi.mocked(buscarNomesClientesQueExigemIntegracao).mockResolvedValue(
       new Set(["GEMP - AMBEV - BEBIDAS - N2L. (GRUPO AMB", "WEG"]),
@@ -147,7 +154,7 @@ describe("viagem.service", () => {
       vi.mocked(tx.viagem.create).mockResolvedValue({ id: 99, motoristaId: 1 })
       usarTransacaoCom(tx)
 
-      const resultado = await criarViagemAvulsaService(FILIAL_ID, criarViagemInput())
+      const resultado = await criarViagemAvulsaService(FILIAL_ID, criarViagemInput(), ATOR)
 
       expect(resultado).toEqual({ id: 99, motoristaId: 1 })
       expect(tx.viagem.create).toHaveBeenCalledTimes(1)
@@ -170,7 +177,7 @@ describe("viagem.service", () => {
       vi.mocked(tx.viagem.create).mockResolvedValue({ id: 102, motoristaId: 1 })
       usarTransacaoCom(tx)
 
-      await criarViagemAvulsaService(FILIAL_ID, criarViagemInput({ inicioPrevisto: agora.toISOString() }))
+      await criarViagemAvulsaService(FILIAL_ID, criarViagemInput({ inicioPrevisto: agora.toISOString() }), ATOR)
 
       const dadosCriados = vi.mocked(tx.viagem.create).mock.calls[0][0].data
       expect(dadosCriados.avisoInterjornada).toContain("Interjornada")
@@ -183,7 +190,7 @@ describe("viagem.service", () => {
       vi.mocked(tx.viagem.create).mockResolvedValue({ id: 103, motoristaId: 1 })
       usarTransacaoCom(tx)
 
-      await criarViagemAvulsaService(FILIAL_ID, criarViagemInput())
+      await criarViagemAvulsaService(FILIAL_ID, criarViagemInput(), ATOR)
 
       const dadosCriados = vi.mocked(tx.viagem.create).mock.calls[0][0].data
       expect(dadosCriados.avisoInterjornada).toBeNull()
@@ -198,7 +205,7 @@ describe("viagem.service", () => {
       vi.mocked(tx.viagem.create).mockResolvedValue({ id: 100, motoristaId: null })
       usarTransacaoCom(tx)
 
-      await criarViagemAvulsaService(FILIAL_ID, criarViagemInput({ turno: "MANHA" }))
+      await criarViagemAvulsaService(FILIAL_ID, criarViagemInput({ turno: "MANHA" }), ATOR)
 
       const dadosCriados = vi.mocked(tx.viagem.create).mock.calls[0][0].data
       expect(dadosCriados.motoristaId).toBeNull()
@@ -216,6 +223,7 @@ describe("viagem.service", () => {
         FILIAL_ID,
         // WEG (e não a variante do grupo AMBEV) porque só o nome dela é estável nos testes.
         criarViagemInput({ entregas: [{ dataEntrega: new Date().toISOString(), cliente: "WEG", cidade: "SP", uf: "SP", kg: 1, m3: 1, obs: "", sapcode: "", codewhite: "" }] }),
+        ATOR,
       )
 
       const dadosCriados = vi.mocked(tx.viagem.create).mock.calls[0][0].data
@@ -249,6 +257,7 @@ describe("viagem.service", () => {
       await criarViagemAvulsaService(
         FILIAL_ID,
         criarViagemInput({ inicioPrevisto: inicioNova.toISOString(), fimPrevisto: fimNova.toISOString() }),
+        ATOR,
       )
 
       const dadosCriados = vi.mocked(tx.viagem.create).mock.calls[0][0].data
@@ -273,7 +282,7 @@ describe("viagem.service", () => {
       vi.mocked(tx.viagem.create).mockResolvedValue({ id: 3, motoristaId: 1 })
       usarTransacaoCom(tx)
 
-      await criarViagemAvulsaService(FILIAL_ID, criarViagemInput())
+      await criarViagemAvulsaService(FILIAL_ID, criarViagemInput(), ATOR)
 
       const dadosCriados = vi.mocked(tx.viagem.create).mock.calls[0][0].data
       expect(dadosCriados.motoristaId).toBe(1)
@@ -287,7 +296,7 @@ describe("viagem.service", () => {
       vi.mocked(tx.viagem.create).mockResolvedValue({ id: 99, motoristaId: 1 })
       usarTransacaoCom(tx)
 
-      await criarViagemAvulsaService(FILIAL_ID, criarViagemInput({ cavalo: "2064", carreta: "908" }))
+      await criarViagemAvulsaService(FILIAL_ID, criarViagemInput({ cavalo: "2064", carreta: "908" }), ATOR)
 
       expect(calcularAvisoFrotaIndisponivel).toHaveBeenCalledWith(FILIAL_ID, "2064", "908", expect.any(Date))
       const dadosCriados = vi.mocked(tx.viagem.create).mock.calls[0][0].data
@@ -302,7 +311,7 @@ describe("viagem.service", () => {
       vi.mocked(tx.viagem.create).mockResolvedValue({ id: 102, motoristaId: 7 })
       usarTransacaoCom(tx)
 
-      await criarViagemComAlocacaoService(FILIAL_ID, criarViagemInput(), 7)
+      await criarViagemComAlocacaoService(FILIAL_ID, criarViagemInput(), 7, ATOR)
 
       expect(buscarMotoristasParaSelect).not.toHaveBeenCalled()
       const dadosCriados = vi.mocked(tx.viagem.create).mock.calls[0][0].data
@@ -319,7 +328,7 @@ describe("viagem.service", () => {
       vi.mocked(tx.viagem.create).mockResolvedValue({ id: 104, motoristaId: 7 })
       usarTransacaoCom(tx)
 
-      await criarViagemComAlocacaoService(FILIAL_ID, criarViagemInput({ inicioPrevisto: agora.toISOString() }), 7)
+      await criarViagemComAlocacaoService(FILIAL_ID, criarViagemInput({ inicioPrevisto: agora.toISOString() }), 7, ATOR)
 
       expect(prisma.registroJornada.findFirst).toHaveBeenCalledWith({
         where: {
@@ -339,7 +348,7 @@ describe("viagem.service", () => {
       vi.mocked(tx.viagem.create).mockResolvedValue({ id: 105, motoristaId: null })
       usarTransacaoCom(tx)
 
-      await criarViagemComAlocacaoService(FILIAL_ID, criarViagemInput(), null)
+      await criarViagemComAlocacaoService(FILIAL_ID, criarViagemInput(), null, ATOR)
 
       expect(prisma.registroJornada.findFirst).not.toHaveBeenCalled()
       const dadosCriados = vi.mocked(tx.viagem.create).mock.calls[0][0].data
@@ -350,7 +359,7 @@ describe("viagem.service", () => {
       vi.mocked(prisma.motorista.findUnique).mockResolvedValue({ produtosAutorizados: ["NITROGENIO"] } as never)
 
       await expect(
-        criarViagemComAlocacaoService(FILIAL_ID, criarViagemInput({ produto: "CO2" }), 7),
+        criarViagemComAlocacaoService(FILIAL_ID, criarViagemInput({ produto: "CO2" }), 7, ATOR),
       ).rejects.toThrow("Motorista não autorizado a carregar o produto desta viagem.")
       expect(prisma.motorista.findUnique).toHaveBeenCalledWith({ where: { id: 7 }, select: { produtosAutorizados: true } })
     })
@@ -360,7 +369,7 @@ describe("viagem.service", () => {
     it("lança erro amigável ao criar com um número já usado por outra viagem ATIVA", async () => {
       vi.mocked(prisma.viagem.findFirst).mockResolvedValue({ id: 1 } as never)
 
-      await expect(criarViagemComAlocacaoService(FILIAL_ID, criarViagemInput({ numViagem: "10045" }), null)).rejects.toThrow(
+      await expect(criarViagemComAlocacaoService(FILIAL_ID, criarViagemInput({ numViagem: "10045" }), null, ATOR)).rejects.toThrow(
         "Já existe uma viagem com este número.",
       )
       expect(prisma.viagem.findFirst).toHaveBeenCalledWith({
@@ -377,7 +386,7 @@ describe("viagem.service", () => {
       vi.mocked(tx.viagem.create).mockResolvedValue({ id: 50, motoristaId: null })
       usarTransacaoCom(tx)
 
-      await criarViagemComAlocacaoService(FILIAL_ID, criarViagemInput({ numViagem: "10045" }), null)
+      await criarViagemComAlocacaoService(FILIAL_ID, criarViagemInput({ numViagem: "10045" }), null, ATOR)
 
       expect(tx.viagem.create).toHaveBeenCalledTimes(1)
     })
@@ -391,14 +400,14 @@ describe("viagem.service", () => {
     it("lança 'Viagem não encontrada.' quando o id não existe", async () => {
       vi.mocked(prisma.viagem.findUnique).mockResolvedValue(null)
 
-      await expect(editarViagemService(FILIAL_ID, 999, criarEdicaoInput())).rejects.toThrow("Viagem não encontrada.")
+      await expect(editarViagemService(FILIAL_ID, 999, criarEdicaoInput(), ATOR)).rejects.toThrow("Viagem não encontrada.")
     })
 
     it("lança erro amigável quando o número editado já pertence a OUTRA viagem ativa", async () => {
       vi.mocked(prisma.viagem.findUnique).mockResolvedValue({ status: "CRIADA", motoristaId: null, motoristaAcompanhanteId: null } as never)
       vi.mocked(prisma.viagem.findFirst).mockResolvedValue({ id: 2 } as never)
 
-      await expect(editarViagemService(FILIAL_ID, 1, criarEdicaoInput({ numViagem: "10045" }))).rejects.toThrow(
+      await expect(editarViagemService(FILIAL_ID, 1, criarEdicaoInput({ numViagem: "10045" }), ATOR)).rejects.toThrow(
         "Já existe uma viagem com este número.",
       )
       expect(prisma.viagem.findFirst).toHaveBeenCalledWith({
@@ -416,7 +425,7 @@ describe("viagem.service", () => {
       vi.mocked(tx.viagem.update).mockResolvedValue({ id: 1, motoristaId: null, motoristaAcompanhanteId: null })
       usarTransacaoCom(tx)
 
-      await editarViagemService(FILIAL_ID, 1, criarEdicaoInput({ numViagem: "10045" }))
+      await editarViagemService(FILIAL_ID, 1, criarEdicaoInput({ numViagem: "10045" }), ATOR)
 
       expect(tx.viagem.update).toHaveBeenCalledTimes(1)
     })
@@ -428,7 +437,7 @@ describe("viagem.service", () => {
       vi.mocked(tx.viagem.update).mockResolvedValue({ id: 1, motoristaId: 5, motoristaAcompanhanteId: null })
       usarTransacaoCom(tx)
 
-      await editarViagemService(FILIAL_ID, 1, criarEdicaoInput({ motoristaId: 5 }))
+      await editarViagemService(FILIAL_ID, 1, criarEdicaoInput({ motoristaId: 5 }), ATOR)
 
       const dados = vi.mocked(tx.viagem.update).mock.calls[0][0].data
       expect(dados.status).toBe("ALOCADA")
@@ -443,7 +452,7 @@ describe("viagem.service", () => {
       vi.mocked(tx.viagem.update).mockResolvedValue({ id: 1, motoristaId: 5, motoristaAcompanhanteId: 11 })
       usarTransacaoCom(tx)
 
-      await editarViagemService(FILIAL_ID, 1, criarEdicaoInput({ motoristaId: 5, motoristaAcompanhanteId: 11 }))
+      await editarViagemService(FILIAL_ID, 1, criarEdicaoInput({ motoristaId: 5, motoristaAcompanhanteId: 11 }), ATOR)
 
       const dados = vi.mocked(tx.viagem.update).mock.calls[0][0].data
       expect(dados.motoristaAcompanhanteId).toBe(11)
@@ -457,7 +466,7 @@ describe("viagem.service", () => {
       vi.mocked(tx.viagem.update).mockResolvedValue({ id: 1, motoristaId: 5 })
       usarTransacaoCom(tx)
 
-      await editarViagemService(FILIAL_ID, 1, criarEdicaoInput({ motoristaId: 5 }))
+      await editarViagemService(FILIAL_ID, 1, criarEdicaoInput({ motoristaId: 5 }), ATOR)
 
       const dados = vi.mocked(tx.viagem.update).mock.calls[0][0].data
       expect(dados.status).toBe("FINALIZADA")
@@ -470,7 +479,7 @@ describe("viagem.service", () => {
       vi.mocked(tx.viagem.update).mockResolvedValue({ id: 1, motoristaId: 5 })
       usarTransacaoCom(tx)
 
-      await editarViagemService(FILIAL_ID, 1, criarEdicaoInput({ motoristaId: 5, status: "POSTERGADA" }))
+      await editarViagemService(FILIAL_ID, 1, criarEdicaoInput({ motoristaId: 5, status: "POSTERGADA" }), ATOR)
 
       const dados = vi.mocked(tx.viagem.update).mock.calls[0][0].data
       expect(dados.status).toBe("POSTERGADA")
@@ -486,7 +495,7 @@ describe("viagem.service", () => {
       vi.mocked(tx.viagem.update).mockResolvedValue({ id: 1, motoristaId: 5 })
       usarTransacaoCom(tx)
 
-      await editarViagemService(FILIAL_ID, 1, criarEdicaoInput({ motoristaId: 5, inicioPrevisto: agora.toISOString() }))
+      await editarViagemService(FILIAL_ID, 1, criarEdicaoInput({ motoristaId: 5, inicioPrevisto: agora.toISOString() }), ATOR)
 
       expect(prisma.registroJornada.findFirst).toHaveBeenCalledWith({
         where: {
@@ -512,7 +521,7 @@ describe("viagem.service", () => {
       usarTransacaoCom(tx)
 
       // motoristaId de propósito ausente do payload — dados.motoristaId fica undefined, não trocando o motorista.
-      await editarViagemService(FILIAL_ID, 1, criarEdicaoInput({ inicioPrevisto: agora.toISOString() }))
+      await editarViagemService(FILIAL_ID, 1, criarEdicaoInput({ inicioPrevisto: agora.toISOString() }), ATOR)
 
       expect(prisma.registroJornada.findFirst).toHaveBeenCalledWith({
         where: {
@@ -535,7 +544,7 @@ describe("viagem.service", () => {
       vi.mocked(tx.viagem.update).mockResolvedValue({ id: 1, motoristaId: 9 })
       usarTransacaoCom(tx)
 
-      await editarViagemService(FILIAL_ID, 1, criarEdicaoInput({ cavalo: "2064", carreta: "908" }))
+      await editarViagemService(FILIAL_ID, 1, criarEdicaoInput({ cavalo: "2064", carreta: "908" }), ATOR)
 
       expect(calcularAvisoFrotaIndisponivel).toHaveBeenCalledWith(FILIAL_ID, "2064", "908", expect.any(Date))
       const dados = vi.mocked(tx.viagem.update).mock.calls[0][0].data
@@ -552,7 +561,7 @@ describe("viagem.service", () => {
       vi.mocked(tx.viagem.update).mockResolvedValue({ id: 1, motoristaId: 9 })
       usarTransacaoCom(tx)
 
-      await editarViagemService(FILIAL_ID, 1, criarEdicaoInput({ cavalo: "9999", carreta: "8888" }))
+      await editarViagemService(FILIAL_ID, 1, criarEdicaoInput({ cavalo: "9999", carreta: "8888" }), ATOR)
 
       expect(sincronizarDisponibilidadeFrota).toHaveBeenCalledWith(tx, FILIAL_ID, "9999", "8888")
       expect(sincronizarDisponibilidadeFrota).toHaveBeenCalledWith(tx, FILIAL_ID, "2064", "908")
@@ -565,7 +574,7 @@ describe("viagem.service", () => {
 
       // motoristaId de propósito ausente do payload — o motorista 9, já alocado, é mantido; só o produto muda.
       await expect(
-        editarViagemService(FILIAL_ID, 1, criarEdicaoInput({ produto: "NITROGENIO" })),
+        editarViagemService(FILIAL_ID, 1, criarEdicaoInput({ produto: "NITROGENIO" }), ATOR),
       ).rejects.toThrow("Motorista não autorizado a carregar o produto desta viagem.")
     })
 
@@ -574,7 +583,7 @@ describe("viagem.service", () => {
       vi.mocked(prisma.motorista.findUnique).mockResolvedValue({ produtosAutorizados: [] } as never)
 
       await expect(
-        editarViagemService(FILIAL_ID, 1, criarEdicaoInput({ motoristaId: 12, produto: "CO2" })),
+        editarViagemService(FILIAL_ID, 1, criarEdicaoInput({ motoristaId: 12, produto: "CO2" }), ATOR),
       ).rejects.toThrow("Motorista não autorizado a carregar o produto desta viagem.")
     })
   })
@@ -585,7 +594,7 @@ describe("viagem.service", () => {
       vi.mocked(tx.viagem.update).mockResolvedValue({ id: 1, motoristaId: 7, motoristaAcompanhanteId: null, cavalo: "2064", carreta: "908" })
       usarTransacaoCom(tx)
 
-      await deletarViagemService(FILIAL_ID, 1)
+      await deletarViagemService(FILIAL_ID, 1, ATOR)
 
       const dados = vi.mocked(tx.viagem.update).mock.calls[0][0].data
       expect(dados.deletadoEm).toBeInstanceOf(Date)
@@ -597,7 +606,7 @@ describe("viagem.service", () => {
       vi.mocked(tx.viagem.update).mockResolvedValue({ id: 1, motoristaId: 7, motoristaAcompanhanteId: null, cavalo: "2064", carreta: "908" })
       usarTransacaoCom(tx)
 
-      await deletarViagemService(FILIAL_ID, 1)
+      await deletarViagemService(FILIAL_ID, 1, ATOR)
 
       expect(sincronizarDisponibilidadeFrota).toHaveBeenCalledWith(tx, FILIAL_ID, "2064", "908")
     })
@@ -605,13 +614,13 @@ describe("viagem.service", () => {
 
   describe("atualizarStatusViagemService", () => {
     it("lança erro quando o status não é informado", async () => {
-      await expect(atualizarStatusViagemService(FILIAL_ID, 1, undefined)).rejects.toThrow("Status de viagem é obrigatório.")
+      await expect(atualizarStatusViagemService(FILIAL_ID, 1, undefined, ATOR)).rejects.toThrow("Status de viagem é obrigatório.")
     })
 
     it("lança 'Viagem não encontrada.' quando o id não existe", async () => {
       vi.mocked(prisma.viagem.findUnique).mockResolvedValue(null)
 
-      await expect(atualizarStatusViagemService(FILIAL_ID, 999, "INICIADA")).rejects.toThrow("Viagem não encontrada.")
+      await expect(atualizarStatusViagemService(FILIAL_ID, 999, "INICIADA", ATOR)).rejects.toThrow("Viagem não encontrada.")
     })
 
     it("atualiza o status e reconcilia a folga", async () => {
@@ -620,7 +629,7 @@ describe("viagem.service", () => {
       vi.mocked(tx.viagem.update).mockResolvedValue({ id: 1, motoristaId: 3, motoristaAcompanhanteId: null, cavalo: "2064", carreta: "908" })
       usarTransacaoCom(tx)
 
-      await atualizarStatusViagemService(FILIAL_ID, 1, "INICIADA")
+      await atualizarStatusViagemService(FILIAL_ID, 1, "INICIADA", ATOR)
 
       expect(tx.viagem.update).toHaveBeenCalledWith({
         where: { id: 1, filialId: FILIAL_ID },
@@ -635,7 +644,7 @@ describe("viagem.service", () => {
       vi.mocked(tx.viagem.update).mockResolvedValue({ id: 1, motoristaId: 3, motoristaAcompanhanteId: null, cavalo: "2064", carreta: "908" })
       usarTransacaoCom(tx)
 
-      await atualizarStatusViagemService(FILIAL_ID, 1, "CANCELADA")
+      await atualizarStatusViagemService(FILIAL_ID, 1, "CANCELADA", ATOR)
 
       expect(sincronizarDisponibilidadeFrota).toHaveBeenCalledWith(tx, FILIAL_ID, "2064", "908")
     })
@@ -646,7 +655,7 @@ describe("viagem.service", () => {
       vi.mocked(tx.viagem.update).mockResolvedValue({ id: 1, motoristaId: 3, motoristaAcompanhanteId: null, cavalo: "2064", carreta: "908" })
       usarTransacaoCom(tx)
 
-      await atualizarStatusViagemService(FILIAL_ID, 1, "FINALIZADA")
+      await atualizarStatusViagemService(FILIAL_ID, 1, "FINALIZADA", ATOR)
 
       expect(sincronizarDisponibilidadeFrota).toHaveBeenCalledWith(tx, FILIAL_ID, "2064", "908")
     })
@@ -657,7 +666,7 @@ describe("viagem.service", () => {
       vi.mocked(tx.viagem.update).mockResolvedValue({ id: 1, motoristaId: 3, motoristaAcompanhanteId: null })
       usarTransacaoCom(tx)
 
-      await atualizarStatusViagemService(FILIAL_ID, 1, "CANCELADA")
+      await atualizarStatusViagemService(FILIAL_ID, 1, "CANCELADA", ATOR)
 
       const dados = vi.mocked(tx.viagem.update).mock.calls[0][0].data
       expect(dados.canceladoEm).toBeInstanceOf(Date)
@@ -669,7 +678,7 @@ describe("viagem.service", () => {
       vi.mocked(tx.viagem.update).mockResolvedValue({ id: 1, motoristaId: 3, motoristaAcompanhanteId: null })
       usarTransacaoCom(tx)
 
-      await atualizarStatusViagemService(FILIAL_ID, 1, "CANCELADA")
+      await atualizarStatusViagemService(FILIAL_ID, 1, "CANCELADA", ATOR)
 
       const dados = vi.mocked(tx.viagem.update).mock.calls[0][0].data
       expect(dados.canceladoEm).toBeUndefined()
@@ -685,7 +694,7 @@ describe("viagem.service", () => {
 
       const novoInicio = new Date("2026-08-20T08:00:00")
       const novoFim = new Date("2026-08-21T08:00:00")
-      await atualizarStatusViagemService(FILIAL_ID, 1, "POSTERGADA", { inicioPrevisto: novoInicio, fimPrevisto: novoFim })
+      await atualizarStatusViagemService(FILIAL_ID, 1, "POSTERGADA", ATOR, { inicioPrevisto: novoInicio, fimPrevisto: novoFim })
 
       expect(calcularAvisoFrotaIndisponivel).toHaveBeenCalledWith(FILIAL_ID, "2064", "908", novoInicio)
       expect(calcularAvisoFrotaProduto).toHaveBeenCalledWith(FILIAL_ID, "2064", "908", "CO2")
@@ -700,7 +709,7 @@ describe("viagem.service", () => {
       vi.mocked(tx.viagem.update).mockResolvedValue({ id: 1, motoristaId: 3, motoristaAcompanhanteId: null, cavalo: "2064", carreta: "908" })
       usarTransacaoCom(tx)
 
-      await atualizarStatusViagemService(FILIAL_ID, 1, "INICIADA")
+      await atualizarStatusViagemService(FILIAL_ID, 1, "INICIADA", ATOR)
 
       expect(calcularAvisoFrotaIndisponivel).not.toHaveBeenCalled()
       expect(calcularAvisoFrotaProduto).not.toHaveBeenCalled()
@@ -714,7 +723,7 @@ describe("viagem.service", () => {
     it("lança 'Viagem não encontrada.' quando o id não existe", async () => {
       vi.mocked(prisma.viagem.findUnique).mockResolvedValue(null)
 
-      await expect(atualizarAlocacaoViagemService(FILIAL_ID, 999, { motoristaId: 5, motoristaAcompanhanteId: null })).rejects.toThrow(
+      await expect(atualizarAlocacaoViagemService(FILIAL_ID, 999, { motoristaId: 5, motoristaAcompanhanteId: null }, ATOR)).rejects.toThrow(
         "Viagem não encontrada.",
       )
     })
@@ -732,7 +741,7 @@ describe("viagem.service", () => {
       vi.mocked(tx.viagem.update).mockResolvedValue({ id: 1, motoristaId: 5, motoristaAcompanhanteId: null })
       usarTransacaoCom(tx)
 
-      await atualizarAlocacaoViagemService(FILIAL_ID, 1, { motoristaId: 5, motoristaAcompanhanteId: null })
+      await atualizarAlocacaoViagemService(FILIAL_ID, 1, { motoristaId: 5, motoristaAcompanhanteId: null }, ATOR)
 
       const dados = vi.mocked(tx.viagem.update).mock.calls[0][0].data
       expect(dados.motoristaId).toBe(5)
@@ -749,7 +758,7 @@ describe("viagem.service", () => {
       } as never)
       vi.mocked(prisma.motorista.findUnique).mockResolvedValue({ produtosAutorizados: ["CO2"] } as never)
 
-      await expect(atualizarAlocacaoViagemService(FILIAL_ID, 1, { motoristaId: 5, motoristaAcompanhanteId: null })).rejects.toThrow(
+      await expect(atualizarAlocacaoViagemService(FILIAL_ID, 1, { motoristaId: 5, motoristaAcompanhanteId: null }, ATOR)).rejects.toThrow(
         "Motorista não autorizado a carregar o produto desta viagem.",
       )
     })
@@ -766,24 +775,26 @@ describe("viagem.service", () => {
       vi.mocked(tx.viagem.update).mockResolvedValue({ id: 1, motoristaId: null, motoristaAcompanhanteId: null })
       usarTransacaoCom(tx)
 
-      await atualizarAlocacaoViagemService(FILIAL_ID, 1, { motoristaId: null, motoristaAcompanhanteId: null })
+      await atualizarAlocacaoViagemService(FILIAL_ID, 1, { motoristaId: null, motoristaAcompanhanteId: null }, ATOR)
 
       expect(prisma.motorista.findUnique).not.toHaveBeenCalled()
     })
   })
 
   describe("atualizarSaidaRealService", () => {
-    it("grava horarioRealSaida e motivoAtraso diretamente, sem transação", async () => {
-      vi.mocked(prisma.viagem.update).mockResolvedValue({ id: 1 } as never)
+    it("grava horarioRealSaida e motivoAtraso dentro de uma transação (junto da auditoria)", async () => {
+      const tx = criarTx()
+      vi.mocked(tx.viagem.update).mockResolvedValue({ id: 1 })
+      usarTransacaoCom(tx)
       const horario = new Date()
 
-      await atualizarSaidaRealService(FILIAL_ID, 1, horario, "Trânsito")
+      await atualizarSaidaRealService(FILIAL_ID, 1, horario, "Trânsito", ATOR)
 
-      expect(prisma.viagem.update).toHaveBeenCalledWith({
+      expect(tx.viagem.update).toHaveBeenCalledWith({
         where: { id: 1, filialId: FILIAL_ID },
         data: { horarioRealSaida: horario, motivoAtraso: "Trânsito" },
       })
-      expect(prisma.$transaction).not.toHaveBeenCalled()
+      expect(tx.registroAuditoria.create).toHaveBeenCalledTimes(1)
     })
   })
 })

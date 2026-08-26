@@ -10,6 +10,7 @@ import {
 import type { SugestaoAlocacaoPendente } from "@/lib/types/alocacao";
 import { errorToMessage } from "@/lib/action-error";
 import { requireSessionComFilial } from "@/lib/auth-guard";
+import { atorDaSessao } from "@/lib/services/auditoria.service";
 import { ehStatusViagem, type StatusViagemSelecionavel } from "@/lib/services/viagem-status.service";
 import { novaViagemSchema, editarViagemServerSchema, type NovaViagemFormValues } from "@/lib/validation/viagens";
 import {
@@ -36,14 +37,14 @@ import { converterEntradaDeDataHora, formatarHoraLocal, inicioDoDia } from "@/li
 
 export async function criarViagemAvulsa(dados: NovaViagemInput): Promise<RespostaAcao> {
   try {
-    const { filialId } = await requireSessionComFilial();
+    const { session, filialId } = await requireSessionComFilial();
 
     const validacao = novaViagemSchema.safeParse(dados);
     if (!validacao.success) {
       return { sucesso: false, erro: validacao.error.issues[0]?.message ?? "Dados inválidos." };
     }
 
-    await criarViagemAvulsaService(filialId, validacao.data);
+    await criarViagemAvulsaService(filialId, validacao.data, atorDaSessao(session));
 
     revalidatePath("/viagens");
     revalidatePath("/motorista");
@@ -158,8 +159,11 @@ export async function criarViagensEmLoteComAlocacao(
   viagens: Array<{ dados: NovaViagemFormValues; motoristaId: number | null }>,
 ): Promise<ResultadoImportacaoLote> {
   let filialId: number
+  let ator: ReturnType<typeof atorDaSessao>
   try {
-    ({ filialId } = await requireSessionComFilial());
+    const resultado = await requireSessionComFilial();
+    filialId = resultado.filialId
+    ator = atorDaSessao(resultado.session)
   } catch (erro) {
     return { sucesso: false, criadas: 0, falhas: [{ numViagem: "-", erro: errorToMessage(erro, "Não autorizado.") }] }
   }
@@ -178,7 +182,7 @@ export async function criarViagensEmLoteComAlocacao(
     }
 
     try {
-      await criarViagemComAlocacaoService(filialId, validacao.data, motoristaId)
+      await criarViagemComAlocacaoService(filialId, validacao.data, motoristaId, ator)
       criadas++
     } catch (erro) {
       console.error(`[criarViagensEmLoteComAlocacao] Erro ao salvar viagem ${identificador}:`, erro)
@@ -195,14 +199,14 @@ export async function criarViagensEmLoteComAlocacao(
 
 export async function editarViagem(idViagem: number, dados: EditarViagemInput): Promise<RespostaAcao> {
   try {
-    const { filialId } = await requireSessionComFilial();
+    const { session, filialId } = await requireSessionComFilial();
 
     const validacao = editarViagemServerSchema.safeParse(dados);
     if (!validacao.success) {
       return { sucesso: false, erro: validacao.error.issues[0]?.message ?? "Dados inválidos." };
     }
 
-    await editarViagemService(filialId, idViagem, validacao.data);
+    await editarViagemService(filialId, idViagem, validacao.data, atorDaSessao(session));
 
     revalidatePath("/viagens");
     revalidatePath("/motorista");
@@ -219,8 +223,8 @@ export async function editarViagem(idViagem: number, dados: EditarViagemInput): 
 
 export async function deletarViagem(id: number): Promise<RespostaAcao> {
   try {
-    const { filialId } = await requireSessionComFilial(["ADMIN"]);
-    await deletarViagemService(filialId, id);
+    const { session, filialId } = await requireSessionComFilial(["ADMIN"]);
+    await deletarViagemService(filialId, id, atorDaSessao(session));
 
     revalidatePath("/viagens");
     revalidatePath("/motorista");
@@ -241,7 +245,7 @@ export async function atualizarStatusViagem(
   novaData?: { inicioPrevisto: string; fimPrevisto: string },
 ): Promise<RespostaAcao> {
   try {
-    const { filialId } = await requireSessionComFilial();
+    const { session, filialId } = await requireSessionComFilial();
 
     if (!ehStatusViagem(status)) {
       return { sucesso: false, erro: "Status inválido." }
@@ -255,6 +259,7 @@ export async function atualizarStatusViagem(
       filialId,
       idViagem,
       status,
+      atorDaSessao(session),
       novaData
         ? {
             inicioPrevisto: converterEntradaDeDataHora(novaData.inicioPrevisto),
@@ -281,8 +286,8 @@ export async function atualizarAlocacaoViagem(
   dados: { motoristaId: number | null; motoristaAcompanhanteId: number | null },
 ): Promise<RespostaAcao> {
   try {
-    const { filialId } = await requireSessionComFilial();
-    await atualizarAlocacaoViagemService(filialId, idViagem, dados)
+    const { session, filialId } = await requireSessionComFilial();
+    await atualizarAlocacaoViagemService(filialId, idViagem, dados, atorDaSessao(session))
 
     revalidatePath("/")
     revalidatePath("/viagens")
@@ -302,12 +307,13 @@ export async function atualizarSaidaReal(
   dados: { horarioRealSaida: string | null; motivoAtraso: string | null },
 ): Promise<RespostaAcao> {
   try {
-    const { filialId } = await requireSessionComFilial();
+    const { session, filialId } = await requireSessionComFilial();
     await atualizarSaidaRealService(
       filialId,
       idViagem,
       dados.horarioRealSaida ? converterEntradaDeDataHora(dados.horarioRealSaida) : null,
       dados.motivoAtraso?.trim() ? dados.motivoAtraso.trim() : null,
+      atorDaSessao(session),
     )
 
     revalidatePath("/")
