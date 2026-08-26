@@ -15,9 +15,11 @@ vi.mock("next/cache", () => ({
 
 vi.mock("@/lib/prisma", () => ({
   prisma: {
+    $transaction: vi.fn(),
     cliente: {
       create: vi.fn(),
       update: vi.fn(),
+      findUniqueOrThrow: vi.fn(),
     },
   },
 }))
@@ -26,6 +28,21 @@ import { prisma } from "@/lib/prisma"
 import { criarCliente, editarCliente, deletarCliente } from "@/lib/actions/clientes"
 
 const clienteValido = { nome: "WEG", exigeIntegracao: true }
+
+function criarTx() {
+  return {
+    cliente: { create: vi.fn(), update: vi.fn() },
+    registroAuditoria: { create: vi.fn() },
+  }
+}
+
+type Tx = ReturnType<typeof criarTx>
+
+/** Faz `prisma.$transaction(callback)` invocar `callback(tx)` — o cast contorna a assinatura real (sobrecarregada) do Prisma, que não importa aqui. */
+function usarTransacaoCom(tx: Tx) {
+  vi.mocked(prisma.$transaction).mockImplementation(((callback: (tx: Tx) => unknown) =>
+    Promise.resolve(callback(tx))) as never)
+}
 
 describe("lib/actions/clientes — controle de acesso", () => {
   beforeEach(() => {
@@ -92,12 +109,15 @@ describe("lib/actions/clientes — controle de acesso", () => {
     })
 
     it("criarCliente cria o cliente com os dados validados", async () => {
-      vi.mocked(prisma.cliente.create).mockResolvedValue({} as never)
+      const tx = criarTx()
+      vi.mocked(tx.cliente.create).mockResolvedValue({ id: 1, ...clienteValido })
+      usarTransacaoCom(tx)
 
       const resposta = await criarCliente(clienteValido)
 
       expect(resposta).toEqual({ sucesso: true })
-      expect(prisma.cliente.create).toHaveBeenCalledWith({ data: clienteValido })
+      expect(tx.cliente.create).toHaveBeenCalledWith({ data: clienteValido })
+      expect(tx.registroAuditoria.create).toHaveBeenCalledTimes(1)
     })
 
     it("criarCliente recusa dados inválidos (nome vazio) e não chama o prisma", async () => {
@@ -108,28 +128,37 @@ describe("lib/actions/clientes — controle de acesso", () => {
     })
 
     it("editarCliente atualiza o registro pelo id", async () => {
-      vi.mocked(prisma.cliente.update).mockResolvedValue({} as never)
+      vi.mocked(prisma.cliente.findUniqueOrThrow).mockResolvedValue({ id: 7 } as never)
+      const tx = criarTx()
+      vi.mocked(tx.cliente.update).mockResolvedValue({ id: 7, ...clienteValido })
+      usarTransacaoCom(tx)
 
       const resposta = await editarCliente(7, clienteValido)
 
       expect(resposta).toEqual({ sucesso: true })
-      expect(prisma.cliente.update).toHaveBeenCalledWith({ where: { id: 7 }, data: clienteValido })
+      expect(tx.cliente.update).toHaveBeenCalledWith({ where: { id: 7 }, data: clienteValido })
+      expect(tx.registroAuditoria.create).toHaveBeenCalledTimes(1)
     })
 
     it("deletarCliente marca deletadoEm em vez de apagar o registro", async () => {
-      vi.mocked(prisma.cliente.update).mockResolvedValue({} as never)
+      vi.mocked(prisma.cliente.findUniqueOrThrow).mockResolvedValue({ id: 7 } as never)
+      const tx = criarTx()
+      vi.mocked(tx.cliente.update).mockResolvedValue({ id: 7, deletadoEm: new Date() })
+      usarTransacaoCom(tx)
 
       const resposta = await deletarCliente(7)
 
       expect(resposta).toEqual({ sucesso: true })
-      expect(prisma.cliente.update).toHaveBeenCalledTimes(1)
-      const chamada = vi.mocked(prisma.cliente.update).mock.calls[0][0] as { where: { id: number }; data: { deletadoEm: Date } }
+      expect(tx.cliente.update).toHaveBeenCalledTimes(1)
+      const chamada = vi.mocked(tx.cliente.update).mock.calls[0][0] as { where: { id: number }; data: { deletadoEm: Date } }
       expect(chamada.where).toEqual({ id: 7 })
       expect(chamada.data.deletadoEm).toBeInstanceOf(Date)
     })
 
     it("propaga mensagem amigável quando o prisma lança erro (ex: nome duplicado)", async () => {
-      vi.mocked(prisma.cliente.create).mockRejectedValue(new Error("boom"))
+      const tx = criarTx()
+      vi.mocked(tx.cliente.create).mockRejectedValue(new Error("boom"))
+      usarTransacaoCom(tx)
 
       const resposta = await criarCliente(clienteValido)
 
