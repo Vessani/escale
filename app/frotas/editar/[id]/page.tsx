@@ -2,7 +2,9 @@ import { notFound } from "next/navigation"
 import { getServerSession } from "next-auth"
 import { authOptions } from "@/lib/auth"
 import { buscarFrotaPorId } from "@/lib/queries/frotas"
+import { buscarHistoricoDaEntidade } from "@/lib/queries/auditoria"
 import FormEditarFrota from "./form-editar"
+import { HistoricoCard } from "@/components/auditoria/historico-card"
 import { serializeData } from "@/lib/serialization"
 
 export default async function EditarFrotaPage({ params }: { params: Promise<{ id: string }> }) {
@@ -16,7 +18,10 @@ export default async function EditarFrotaPage({ params }: { params: Promise<{ id
   const session = await getServerSession(authOptions)
   const filialId = session!.user.filialId!
 
-  const frota = await buscarFrotaPorId(filialId, frotaId)
+  const [frota, historico] = await Promise.all([
+    buscarFrotaPorId(filialId, frotaId),
+    buscarHistoricoDaEntidade("Frota", frotaId),
+  ])
 
   if (!frota) {
     notFound()
@@ -31,6 +36,8 @@ export default async function EditarFrotaPage({ params }: { params: Promise<{ id
         <p className="text-slate-500 mt-1">Atualize a frota (cavalo/carreta) e a disponibilidade dela.</p>
       </div>
       <FormEditarFrota key={frota.id} frota={frotaSerializada} />
+
+      <HistoricoCard registros={serializeData(historico)} />
     </div>
   )
 }

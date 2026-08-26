@@ -3,9 +3,11 @@ import { authOptions } from "@/lib/auth"
 import { buscarViagemPorId } from "@/lib/queries/viagens"
 import { buscarMotoristasParaSelect } from "@/lib/queries/motoristas"
 import { buscarNomesClientesQueExigemIntegracao } from "@/lib/queries/clientes"
+import { buscarHistoricoDaEntidade } from "@/lib/queries/auditoria"
 import { motoristaEstaDisponivelNoPeriodo } from "@/lib/services/alocacao.service"
 import { notFound } from "next/navigation"
 import FormEditarViagem from "./form-editar"
+import { HistoricoCard } from "@/components/auditoria/historico-card"
 import { serializeData } from "@/lib/serialization"
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
@@ -28,9 +30,10 @@ export default async function EditarViagemPage({ params }: { params: Promise<{ i
     notFound()
   }
 
-  const [motoristas, clientesQueExigemIntegracao] = await Promise.all([
+  const [motoristas, clientesQueExigemIntegracao, historico] = await Promise.all([
     buscarMotoristasParaSelect(filialId),
     buscarNomesClientesQueExigemIntegracao(),
+    buscarHistoricoDaEntidade("Viagem", viagem.id),
   ])
   const hoje = new Date()
 
@@ -78,6 +81,8 @@ export default async function EditarViagemPage({ params }: { params: Promise<{ i
         motoristas={motoristasSerializados}
         clientesQueExigemIntegracao={[...clientesQueExigemIntegracao]}
       />
+
+      <HistoricoCard registros={serializeData(historico)} />
     </div>
   )
 }

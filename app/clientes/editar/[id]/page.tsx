@@ -1,6 +1,9 @@
 import { notFound } from "next/navigation"
 import { buscarClientePorId } from "@/lib/queries/clientes"
+import { buscarHistoricoDaEntidade } from "@/lib/queries/auditoria"
 import FormEditarCliente from "./form-editar"
+import { HistoricoCard } from "@/components/auditoria/historico-card"
+import { serializeData } from "@/lib/serialization"
 
 export default async function EditarClientePage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
@@ -10,7 +13,10 @@ export default async function EditarClientePage({ params }: { params: Promise<{ 
     notFound()
   }
 
-  const cliente = await buscarClientePorId(clienteId)
+  const [cliente, historico] = await Promise.all([
+    buscarClientePorId(clienteId),
+    buscarHistoricoDaEntidade("Cliente", clienteId),
+  ])
 
   if (!cliente) {
     notFound()
@@ -23,6 +29,8 @@ export default async function EditarClientePage({ params }: { params: Promise<{ 
         <p className="text-slate-500 mt-1">Atualize o nome ou a exigência de integração.</p>
       </div>
       <FormEditarCliente key={cliente.id} cliente={cliente} />
+
+      <HistoricoCard registros={serializeData(historico)} />
     </div>
   )
 }

@@ -20,6 +20,7 @@ import {
   ChevronsLeft,
   ChevronsRight,
   FileSpreadsheet,
+  History,
 } from "lucide-react"
 import { Session } from "next-auth"
 import { Dialog } from "radix-ui"
@@ -62,6 +63,7 @@ const menuItemsOperacional = [
   { href: "/frotas", label: "Frotas", icon: Container },
   { href: "/clientes", label: "Clientes", icon: Building },
   { href: "/relatorios", label: "Relatórios", icon: FileSpreadsheet },
+  { href: "/historico", label: "Histórico", icon: History },
 ]
 
 // SUPERADMIN não pertence a nenhuma filial — só gerencia o cadastro de

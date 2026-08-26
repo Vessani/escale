@@ -3,7 +3,9 @@ import { getServerSession } from "next-auth"
 import { authOptions } from "@/lib/auth"
 import { buscarMotoristaPorId } from "@/lib/queries/motoristas"
 import { buscarClientes } from "@/lib/queries/clientes"
+import { buscarHistoricoDaEntidade } from "@/lib/queries/auditoria"
 import FormEditarMotorista from "./form-editar"
+import { HistoricoCard } from "@/components/auditoria/historico-card"
 import { serializeData } from "@/lib/serialization"
 import { mapearRegistrosJornada, projetarCodigoNoDia } from "@/lib/services/jornada.service"
 import { inicioDoDia } from "@/lib/utils/date-format"
@@ -19,9 +21,10 @@ export default async function EditarMotoristaPage({ params }: { params: Promise<
   const session = await getServerSession(authOptions)
   const filialId = session!.user.filialId!
 
-  const [motorista, clientes] = await Promise.all([
+  const [motorista, clientes, historico] = await Promise.all([
     buscarMotoristaPorId(filialId, motoristaId),
     buscarClientes(),
+    buscarHistoricoDaEntidade("Motorista", motoristaId),
   ])
 
   if (!motorista) {
@@ -48,6 +51,8 @@ export default async function EditarMotoristaPage({ params }: { params: Promise<
         <p className="text-slate-500 mt-1">Atualize os dados operacionais do condutor.</p>
       </div>
       <FormEditarMotorista key={motorista.id} motorista={motoristaSerializado} clientes={clientes} />
+
+      <HistoricoCard registros={serializeData(historico)} />
     </div>
   )
 }
