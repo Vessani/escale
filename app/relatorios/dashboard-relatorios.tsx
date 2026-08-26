@@ -60,7 +60,10 @@ export default function DashboardRelatorios({
   de: string
   ate: string
 }) {
-  const { totalViagens, porStatus, porProduto, porDia, comAviso, extras, topMotoristas } = indicadores
+  const { totalViagens, porStatus, porProduto, porDia, porTurno, comAviso, extras, topMotoristas, topClientesRotas, topClientesCancelamentos } = indicadores
+  const viagensManha = porTurno.find((t) => t.turno === "MANHA")?.quantidade ?? 0
+  const viagensNoite = porTurno.find((t) => t.turno === "NOITE")?.quantidade ?? 0
+  const turnoComMais = viagensManha === viagensNoite ? "Empate" : viagensManha > viagensNoite ? "Manhã" : "Noite"
 
   const finalizadas = porStatus.find((s) => s.status === "FINALIZADA")?.quantidade ?? 0
   const canceladas = porStatus.find((s) => s.status === "CANCELADA")?.quantidade ?? 0
@@ -100,6 +103,9 @@ export default function DashboardRelatorios({
         <KpiCard label="Canceladas" valor={canceladas} destaque="destructive" />
         <KpiCard label="Taxa de cancelamento" valor={`${taxaCancelamento}%`} destaque={Number(taxaCancelamento) > 15 ? "destructive" : undefined} />
         <KpiCard label="Extras (fora da programação)" valor={extras} destaque={extras > 0 ? "warning" : undefined} />
+        <KpiCard label="Viagens de manhã" valor={viagensManha} />
+        <KpiCard label="Viagens de noite" valor={viagensNoite} />
+        <KpiCard label="Turno com mais viagens" valor={turnoComMais} />
       </div>
 
       {comAviso > 0 && (
@@ -200,6 +206,48 @@ export default function DashboardRelatorios({
                   <YAxis type="category" dataKey="nome" tick={{ fontSize: 12 }} width={120} />
                   <Tooltip />
                   <Bar dataKey="quantidade" name="Viagens" fill="var(--info)" radius={[0, 4, 4, 0]} />
+                </BarChart>
+              </ResponsiveContainer>
+            )}
+          </CardContent>
+        </Card>
+
+        <Card className="shadow-sm border-slate-200">
+          <CardHeader className="bg-slate-50 border-b">
+            <CardTitle className="text-lg">Clientes com mais rotas</CardTitle>
+          </CardHeader>
+          <CardContent className="pt-6">
+            {topClientesRotas.length === 0 ? (
+              <p className="text-sm text-slate-500">Nenhuma entrega no período.</p>
+            ) : (
+              <ResponsiveContainer width="100%" height={260}>
+                <BarChart data={topClientesRotas} layout="vertical" margin={{ left: 24 }}>
+                  <CartesianGrid strokeDasharray="3 3" horizontal={false} />
+                  <XAxis type="number" allowDecimals={false} tick={{ fontSize: 12 }} />
+                  <YAxis type="category" dataKey="nome" tick={{ fontSize: 12 }} width={120} />
+                  <Tooltip />
+                  <Bar dataKey="quantidade" name="Viagens" fill="var(--success)" radius={[0, 4, 4, 0]} />
+                </BarChart>
+              </ResponsiveContainer>
+            )}
+          </CardContent>
+        </Card>
+
+        <Card className="shadow-sm border-slate-200">
+          <CardHeader className="bg-slate-50 border-b">
+            <CardTitle className="text-lg">Clientes que mais cancelaram</CardTitle>
+          </CardHeader>
+          <CardContent className="pt-6">
+            {topClientesCancelamentos.length === 0 ? (
+              <p className="text-sm text-slate-500">Nenhum cancelamento no período.</p>
+            ) : (
+              <ResponsiveContainer width="100%" height={260}>
+                <BarChart data={topClientesCancelamentos} layout="vertical" margin={{ left: 24 }}>
+                  <CartesianGrid strokeDasharray="3 3" horizontal={false} />
+                  <XAxis type="number" allowDecimals={false} tick={{ fontSize: 12 }} />
+                  <YAxis type="category" dataKey="nome" tick={{ fontSize: 12 }} width={120} />
+                  <Tooltip />
+                  <Bar dataKey="quantidade" name="Cancelamentos" fill="var(--destructive)" radius={[0, 4, 4, 0]} />
                 </BarChart>
               </ResponsiveContainer>
             )}
