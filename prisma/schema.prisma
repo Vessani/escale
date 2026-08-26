@@ -28,6 +28,12 @@
     NOITE
   }
 
+  enum AcaoAuditoria {
+    CRIACAO
+    ATUALIZACAO
+    EXCLUSAO
+  }
+
   // Gases transportados pela transportadora — usado pra restringir qual
   // motorista pode ser alocado a qual viagem (ver motoristaEhCompativel em
   // alocacao.service.ts) e pra sinalizar quando a frota escolhida não é a
@@ -372,4 +378,41 @@
     expires    DateTime
 
     @@unique([identifier, token])
+  }
+
+  // Log genérico de mudanças em qualquer entidade mutável — a versão
+  // consultável do quadro branco que a operação apagava todo dia. Gravado
+  // sempre dentro da mesma transação da escrita real (ver registrarAuditoria
+  // em auditoria.service.ts), nunca separado dela.
+  model RegistroAuditoria {
+    id          Int           @id @default(autoincrement())
+
+    // Nome do model afetado ("Viagem", "Motorista", "Frota", "Cliente",
+    // "Usuario", "QuadroObservacao", "RegistroJornada") — texto livre, não
+    // FK, de propósito: o log tem que sobreviver independente do ciclo de
+    // vida das entidades que audita.
+    entidade    String        @db.VarChar(40)
+    // Sempre String — unifica Usuario.id (cuid) com os demais (Int, via
+    // String(id)). QuadroObservacao (uma linha por filial, sem id próprio)
+    // usa String(filialId).
+    entidadeId  String        @db.VarChar(30)
+    acao        AcaoAuditoria
+
+    // Snapshot completo (via serializeData) antes/depois da mutação — null
+    // em antes (CRIACAO). NUNCA deve conter senha/hash de Usuario (redigido
+    // no call site, não aqui).
+    antes       Json?
+    depois      Json?
+
+    usuarioId   String?
+    // Denormalizado: o log deve mostrar o nome de quando a ação aconteceu.
+    usuarioNome String?
+
+    filialId    Int?
+    criadoEm    DateTime      @default(now())
+
+    // Histórico de um registro específico (painel "Histórico" na edição).
+    @@index([entidade, entidadeId, criadoEm])
+    // Feed do dia por filial (tela /historico).
+    @@index([filialId, criadoEm])
   }
