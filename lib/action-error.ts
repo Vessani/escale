@@ -1,26 +1,5 @@
 import { Prisma } from "@prisma/client"
-
-const MENSAGENS_SEGURAS = new Set([
-  "Por favor, preencha o e-mail e a senha.",
-  "Credenciais inválidas.",
-  "Não autorizado.",
-  "Viagem não encontrada.",
-  "Status de viagem é obrigatório.",
-  "Data inválida.",
-  "Código de jornada inválido.",
-  "Já existe um conjunto cadastrado com essa frota (cavalo/carreta).",
-  "Motorista não autorizado a carregar o produto desta viagem.",
-])
-
-function pareceMensagemTecnica(mensagem: string) {
-  return (
-    /prisma/i.test(mensagem) ||
-    /unique constraint/i.test(mensagem) ||
-    /foreign key/i.test(mensagem) ||
-    /invalid `prisma\./i.test(mensagem) ||
-    /code:\s*'P\d{4}'/i.test(mensagem)
-  )
-}
+import { ErroDeDominio } from "@/lib/errors"
 
 function mapearErroPrisma(error: Prisma.PrismaClientKnownRequestError) {
   if (error.code === "P2002") {
@@ -52,19 +31,19 @@ function mapearErroPrisma(error: Prisma.PrismaClientKnownRequestError) {
   return null
 }
 
+/**
+ * Converte um erro capturado numa Server Action pra uma mensagem segura de
+ * mostrar ao usuário. Erros de negócio devem ser lançados como ErroDeDominio
+ * (ver lib/errors.ts) — qualquer outro throw (bug, erro de infra não mapeado)
+ * cai no `fallback` genérico, nunca vaza mensagem técnica/stack.
+ */
 export function errorToMessage(error: unknown, fallback: string) {
   if (error instanceof Prisma.PrismaClientKnownRequestError) {
     return mapearErroPrisma(error) ?? fallback
   }
 
-  if (error instanceof Error && error.message) {
-    if (MENSAGENS_SEGURAS.has(error.message)) {
-      return error.message
-    }
-
-    if (pareceMensagemTecnica(error.message)) {
-      return fallback
-    }
+  if (error instanceof ErroDeDominio) {
+    return error.mensagemSegura
   }
 
   return fallback
