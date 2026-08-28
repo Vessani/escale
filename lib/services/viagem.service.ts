@@ -11,6 +11,7 @@ import {
 import type { TipoProduto } from "@prisma/client";
 import { reconciliarFolgaMotoristasNoDiaAtual } from "./folga.service";
 import { registrarAuditoria, type Ator } from "./auditoria.service";
+import { MotoristaProdutoNaoAutorizadoError, ViagemNaoEncontradaError, StatusViagemObrigatorioError } from "@/lib/errors";
 import { calcularAvisoFrotaIndisponivel, calcularAvisoFrotaProduto, sincronizarDisponibilidadeFrota } from "./frota.service";
 import { converterEditarViagemParaBD, converterNovaViagemParaBD } from "./viagem-data-converter.service";
 import { buscarFimJornadaAnterior } from "./motorista.service";
@@ -76,7 +77,7 @@ async function garantirMotoristaAutorizadoParaProduto(
   })
 
   if (motorista && !motoristaAutorizadoParaProduto(motorista.produtosAutorizados, produtoExigido)) {
-    throw new Error("Motorista não autorizado a carregar o produto desta viagem.")
+    throw new MotoristaProdutoNaoAutorizadoError()
   }
 }
 
@@ -234,7 +235,7 @@ export async function editarViagemService(filialId: number, idViagem: number, da
   })
 
   if (!viagemAtual) {
-    throw new Error("Viagem não encontrada.")
+    throw new ViagemNaoEncontradaError()
   }
 
   await garantirNumViagemDisponivel(filialId, dados.numViagem, idViagem)
@@ -389,7 +390,7 @@ export async function atualizarStatusViagemService(
   novaData?: NovaDataViagem,
 ) {
   if (!status) {
-    throw new Error("Status de viagem é obrigatório.")
+    throw new StatusViagemObrigatorioError()
   }
 
   // Linha completa — vira o snapshot "antes" da auditoria.
@@ -398,7 +399,7 @@ export async function atualizarStatusViagemService(
   })
 
   if (!viagemAtual) {
-    throw new Error("Viagem não encontrada.")
+    throw new ViagemNaoEncontradaError()
   }
 
   // Postergar muda a data — os avisos de interjornada/frota gravados na
@@ -470,7 +471,7 @@ export async function atualizarAlocacaoViagemService(
   })
 
   if (!viagemAtual) {
-    throw new Error("Viagem não encontrada.")
+    throw new ViagemNaoEncontradaError()
   }
 
   await garantirMotoristaAutorizadoParaProduto(dados.motoristaId, viagemAtual.produto)

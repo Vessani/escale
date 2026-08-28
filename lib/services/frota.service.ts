@@ -4,6 +4,7 @@ import { converterEntradaDeDataHora, formatarDataHoraPtBr } from "@/lib/utils/da
 import { formatarProduto } from "./produto.service"
 import { frotaEhValida } from "./frota-regras"
 import { registrarAuditoria, type Ator } from "./auditoria.service"
+import { FrotaDuplicadaError } from "@/lib/errors"
 
 export { frotaEhValida } from "./frota-regras"
 
@@ -145,7 +146,7 @@ export async function criarFrotaService(filialId: number, dados: FrotaInput, ato
   })
 
   if (existente) {
-    throw new Error("Já existe um conjunto cadastrado com essa frota (cavalo/carreta).")
+    throw new FrotaDuplicadaError()
   }
 
   return prisma.$transaction(async (tx) => {
@@ -179,7 +180,7 @@ export async function editarFrotaService(filialId: number, id: number, dados: Fr
   })
 
   if (existente) {
-    throw new Error("Já existe um conjunto cadastrado com essa frota (cavalo/carreta).")
+    throw new FrotaDuplicadaError()
   }
 
   const frotaAntes = await prisma.frota.findUniqueOrThrow({ where: { id, filialId } })

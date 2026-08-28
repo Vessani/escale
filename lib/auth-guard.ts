@@ -1,5 +1,6 @@
 import { getServerSession } from "next-auth"
 import { authOptions } from "@/lib/auth"
+import { NaoAutorizadoError } from "@/lib/errors"
 
 /**
  * Reforça a sessão dentro da própria Server Action — o middleware já
@@ -14,11 +15,11 @@ export async function requireSession(rolesPermitidos?: string[]) {
   const session = await getServerSession(authOptions)
 
   if (!session) {
-    throw new Error("Não autorizado.")
+    throw new NaoAutorizadoError()
   }
 
   if (rolesPermitidos && !rolesPermitidos.includes(session.user.role)) {
-    throw new Error("Não autorizado.")
+    throw new NaoAutorizadoError()
   }
 
   return session
@@ -36,7 +37,7 @@ export async function requireSessionComFilial(rolesPermitidos?: string[]) {
   const session = await requireSession(rolesPermitidos)
 
   if (session.user.filialId === null) {
-    throw new Error("Não autorizado.")
+    throw new NaoAutorizadoError()
   }
 
   return { session, filialId: session.user.filialId }
