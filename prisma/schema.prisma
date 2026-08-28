@@ -106,6 +106,10 @@
     // não é retroativamente preenchido. Usado como produtoExigido em
     // motoristaEhCompativel (bloqueia motorista sem essa autorização) e como
     // base do aviso de frota incompatível (calcularAvisoFrotaProduto).
+    // TODO: migrar histórico (preencher o produto das viagens antigas) e
+    // tornar esta coluna NOT NULL — checar antes `SELECT count(*) FROM
+    // "Viagem" WHERE produto IS NULL` e garantir que todo motorista ativo
+    // tem produtosAutorizados não vazio, senão ele some das sugestões.
     produto           TipoProduto?
 
     integracaoExigida String?      @db.VarChar(50)

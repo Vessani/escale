@@ -148,6 +148,16 @@ describe("lib/actions/viagens — controle de acesso", () => {
       expect(viagemService.criarViagemAvulsaService).not.toHaveBeenCalled()
     })
 
+    it("criarViagemAvulsa recusa viagem sem produto (produto passou a ser obrigatório)", async () => {
+      const { produto, ...semProduto } = viagemValida
+      void produto
+
+      const resposta = await criarViagemAvulsa(semProduto as never)
+
+      expect(resposta.sucesso).toBe(false)
+      expect(viagemService.criarViagemAvulsaService).not.toHaveBeenCalled()
+    })
+
     it("criarViagemAvulsa recusa data de fim antes do início", async () => {
       const resposta = await criarViagemAvulsa({
         ...viagemValida,
