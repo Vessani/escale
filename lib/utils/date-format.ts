@@ -3,6 +3,8 @@
  * Centralizado para reutilização em toda aplicação
  */
 
+import { DataInvalidaError } from "@/lib/errors"
+
 /**
  * A transportadora opera só no Brasil, e desde 2019 o país não tem mais
  * horário de verão em nenhum estado — então o offset de Brasília é constante
@@ -252,30 +254,40 @@ export function normalizarHora(hora: string): string {
 }
 
 /**
- * Converte uma string "YYYY-MM-DD" em Date local, validando que a data
- * existe de fato (rejeita ex: "2026-02-30")
+ * Converte uma string "YYYY-MM-DD" (ex: o parâmetro `?data=` de um filtro, ou
+ * o dia clicado no calendário do motorista) no instante correspondente à
+ * meia-noite de Brasília, validando que a data existe de fato (rejeita ex:
+ * "2026-02-30") — mesma lógica de `parseDateTimeFromInput`, e pelo mesmo
+ * motivo: construir com `new Date(ano, mes-1, dia)` usaria o fuso do
+ * processo que executa o código, não o de Brasília. Antes dessa correção,
+ * um servidor rodando em UTC (comum em produção) gravava o dia clicado no
+ * calendário como o dia ANTERIOR — `inicioDoDia`, chamado em seguida por
+ * quase todo consumidor desta função, sempre assume que já recebeu um
+ * instante real, e subtrai 3h dele; sem o offset aplicado aqui antes, isso
+ * cruzava a meia-noite pro dia errado.
  */
 export function parseDataLocal(dataTexto: string): Date {
   if (!/^\d{4}-\d{2}-\d{2}$/.test(dataTexto)) {
-    throw new Error("Data inválida.")
+    throw new DataInvalidaError()
   }
 
   const [anoTexto, mesTexto, diaTexto] = dataTexto.split("-")
   const ano = Number(anoTexto)
   const mes = Number(mesTexto)
   const dia = Number(diaTexto)
-  const data = new Date(ano, mes - 1, dia)
+  const candidato = new Date(Date.UTC(ano, mes - 1, dia))
 
-  if (
-    Number.isNaN(data.getTime()) ||
-    data.getFullYear() !== ano ||
-    data.getMonth() !== mes - 1 ||
-    data.getDate() !== dia
-  ) {
-    throw new Error("Data inválida.")
+  const valido =
+    !Number.isNaN(candidato.getTime()) &&
+    candidato.getUTCFullYear() === ano &&
+    candidato.getUTCMonth() === mes - 1 &&
+    candidato.getUTCDate() === dia
+
+  if (!valido) {
+    throw new DataInvalidaError()
   }
 
-  return data
+  return new Date(candidato.getTime() + OFFSET_MINUTOS_BRASILIA * 60 * 1000)
 }
 
 /**

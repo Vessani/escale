@@ -45,13 +45,10 @@ describe("calendario-utils", () => {
   })
 
   describe("parseDataInicioParam", () => {
-    it("aceita 'YYYY-MM-DD' válido e retorna meia-noite local daquele dia", () => {
+    it("aceita 'YYYY-MM-DD' válido e retorna a meia-noite de Brasília daquele dia (checado via ISO, não getters locais — não pode depender do fuso do processo)", () => {
       const resultado = parseDataInicioParam("2026-07-09")
       expect(resultado).not.toBeNull()
-      expect(resultado?.getFullYear()).toBe(2026)
-      expect(resultado?.getMonth()).toBe(6) // julho = índice 6
-      expect(resultado?.getDate()).toBe(9)
-      expect(resultado?.getHours()).toBe(0)
+      expect(resultado?.toISOString()).toBe("2026-07-09T03:00:00.000Z")
     })
 
     it("rejeita formatos que não batem com 'YYYY-MM-DD'", () => {

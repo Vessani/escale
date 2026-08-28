@@ -94,11 +94,12 @@ describe("calcularDiasEntre", () => {
 })
 
 describe("parseDataLocal", () => {
-  it("aceita uma data YYYY-MM-DD válida", () => {
+  it("aceita uma data YYYY-MM-DD válida, como o instante da meia-noite de Brasília (não do fuso do processo)", () => {
+    // Checado via ISO (instante absoluto), não getFullYear/getMonth/getDate
+    // locais — o teste não pode depender do fuso do processo que o roda
+    // pra não mascarar o bug que essa função corrige (ver comentário nela).
     const data = parseDataLocal("2026-02-28")
-    expect(data.getFullYear()).toBe(2026)
-    expect(data.getMonth()).toBe(1)
-    expect(data.getDate()).toBe(28)
+    expect(data.toISOString()).toBe("2026-02-28T03:00:00.000Z")
   })
 
   it("rejeita uma data calendário inexistente (29/02 em ano não bissexto)", () => {
@@ -107,6 +108,11 @@ describe("parseDataLocal", () => {
 
   it("rejeita formato fora do padrão YYYY-MM-DD", () => {
     expect(() => parseDataLocal("28/02/2026")).toThrow("Data inválida.")
+  })
+
+  it("combinado com inicioDoDia, sempre resolve o mesmo dia calendário independente do fuso do processo — regressão do bug 'dia 17 vira 16' no calendário do motorista", () => {
+    const data = parseDataLocal("2026-08-17")
+    expect(inicioDoDia(data).toISOString()).toBe("2026-08-17T03:00:00.000Z")
   })
 })
 

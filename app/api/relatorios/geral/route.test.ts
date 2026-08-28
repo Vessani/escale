@@ -72,11 +72,12 @@ describe("GET /api/relatorios/geral — controle de acesso e filtros", () => {
 
     await GET(new Request("http://x/api/relatorios/geral?status=ALOCADA&de=2026-08-01&ate=2026-08-31"))
 
-    expect(buscarViagensParaRelatorioGeral).toHaveBeenCalledWith(9, {
-      status: "ALOCADA",
-      de: new Date(2026, 7, 1),
-      ate: new Date(2026, 7, 31),
-    })
+    // ISO explícito, não `new Date(2026, 7, N)` (fuso do processo) — o valor
+    // certo é a meia-noite de Brasília de cada dia, ver parseDataLocal.
+    const chamada = vi.mocked(buscarViagensParaRelatorioGeral).mock.calls[0][1] as { status: string; de: Date; ate: Date }
+    expect(chamada.status).toBe("ALOCADA")
+    expect(chamada.de.toISOString()).toBe("2026-08-01T03:00:00.000Z")
+    expect(chamada.ate.toISOString()).toBe("2026-08-31T03:00:00.000Z")
   })
 
   it("gera o Excel geral e devolve 200 com o conteúdo esperado", async () => {

@@ -84,7 +84,10 @@ describe("GET /api/relatorios/diario — controle de acesso e data", () => {
 
     await GET(new Request("http://x/api/relatorios/diario?data=2026-08-15"))
 
-    expect(buscarViagensCriadasEm).toHaveBeenCalledWith(9, new Date(2026, 7, 15))
+    // ISO explícito, não `new Date(2026, 7, 15)` (fuso do processo) — o valor
+    // certo é a meia-noite de Brasília daquele dia, ver parseDataLocal.
+    const dataUsada = vi.mocked(buscarViagensCriadasEm).mock.calls[0][1]
+    expect(dataUsada.toISOString()).toBe("2026-08-15T03:00:00.000Z")
   })
 
   it("gera o Excel do dia e devolve 200 com o conteúdo esperado", async () => {
