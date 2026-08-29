@@ -11,7 +11,7 @@ import {
 import type { TipoProduto } from "@prisma/client";
 import { reconciliarFolgaMotoristasNoDiaAtual } from "./folga.service";
 import { registrarAuditoria, type Ator } from "./auditoria.service";
-import { MotoristaProdutoNaoAutorizadoError, ViagemNaoEncontradaError, StatusViagemObrigatorioError } from "@/lib/errors";
+import { MotoristaProdutoNaoAutorizadoError, ViagemNaoEncontradaError, StatusViagemObrigatorioError, NumViagemDuplicadaError } from "@/lib/errors";
 import { calcularAvisoFrotaIndisponivel, calcularAvisoFrotaProduto, sincronizarDisponibilidadeFrota } from "./frota.service";
 import { converterEditarViagemParaBD, converterNovaViagemParaBD } from "./viagem-data-converter.service";
 import { buscarFimJornadaAnterior } from "./motorista.service";
@@ -49,7 +49,7 @@ async function garantirNumViagemDisponivel(filialId: number, numViagem: string, 
   })
 
   if (existente) {
-    throw new Error("Já existe uma viagem com este número.")
+    throw new NumViagemDuplicadaError()
   }
 }
 

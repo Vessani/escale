@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest"
 import { Prisma } from "@prisma/client"
 import { errorToMessage } from "@/lib/action-error"
-import { ViagemNaoEncontradaError, FrotaDuplicadaError } from "@/lib/errors"
+import { ViagemNaoEncontradaError, FrotaDuplicadaError, NumViagemDuplicadaError, DataInvalidaError } from "@/lib/errors"
 
 const FALLBACK = "Ocorreu um erro desconhecido."
 
@@ -19,6 +19,14 @@ describe("errorToMessage", () => {
     expect(errorToMessage(new FrotaDuplicadaError(), FALLBACK)).toBe(
       "Já existe um conjunto cadastrado com essa frota (cavalo/carreta).",
     )
+  })
+
+  it("NumViagemDuplicadaError (checagem própria do app, antes de chegar no banco) devolve a mesma mensagem do conflito P2002 — mesmo texto pelos dois caminhos", () => {
+    expect(errorToMessage(new NumViagemDuplicadaError(), FALLBACK)).toBe("Já existe uma viagem com este número.")
+  })
+
+  it("DataInvalidaError nunca inclui o valor cru recebido — mensagem sempre genérica", () => {
+    expect(errorToMessage(new DataInvalidaError(), FALLBACK)).toBe("Data inválida.")
   })
 
   it("erro comum (não convertido, ex: bug ou throw solto) cai no fallback — nunca vaza a mensagem técnica", () => {

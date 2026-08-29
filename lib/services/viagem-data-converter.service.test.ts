@@ -1,5 +1,6 @@
-import { describe, expect, it } from "vitest"
+import { describe, expect, it, vi } from "vitest"
 import { converterEditarViagemParaBD } from "@/lib/services/viagem-data-converter.service"
+import { DataInvalidaError } from "@/lib/errors"
 import type { EditarViagemInput } from "@/lib/types/types"
 
 function criarDadosEdicao(parcial: Partial<EditarViagemInput> = {}): EditarViagemInput {
@@ -64,5 +65,37 @@ describe("viagem-data-converter.service", () => {
     )
 
     expect((resultado.entregas[0].dataEntrega as Date).toISOString()).toBe("2026-07-10T12:00:00.000Z")
+  })
+
+  it("data vazia lança DataInvalidaError com mensagem genérica — nunca vaza o valor cru pro usuário", () => {
+    vi.spyOn(console, "error").mockImplementation(() => {})
+
+    let erroCapturado: unknown
+    try {
+      converterEditarViagemParaBD(criarDadosEdicao({ inicioPrevisto: "" }))
+    } catch (erro) {
+      erroCapturado = erro
+    }
+
+    expect(erroCapturado).toBeInstanceOf(DataInvalidaError)
+    expect((erroCapturado as DataInvalidaError).mensagemSegura).toBe("Data inválida.")
+
+    vi.restoreAllMocks()
+  })
+
+  it("data malformada (não interpretável) lança DataInvalidaError — mensagem também genérica, não ecoa o texto digitado", () => {
+    vi.spyOn(console, "error").mockImplementation(() => {})
+
+    let erroCapturado: unknown
+    try {
+      converterEditarViagemParaBD(criarDadosEdicao({ inicioPrevisto: "não-é-uma-data" }))
+    } catch (erro) {
+      erroCapturado = erro
+    }
+
+    expect(erroCapturado).toBeInstanceOf(DataInvalidaError)
+    expect((erroCapturado as DataInvalidaError).mensagemSegura).toBe("Data inválida.")
+
+    vi.restoreAllMocks()
   })
 })

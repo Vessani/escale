@@ -60,3 +60,10 @@ export class DataInvalidaError extends ErroDeDominio {
     super("DATA_INVALIDA", "Data inválida.")
   }
 }
+
+/** Número de viagem já usado por outra viagem ativa da mesma filial — ver garantirNumViagemDisponivel em viagem.service.ts. */
+export class NumViagemDuplicadaError extends ErroDeDominio {
+  constructor() {
+    super("NUM_VIAGEM_DUPLICADA", "Já existe uma viagem com este número.")
+  }
+}

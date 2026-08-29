@@ -7,6 +7,7 @@ import {
   MotoristaProdutoNaoAutorizadoError,
   FrotaDuplicadaError,
   DataInvalidaError,
+  NumViagemDuplicadaError,
 } from "@/lib/errors"
 
 describe("ErroDeDominio", () => {
@@ -45,6 +46,12 @@ describe("subclasses — código estável e mensagem segura de cada uma", () => 
       "Já existe um conjunto cadastrado com essa frota (cavalo/carreta).",
     ],
     ["DataInvalidaError", () => new DataInvalidaError(), "DATA_INVALIDA", "Data inválida."],
+    [
+      "NumViagemDuplicadaError",
+      () => new NumViagemDuplicadaError(),
+      "NUM_VIAGEM_DUPLICADA",
+      "Já existe uma viagem com este número.",
+    ],
   ]
 
   it.each(casos)("%s", (_nome, criar, codigoEsperado, mensagemEsperada) => {
