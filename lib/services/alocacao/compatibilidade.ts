@@ -10,17 +10,23 @@ function normalizarCliente(cliente: string) {
 }
 
 /**
- * Dias consecutivos que o motorista ainda pode trabalhar a partir do código
- * informado. Códigos fora de 1-6 (Folga, Férias, Exames, Interno) retornam 0:
- * o motorista só volta a ficar disponível no dia seguinte, quando a rotação
- * o traz de volta ao início do ciclo (ver `jornada.service.ts`).
+ * Número de dias de viagem (contagem INCLUSIVA — mesma escala de
+ * `calcularDiasEntre`: uma viagem que começa e termina no mesmo dia é 1) que
+ * o motorista ainda pode assumir a partir do código informado, sem invadir a
+ * folga. No 6º dia o motorista ainda trabalha, então cabe uma viagem de 1 dia
+ * que termina nesse mesmo 6º dia → retorna 1. No 5º dia cabem 2 dias (5º + 6º),
+ * e assim por diante; qualquer viagem que estenda além do 6º dia é barrada por
+ * `motoristaEhCompativel`. Códigos fora de 1-6 (Folga, Férias, Exames,
+ * Interno) retornam 0: o motorista só volta a ficar disponível no dia
+ * seguinte, quando a rotação o traz de volta ao início do ciclo (ver
+ * `jornada.service.ts`).
  */
 export function calcularDiasDisponiveis(diasTrabalhados: number) {
   if (diasTrabalhados < 1 || diasTrabalhados > MAX_DIAS_CONSECUTIVOS) {
     return 0
   }
 
-  return MAX_DIAS_CONSECUTIVOS - diasTrabalhados
+  return MAX_DIAS_CONSECUTIVOS - diasTrabalhados + 1
 }
 
 /**
@@ -108,6 +114,22 @@ export function motoristaEhCompativel(
   const codigoNaViagem = codigoJornadaNaViagem(motorista, contexto)
 
   if (calcularDiasDisponiveis(codigoNaViagem) < contexto.diasViagem) {
+    return false
+  }
+
+  // Garante que a viagem inteira cabe dentro do ciclo de trabalho: mesmo com
+  // diasViagem consistente, o caminho de gravação manual (alocação de
+  // emergência) reaplica esta função com um contexto montado à mão, onde
+  // diasViagem pode não bater com o intervalo real. Projetamos o código de
+  // jornada no ÚLTIMO dia coberto e barramos se ele cair na folga (código 7)
+  // ou além — o motorista pode iniciar no 6º dia, nunca terminar no 7º.
+  const codigoNoUltimoDia = projetarCodigoNoDia(
+    motorista.registrosJornada,
+    new Date(contexto.dataInicioViagem.getTime() + (contexto.diasViagem - 1) * 24 * 60 * 60 * 1000),
+    contexto.hoje,
+    motorista.diasTrabalhados,
+  )
+  if (codigoNoUltimoDia > MAX_DIAS_CONSECUTIVOS) {
     return false
   }
 

@@ -59,10 +59,11 @@ function comFimJornadaAnterior(fim: Date): MotoristaMock["registrosJornada"] {
 
 describe("alocacao.service", () => {
   describe("calcularDiasDisponiveis", () => {
-    it("subtrai o dia atual de 6 para códigos de trabalho (1-6)", () => {
-      expect(calcularDiasDisponiveis(1)).toBe(5)
-      expect(calcularDiasDisponiveis(3)).toBe(3)
-      expect(calcularDiasDisponiveis(6)).toBe(0)
+    it("conta dias inclusivos disponíveis até a folga para códigos de trabalho (1-6)", () => {
+      expect(calcularDiasDisponiveis(1)).toBe(6)
+      expect(calcularDiasDisponiveis(3)).toBe(4)
+      // 6º dia: o motorista ainda trabalha, cabe uma viagem de 1 dia.
+      expect(calcularDiasDisponiveis(6)).toBe(1)
     })
 
     it("bloqueia (0 disponíveis) em Folga, Férias, Exames e Interno", () => {
@@ -150,12 +151,51 @@ describe("alocacao.service", () => {
       ).toBe(true)
     })
 
-    it("nega quando a viagem dura mais dias do que o motorista tem disponível", () => {
+    it("aceita a viagem que termina exatamente no 6º dia (3º dia + 4 dias = dias 3,4,5,6)", () => {
       const motorista = criarMotorista({ diasTrabalhados: 3 })
       expect(
         motoristaEhCompativel(motorista, {
           turnoViagem: "MANHA",
           diasViagem: 4,
+          dataInicioViagem: hoje,
+          integracaoExigida: null,
+          hoje,
+        }),
+      ).toBe(true)
+    })
+
+    it("nega quando a viagem invadiria a folga (3º dia + 5 dias passaria do 6º dia)", () => {
+      const motorista = criarMotorista({ diasTrabalhados: 3 })
+      expect(
+        motoristaEhCompativel(motorista, {
+          turnoViagem: "MANHA",
+          diasViagem: 5,
+          dataInicioViagem: hoje,
+          integracaoExigida: null,
+          hoje,
+        }),
+      ).toBe(false)
+    })
+
+    it("aceita uma viagem de 1 dia iniciando no 6º dia (ainda trabalha, folga só no 7º)", () => {
+      const motorista = criarMotorista({ diasTrabalhados: 6 })
+      expect(
+        motoristaEhCompativel(motorista, {
+          turnoViagem: "MANHA",
+          diasViagem: 1,
+          dataInicioViagem: hoje,
+          integracaoExigida: null,
+          hoje,
+        }),
+      ).toBe(true)
+    })
+
+    it("nega uma viagem de 2 dias iniciando no 6º dia (o 2º dia cairia na folga)", () => {
+      const motorista = criarMotorista({ diasTrabalhados: 6 })
+      expect(
+        motoristaEhCompativel(motorista, {
+          turnoViagem: "MANHA",
+          diasViagem: 2,
           dataInicioViagem: hoje,
           integracaoExigida: null,
           hoje,
