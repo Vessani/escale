@@ -69,6 +69,15 @@ describe("formatarDataExcel", () => {
     expect(formatarDataExcel("04.07.", "09:00")).toBe("2026-07-04T09:00")
   })
 
+  it("converte o número serial do Excel usando a epoch correta (30/12/1899)", () => {
+    // Serial 45858 = 20/07/2025 no Excel (base 1899-12-30). A conversão antiga
+    // usava 01/01/1900 como base e caía ~12 dias antes, deslocando a jornada
+    // projetada na sugestão de alocação.
+    expect(formatarDataExcel("45858", "08:00")).toBe("2025-07-20T08:00")
+    expect(formatarDataExcel("45671", "00:00")).toBe("2025-01-14T00:00")
+    expect(formatarDataExcel("46013", "12:00")).toBe("2025-12-22T12:00")
+  })
+
   it("retorna string vazia para entrada vazia ou inválida", () => {
     expect(formatarDataExcel("")).toBe("")
     expect(formatarDataExcel("não é data")).toBe("")

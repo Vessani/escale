@@ -224,8 +224,16 @@ export function formatarDataExcel(data: string | Date, hora?: string): string {
     // Serial do Excel (número)
     else if (!isNaN(Number(dataNormalizada))) {
       const excelDate = Number(dataNormalizada)
-      const date1900 = new Date(1900, 0, 1)
-      date = new Date(date1900.getTime() + (excelDate - 1) * 24 * 60 * 60 * 1000)
+      // Excel conta os dias a partir de 30/12/1899 (a "epoch" 1900 do Excel
+      // trata 1900 como bissexto por um bug histórico, então o dia 0 do
+      // sistema equivale a 30/12/1899). Calcular em UTC e depois montar a
+      // data local evita que o fuso desloque o dia. Serial inteiro = meia-
+      // noite; a parte fracionária (hora do dia) é ignorada aqui porque o
+      // horário vem do parâmetro `hora`.
+      const MS_POR_DIA = 24 * 60 * 60 * 1000
+      const epochExcelUTC = Date.UTC(1899, 11, 30)
+      const utc = new Date(epochExcelUTC + Math.floor(excelDate) * MS_POR_DIA)
+      date = new Date(utc.getUTCFullYear(), utc.getUTCMonth(), utc.getUTCDate())
     }
   }
 
