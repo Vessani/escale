@@ -10,7 +10,7 @@ vi.mock("@/lib/prisma", () => ({
 }))
 
 import { prisma } from "@/lib/prisma"
-import { buscarClientes, buscarClientePorId, buscarNomesClientesQueExigemIntegracao } from "@/lib/queries/clientes"
+import { buscarClientes, buscarClientePorId, buscarClientesQueExigemIntegracaoPorNome } from "@/lib/queries/clientes"
 
 describe("lib/queries/clientes", () => {
   beforeEach(() => {
@@ -36,25 +36,25 @@ describe("lib/queries/clientes", () => {
     expect(prisma.cliente.findFirst).toHaveBeenCalledWith({ where: { id: 9, deletadoEm: null } })
   })
 
-  it("buscarNomesClientesQueExigemIntegracao normaliza nome (trim + maiúsculas) e filtra só exigeIntegracao: true", async () => {
+  it("buscarClientesQueExigemIntegracaoPorNome normaliza nome (trim + maiúsculas), mapeia pro numeroSap e filtra só exigeIntegracao: true", async () => {
     vi.mocked(prisma.cliente.findMany).mockResolvedValue([
-      { nome: "  weg  " },
-      { nome: "Gemp - Ambev" },
+      { nome: "  weg  ", numeroSap: "4521087" },
+      { nome: "Gemp - Ambev", numeroSap: "9981234" },
     ] as never)
 
-    const resultado = await buscarNomesClientesQueExigemIntegracao()
+    const resultado = await buscarClientesQueExigemIntegracaoPorNome()
 
     expect(prisma.cliente.findMany).toHaveBeenCalledWith({
       where: { deletadoEm: null, exigeIntegracao: true },
-      select: { nome: true },
+      select: { nome: true, numeroSap: true },
     })
-    expect(resultado).toEqual(new Set(["WEG", "GEMP - AMBEV"]))
+    expect(resultado).toEqual(new Map([["WEG", "4521087"], ["GEMP - AMBEV", "9981234"]]))
   })
 
-  it("buscarNomesClientesQueExigemIntegracao retorna um Set vazio quando nenhum cliente exige integração", async () => {
+  it("buscarClientesQueExigemIntegracaoPorNome retorna um Map vazio quando nenhum cliente exige integração", async () => {
     vi.mocked(prisma.cliente.findMany).mockResolvedValue([] as never)
 
-    const resultado = await buscarNomesClientesQueExigemIntegracao()
+    const resultado = await buscarClientesQueExigemIntegracaoPorNome()
 
     expect(resultado.size).toBe(0)
   })

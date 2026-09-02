@@ -13,28 +13,20 @@ describe("frotaEhValida", () => {
 })
 
 describe("viagensCompartilhamFrota", () => {
-  it("detecta quando o cavalo de uma bate com o cavalo da outra", () => {
-    expect(viagensCompartilhamFrota("75", "908", "75", "909")).toBe(true)
-  })
-
   it("detecta quando a carreta de uma bate com a carreta da outra", () => {
-    expect(viagensCompartilhamFrota("75", "908", "76", "908")).toBe(true)
+    expect(viagensCompartilhamFrota("908", "908")).toBe(true)
   })
 
-  it("detecta quando o cavalo de uma bate com a carreta da outra (cruzado)", () => {
-    expect(viagensCompartilhamFrota("75", "908", "908", "77")).toBe(true)
-  })
-
-  it("não detecta coincidência quando nenhum código bate", () => {
-    expect(viagensCompartilhamFrota("75", "908", "76", "909")).toBe(false)
+  it("não detecta coincidência quando as carretas são diferentes (cavalo não entra mais na conta)", () => {
+    expect(viagensCompartilhamFrota("908", "909")).toBe(false)
   })
 
   it("ignora coincidência de placeholder '0000' entre viagens truck sem carreta separada", () => {
-    expect(viagensCompartilhamFrota("75", "0000", "76", "0000")).toBe(false)
+    expect(viagensCompartilhamFrota("0000", "0000")).toBe(false)
   })
 
-  it("detecta caso truck: cavalo e carreta repetem o mesmo número em ambas as viagens", () => {
-    expect(viagensCompartilhamFrota("75", "75", "75", "75")).toBe(true)
+  it("detecta caso truck: mesma carreta repetida em ambas as viagens", () => {
+    expect(viagensCompartilhamFrota("75", "75")).toBe(true)
   })
 })
 

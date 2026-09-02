@@ -71,6 +71,19 @@ export default function ClienteForm({ defaultValues, onSubmit, submitLabel, subm
               </FormItem>
             )} />
 
+            <FormField control={form.control} name="numeroSap" render={({ field }) => (
+              <FormItem>
+                <FormLabel>Número SAP</FormLabel>
+                <FormControl>
+                  <Input placeholder="Ex: 4521087" {...field} value={normalizeFormValue(field.value)} />
+                </FormControl>
+                <FormDescription>
+                  Identificador do cliente no SAP — é ele, não o nome, que valida as integrações do motorista.
+                </FormDescription>
+                <FormMessage />
+              </FormItem>
+            )} />
+
             <FormField control={form.control} name="exigeIntegracao" render={({ field }) => (
               <FormItem>
                 <FormLabel>Exige integração do motorista</FormLabel>
@@ -86,7 +99,7 @@ export default function ClienteForm({ defaultValues, onSubmit, submitLabel, subm
                   </SelectContent>
                 </Select>
                 <FormDescription>
-                  Se marcado, toda viagem com entrega pra esse cliente exige que o motorista tenha uma integração ativa e válida com o mesmo nome.
+                  Se marcado, toda viagem com entrega pra esse cliente exige que o motorista tenha uma integração ativa e válida com o mesmo número SAP.
                 </FormDescription>
                 <FormMessage />
               </FormItem>

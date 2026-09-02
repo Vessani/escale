@@ -3,7 +3,7 @@ import { getServerSession } from "next-auth"
 import { authOptions } from "@/lib/auth"
 import { buscarMotoristas } from "@/lib/queries/motoristas"
 import { buscarViagensSemMotorista } from "@/lib/queries/viagens"
-import { buscarNomesClientesQueExigemIntegracao } from "@/lib/queries/clientes"
+import { buscarClientesQueExigemIntegracaoPorNome } from "@/lib/queries/clientes"
 import type { ViagemAlocacao } from "@/lib/types/alocacao"
 import {
   calcularAvisoInterjornada,
@@ -28,7 +28,7 @@ function serializarViagens(
   viagensBrutas: ViagemBase[],
   motoristasBrutos: MotoristaBase[],
   hoje: Date,
-  clientesQueExigemIntegracao: Set<string>,
+  clientesQueExigemIntegracao: Map<string, string>,
 ): ViagemAlocacao[] {
   const viagensPendentes = viagensBrutas.filter((viagem) => viagem.motoristaId === null)
 
@@ -136,7 +136,7 @@ export default async function PaginaAlocacaoViagens() {
   const [viagensBrutas, motoristasBrutos, clientesQueExigemIntegracao] = await Promise.all([
     buscarViagensSemMotorista(filialId),
     buscarMotoristas(filialId),
-    buscarNomesClientesQueExigemIntegracao(),
+    buscarClientesQueExigemIntegracaoPorNome(),
   ])
 
   const hoje = inicioDoDia(new Date())

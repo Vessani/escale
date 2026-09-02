@@ -27,7 +27,7 @@ vi.mock("@/lib/queries/motoristas", () => ({
 }))
 
 vi.mock("@/lib/queries/clientes", () => ({
-  buscarNomesClientesQueExigemIntegracao: vi.fn(),
+  buscarClientesQueExigemIntegracaoPorNome: vi.fn(),
 }))
 
 import * as viagemService from "@/lib/services/viagem.service"

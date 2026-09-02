@@ -24,18 +24,23 @@ export function calcularDiasDisponiveis(diasTrabalhados: number) {
 }
 
 /**
- * `clientesQueExigemIntegracao` já vem normalizado (trim + maiúsculas) — ver
- * buscarNomesClientesQueExigemIntegracao (lib/queries/clientes.ts), que
- * substituiu a antiga lista fixa no código.
+ * `clientesQueExigemIntegracao` mapeia nome normalizado (trim + maiúsculas)
+ * → número SAP — ver buscarClientesQueExigemIntegracaoPorNome
+ * (lib/queries/clientes.ts), que substituiu a antiga lista fixa no código.
+ * O casamento com a entrega continua sendo pelo nome digitado (Entrega.cliente
+ * é texto livre, sem outro jeito de casar), mas o valor retornado — e gravado
+ * em Viagem.integracaoExigida — é o SAP do cliente encontrado, não o nome:
+ * nomes são digitados de forma inconsistente, o SAP é a chave estável.
  */
 export function calcularIntegracaoExigida(
   entregas: Array<{ cliente: string }>,
-  clientesQueExigemIntegracao: Set<string>,
+  clientesQueExigemIntegracao: Map<string, string>,
 ) {
   for (const entrega of entregas) {
     const clienteNormalizado = normalizarCliente(entrega.cliente)
-    if (clientesQueExigemIntegracao.has(clienteNormalizado)) {
-      return clienteNormalizado
+    const numeroSap = clientesQueExigemIntegracao.get(clienteNormalizado)
+    if (numeroSap !== undefined) {
+      return numeroSap
     }
   }
 

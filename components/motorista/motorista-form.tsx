@@ -21,8 +21,13 @@ type MotoristaFormProps = {
   onSubmit: (dados: MotoristaComIntegracoesFormValues) => Promise<RespostaAcao>
   submitLabel: string
   submittingLabel: string
-  /** Cadastro de clientes (ver app/clientes) — alimenta o select de "Cliente" de cada integração. */
-  clientes: Array<{ id: number; nome: string }>
+  /**
+   * Cadastro de clientes (ver app/clientes) — alimenta o select de "Cliente"
+   * de cada integração. O valor submetido é o numeroSap (chave estável de
+   * correspondência com Viagem.integracaoExigida — ver
+   * calcularIntegracaoExigida), o rótulo mostrado continua sendo o nome.
+   */
+  clientes: Array<{ id: number; nome: string; numeroSap: string }>
 }
 
 export default function MotoristaForm({ defaultValues, onSubmit, submitLabel, submittingLabel, clientes }: MotoristaFormProps) {
@@ -263,7 +268,7 @@ export default function MotoristaForm({ defaultValues, onSubmit, submitLabel, su
                           </FormControl>
                           <SelectContent>
                             {clientes.map((cliente) => (
-                              <SelectItem key={cliente.id} value={cliente.nome}>
+                              <SelectItem key={cliente.id} value={cliente.numeroSap}>
                                 {cliente.nome}
                               </SelectItem>
                             ))}

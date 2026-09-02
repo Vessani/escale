@@ -45,6 +45,7 @@ export default async function ClientesPage() {
             <TableHeader className="bg-slate-50">
               <TableRow>
                 <TableHead className="font-semibold text-slate-700">Nome</TableHead>
+                <TableHead className="font-semibold text-slate-700">Número SAP</TableHead>
                 <TableHead className="font-semibold text-slate-700">Exige integração</TableHead>
                 {podeGerenciar && <TableHead className="font-semibold text-slate-700 text-right">Ações</TableHead>}
               </TableRow>
@@ -53,6 +54,7 @@ export default async function ClientesPage() {
               {clientes.map((cliente) => (
                 <TableRow key={cliente.id} className="hover:bg-slate-50">
                   <TableCell className="font-medium">{cliente.nome}</TableCell>
+                  <TableCell className="text-slate-600">{cliente.numeroSap}</TableCell>
                   <TableCell>
                     {cliente.exigeIntegracao ? (
                       <Badge variant="warning">Sim</Badge>

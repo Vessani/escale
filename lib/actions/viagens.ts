@@ -23,7 +23,7 @@ import {
   atualizarSaidaRealService,
 } from "@/lib/services/viagem.service";
 import { buscarMotoristasParaSelect } from "@/lib/queries/motoristas";
-import { buscarNomesClientesQueExigemIntegracao } from "@/lib/queries/clientes";
+import { buscarClientesQueExigemIntegracaoPorNome } from "@/lib/queries/clientes";
 import {
   calcularAvisoInterjornada,
   calcularDiasDisponiveis,
@@ -70,7 +70,7 @@ export async function sugerirAlocacaoParaViagens(
 
   const [motoristasBrutos, clientesQueExigemIntegracao] = await Promise.all([
     buscarMotoristasParaSelect(filialId),
-    buscarNomesClientesQueExigemIntegracao(),
+    buscarClientesQueExigemIntegracaoPorNome(),
   ]);
   const motoristas = motoristasBrutos.map((motorista) => ({
     ...motorista,

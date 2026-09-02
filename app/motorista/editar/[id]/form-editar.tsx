@@ -28,7 +28,7 @@ type MotoristaComIntegracoes = {
 
 type FormEditarMotoristaProps = {
   motorista: MotoristaComIntegracoes
-  clientes: Array<{ id: number; nome: string }>
+  clientes: Array<{ id: number; nome: string; numeroSap: string }>
 }
 
 export default function FormEditarMotorista({ motorista, clientes }: FormEditarMotoristaProps) {

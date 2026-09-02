@@ -30,7 +30,7 @@ export default function NovoClientePage() {
       </div>
 
       <ClienteForm
-        defaultValues={{ nome: "", exigeIntegracao: false }}
+        defaultValues={{ nome: "", numeroSap: "", exigeIntegracao: false }}
         onSubmit={criarCliente}
         submitLabel="Cadastrar"
         submittingLabel="Salvando..."

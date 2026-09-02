@@ -17,11 +17,16 @@ export type FrotaInput = {
 }
 
 /**
- * Verifica se o conjunto (cavalo + carreta) cadastrado ainda não está
- * disponível no início da nova viagem — seja porque está marcado como em
- * manutenção (manual), seja porque uma viagem anterior só libera depois.
- * Não bloqueia a criação/edição — só retorna uma mensagem de aviso (ou
- * null), no mesmo espírito do avisoInterjornada (ver alocacao.service.ts /
+ * Verifica se a frota cadastrada pra essa carreta ainda não está disponível
+ * no início da nova viagem — seja porque está marcada como em manutenção
+ * (manual), seja porque uma viagem anterior só libera depois. Consulta só
+ * pela carreta (o cliente não liga pra qual cavalo está puxando, e corrigir
+ * cavalo digitado errado viagem por viagem é trabalho demais) — o cadastro
+ * em si continua sendo a dupla cavalo+carreta (ver criarFrotaService). Se
+ * houver mais de um conjunto ativo cadastrado pra mesma carreta (cavalo
+ * diferente), usa o mais recentemente atualizado. Não bloqueia a
+ * criação/edição — só retorna uma mensagem de aviso (ou null), no mesmo
+ * espírito do avisoInterjornada (ver alocacao.service.ts /
  * viagem.service.ts).
  */
 export async function calcularAvisoFrotaIndisponivel(
@@ -35,7 +40,8 @@ export async function calcularAvisoFrotaIndisponivel(
   }
 
   const frota = await prisma.frota.findFirst({
-    where: { cavalo, carreta, filialId, deletadoEm: null },
+    where: { carreta, filialId, deletadoEm: null },
+    orderBy: { atualizadoEm: "desc" },
   })
 
   if (!frota) {
@@ -54,10 +60,12 @@ export async function calcularAvisoFrotaIndisponivel(
 }
 
 /**
- * Avisa quando o conjunto cadastrado é dedicado a um produto diferente do
- * exigido pela viagem. Só aviso, nunca bloqueia (mesmo espírito de
- * calcularAvisoFrotaIndisponivel) — cavalo/carreta na viagem é texto livre,
- * pode nem ter frota cadastrada ainda (ver comentário em
+ * Avisa quando a frota cadastrada pra essa carreta é dedicada a um produto
+ * diferente do exigido pela viagem. Consulta só pela carreta, mesmo
+ * critério de calcularAvisoFrotaIndisponivel (ver comentário lá) — usa o
+ * conjunto mais recentemente atualizado se houver mais de um ativo pra
+ * mesma carreta. Só aviso, nunca bloqueia — cavalo/carreta na viagem é
+ * texto livre, pode nem ter frota cadastrada ainda (ver comentário em
  * sincronizarDisponibilidadeFrota sobre o cadastro de frota ser fechado).
  */
 export async function calcularAvisoFrotaProduto(
@@ -71,7 +79,8 @@ export async function calcularAvisoFrotaProduto(
   }
 
   const frota = await prisma.frota.findFirst({
-    where: { cavalo, carreta, filialId, deletadoEm: null },
+    where: { carreta, filialId, deletadoEm: null },
+    orderBy: { atualizadoEm: "desc" },
   })
 
   if (!frota || !frota.tipoProduto || frota.tipoProduto === produtoViagem) {
@@ -82,10 +91,14 @@ export async function calcularAvisoFrotaProduto(
 }
 
 /**
- * Recalcula a disponibilidade de um conjunto cavalo+carreta a partir de
- * TODAS as viagens ativas dele na filial (nem CANCELADA nem FINALIZADA, sem
- * soft delete) — disponivelEm vira o maior fimPrevisto entre elas, ou null
- * se não sobrar nenhuma (frota livre agora).
+ * Recalcula a disponibilidade da frota cadastrada pra essa carreta a partir
+ * de TODAS as viagens ativas dela na filial (nem CANCELADA nem FINALIZADA,
+ * sem soft delete) — disponivelEm vira o maior fimPrevisto entre elas, ou
+ * null se não sobrar nenhuma (frota livre agora). Tanto a busca do conjunto
+ * quanto a das viagens ativas consideram só a carreta — o cliente não liga
+ * pra qual cavalo está puxando (ver calcularAvisoFrotaIndisponivel); se
+ * houver mais de um conjunto ativo pra mesma carreta, atualiza o mais
+ * recentemente atualizado.
  *
  * Só atualiza um conjunto já cadastrado (ver criarFrotaService) — nunca
  * cadastra um novo. O cadastro de frota é fechado: a empresa tem uma frota
@@ -94,9 +107,9 @@ export async function calcularAvisoFrotaProduto(
  * conjunto novo sozinho.
  *
  * Precisa ser chamado sempre que uma viagem que usa essa frota muda de
- * estado: criada, editada (nas duas duplas, se cavalo/carreta mudou), teve o
- * status alterado, ou foi excluída — senão cancelar/finalizar uma viagem
- * nunca libera a frota (fica presa no fim previsto antigo pra sempre).
+ * estado: criada, editada (na carreta antiga também, se a carreta mudou),
+ * teve o status alterado, ou foi excluída — senão cancelar/finalizar uma
+ * viagem nunca libera a frota (fica presa no fim previsto antigo pra sempre).
  *
  * Sem RegistroAuditoria própria de propósito: é um recálculo automático
  * disparado por escrita de Viagem, não uma decisão de alguém — a viagem que
@@ -113,7 +126,8 @@ export async function sincronizarDisponibilidadeFrota(
   }
 
   const existente = await tx.frota.findFirst({
-    where: { cavalo, carreta, filialId, deletadoEm: null },
+    where: { carreta, filialId, deletadoEm: null },
+    orderBy: { atualizadoEm: "desc" },
   })
 
   // Conjunto não cadastrado: nada a sincronizar (ver comentário acima).
@@ -123,7 +137,6 @@ export async function sincronizarDisponibilidadeFrota(
 
   const viagemAtiva = await tx.viagem.findFirst({
     where: {
-      cavalo,
       carreta,
       filialId,
       deletadoEm: null,

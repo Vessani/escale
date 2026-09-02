@@ -8,7 +8,7 @@ import MotoristaForm from "@/components/motorista/motorista-form"
 import type { MotoristaComIntegracoesFormValues } from "@/lib/validation/motoristas"
 
 type Props = {
-  clientes: Array<{ id: number; nome: string }>
+  clientes: Array<{ id: number; nome: string; numeroSap: string }>
 }
 
 export default function NovoMotoristaClient({ clientes }: Props) {

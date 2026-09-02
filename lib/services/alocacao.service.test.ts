@@ -79,20 +79,23 @@ describe("alocacao.service", () => {
   })
 
   describe("calcularIntegracaoExigida", () => {
-    const CLIENTES_TESTE = new Set(["GEMP - AMBEV - BEBIDAS - N2L. (GRUPO AMB", "WEG"])
+    const CLIENTES_TESTE = new Map([
+      ["GEMP - AMBEV - BEBIDAS - N2L. (GRUPO AMB", "9981234"],
+      ["WEG", "4521087"],
+    ])
 
     it("retorna null quando nenhum cliente exige integração", () => {
       expect(calcularIntegracaoExigida([{ cliente: "Cliente Comum" }, { cliente: "Outro" }], CLIENTES_TESTE)).toBeNull()
     })
 
-    it("detecta o cliente do grupo AMBEV e a WEG normalizando maiúsculas/espaços", () => {
+    it("detecta o cliente do grupo AMBEV e a WEG normalizando maiúsculas/espaços, retornando o numeroSap (não o nome)", () => {
       expect(calcularIntegracaoExigida([{ cliente: "  gemp - ambev - bebidas - n2l. (grupo amb  " }], CLIENTES_TESTE)).toBe(
-        "GEMP - AMBEV - BEBIDAS - N2L. (GRUPO AMB",
+        "9981234",
       )
-      expect(calcularIntegracaoExigida([{ cliente: "weg" }], CLIENTES_TESTE)).toBe("WEG")
+      expect(calcularIntegracaoExigida([{ cliente: "weg" }], CLIENTES_TESTE)).toBe("4521087")
     })
 
-    it("retorna o primeiro cliente da lista que exige integração", () => {
+    it("retorna o numeroSap do primeiro cliente da lista que exige integração", () => {
       const resultado = calcularIntegracaoExigida(
         [
           { cliente: "Cliente Comum" },
@@ -101,7 +104,7 @@ describe("alocacao.service", () => {
         ],
         CLIENTES_TESTE,
       )
-      expect(resultado).toBe("WEG")
+      expect(resultado).toBe("4521087")
     })
   })
 

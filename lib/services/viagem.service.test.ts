@@ -24,7 +24,7 @@ vi.mock("@/lib/queries/motoristas", () => ({
 }))
 
 vi.mock("@/lib/queries/clientes", () => ({
-  buscarNomesClientesQueExigemIntegracao: vi.fn(),
+  buscarClientesQueExigemIntegracaoPorNome: vi.fn(),
 }))
 
 vi.mock("@/lib/services/folga.service", () => ({
@@ -39,7 +39,7 @@ vi.mock("@/lib/services/frota.service", () => ({
 
 import { prisma } from "@/lib/prisma"
 import { buscarMotoristasParaSelect } from "@/lib/queries/motoristas"
-import { buscarNomesClientesQueExigemIntegracao } from "@/lib/queries/clientes"
+import { buscarClientesQueExigemIntegracaoPorNome } from "@/lib/queries/clientes"
 import { reconciliarFolgaMotoristasNoDiaAtual } from "@/lib/services/folga.service"
 import { calcularAvisoFrotaIndisponivel, calcularAvisoFrotaProduto, sincronizarDisponibilidadeFrota } from "@/lib/services/frota.service"
 import {
@@ -141,8 +141,8 @@ describe("viagem.service", () => {
     // sobrescrito nos testes que se importam com o conteúdo exato.
     vi.mocked(prisma.viagem.findUniqueOrThrow).mockResolvedValue({} as never)
     // Mesmos clientes que antes viviam hardcoded em CLIENTES_COM_INTEGRACAO_OBRIGATORIA.
-    vi.mocked(buscarNomesClientesQueExigemIntegracao).mockResolvedValue(
-      new Set(["GEMP - AMBEV - BEBIDAS - N2L. (GRUPO AMB", "WEG"]),
+    vi.mocked(buscarClientesQueExigemIntegracaoPorNome).mockResolvedValue(
+      new Map([["GEMP - AMBEV - BEBIDAS - N2L. (GRUPO AMB", "9981234"], ["WEG", "4521087"]]),
     )
   })
 
@@ -227,7 +227,8 @@ describe("viagem.service", () => {
       )
 
       const dadosCriados = vi.mocked(tx.viagem.create).mock.calls[0][0].data
-      expect(dadosCriados.integracaoExigida).toBe("WEG")
+      // Grava o numeroSap do cliente encontrado, não o nome — ver calcularIntegracaoExigida.
+      expect(dadosCriados.integracaoExigida).toBe("4521087")
     })
 
     it("não seleciona automaticamente um motorista que já tem viagem conflitante registrada no banco (chamada separada anterior)", async () => {
@@ -566,6 +567,19 @@ describe("viagem.service", () => {
       expect(sincronizarDisponibilidadeFrota).toHaveBeenCalledWith(tx, FILIAL_ID, "9999", "8888")
       expect(sincronizarDisponibilidadeFrota).toHaveBeenCalledWith(tx, FILIAL_ID, "2064", "908")
       expect(sincronizarDisponibilidadeFrota).toHaveBeenCalledTimes(2)
+    })
+
+    it("trocando só o cavalo (carreta igual), sincroniza uma vez só — a carreta é quem decide a frota agora", async () => {
+      vi.mocked(prisma.viagem.findUnique).mockResolvedValue({ status: "ALOCADA", motoristaId: 9, cavalo: "2064", carreta: "908" } as never)
+
+      const tx = criarTx()
+      vi.mocked(tx.viagem.update).mockResolvedValue({ id: 1, motoristaId: 9 })
+      usarTransacaoCom(tx)
+
+      await editarViagemService(FILIAL_ID, 1, criarEdicaoInput({ cavalo: "9999", carreta: "908" }), ATOR)
+
+      expect(sincronizarDisponibilidadeFrota).toHaveBeenCalledWith(tx, FILIAL_ID, "9999", "908")
+      expect(sincronizarDisponibilidadeFrota).toHaveBeenCalledTimes(1)
     })
 
     it("recusa trocar o produto da viagem mantendo um motorista que não está autorizado pro produto novo", async () => {

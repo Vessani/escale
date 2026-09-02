@@ -27,7 +27,7 @@ vi.mock("@/lib/prisma", () => ({
 import { prisma } from "@/lib/prisma"
 import { criarCliente, editarCliente, deletarCliente } from "@/lib/actions/clientes"
 
-const clienteValido = { nome: "WEG", exigeIntegracao: true }
+const clienteValido = { nome: "WEG", numeroSap: "4521087", exigeIntegracao: true }
 
 function criarTx() {
   return {
@@ -121,7 +121,21 @@ describe("lib/actions/clientes — controle de acesso", () => {
     })
 
     it("criarCliente recusa dados inválidos (nome vazio) e não chama o prisma", async () => {
-      const resposta = await criarCliente({ nome: "", exigeIntegracao: false })
+      const resposta = await criarCliente({ nome: "", numeroSap: "4521087", exigeIntegracao: false })
+
+      expect(resposta.sucesso).toBe(false)
+      expect(prisma.cliente.create).not.toHaveBeenCalled()
+    })
+
+    it("criarCliente recusa numeroSap vazio", async () => {
+      const resposta = await criarCliente({ nome: "WEG", numeroSap: "", exigeIntegracao: false })
+
+      expect(resposta.sucesso).toBe(false)
+      expect(prisma.cliente.create).not.toHaveBeenCalled()
+    })
+
+    it("criarCliente recusa numeroSap com caracteres não numéricos", async () => {
+      const resposta = await criarCliente({ nome: "WEG", numeroSap: "45A2108", exigeIntegracao: false })
 
       expect(resposta.sucesso).toBe(false)
       expect(prisma.cliente.create).not.toHaveBeenCalled()

@@ -54,7 +54,21 @@ describe("calcularAvisoFrotaIndisponivel", () => {
     const resultado = await calcularAvisoFrotaIndisponivel(FILIAL_ID, "75", "908", new Date("2026-07-20T08:00:00"))
 
     expect(resultado).toBeNull()
-    expect(prisma.frota.findFirst).toHaveBeenCalledWith({ where: { cavalo: "75", carreta: "908", filialId: FILIAL_ID, deletadoEm: null } })
+    expect(prisma.frota.findFirst).toHaveBeenCalledWith({
+      where: { carreta: "908", filialId: FILIAL_ID, deletadoEm: null },
+      orderBy: { atualizadoEm: "desc" },
+    })
+  })
+
+  it("consulta só pela carreta — o cavalo enviado é ignorado na busca, mesmo divergindo do cadastrado", async () => {
+    vi.mocked(prisma.frota.findFirst).mockResolvedValue(null)
+
+    await calcularAvisoFrotaIndisponivel(FILIAL_ID, "9999", "908", new Date("2026-07-20T08:00:00"))
+
+    expect(prisma.frota.findFirst).toHaveBeenCalledWith({
+      where: { carreta: "908", filialId: FILIAL_ID, deletadoEm: null },
+      orderBy: { atualizadoEm: "desc" },
+    })
   })
 
   it("retorna null quando disponivelEm já passou", async () => {
@@ -170,6 +184,22 @@ describe("sincronizarDisponibilidadeFrota", () => {
     expect(tx.frota.findFirst).not.toHaveBeenCalled()
     expect(tx.frota.create).not.toHaveBeenCalled()
     expect(tx.frota.update).not.toHaveBeenCalled()
+  })
+
+  it("busca o conjunto e as viagens ativas só pela carreta, com orderBy determinístico quando há mais de um conjunto ativo pra mesma carreta", async () => {
+    const tx = criarTx()
+    vi.mocked(tx.viagem.findFirst).mockResolvedValue(null)
+    vi.mocked(tx.frota.findFirst).mockResolvedValue({ id: 7, cavalo: "75", carreta: "908" } as never)
+
+    await sincronizarDisponibilidadeFrota(tx as never, FILIAL_ID, "75", "908")
+
+    expect(tx.frota.findFirst).toHaveBeenCalledWith({
+      where: { carreta: "908", filialId: FILIAL_ID, deletadoEm: null },
+      orderBy: { atualizadoEm: "desc" },
+    })
+    const chamadaViagem = vi.mocked(tx.viagem.findFirst).mock.calls[0][0] as { where: Record<string, unknown> }
+    expect(chamadaViagem.where).not.toHaveProperty("cavalo")
+    expect(chamadaViagem.where.carreta).toBe("908")
   })
 })
 

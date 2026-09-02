@@ -57,6 +57,12 @@
   model Cliente {
     id              Int       @id @default(autoincrement())
     nome            String    @db.VarChar(100)
+    // Identificador estável do SAP — substitui o nome como chave de
+    // correspondência de Integracao/Viagem.integracaoExigida (nomes são
+    // digitados de forma inconsistente). Sem @@unique aqui de propósito,
+    // mesmo padrão de Frota.(cavalo,carreta): a unicidade só vale entre
+    // clientes ativos, aplicada por índice único parcial na migration.
+    numeroSap       String    @db.VarChar(20)
     exigeIntegracao Boolean   @default(false)
 
     criadoEm        DateTime  @default(now())
@@ -64,6 +70,7 @@
     deletadoEm      DateTime?
 
     @@index([nome])
+    @@index([numeroSap])
   }
 
   // Cada filial opera de forma isolada: motoristas, viagens, frotas e o

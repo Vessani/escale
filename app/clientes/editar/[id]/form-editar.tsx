@@ -7,6 +7,7 @@ import type { ClienteFormValues } from "@/lib/validation/clientes"
 type ClienteParaEditar = {
   id: number
   nome: string
+  numeroSap: string
   exigeIntegracao: boolean
 }
 
@@ -21,6 +22,7 @@ export default function FormEditarCliente({ cliente }: FormEditarClienteProps) {
     <ClienteForm
       defaultValues={{
         nome: cliente.nome,
+        numeroSap: cliente.numeroSap,
         exigeIntegracao: cliente.exigeIntegracao,
       }}
       onSubmit={handleSubmit}

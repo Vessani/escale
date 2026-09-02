@@ -13,10 +13,13 @@ export function frotaEhValida(codigo: string): boolean {
   return codigo.trim().length > 0 && codigo !== CODIGO_FROTA_PLACEHOLDER
 }
 
-/** true se as duas viagens compartilham cavalo ou carreta (códigos inválidos/placeholder nunca contam como coincidência). */
-export function viagensCompartilhamFrota(cavaloA: string, carretaA: string, cavaloB: string, carretaB: string): boolean {
-  const codigosB = new Set([cavaloB, carretaB].filter(frotaEhValida))
-  return [cavaloA, carretaA].filter(frotaEhValida).some((codigo) => codigosB.has(codigo))
+/**
+ * true se as duas viagens usam a mesma carreta (código inválido/placeholder
+ * nunca conta como coincidência) — só a carreta importa pro cliente, o
+ * cavalo é ignorado (mesmo critério de frota.service.ts).
+ */
+export function viagensCompartilhamFrota(carretaA: string, carretaB: string): boolean {
+  return frotaEhValida(carretaA) && frotaEhValida(carretaB) && carretaA === carretaB
 }
 
 export type StatusFrota = "DISPONIVEL" | "EM_VIAGEM" | "MANUTENCAO"

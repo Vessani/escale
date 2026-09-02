@@ -74,7 +74,7 @@ export default function ConfirmarLoteViagens({ viagens, onConcluido, onCancelar 
       const numerosConflitantes = viagens
         .filter((viagemB) => {
           if (viagemB.dados.numViagem === viagemA.dados.numViagem) return false
-          if (!viagensCompartilhamFrota(viagemA.dados.cavalo, viagemA.dados.carreta, viagemB.dados.cavalo, viagemB.dados.carreta)) {
+          if (!viagensCompartilhamFrota(viagemA.dados.carreta, viagemB.dados.carreta)) {
             return false
           }
 
