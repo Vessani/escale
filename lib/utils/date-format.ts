@@ -44,13 +44,20 @@ export function dataParaColunaDate(data: Date): Date {
 
 /**
  * Converte um valor lido de uma coluna `@db.Date` (Prisma sempre retorna à
- * meia-noite UTC) de volta para meia-noite local do mesmo dia calendário —
- * seguro para comparar com outras datas locais (`inicioDoDia`, `dia`, `hoje`).
- * Sem isso, aplicar `inicioDoDia` direto num valor UTC desloca um dia inteiro
- * para trás em fusos com offset negativo.
+ * meia-noite UTC) de volta para meia-noite de Brasília do mesmo dia
+ * calendário — seguro para comparar com outras datas locais (`inicioDoDia`,
+ * `dia`, `hoje`). Usa o mesmo offset fixo de `inicioDoDia` (ver
+ * OFFSET_MINUTOS_BRASILIA) em vez do fuso do processo — com
+ * `new Date(y, m, d)` (fuso do processo), um servidor rodando em UTC (comum
+ * em produção, ex: Vercel) desloca a data um dia inteiro pra trás quando o
+ * resultado passa por `inicioDoDia` depois, fazendo por exemplo um registro
+ * de Folga de amanhã ser lido como se fosse de hoje (bug real observado em
+ * produção: motorista projetado com jornada fresca no dia em que na
+ * verdade estava de folga).
  */
 export function colunaDateParaLocal(dataColuna: Date): Date {
-  return new Date(dataColuna.getUTCFullYear(), dataColuna.getUTCMonth(), dataColuna.getUTCDate())
+  const meiaNoiteUtc = Date.UTC(dataColuna.getUTCFullYear(), dataColuna.getUTCMonth(), dataColuna.getUTCDate())
+  return new Date(meiaNoiteUtc + OFFSET_MINUTOS_BRASILIA * 60 * 1000)
 }
 
 /**

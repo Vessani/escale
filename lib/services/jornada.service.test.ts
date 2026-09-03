@@ -23,6 +23,16 @@ describe("jornada.service", () => {
       expect(registro.codigo).toBe(3)
     })
 
+    it("resultado é o instante absoluto de meia-noite de BRASÍLIA (UTC-3), não meia-noite do fuso do processo — bug real: com getters locais assíncronos ao fuso do processo, essa checagem passaria mesmo com a conversão errada, mascarando o bug em produção (servidor UTC)", () => {
+      const dataColunaUtc = new Date(Date.UTC(2026, 6, 9, 0, 0, 0))
+
+      const [registro] = mapearRegistrosJornada([{ data: dataColunaUtc, codigo: 3 }])
+
+      // Meia-noite de Brasília do dia 9 = 03:00 UTC do dia 9 — um instante fixo,
+      // verificável independente do fuso de quem roda o teste.
+      expect(registro.data.getTime()).toBe(Date.UTC(2026, 6, 9, 3, 0, 0))
+    })
+
     it("aceita tanto Date quanto string já serializada (vinda do cliente)", () => {
       const viaDate = mapearRegistrosJornada([{ data: new Date(Date.UTC(2026, 6, 9)), codigo: 5 }])
       const viaString = mapearRegistrosJornada([{ data: "2026-07-09T00:00:00.000Z", codigo: 5 }])
@@ -250,6 +260,24 @@ describe("jornada.service", () => {
       expect(projetarCodigoNoDia(registrosForaDeOrdem, dia, hoje, 1)).toBe(
         projetarCodigoNoDia(registrosEmOrdem, dia, hoje, 1),
       )
+    })
+
+    it("de ponta a ponta com dados vindos do banco (@db.Date, via mapearRegistrosJornada) — não projeta um motorista de folga amanhã como se ele estivesse fresco (código 1), bug real em produção quando o processo roda em UTC", () => {
+      // Registros como o Prisma devolve de uma coluna @db.Date: sempre meia-noite UTC.
+      const registrosDoBanco = [
+        { data: new Date(Date.UTC(2026, 8, 2, 0, 0, 0)), codigo: 3 }, // hoje: 3º dia
+        { data: new Date(Date.UTC(2026, 8, 3, 0, 0, 0)), codigo: 7 }, // amanhã: Folga
+      ]
+      const registrosProjetados = mapearRegistrosJornada(registrosDoBanco)
+
+      // Instantes de referência construídos direto em UTC (independentes do
+      // fuso de quem roda o teste) — meio-dia UTC cai dentro do dia calendário
+      // certo tanto em Brasília quanto em UTC, evitando ambiguidade na borda.
+      const hojeReal = new Date(Date.UTC(2026, 8, 2, 12, 0, 0))
+      const amanhaReal = new Date(Date.UTC(2026, 8, 3, 12, 0, 0))
+
+      expect(projetarCodigoNoDia(registrosProjetados, hojeReal, hojeReal, 3)).toBe(3)
+      expect(projetarCodigoNoDia(registrosProjetados, amanhaReal, hojeReal, 3)).toBe(7)
     })
   })
 })
