@@ -14,19 +14,18 @@ export async function buscarClientePorId(id: number) {
 }
 
 /**
- * Nome normalizado (trim + maiúsculas, mesmo critério de normalizarCliente
- * em alocacao.service.ts) → número SAP, só dos clientes que exigem
- * integração do motorista. O casamento com a entrega continua sendo pelo
- * nome (Entrega.cliente é texto livre, sem FK pro cadastro de Cliente — ver
- * comentário no schema), mas o valor propagado agora é o SAP, não o nome:
- * nomes são digitados de forma inconsistente, o SAP é a chave estável.
+ * Conjunto dos numeroSap dos clientes que exigem integração do motorista. O
+ * casamento com a entrega é pelo SAP Code (Entrega.sapcode), não pelo nome —
+ * o nome do cliente é digitado de forma inconsistente na entrega, enquanto o
+ * SAP Code é a chave estável que também identifica o cliente no cadastro
+ * (Cliente.numeroSap). Ver calcularIntegracaoExigida (alocacao/compatibilidade.ts).
  * Substitui a antiga lista fixa CLIENTES_COM_INTEGRACAO_OBRIGATORIA.
  */
-export async function buscarClientesQueExigemIntegracaoPorNome(): Promise<Map<string, string>> {
+export async function buscarNumerosSapQueExigemIntegracao(): Promise<Set<string>> {
   const clientes = await prisma.cliente.findMany({
     where: { deletadoEm: null, exigeIntegracao: true },
-    select: { nome: true, numeroSap: true },
+    select: { numeroSap: true },
   });
 
-  return new Map(clientes.map((cliente) => [cliente.nome.trim().toUpperCase(), cliente.numeroSap]));
+  return new Set(clientes.map((cliente) => cliente.numeroSap));
 }

@@ -45,7 +45,7 @@ export default async function ClientesPage() {
             <TableHeader className="bg-slate-50">
               <TableRow>
                 <TableHead className="font-semibold text-slate-700">Nome</TableHead>
-                <TableHead className="font-semibold text-slate-700">Número SAP</TableHead>
+                <TableHead className="font-semibold text-slate-700">SAP Code</TableHead>
                 <TableHead className="font-semibold text-slate-700">Exige integração</TableHead>
                 {podeGerenciar && <TableHead className="font-semibold text-slate-700 text-right">Ações</TableHead>}
               </TableRow>

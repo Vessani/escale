@@ -85,13 +85,16 @@ type ViagemComRelacionamentos = {
 type FormEditarViagemProps = {
   viagem: ViagemComRelacionamentos
   motoristas: MotoristaParaSelect[]
-  clientesQueExigemIntegracao: Array<[string, string]>
+  numerosSapQueExigemIntegracao: string[]
 }
 
-export default function FormEditarViagem({ viagem, motoristas, clientesQueExigemIntegracao }: FormEditarViagemProps) {
+export default function FormEditarViagem({ viagem, motoristas, numerosSapQueExigemIntegracao }: FormEditarViagemProps) {
   const router = useRouter()
   const [erroGlobal, setErroGlobal] = useState("")
-  const integracaoExigida = viagem.integracaoExigida ?? calcularIntegracaoExigida(viagem.entregas, new Map(clientesQueExigemIntegracao))
+  const integracaoExigida = viagem.integracaoExigida ?? calcularIntegracaoExigida(
+    viagem.entregas.map((entrega) => ({ sapcode: entrega.sapcode ?? "" })),
+    new Set(numerosSapQueExigemIntegracao),
+  )
   const statusInicial = normalizarStatusViagem(viagem.status)
   // "Hoje" do navegador — essa checagem é só um aviso na seleção manual (ver
   // texto de ajuda abaixo), não é reforçada no servidor, então não precisa

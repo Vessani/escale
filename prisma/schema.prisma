@@ -49,19 +49,20 @@
   // Cadastro global de clientes (compartilhado entre filiais — um cliente
   // como AMBEV pode ser atendido por mais de uma). exigeIntegracao substitui
   // a lista fixa que existia no código (CLIENTES_COM_INTEGRACAO_OBRIGATORIA em
-  // alocacao.service.ts): quando true, uma entrega pra esse cliente exige que
-  // o motorista tenha uma Integracao ativa e válida com o mesmo nome. Sem FK
-  // pra Entrega.cliente/Integracao.cliente de propósito — ambos continuam
-  // VarChar livres pra não quebrar histórico com nomes que não batem exatos;
-  // este cadastro só passa a ser a fonte de verdade nos formulários novos.
+  // alocacao.service.ts): quando true, uma entrega cujo SAP Code (Entrega.sapcode)
+  // bata com o numeroSap deste cliente exige que o motorista tenha uma
+  // Integracao ativa e válida com ele. Sem FK pra Entrega.sapcode/Integracao.cliente
+  // de propósito — ambos continuam VarChar livres; este cadastro só passa a
+  // ser a fonte de verdade nos formulários novos.
   model Cliente {
     id              Int       @id @default(autoincrement())
     nome            String    @db.VarChar(100)
-    // Identificador estável do SAP — substitui o nome como chave de
-    // correspondência de Integracao/Viagem.integracaoExigida (nomes são
-    // digitados de forma inconsistente). Sem @@unique aqui de propósito,
-    // mesmo padrão de Frota.(cavalo,carreta): a unicidade só vale entre
-    // clientes ativos, aplicada por índice único parcial na migration.
+    // SAP Code — identificador estável do cliente no SAP, usado como chave de
+    // correspondência com Entrega.sapcode pra decidir Viagem.integracaoExigida
+    // (o nome do cliente é digitado de forma inconsistente na entrega, o SAP
+    // Code não). Sem @@unique aqui de propósito, mesmo padrão de
+    // Frota.(cavalo,carreta): a unicidade só vale entre clientes ativos,
+    // aplicada por índice único parcial na migration.
     numeroSap       String    @db.VarChar(20)
     exigeIntegracao Boolean   @default(false)
 

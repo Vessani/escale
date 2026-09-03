@@ -23,7 +23,7 @@ import {
   atualizarSaidaRealService,
 } from "@/lib/services/viagem.service";
 import { buscarMotoristasParaSelect } from "@/lib/queries/motoristas";
-import { buscarClientesQueExigemIntegracaoPorNome } from "@/lib/queries/clientes";
+import { buscarNumerosSapQueExigemIntegracao } from "@/lib/queries/clientes";
 import {
   calcularAvisoInterjornada,
   calcularDiasDisponiveis,
@@ -68,9 +68,9 @@ export async function sugerirAlocacaoParaViagens(
 ): Promise<SugestaoAlocacaoPendente[]> {
   const { filialId } = await requireSessionComFilial();
 
-  const [motoristasBrutos, clientesQueExigemIntegracao] = await Promise.all([
+  const [motoristasBrutos, numerosSapQueExigemIntegracao] = await Promise.all([
     buscarMotoristasParaSelect(filialId),
-    buscarClientesQueExigemIntegracaoPorNome(),
+    buscarNumerosSapQueExigemIntegracao(),
   ]);
   const motoristas = motoristasBrutos.map((motorista) => ({
     ...motorista,
@@ -84,7 +84,7 @@ export async function sugerirAlocacaoParaViagens(
     diasViagem: viagem.diasViagem,
     inicioPrevisto: new Date(viagem.inicioPrevisto),
     fimPrevisto: new Date(viagem.fimPrevisto),
-    integracaoExigida: calcularIntegracaoExigida(viagem.entregas, clientesQueExigemIntegracao),
+    integracaoExigida: calcularIntegracaoExigida(viagem.entregas, numerosSapQueExigemIntegracao),
     produtoExigido: viagem.produto,
   }));
 

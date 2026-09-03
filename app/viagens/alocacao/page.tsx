@@ -3,7 +3,7 @@ import { getServerSession } from "next-auth"
 import { authOptions } from "@/lib/auth"
 import { buscarMotoristas } from "@/lib/queries/motoristas"
 import { buscarViagensSemMotorista } from "@/lib/queries/viagens"
-import { buscarClientesQueExigemIntegracaoPorNome } from "@/lib/queries/clientes"
+import { buscarNumerosSapQueExigemIntegracao } from "@/lib/queries/clientes"
 import type { ViagemAlocacao } from "@/lib/types/alocacao"
 import {
   calcularAvisoInterjornada,
@@ -28,7 +28,7 @@ function serializarViagens(
   viagensBrutas: ViagemBase[],
   motoristasBrutos: MotoristaBase[],
   hoje: Date,
-  clientesQueExigemIntegracao: Map<string, string>,
+  numerosSapQueExigemIntegracao: Set<string>,
 ): ViagemAlocacao[] {
   const viagensPendentes = viagensBrutas.filter((viagem) => viagem.motoristaId === null)
 
@@ -43,7 +43,7 @@ function serializarViagens(
     diasViagem: viagem.diasViagem,
     inicioPrevisto: new Date(viagem.inicioPrevisto),
     fimPrevisto: new Date(viagem.fimPrevisto),
-    integracaoExigida: viagem.integracaoExigida ?? calcularIntegracaoExigida(viagem.entregas, clientesQueExigemIntegracao),
+    integracaoExigida: viagem.integracaoExigida ?? calcularIntegracaoExigida(viagem.entregas, numerosSapQueExigemIntegracao),
     produtoExigido: viagem.produto,
   }))
 
@@ -68,7 +68,7 @@ function serializarViagens(
       turno: viagem.turno,
       produto: viagem.produto,
       motoristaId: viagem.motoristaId,
-      integracaoExigida: viagem.integracaoExigida ?? calcularIntegracaoExigida(viagem.entregas, clientesQueExigemIntegracao),
+      integracaoExigida: viagem.integracaoExigida ?? calcularIntegracaoExigida(viagem.entregas, numerosSapQueExigemIntegracao),
       entregas: viagem.entregas.map((entrega: EntregaBase) => ({
         id: entrega.id,
         dataEntrega: new Date(entrega.dataEntrega).toISOString(),
@@ -133,14 +133,14 @@ function serializarViagens(
 export default async function PaginaAlocacaoViagens() {
   const session = await getServerSession(authOptions)
   const filialId = session!.user.filialId!
-  const [viagensBrutas, motoristasBrutos, clientesQueExigemIntegracao] = await Promise.all([
+  const [viagensBrutas, motoristasBrutos, numerosSapQueExigemIntegracao] = await Promise.all([
     buscarViagensSemMotorista(filialId),
     buscarMotoristas(filialId),
-    buscarClientesQueExigemIntegracaoPorNome(),
+    buscarNumerosSapQueExigemIntegracao(),
   ])
 
   const hoje = inicioDoDia(new Date())
-  const viagens = serializarViagens(viagensBrutas, motoristasBrutos, hoje, clientesQueExigemIntegracao)
+  const viagens = serializarViagens(viagensBrutas, motoristasBrutos, hoje, numerosSapQueExigemIntegracao)
 
   return (
     <div className="space-y-6">

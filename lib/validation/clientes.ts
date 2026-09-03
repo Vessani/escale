@@ -5,9 +5,9 @@ export const clienteSchema = z.object({
   numeroSap: z
     .string()
     .trim()
-    .min(1, "Número SAP obrigatório")
+    .min(1, "SAP Code obrigatório")
     .max(20, "Máximo de 20 caracteres")
-    .regex(/^\d+$/, "Número SAP deve conter apenas dígitos"),
+    .regex(/^\d+$/, "SAP Code deve conter apenas dígitos"),
   exigeIntegracao: z.boolean(),
 })
 

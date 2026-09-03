@@ -24,7 +24,7 @@ vi.mock("@/lib/queries/motoristas", () => ({
 }))
 
 vi.mock("@/lib/queries/clientes", () => ({
-  buscarClientesQueExigemIntegracaoPorNome: vi.fn(),
+  buscarNumerosSapQueExigemIntegracao: vi.fn(),
 }))
 
 vi.mock("@/lib/services/folga.service", () => ({
@@ -39,7 +39,7 @@ vi.mock("@/lib/services/frota.service", () => ({
 
 import { prisma } from "@/lib/prisma"
 import { buscarMotoristasParaSelect } from "@/lib/queries/motoristas"
-import { buscarClientesQueExigemIntegracaoPorNome } from "@/lib/queries/clientes"
+import { buscarNumerosSapQueExigemIntegracao } from "@/lib/queries/clientes"
 import { reconciliarFolgaMotoristasNoDiaAtual } from "@/lib/services/folga.service"
 import { calcularAvisoFrotaIndisponivel, calcularAvisoFrotaProduto, sincronizarDisponibilidadeFrota } from "@/lib/services/frota.service"
 import {
@@ -141,8 +141,8 @@ describe("viagem.service", () => {
     // sobrescrito nos testes que se importam com o conteúdo exato.
     vi.mocked(prisma.viagem.findUniqueOrThrow).mockResolvedValue({} as never)
     // Mesmos clientes que antes viviam hardcoded em CLIENTES_COM_INTEGRACAO_OBRIGATORIA.
-    vi.mocked(buscarClientesQueExigemIntegracaoPorNome).mockResolvedValue(
-      new Map([["GEMP - AMBEV - BEBIDAS - N2L. (GRUPO AMB", "9981234"], ["WEG", "4521087"]]),
+    vi.mocked(buscarNumerosSapQueExigemIntegracao).mockResolvedValue(
+      new Set(["9981234", "4521087"]),
     )
   })
 
@@ -221,13 +221,12 @@ describe("viagem.service", () => {
 
       await criarViagemAvulsaService(
         FILIAL_ID,
-        // WEG (e não a variante do grupo AMBEV) porque só o nome dela é estável nos testes.
-        criarViagemInput({ entregas: [{ dataEntrega: new Date().toISOString(), cliente: "WEG", cidade: "SP", uf: "SP", kg: 1, m3: 1, obs: "", sapcode: "", codewhite: "" }] }),
+        criarViagemInput({ entregas: [{ dataEntrega: new Date().toISOString(), cliente: "WEG", cidade: "SP", uf: "SP", kg: 1, m3: 1, obs: "", sapcode: "4521087", codewhite: "" }] }),
         ATOR,
       )
 
       const dadosCriados = vi.mocked(tx.viagem.create).mock.calls[0][0].data
-      // Grava o numeroSap do cliente encontrado, não o nome — ver calcularIntegracaoExigida.
+      // Grava o SAP Code da entrega que bateu — ver calcularIntegracaoExigida.
       expect(dadosCriados.integracaoExigida).toBe("4521087")
     })
 

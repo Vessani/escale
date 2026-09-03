@@ -80,30 +80,25 @@ describe("alocacao.service", () => {
   })
 
   describe("calcularIntegracaoExigida", () => {
-    const CLIENTES_TESTE = new Map([
-      ["GEMP - AMBEV - BEBIDAS - N2L. (GRUPO AMB", "9981234"],
-      ["WEG", "4521087"],
-    ])
+    const SAP_CODES_TESTE = new Set(["9981234", "4521087"])
 
-    it("retorna null quando nenhum cliente exige integração", () => {
-      expect(calcularIntegracaoExigida([{ cliente: "Cliente Comum" }, { cliente: "Outro" }], CLIENTES_TESTE)).toBeNull()
+    it("retorna null quando nenhuma entrega tem SAP Code que exija integração", () => {
+      expect(calcularIntegracaoExigida([{ sapcode: "0" }, { sapcode: "OUTRO" }], SAP_CODES_TESTE)).toBeNull()
     })
 
-    it("detecta o cliente do grupo AMBEV e a WEG normalizando maiúsculas/espaços, retornando o numeroSap (não o nome)", () => {
-      expect(calcularIntegracaoExigida([{ cliente: "  gemp - ambev - bebidas - n2l. (grupo amb  " }], CLIENTES_TESTE)).toBe(
-        "9981234",
-      )
-      expect(calcularIntegracaoExigida([{ cliente: "weg" }], CLIENTES_TESTE)).toBe("4521087")
+    it("detecta o SAP Code da entrega que bate com o numeroSap de um cliente que exige integração, com espaços ao redor", () => {
+      expect(calcularIntegracaoExigida([{ sapcode: "  9981234  " }], SAP_CODES_TESTE)).toBe("9981234")
+      expect(calcularIntegracaoExigida([{ sapcode: "4521087" }], SAP_CODES_TESTE)).toBe("4521087")
     })
 
-    it("retorna o numeroSap do primeiro cliente da lista que exige integração", () => {
+    it("retorna o SAP Code da primeira entrega que bate com um cliente que exige integração", () => {
       const resultado = calcularIntegracaoExigida(
         [
-          { cliente: "Cliente Comum" },
-          { cliente: "weg" },
-          { cliente: "ambev" },
+          { sapcode: "0" },
+          { sapcode: "4521087" },
+          { sapcode: "9981234" },
         ],
-        CLIENTES_TESTE,
+        SAP_CODES_TESTE,
       )
       expect(resultado).toBe("4521087")
     })

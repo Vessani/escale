@@ -30,23 +30,23 @@ export function calcularDiasDisponiveis(diasTrabalhados: number) {
 }
 
 /**
- * `clientesQueExigemIntegracao` mapeia nome normalizado (trim + maiúsculas)
- * → número SAP — ver buscarClientesQueExigemIntegracaoPorNome
+ * `numerosSapQueExigemIntegracao` é o conjunto de numeroSap dos clientes com
+ * exigeIntegracao: true — ver buscarNumerosSapQueExigemIntegracao
  * (lib/queries/clientes.ts), que substituiu a antiga lista fixa no código.
- * O casamento com a entrega continua sendo pelo nome digitado (Entrega.cliente
- * é texto livre, sem outro jeito de casar), mas o valor retornado — e gravado
- * em Viagem.integracaoExigida — é o SAP do cliente encontrado, não o nome:
- * nomes são digitados de forma inconsistente, o SAP é a chave estável.
+ * O casamento com a entrega é pelo SAP Code (Entrega.sapcode), não pelo nome
+ * do cliente: o nome é digitado de forma inconsistente, o SAP Code é a chave
+ * estável que também identifica o cliente no cadastro (Cliente.numeroSap).
+ * O valor retornado — gravado em Viagem.integracaoExigida — é o próprio SAP
+ * Code encontrado.
  */
 export function calcularIntegracaoExigida(
-  entregas: Array<{ cliente: string }>,
-  clientesQueExigemIntegracao: Map<string, string>,
+  entregas: Array<{ sapcode: string }>,
+  numerosSapQueExigemIntegracao: Set<string>,
 ) {
   for (const entrega of entregas) {
-    const clienteNormalizado = normalizarCliente(entrega.cliente)
-    const numeroSap = clientesQueExigemIntegracao.get(clienteNormalizado)
-    if (numeroSap !== undefined) {
-      return numeroSap
+    const sapCode = entrega.sapcode.trim()
+    if (sapCode && numerosSapQueExigemIntegracao.has(sapCode)) {
+      return sapCode
     }
   }
 

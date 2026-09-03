@@ -10,7 +10,7 @@ vi.mock("@/lib/prisma", () => ({
 }))
 
 import { prisma } from "@/lib/prisma"
-import { buscarClientes, buscarClientePorId, buscarClientesQueExigemIntegracaoPorNome } from "@/lib/queries/clientes"
+import { buscarClientes, buscarClientePorId, buscarNumerosSapQueExigemIntegracao } from "@/lib/queries/clientes"
 
 describe("lib/queries/clientes", () => {
   beforeEach(() => {
@@ -36,25 +36,25 @@ describe("lib/queries/clientes", () => {
     expect(prisma.cliente.findFirst).toHaveBeenCalledWith({ where: { id: 9, deletadoEm: null } })
   })
 
-  it("buscarClientesQueExigemIntegracaoPorNome normaliza nome (trim + maiúsculas), mapeia pro numeroSap e filtra só exigeIntegracao: true", async () => {
+  it("buscarNumerosSapQueExigemIntegracao retorna o conjunto de numeroSap dos clientes que exigem integração, filtrando só exigeIntegracao: true", async () => {
     vi.mocked(prisma.cliente.findMany).mockResolvedValue([
-      { nome: "  weg  ", numeroSap: "4521087" },
-      { nome: "Gemp - Ambev", numeroSap: "9981234" },
+      { numeroSap: "4521087" },
+      { numeroSap: "9981234" },
     ] as never)
 
-    const resultado = await buscarClientesQueExigemIntegracaoPorNome()
+    const resultado = await buscarNumerosSapQueExigemIntegracao()
 
     expect(prisma.cliente.findMany).toHaveBeenCalledWith({
       where: { deletadoEm: null, exigeIntegracao: true },
-      select: { nome: true, numeroSap: true },
+      select: { numeroSap: true },
     })
-    expect(resultado).toEqual(new Map([["WEG", "4521087"], ["GEMP - AMBEV", "9981234"]]))
+    expect(resultado).toEqual(new Set(["4521087", "9981234"]))
   })
 
-  it("buscarClientesQueExigemIntegracaoPorNome retorna um Map vazio quando nenhum cliente exige integração", async () => {
+  it("buscarNumerosSapQueExigemIntegracao retorna um Set vazio quando nenhum cliente exige integração", async () => {
     vi.mocked(prisma.cliente.findMany).mockResolvedValue([] as never)
 
-    const resultado = await buscarClientesQueExigemIntegracaoPorNome()
+    const resultado = await buscarNumerosSapQueExigemIntegracao()
 
     expect(resultado.size).toBe(0)
   })

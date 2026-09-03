@@ -2,7 +2,7 @@ import { getServerSession } from "next-auth"
 import { authOptions } from "@/lib/auth"
 import { buscarViagemPorId } from "@/lib/queries/viagens"
 import { buscarMotoristasParaSelect } from "@/lib/queries/motoristas"
-import { buscarClientesQueExigemIntegracaoPorNome } from "@/lib/queries/clientes"
+import { buscarNumerosSapQueExigemIntegracao } from "@/lib/queries/clientes"
 import { buscarHistoricoDaEntidade } from "@/lib/queries/auditoria"
 import { motoristaEstaDisponivelNoPeriodo } from "@/lib/services/alocacao.service"
 import { notFound } from "next/navigation"
@@ -30,9 +30,9 @@ export default async function EditarViagemPage({ params }: { params: Promise<{ i
     notFound()
   }
 
-  const [motoristas, clientesQueExigemIntegracao, historico] = await Promise.all([
+  const [motoristas, numerosSapQueExigemIntegracao, historico] = await Promise.all([
     buscarMotoristasParaSelect(filialId),
-    buscarClientesQueExigemIntegracaoPorNome(),
+    buscarNumerosSapQueExigemIntegracao(),
     buscarHistoricoDaEntidade("Viagem", viagem.id),
   ])
   const hoje = new Date()
@@ -79,7 +79,7 @@ export default async function EditarViagemPage({ params }: { params: Promise<{ i
         key={viagem.id}
         viagem={viagemSerializada}
         motoristas={motoristasSerializados}
-        clientesQueExigemIntegracao={[...clientesQueExigemIntegracao.entries()]}
+        numerosSapQueExigemIntegracao={[...numerosSapQueExigemIntegracao]}
       />
 
       <HistoricoCard registros={serializeData(historico)} />

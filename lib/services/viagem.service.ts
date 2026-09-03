@@ -1,7 +1,7 @@
 import { prisma } from "@/lib/prisma";
 import { NovaViagemInput, EditarViagemInput } from "@/lib/types/types";
 import { buscarMotoristasParaSelect } from "@/lib/queries/motoristas";
-import { buscarClientesQueExigemIntegracaoPorNome } from "@/lib/queries/clientes";
+import { buscarNumerosSapQueExigemIntegracao } from "@/lib/queries/clientes";
 import {
   calcularAvisoInterjornada,
   calcularIntegracaoExigida,
@@ -172,8 +172,8 @@ async function inserirViagem(
 
 export async function criarViagemAvulsaService(filialId: number, dadosRecebidos: NovaViagemInput, ator: Ator | null) {
   const dados = converterNovaViagemParaBD(dadosRecebidos);
-  const clientesQueExigemIntegracao = await buscarClientesQueExigemIntegracaoPorNome();
-  const integracaoNecessaria = calcularIntegracaoExigida(dados.entregas, clientesQueExigemIntegracao);
+  const numerosSapQueExigemIntegracao = await buscarNumerosSapQueExigemIntegracao();
+  const integracaoNecessaria = calcularIntegracaoExigida(dados.entregas, numerosSapQueExigemIntegracao);
   const inicioPrevisto = dados.inicioPrevisto as Date;
   const fimPrevisto = dados.fimPrevisto as Date;
 
@@ -212,8 +212,8 @@ export async function criarViagemAvulsaService(filialId: number, dadosRecebidos:
  */
 export async function criarViagemComAlocacaoService(filialId: number, dadosRecebidos: NovaViagemInput, motoristaId: number | null, ator: Ator | null) {
   const dados = converterNovaViagemParaBD(dadosRecebidos);
-  const clientesQueExigemIntegracao = await buscarClientesQueExigemIntegracaoPorNome();
-  const integracaoNecessaria = calcularIntegracaoExigida(dados.entregas, clientesQueExigemIntegracao);
+  const numerosSapQueExigemIntegracao = await buscarNumerosSapQueExigemIntegracao();
+  const integracaoNecessaria = calcularIntegracaoExigida(dados.entregas, numerosSapQueExigemIntegracao);
   const avisoInterjornada = await calcularAvisoInterjornadaPorId(filialId, motoristaId, dados.inicioPrevisto as Date);
 
   return inserirViagem(filialId, dados, integracaoNecessaria, motoristaId, dados.status, avisoInterjornada, ator);
@@ -222,8 +222,8 @@ export async function criarViagemComAlocacaoService(filialId: number, dadosReceb
 
 export async function editarViagemService(filialId: number, idViagem: number, dadosRecebidos: EditarViagemInput, ator: Ator | null) {
   const dados = converterEditarViagemParaBD(dadosRecebidos);
-  const clientesQueExigemIntegracao = await buscarClientesQueExigemIntegracaoPorNome();
-  const integracaoNecessaria = calcularIntegracaoExigida(dados.entregas, clientesQueExigemIntegracao);
+  const numerosSapQueExigemIntegracao = await buscarNumerosSapQueExigemIntegracao();
+  const integracaoNecessaria = calcularIntegracaoExigida(dados.entregas, numerosSapQueExigemIntegracao);
 
   const entregasExistentes = dados.entregas.filter(e => e.id);
   const entregasNovas = dados.entregas.filter(e => !e.id);
