@@ -1,5 +1,6 @@
 import { describe, expect, it, vi, beforeEach } from "vitest"
 import type { EditarViagemInput, NovaViagemInput } from "@/lib/types/types"
+import { dataParaColunaDate, inicioDoDia } from "@/lib/utils/date-format"
 
 vi.mock("@/lib/prisma", () => ({
   prisma: {
@@ -118,9 +119,17 @@ function criarMotoristaParaSelect(parcial: Record<string, unknown> = {}) {
  * formato que buscarMotoristasParaSelect traz hoje) — usado pra testar o
  * aviso de interjornada a partir de encontrarFimJornadaAnterior, em vez do
  * agregado jornadaRelatorioFim (ver a correção de interjornada).
+ *
+ * `data` precisa ser o valor bruto de uma coluna `@db.Date` (meia-noite UTC
+ * do dia calendário, sem hora) — como registrarJornadaNoDia sempre grava —
+ * porque esse mock passa por mapearRegistrosJornada dentro do service, que
+ * aplica colunaDateParaLocal esperando exatamente esse formato. Usar `fim`
+ * puro (com hora) aqui já causou um teste flaky: nas últimas 3h do dia em
+ * Brasília, o dia em UTC já virou amanhã, e colunaDateParaLocal lia o
+ * registro como sendo do dia seguinte, distorcendo a jornada projetada.
  */
 function comFimJornadaAnterior(fim: Date) {
-  return [{ data: fim, codigo: 1, fimJornada: fim }]
+  return [{ data: dataParaColunaDate(inicioDoDia(fim)), codigo: 1, fimJornada: fim }]
 }
 
 describe("viagem.service", () => {
