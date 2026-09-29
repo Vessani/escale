@@ -1,4 +1,4 @@
-import { encontrarFimJornadaAnterior } from "../jornada.service"
+import { encontrarFimJornadaAnterior, projetarCodigoNoDia } from "../jornada.service"
 import { calcularDiasDisponiveis, codigoJornadaNaViagem, MAX_DIAS_CONSECUTIVOS, motoristaEhCompativel } from "./compatibilidade"
 import { MINIMO_HORAS_ENTRE_FOLGAS, MINIMO_HORAS_ENTRE_JORNADAS } from "./disponibilidade"
 import type { ContextoCompatibilidade, MotoristaParaAlocacao } from "./tipos"
@@ -31,6 +31,30 @@ export function calcularProximoInicioDisponivel(
   const horasDescanso = ehSextoDia ? MINIMO_HORAS_ENTRE_FOLGAS : MINIMO_HORAS_ENTRE_JORNADAS
 
   return new Date(fim.getTime() + horasDescanso * 60 * 60 * 1000)
+}
+
+export function motoristaChegaATempo<T extends MotoristaParaAlocacao>(
+  motorista: T,
+  contexto: ContextoCompatibilidade,
+): boolean {
+  const fimUltimaJornada = encontrarFimJornadaAnterior(motorista.registrosJornada, contexto.dataInicioViagem)
+  if (!fimUltimaJornada) {
+    return true
+  }
+
+  const codigoNoDiaDaUltimaJornada = projetarCodigoNoDia(
+    motorista.registrosJornada,
+    fimUltimaJornada,
+    contexto.hoje,
+    motorista.diasTrabalhados,
+  )
+  const proximoInicioDisponivel = calcularProximoInicioDisponivel(
+    fimUltimaJornada,
+    codigoNoDiaDaUltimaJornada,
+  )
+  const horarioIdeal = calcularHorarioIdealChegada(contexto.dataInicioViagem)
+
+  return proximoInicioDisponivel === null || proximoInicioDisponivel <= horarioIdeal
 }
 
 /**
@@ -85,18 +109,29 @@ export function filtrarMotoristasCompativeis<T extends MotoristaParaAlocacao>(
   return motoristas
     .filter((motorista) => motoristaEhCompativel(motorista, contexto))
     .sort((a, b) => {
+      const fimJornadaA = encontrarFimJornadaAnterior(a.registrosJornada, contexto.dataInicioViagem)
+      const fimJornadaB = encontrarFimJornadaAnterior(b.registrosJornada, contexto.dataInicioViagem)
+
+      const codigoUltimaJornadaA = fimJornadaA
+        ? projetarCodigoNoDia(a.registrosJornada, fimJornadaA, contexto.hoje, a.diasTrabalhados)
+        : a.diasTrabalhados
+      const codigoUltimaJornadaB = fimJornadaB
+        ? projetarCodigoNoDia(b.registrosJornada, fimJornadaB, contexto.hoje, b.diasTrabalhados)
+        : b.diasTrabalhados
+
+      const chegaATempoA = motoristaChegaATempo(a, contexto) ? 0 : 1
+      const chegaATempoB = motoristaChegaATempo(b, contexto) ? 0 : 1
+
+      if (chegaATempoA !== chegaATempoB) {
+        return chegaATempoA - chegaATempoB
+      }
+
       const folgaA = calcularFolgaAteIdeal(
-        calcularProximoInicioDisponivel(
-          encontrarFimJornadaAnterior(a.registrosJornada, contexto.dataInicioViagem),
-          a.diasTrabalhados,
-        ),
+        calcularProximoInicioDisponivel(fimJornadaA, codigoUltimaJornadaA),
         horarioIdeal,
       )
       const folgaB = calcularFolgaAteIdeal(
-        calcularProximoInicioDisponivel(
-          encontrarFimJornadaAnterior(b.registrosJornada, contexto.dataInicioViagem),
-          b.diasTrabalhados,
-        ),
+        calcularProximoInicioDisponivel(fimJornadaB, codigoUltimaJornadaB),
         horarioIdeal,
       )
 

@@ -8,6 +8,7 @@ import {
   calcularIntegracaoExigida,
   calcularProximoInicioDisponivel,
   filtrarMotoristasCompativeis,
+  motoristaChegaATempo,
   filtrarMotoristasDisponiveisNoPeriodo,
   motoristaEhCompativel,
   motoristaEstaDisponivelNoPeriodo,
@@ -577,6 +578,43 @@ describe("alocacao.service", () => {
       const resultado = filtrarMotoristasCompativeis([viola, respeita], contexto)
 
       expect(resultado.map((m) => m.id)).toEqual([1, 2])
+    })
+
+    it("prioriza motoristas que chegam 1h antes do início da viagem e usa o código projetado da última jornada para o descanso de 35h", () => {
+      const hoje = new Date("2026-10-10T00:00:00-03:00")
+      const consegueChegar = criarMotorista({
+        id: 1,
+        nome: "Chega",
+        diasTrabalhados: 3,
+        registrosJornada: [{ data: new Date("2026-10-10T00:00:00-03:00"), codigo: 1, fimJornada: new Date("2026-10-10T17:00:00-03:00") }],
+      })
+      const naoChega = criarMotorista({
+        id: 2,
+        nome: "Não Chega",
+        diasTrabalhados: 3,
+        registrosJornada: [{ data: new Date("2026-10-10T00:00:00-03:00"), codigo: 1, fimJornada: new Date("2026-10-10T20:00:00-03:00") }],
+      })
+      const noSextoDia = criarMotorista({
+        id: 3,
+        nome: "Sexto",
+        diasTrabalhados: 3,
+        registrosJornada: [{ data: new Date("2026-10-09T00:00:00-03:00"), codigo: 6, fimJornada: new Date("2026-10-09T20:00:00-03:00") }],
+      })
+
+      const contextoViagem = {
+        turnoViagem: "MANHA" as Turno,
+        diasViagem: 1,
+        dataInicioViagem: new Date("2026-10-11T05:30:00-03:00"),
+        integracaoExigida: null,
+        hoje,
+      }
+
+      expect(motoristaChegaATempo(consegueChegar, contextoViagem)).toBe(true)
+      expect(motoristaChegaATempo(naoChega, contextoViagem)).toBe(false)
+      expect(motoristaChegaATempo(noSextoDia, contextoViagem)).toBe(false)
+
+      const resultado = filtrarMotoristasCompativeis([naoChega, noSextoDia, consegueChegar], contextoViagem)
+      expect(resultado.map((m) => m.id)).toEqual([1, 3, 2])
     })
   })
 
