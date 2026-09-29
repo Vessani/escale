@@ -44,6 +44,8 @@ export type ContextoCompatibilidade = {
   turnoViagem: Turno
   diasViagem: number
   dataInicioViagem: Date
+  /** Fim real da viagem (ou a estimativa de fim quando a viagem ainda não foi gravada). Usa-se o instante exato para evitar invadir a folga no 7º dia pela data de calendário correta. */
+  fimViagem?: Date
   integracaoExigida: string | null
   /**
    * Opcional de propósito: `undefined`/`null` (viagem sem produto definido —

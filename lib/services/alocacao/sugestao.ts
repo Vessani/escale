@@ -60,6 +60,7 @@ export function sugerirAlocacoesEmLote(
       turnoViagem: viagem.turno,
       diasViagem: viagem.diasViagem,
       dataInicioViagem: viagem.inicioPrevisto,
+      fimViagem: viagem.fimPrevisto,
       integracaoExigida: viagem.integracaoExigida,
       produtoExigido: viagem.produtoExigido,
       hoje,

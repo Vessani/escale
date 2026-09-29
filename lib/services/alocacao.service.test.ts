@@ -290,6 +290,33 @@ describe("alocacao.service", () => {
       ).toBe(true) // registro explícito de volta ao trabalho
     })
 
+    it("usa o fim real da viagem para bloquear a invasão da folga ao cruzar para o dia seguinte", () => {
+      const motoristaNoSextoDia = criarMotorista({ diasTrabalhados: 6 })
+      const hojeBrasilia = new Date("2026-07-08T00:00:00-03:00")
+
+      expect(
+        motoristaEhCompativel(motoristaNoSextoDia, {
+          turnoViagem: "MANHA",
+          diasViagem: 1,
+          dataInicioViagem: new Date("2026-07-08T20:00:00-03:00"),
+          fimViagem: new Date("2026-07-09T02:00:00-03:00"),
+          integracaoExigida: null,
+          hoje: hojeBrasilia,
+        }),
+      ).toBe(false)
+
+      expect(
+        motoristaEhCompativel(motoristaNoSextoDia, {
+          turnoViagem: "MANHA",
+          diasViagem: 1,
+          dataInicioViagem: new Date("2026-07-08T08:00:00-03:00"),
+          fimViagem: new Date("2026-07-08T20:00:00-03:00"),
+          integracaoExigida: null,
+          hoje: hojeBrasilia,
+        }),
+      ).toBe(true)
+    })
+
     it("libera quando a viagem não exige integração", () => {
       const motorista = criarMotorista({ diasTrabalhados: 1 })
       expect(
@@ -844,23 +871,23 @@ describe("alocacao.service", () => {
     it("não repete o mesmo motorista em duas viagens do lote com período sobreposto", () => {
       const maisDisponivel = comAgenda({ id: 1, nome: "Ana", diasTrabalhados: 1 }) // 5 disponíveis
       const menosDisponivel = comAgenda({ id: 2, nome: "Bruno", diasTrabalhados: 3 }) // 3 disponíveis
-      const hoje = new Date("2026-07-04T00:00:00")
+      const hoje = new Date("2026-07-04T00:00:00-03:00")
 
       const viagens = [
         {
           id: 10,
           turno: "MANHA" as Turno,
           diasViagem: 2,
-          inicioPrevisto: new Date("2026-07-04T08:00:00"),
-          fimPrevisto: new Date("2026-07-06T08:00:00"),
+          inicioPrevisto: new Date("2026-07-04T08:00:00-03:00"),
+          fimPrevisto: new Date("2026-07-06T08:00:00-03:00"),
           integracaoExigida: null,
         },
         {
           id: 11,
           turno: "MANHA" as Turno,
           diasViagem: 2,
-          inicioPrevisto: new Date("2026-07-05T08:00:00"), // sobrepõe a viagem 10
-          fimPrevisto: new Date("2026-07-07T08:00:00"),
+          inicioPrevisto: new Date("2026-07-05T08:00:00-03:00"), // sobrepõe a viagem 10
+          fimPrevisto: new Date("2026-07-07T08:00:00-03:00"),
           integracaoExigida: null,
         },
       ]
