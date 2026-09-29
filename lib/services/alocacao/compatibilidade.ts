@@ -1,4 +1,5 @@
 import { TipoProduto } from "@prisma/client"
+import { colunaDateParaLocal, fimDoDia } from "@/lib/utils/date-format"
 import { projetarCodigoNoDia } from "../jornada.service"
 import type { ContextoCompatibilidade, MotoristaParaAlocacao } from "./tipos"
 
@@ -61,10 +62,13 @@ function temIntegracaoValida(
   const clienteNormalizado = normalizarCliente(cliente)
 
   return motorista.integracao.some((integracao) => {
+    const validade = new Date(integracao.dataValidade)
+    const fimValidadeBrasilia = fimDoDia(colunaDateParaLocal(validade))
+
     return (
       normalizarCliente(integracao.cliente) === clienteNormalizado &&
       integracao.status === "ATIVO" &&
-      new Date(integracao.dataValidade) >= dataInicioViagem
+      fimValidadeBrasilia >= dataInicioViagem
     )
   })
 }

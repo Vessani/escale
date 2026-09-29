@@ -363,6 +363,33 @@ describe("alocacao.service", () => {
         }),
       ).toBe(true)
     })
+
+    it("vigora até o fim do dia de Brasília da validade da integração", () => {
+      const motorista = criarMotorista({
+        diasTrabalhados: 1,
+        integracao: [{ cliente: "AMBEV", status: "ATIVO", dataValidade: new Date("2026-07-10T00:00:00Z") }],
+      })
+
+      expect(
+        motoristaEhCompativel(motorista, {
+          turnoViagem: "MANHA",
+          diasViagem: 1,
+          dataInicioViagem: new Date("2026-07-10T08:00:00-03:00"),
+          integracaoExigida: "AMBEV",
+          hoje,
+        }),
+      ).toBe(true)
+
+      expect(
+        motoristaEhCompativel(motorista, {
+          turnoViagem: "MANHA",
+          diasViagem: 1,
+          dataInicioViagem: new Date("2026-07-11T08:00:00-03:00"),
+          integracaoExigida: "AMBEV",
+          hoje,
+        }),
+      ).toBe(false)
+    })
   })
 
   describe("motoristaEhCompativel — produto", () => {
