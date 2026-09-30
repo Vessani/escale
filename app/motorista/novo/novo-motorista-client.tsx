@@ -41,7 +41,7 @@ export default function NovoMotoristaClient({ clientes }: Props) {
             <ArrowLeft className="w-5 h-5" />
           </Button>
           <div>
-            <h1 className="text-3xl font-bold tracking-tight text-foreground">Novo Motorista</h1>
+            <h1 className="text-2xl font-semibold tracking-tight text-foreground">Novo Motorista</h1>
             <p className="text-muted-foreground mt-1">Insira as informações operacionais do condutor.</p>
           </div>
         </div>

@@ -146,9 +146,9 @@ export default async function PaginaAlocacaoViagens() {
     <div className="space-y-6">
       <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight text-foreground">Alocação de Viagens</h1>
+          <h1 className="text-2xl font-semibold tracking-tight text-foreground">Alocação de Viagens</h1>
           <p className="mt-1 text-muted-foreground">
-            Cruze viagens pendentes com motoristas compatíveis e ajuste manualmente quando precisar.
+            Viagens pendentes e os motoristas compatíveis com cada uma.
           </p>
         </div>
 

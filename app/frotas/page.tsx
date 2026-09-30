@@ -110,7 +110,7 @@ export default async function FrotasPage() {
     <div className="space-y-6">
       <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight text-foreground">Frotas</h1>
+          <h1 className="text-2xl font-semibold tracking-tight text-foreground">Frotas</h1>
           <p className="text-muted-foreground mt-1">
             Cadastro dos conjuntos (cavalo/carreta) e a disponibilidade de cada um.
           </p>

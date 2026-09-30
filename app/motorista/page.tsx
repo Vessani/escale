@@ -67,9 +67,9 @@ export default async function MotoristasPage({
     <div className="space-y-6">
       <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight text-foreground">Calendário de Motoristas</h1>
+          <h1 className="text-2xl font-semibold tracking-tight text-foreground">Calendário de Motoristas</h1>
           <p className="text-muted-foreground mt-1">
-            Motoristas em linha e dias em colunas, a partir de hoje ({formatarIntervaloDias(inicioJanela, dias[dias.length - 1])}).
+            Jornada e viagens por dia ({formatarIntervaloDias(inicioJanela, dias[dias.length - 1])}).
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-2">

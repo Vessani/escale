@@ -64,9 +64,9 @@ export default async function HistoricoPage({
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-3xl font-bold tracking-tight text-foreground">Histórico</h1>
+        <h1 className="text-2xl font-semibold tracking-tight text-foreground">Histórico</h1>
         <p className="text-muted-foreground mt-1">
-          Tudo que mudou (viagens, motoristas, frotas, clientes, quadro de recados...) num período — quem mudou e o quê.
+          Quem mudou o quê (viagens, motoristas, frotas, clientes...) no período.
         </p>
       </div>
 

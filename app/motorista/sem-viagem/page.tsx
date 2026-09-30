@@ -34,9 +34,9 @@ export default async function MotoristasSemViagemPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-3xl font-bold tracking-tight text-foreground">Motoristas Sem Viagem Hoje</h1>
+        <h1 className="text-2xl font-semibold tracking-tight text-foreground">Motoristas Sem Viagem Hoje</h1>
         <p className="text-muted-foreground mt-1">
-          {motoristasComAcao.length} de {totalMotoristas} motoristas cadastrados estão sem viagem hoje — confira a ação sugerida pra cada um.
+          {motoristasComAcao.length} de {totalMotoristas} motoristas sem viagem hoje, com a ação sugerida.
         </p>
       </div>
 

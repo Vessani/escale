@@ -79,11 +79,12 @@ export default function ImportarJornadaPage() {
           <ArrowLeft className="w-5 h-5" />
         </Button>
         <div>
-          <h1 className="text-3xl font-bold tracking-tight text-foreground">Importar Relatório de Jornada</h1>
-          <p className="text-muted-foreground mt-1">
-            Sobe o Relatório Sintético de Jornada do dia — atualiza o dia de trabalho de cada motorista (coluna &quot;Dias
-            Sem Folga&quot;) e o horário habitual de jornada, por matrícula. Motoristas em Férias/Exames/Interno não têm o
-            dia sobrescrito.
+          <h1 className="text-2xl font-semibold tracking-tight text-foreground">Importar Relatório de Jornada</h1>
+          <p
+            className="text-muted-foreground mt-1"
+            title='Sobe o Relatório Sintético de Jornada do dia — atualiza o dia de trabalho de cada motorista (coluna "Dias Sem Folga") e o horário habitual de jornada, por matrícula. Motoristas em Férias/Exames/Interno não têm o dia sobrescrito.'
+          >
+            Atualiza o dia de trabalho e o horário de jornada, por matrícula.
           </p>
         </div>
       </div>

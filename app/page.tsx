@@ -274,7 +274,7 @@ export default async function DashboardPage({
     <div className="space-y-6">
       <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight text-foreground">Dashboard</h1>
+          <h1 className="text-2xl font-semibold tracking-tight text-foreground">Dashboard</h1>
           <p className="text-muted-foreground mt-1">
             Quadro digital da operação: viagens do dia selecionado em qualquer status, mais Retornando de dias anteriores e Canceladas só até a virada do dia.
             {vendoOutroDia && " Status mostrado é o atual da viagem, não uma foto de como estava naquele dia — pra ver a mudança em si, use o Histórico."}

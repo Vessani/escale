@@ -219,8 +219,8 @@ export default async function ViagensPage({
     <div className="space-y-6">
       <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight text-foreground">Gestão de Viagens</h1>
-          <p className="text-muted-foreground mt-1">Use os filtros para acompanhar viagens por status e gerenciar as ações.</p>
+          <h1 className="text-2xl font-semibold tracking-tight text-foreground">Gestão de Viagens</h1>
+          <p className="text-muted-foreground mt-1">Acompanhe e gerencie as viagens por status.</p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
           <Link href="/viagens">

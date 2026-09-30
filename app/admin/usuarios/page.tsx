@@ -12,8 +12,8 @@ export default async function UsuariosPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-3xl font-bold tracking-tight text-foreground">Usuários</h1>
-        <p className="text-muted-foreground mt-1">Cada usuário pertence a uma filial (exceto Superadmin) e só vê os dados dela.</p>
+        <h1 className="text-2xl font-semibold tracking-tight text-foreground">Usuários</h1>
+        <p className="text-muted-foreground mt-1" title="Cada usuário pertence a uma filial (exceto Superadmin) e só vê os dados dela.">Cada usuário só vê os dados da própria filial.</p>
       </div>
 
       <CriarUsuarioForm filiais={filiais} />

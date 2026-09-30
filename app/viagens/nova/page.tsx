@@ -106,7 +106,7 @@ export default function NovaViagemPage() {
   return (
     <div className="max-w-5xl mx-auto space-y-6 pb-20">
       <div className="flex items-center justify-between">
-        <h1 className="text-3xl font-bold tracking-tight text-foreground">Nova Viagem</h1>
+        <h1 className="text-2xl font-semibold tracking-tight text-foreground">Nova Viagem</h1>
         <Button variant="outline" type="button" onClick={() => router.back()}>Cancelar</Button>
       </div>
 

@@ -17,9 +17,12 @@ export default async function ClientesPage() {
     <div className="space-y-6">
       <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight text-foreground">Clientes</h1>
-          <p className="text-muted-foreground mt-1">
-            Nomes usados nas entregas da viagem e nas integrações do motorista. Marcar &quot;Exige integração&quot; passa a cobrar integração ativa em qualquer viagem pra esse cliente.
+          <h1 className="text-2xl font-semibold tracking-tight text-foreground">Clientes</h1>
+          <p
+            className="text-muted-foreground mt-1"
+            title="Nomes usados nas entregas da viagem e nas integrações do motorista. Marcar &quot;Exige integração&quot; passa a cobrar integração ativa em qualquer viagem pra esse cliente."
+          >
+            Clientes das entregas e exigência de integração.
           </p>
         </div>
         {podeGerenciar && (

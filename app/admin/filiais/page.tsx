@@ -12,8 +12,8 @@ export default async function FiliaisPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-3xl font-bold tracking-tight text-foreground">Filiais</h1>
-        <p className="text-muted-foreground mt-1">Cada filial opera isolada — motoristas, viagens e frotas não são compartilhados entre elas.</p>
+        <h1 className="text-2xl font-semibold tracking-tight text-foreground">Filiais</h1>
+        <p className="text-muted-foreground mt-1" title="Motoristas, viagens e frotas não são compartilhados entre filiais.">Cada filial opera isolada, sem dados compartilhados.</p>
       </div>
 
       <CriarFilialForm />

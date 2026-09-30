@@ -47,7 +47,7 @@ export default async function EditarMotoristaPage({ params }: { params: Promise<
   return (
     <div className="max-w-2xl mx-auto space-y-6 pb-20">
       <div>
-        <h1 className="text-3xl font-bold tracking-tight text-foreground">Editar Motorista</h1>
+        <h1 className="text-2xl font-semibold tracking-tight text-foreground">Editar Motorista</h1>
         <p className="text-muted-foreground mt-1">Atualize os dados operacionais do condutor.</p>
       </div>
       <FormEditarMotorista key={motorista.id} motorista={motoristaSerializado} clientes={clientes} />

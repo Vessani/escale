@@ -25,6 +25,7 @@ import {
 import { Session } from "next-auth"
 import { Dialog } from "radix-ui"
 import TrocarSenhaDialog from "@/components/usuario/trocar-senha-dialog"
+import { LogoEscale } from "@/components/layout/logo-escale"
 
 const CHAVE_SIDEBAR_COLAPSADA = "escalador:sidebar-colapsada"
 
@@ -99,17 +100,20 @@ function LinksDoMenu({
             onClick={aoNavegar}
             aria-current={isActive ? "page" : undefined}
             title={colapsado ? item.label : undefined}
-            className={`flex items-center rounded-lg transition-colors group ${
+            className={`relative flex items-center rounded-lg transition-colors group ${
               colapsado ? "justify-center px-2 py-2" : "px-3 py-2"
             } ${
               isActive
-                ? "bg-blue-600/10 text-blue-400 font-medium"
-                : "hover:bg-slate-800 hover:text-white"
+                ? "bg-white/10 text-white font-medium"
+                : "hover:bg-white/5 hover:text-white"
             }`}
           >
+            {isActive && (
+              <span aria-hidden="true" className="absolute left-0 top-1.5 bottom-1.5 w-0.75 rounded-full bg-primary" />
+            )}
             <Icon
               aria-hidden="true"
-              className={`w-5 h-5 shrink-0 ${colapsado ? "" : "mr-3"} ${isActive ? "text-blue-500" : "text-slate-400 group-hover:text-slate-300"}`}
+              className={`w-5 h-5 shrink-0 ${colapsado ? "" : "mr-3"} ${isActive ? "text-white" : "text-slate-400 group-hover:text-slate-300"}`}
             />
             <span className={colapsado ? "sr-only" : ""}>{item.label}</span>
           </Link>
@@ -124,7 +128,7 @@ function PainelUsuario({ usuario, colapsado = false }: { usuario: Session["user"
     <div className="p-2.5 bg-slate-950/50 border-t border-slate-800">
       <div className={`flex items-center ${colapsado ? "justify-center" : "mb-2.5"}`}>
         <div
-          className="w-10 h-10 rounded-full bg-blue-600 flex items-center justify-center text-white font-bold uppercase shrink-0"
+          className="w-10 h-10 rounded-full bg-primary flex items-center justify-center text-primary-foreground font-bold uppercase shrink-0"
           title={colapsado ? usuario?.name ?? undefined : undefined}
         >
           {usuario?.name?.charAt(0) || "U"}
@@ -205,9 +209,8 @@ export function LayoutWrapper({
           animarColapso ? "transition-[width] duration-200" : ""
         } ${colapsada ? "w-16" : "w-64"}`}
       >
-        <div className="h-16 flex items-center px-4 bg-slate-950/50 text-white font-bold text-lg tracking-wider overflow-hidden">
-          <Truck aria-hidden="true" className="w-5 h-5 mr-3 text-blue-500 shrink-0" />
-          {!colapsada && "ESCALADOR"}
+        <div className={`h-16 flex items-center bg-slate-950/50 text-white overflow-hidden ${colapsada ? "justify-center px-2" : "px-4"}`}>
+          <LogoEscale compacto={colapsada} />
         </div>
         <LinksDoMenu pathname={pathname} role={usuario?.role} colapsado={colapsada} />
         <PainelUsuario usuario={usuario} colapsado={colapsada} />
@@ -232,11 +235,8 @@ export function LayoutWrapper({
             <Dialog.Description className="sr-only">
               Menu principal do sistema com os links para as telas de dashboard, viagens, alocação, motoristas e frotas.
             </Dialog.Description>
-            <div className="h-16 flex items-center justify-between px-6 bg-slate-950/50 text-white font-bold text-lg tracking-wider">
-              <span className="flex items-center">
-                <Truck aria-hidden="true" className="w-5 h-5 mr-3 text-blue-500" />
-                ESCALADOR
-              </span>
+            <div className="h-16 flex items-center justify-between px-6 bg-slate-950/50 text-white">
+              <LogoEscale />
               <Dialog.Close
                 aria-label="Fechar menu"
                 className="rounded-md p-1 text-slate-400 hover:bg-slate-800 hover:text-white"
@@ -261,9 +261,8 @@ export function LayoutWrapper({
           >
             <Menu className="w-5 h-5" />
           </button>
-          <span className="flex items-center font-bold text-foreground">
-            <Truck aria-hidden="true" className="w-5 h-5 mr-2 text-primary" />
-            ESCALADOR
+          <span className="text-foreground">
+            <LogoEscale />
           </span>
         </div>
 

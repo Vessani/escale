@@ -32,7 +32,7 @@ export default async function EditarFrotaPage({ params }: { params: Promise<{ id
   return (
     <div className="max-w-2xl mx-auto space-y-6 pb-20">
       <div>
-        <h1 className="text-3xl font-bold tracking-tight text-foreground">Editar Conjunto</h1>
+        <h1 className="text-2xl font-semibold tracking-tight text-foreground">Editar Conjunto</h1>
         <p className="text-muted-foreground mt-1">Atualize a frota (cavalo/carreta) e a disponibilidade dela.</p>
       </div>
       <FormEditarFrota key={frota.id} frota={frotaSerializada} />
