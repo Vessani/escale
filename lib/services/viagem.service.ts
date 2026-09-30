@@ -65,16 +65,6 @@ async function garantirNumViagemDisponivel(filialId: number, numViagem: string, 
   }
 }
 
-/**
- * Bloqueio rígido: garante que o motorista informado (se houver) está
- * autorizado a carregar o produto exigido pela viagem — mesma regra que já
- * filtra a sugestão automática/tela de alocação (ver motoristaEhCompativel),
- * mas reaplicada aqui no momento de *gravar* a alocação (criar, editar,
- * alocação rápida do dashboard). Sem isso era possível contornar o
- * bloqueio: a tela de sugestão nunca oferece um motorista incompatível, mas
- * nada impedia editar a viagem (ou trocar só o produto) mantendo um
- * motorista que já estava alocado antes da troca.
- */
 type MotoristasDaViagem = {
   principalId: number | null | undefined
   acompanhanteId?: number | null
