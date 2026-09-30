@@ -5,6 +5,7 @@ import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { ArrowLeft, Loader, Upload } from "lucide-react"
 import { Alert } from "@/components/ui/alert"
+import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
@@ -176,6 +177,7 @@ export default function ImportarJornadaPage() {
                     <TableHead>Início de Jornada</TableHead>
                     <TableHead>Fim de Jornada</TableHead>
                     <TableHead>Dias Sem Folga</TableHead>
+                    <TableHead>Correção</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -188,6 +190,29 @@ export default function ImportarJornadaPage() {
                       <TableCell>
                         {registro.diasSemFolga}
                         {registro.diasSemFolga > 6 ? " (capado em 6)" : ""}
+                        {registro.diasSemFolga !== registro.diasSemFolgaRelatorio && (
+                          <span className="ml-1 text-xs text-muted-foreground">
+                            (relatório: {registro.diasSemFolgaRelatorio})
+                          </span>
+                        )}
+                      </TableCell>
+                      <TableCell>
+                        {registro.correcao === "BATIDAS_UNIDAS" && (
+                          <Badge
+                            variant="warning"
+                            title="Entrada e saída vieram em linhas separadas no relatório e foram juntadas numa jornada só."
+                          >
+                            Batidas unidas
+                          </Badge>
+                        )}
+                        {registro.correcao === "BATIDA_SEM_PAR" && (
+                          <Badge
+                            variant="outline"
+                            title="Só uma batida (entrada ou saída). Conta como dia trabalhado, mas o horário de fim pode não ser o real."
+                          >
+                            Batida sem par
+                          </Badge>
+                        )}
                       </TableCell>
                     </TableRow>
                   ))}

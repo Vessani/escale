@@ -21,6 +21,8 @@ function criarRegistro(parcial: Partial<RegistroJornadaRelatorio> = {}): Registr
     fimJornada: "2026-07-10T08:52:45.000Z",
     dia: "2026-07-10T00:00:00.000Z",
     diasSemFolga: 3,
+    diasSemFolgaRelatorio: 3,
+    correcao: null,
     ...parcial,
   }
 }
