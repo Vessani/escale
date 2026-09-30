@@ -94,13 +94,13 @@ export function mapearRegistrosJornada(registros: RegistroJornadaBruto[]): Ponto
  * guarda "o turno mais recente do último lote importado", sem nenhuma relação
  * com a viagem sendo avaliada — podia até ser POSTERIOR ao início da nova
  * viagem, gerando descanso negativo tratado como violação (ver
- * `calcularAvisoInterjornada`/`calcularProximoInicioDisponivel` em
+ * `calcularAvisoInterjornada`/`calcularDescansoAntesDaViagem` em
  * alocacao.service.ts). Ignora registros sem `fimJornada` (edição manual do
  * calendário, criação de motorista e reconciliação de folga não têm horário
  * real). Cálculo sobre instantes (timestamps), não datas — imune a fuso.
  *
  * Só o lado do relatório: o fim de trabalho completo (relatório + viagens,
- * com finalização) é `encontrarFimTrabalhoAnterior` (alocacao/avisos.ts).
+ * com finalização) é `encontrarFimTrabalhoAnterior` (alocacao/descanso.ts).
  */
 export function encontrarFimJornadaAnterior(
   registros: Array<{ fimJornada?: Date | string | null }>,

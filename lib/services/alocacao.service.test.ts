@@ -6,7 +6,8 @@ import {
   calcularFolgaAteIdeal,
   calcularHorarioIdealChegada,
   calcularIntegracaoExigida,
-  calcularProximoInicioDisponivel,
+  calcularAvisoDescanso,
+  calcularDescansoAntesDaViagem,
   filtrarMotoristasCompativeis,
   motoristaChegaATempo,
   filtrarMotoristasDisponiveisNoPeriodo,
@@ -1030,21 +1031,92 @@ describe("alocacao.service", () => {
     })
   })
 
-  describe("calcularProximoInicioDisponivel", () => {
-    it("dia normal (1-5 dias trabalhados): fim de jornada + 11h", () => {
-      const fim = new Date("2026-07-20T19:00:00")
-      const proximo = calcularProximoInicioDisponivel(fim, 3)
-      expect(proximo).toEqual(new Date("2026-07-21T06:00:00"))
+  describe("calcularDescansoAntesDaViagem (regra única de descanso)", () => {
+    const hojeDescanso = new Date("2026-07-20T00:00:00-03:00")
+    const inicioViagem = new Date("2026-07-21T20:00:00-03:00")
+
+    it("dia normal: fim do trabalho anterior + 11h", () => {
+      const motorista = criarMotorista({
+        registrosJornada: [{ data: new Date("2026-07-20T00:00:00-03:00"), codigo: 3, fimJornada: new Date("2026-07-20T19:00:00-03:00") }],
+      })
+
+      const descanso = calcularDescansoAntesDaViagem(motorista, inicioViagem, hojeDescanso)
+
+      expect(descanso).toEqual({
+        fimTrabalhoAnterior: new Date("2026-07-20T19:00:00-03:00"),
+        minimoHoras: 11,
+        inicioPermitido: new Date("2026-07-21T06:00:00-03:00"),
+      })
     })
 
-    it("6º dia: fim de jornada + 35h (descanso semanal absorve a interjornada)", () => {
-      const fim = new Date("2026-07-20T19:00:00")
-      const proximo = calcularProximoInicioDisponivel(fim, 6)
-      expect(proximo).toEqual(new Date("2026-07-22T06:00:00"))
+    it("6º dia: fim + 35h — decidido pelo código do dia em que parou, não pelo de hoje", () => {
+      const motorista = criarMotorista({
+        // Cache de "hoje" diz 2º dia, mas o dia em que ele parou era o 6º.
+        diasTrabalhados: 2,
+        registrosJornada: [{ data: new Date("2026-07-20T00:00:00-03:00"), codigo: 6, fimJornada: new Date("2026-07-20T19:00:00-03:00") }],
+      })
+
+      const descanso = calcularDescansoAntesDaViagem(motorista, new Date("2026-07-23T08:00:00-03:00"), hojeDescanso)
+
+      expect(descanso?.minimoHoras).toBe(35)
+      expect(descanso?.inicioPermitido).toEqual(new Date("2026-07-22T06:00:00-03:00"))
     })
 
-    it("retorna null quando o motorista não tem jornada importada", () => {
-      expect(calcularProximoInicioDisponivel(null, 3)).toBeNull()
+    it("usa o mais tarde entre o relatório e as viagens do Escale que começaram antes", () => {
+      const motorista = {
+        ...criarMotorista({ registrosJornada: comFimJornadaAnterior(new Date("2026-07-20T10:00:00-03:00")) }),
+        viagens: [{
+          id: 50,
+          status: "ALOCADA" as const,
+          inicioPrevisto: new Date("2026-07-20T18:00:00-03:00"),
+          fimPrevisto: new Date("2026-07-21T04:00:00-03:00"),
+        }],
+      }
+
+      const descanso = calcularDescansoAntesDaViagem(motorista, inicioViagem, hojeDescanso)
+
+      expect(descanso?.fimTrabalhoAnterior).toEqual(new Date("2026-07-21T04:00:00-03:00"))
+      // Ignorando a própria viagem, sobra só o relatório.
+      expect(calcularDescansoAntesDaViagem(motorista, inicioViagem, hojeDescanso, 50)?.fimTrabalhoAnterior)
+        .toEqual(new Date("2026-07-20T10:00:00-03:00"))
+    })
+
+    it("retorna null sem nenhum trabalho anterior conhecido", () => {
+      expect(calcularDescansoAntesDaViagem(criarMotorista({}), inicioViagem, hojeDescanso)).toBeNull()
+    })
+  })
+
+  describe("sugestão e aviso concordam (mesma regra de descanso)", () => {
+    const hojeCoerencia = new Date("2026-07-20T00:00:00-03:00")
+    const contexto = {
+      turnoViagem: "NOITE" as Turno,
+      diasViagem: 1,
+      dataInicioViagem: new Date("2026-07-21T12:00:00-03:00"),
+      fimViagem: new Date("2026-07-21T22:00:00-03:00"),
+      integracaoExigida: null,
+      hoje: hojeCoerencia,
+    }
+
+    it("viagem do Escale que termina tarde também pesa na ordenação (antes só o relatório contava)", () => {
+      // Relatório antigo pros dois; o Ana tem uma viagem no Escale que só
+      // termina 04:00 do dia da viagem — 8h antes, viola as 11h.
+      const relatorioAntigo = comFimJornadaAnterior(new Date("2026-07-19T20:00:00-03:00"))
+      const ana = {
+        ...criarMotorista({ id: 1, nome: "Ana", turno: "NOITE", registrosJornada: relatorioAntigo }),
+        viagens: [{
+          id: 60,
+          status: "ALOCADA" as const,
+          inicioPrevisto: new Date("2026-07-20T18:00:00-03:00"),
+          fimPrevisto: new Date("2026-07-21T04:00:00-03:00"),
+        }],
+      }
+      const bruno = { ...criarMotorista({ id: 2, nome: "Bruno", turno: "NOITE", registrosJornada: relatorioAntigo }), viagens: [] }
+
+      const ordem = filtrarMotoristasCompativeis([ana, bruno], contexto)
+
+      expect(ordem.map((m) => m.nome)).toEqual(["Bruno", "Ana"])
+      expect(calcularAvisoDescanso(ordem[0], { inicioPrevisto: contexto.dataInicioViagem }, hojeCoerencia)).toBeNull()
+      expect(calcularAvisoDescanso(ana, { inicioPrevisto: contexto.dataInicioViagem }, hojeCoerencia)).toMatch(/^Interjornada/)
     })
   })
 

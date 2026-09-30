@@ -1,12 +1,5 @@
-import { encontrarFimJornadaAnterior } from "../jornada.service"
-import {
-  descansoMinimoNecessarioApos,
-  fimEfetivoViagem,
-  MINIMO_HORAS_ENTRE_FOLGAS,
-  MINIMO_HORAS_ENTRE_JORNADAS,
-  viagemBloqueiaAgenda,
-} from "./disponibilidade"
-import type { MotoristaComAgenda } from "./tipos"
+import { calcularDescansoAntesDaViagem, type MotoristaParaDescanso } from "./descanso"
+import { MINIMO_HORAS_ENTRE_FOLGAS, MINIMO_HORAS_ENTRE_JORNADAS } from "./disponibilidade"
 
 /**
  * Aviso de descanso insuficiente entre o fim do trabalho anterior e o início
@@ -36,53 +29,23 @@ export function calcularAvisoInterjornada(
   return `${tipoDescanso}: motorista teve apenas ${horasDescansoTexto}h de descanso (mínimo ${minimoHoras}h).`
 }
 
-type MotoristaParaAvisoDescanso = Pick<MotoristaComAgenda, "registrosJornada" | "diasTrabalhados" | "viagens">
-
 /**
- * Quando o motorista parou de trabalhar pela última vez antes de `inicioViagem`:
- * o mais tarde entre o fim de jornada do relatório importado (dado real do
- * rastreador) e o fim efetivo das viagens dele que começaram antes — viagem
- * finalizada conta a partir da finalização (ver fimEfetivoViagem), as demais
- * pelo fim previsto. `viagemId` é a própria viagem avaliada, ignorada na
- * agenda (ausente pra uma viagem ainda não gravada).
- */
-export function encontrarFimTrabalhoAnterior(
-  motorista: MotoristaParaAvisoDescanso,
-  inicioViagem: Date,
-  viagemId?: number,
-): Date | null {
-  let maisRecente = encontrarFimJornadaAnterior(motorista.registrosJornada, inicioViagem)
-
-  for (const viagem of motorista.viagens) {
-    if (viagem.id === viagemId || !viagemBloqueiaAgenda(viagem)) continue
-    if (new Date(viagem.inicioPrevisto) >= inicioViagem) continue
-
-    const fim = fimEfetivoViagem(viagem)
-    if (!maisRecente || fim > maisRecente) {
-      maisRecente = fim
-    }
-  }
-
-  return maisRecente
-}
-
-/**
- * Regra única de descanso pro aviso gravado na viagem: mesmo fim de trabalho
- * e mesmo mínimo (11h/35h) que a disponibilidade usa pra alocar (ver
- * motoristaEstaDisponivelNoPeriodo) — o aviso e a alocação não discordam.
+ * Aviso de descanso gravado na viagem — mesma regra única que ordena a
+ * sugestão e mostra o "libera às" na tela (ver calcularDescansoAntesDaViagem):
+ * o motorista sugerido em primeiro lugar nunca ganha este aviso por causa de
+ * um critério diferente.
  */
 export function calcularAvisoDescanso(
-  motorista: MotoristaParaAvisoDescanso,
+  motorista: MotoristaParaDescanso,
   viagem: { id?: number; inicioPrevisto: Date | string },
   hoje: Date,
 ): string | null {
   const inicioViagem = new Date(viagem.inicioPrevisto)
-  const fimAnterior = encontrarFimTrabalhoAnterior(motorista, inicioViagem, viagem.id)
+  const descanso = calcularDescansoAntesDaViagem(motorista, inicioViagem, hoje, viagem.id)
 
-  if (!fimAnterior) {
+  if (!descanso) {
     return null
   }
 
-  const minimoHoras = descansoMinimoNecessarioApos(motorista, fimAnterior, hoje)
-  return calcularAvisoInterjornada(fimAnterior, inicioViagem, minimoHoras)
+  return calcularAvisoInterjornada(descanso.fimTrabalhoAnterior, inicioViagem, descanso.minimoHoras)
 }

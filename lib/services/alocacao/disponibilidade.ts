@@ -84,7 +84,7 @@ export function periodosConflitamComDescanso(
 /**
  * Descanso mínimo (11h ou 35h) exigido depois de uma viagem já registrada do
  * motorista, a partir do código de jornada projetado pro dia em que ela
- * termina — mesma regra de calcularProximoInicioDisponivel, aplicada aqui
+ * termina — mesma regra de calcularDescansoAntesDaViagem (descanso.ts), aplicada aqui
  * contra a própria agenda do motorista no sistema (não só o relatório
  * importado). Sem isso, o reset da rotação (código 7 → 1 na virada pro dia
  * seguinte à Folga) somado ao mínimo de 11h deixaria passar uma viagem nova

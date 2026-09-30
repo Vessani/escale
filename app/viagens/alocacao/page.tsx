@@ -8,8 +8,7 @@ import {
   calcularAvisoDescanso,
   calcularDiasDisponiveis,
   calcularIntegracaoExigida,
-  calcularProximoInicioDisponivel,
-  encontrarFimTrabalhoAnterior,
+  calcularDescansoAntesDaViagem,
   sugerirAlocacoesEmLote,
 } from "@/lib/services/alocacao.service"
 import { mapearRegistrosJornada, projetarCodigoNoDia } from "@/lib/services/jornada.service"
@@ -106,10 +105,10 @@ function serializarViagens(
           motorista.diasTrabalhados,
         )
 
-        const proximoInicioDisponivel = calcularProximoInicioDisponivel(
-          encontrarFimTrabalhoAnterior(motorista, new Date(viagem.inicioPrevisto), viagem.id),
-          motorista.diasTrabalhados,
-        )
+        // Regra única de descanso (ver calcularDescansoAntesDaViagem) — a
+        // mesma que ordenou a sugestão e que gera o aviso de interjornada.
+        const proximoInicioDisponivel =
+          calcularDescansoAntesDaViagem(motorista, new Date(viagem.inicioPrevisto), hoje, viagem.id)?.inicioPermitido ?? null
 
         return {
           id: motorista.id,

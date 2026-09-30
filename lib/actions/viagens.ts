@@ -28,8 +28,7 @@ import {
   calcularAvisoDescanso,
   calcularDiasDisponiveis,
   calcularIntegracaoExigida,
-  calcularProximoInicioDisponivel,
-  encontrarFimTrabalhoAnterior,
+  calcularDescansoAntesDaViagem,
   sugerirAlocacoesEmLote,
 } from "@/lib/services/alocacao.service";
 import { calcularAvisoFrotaIndisponivel, calcularAvisoFrotaProduto } from "@/lib/services/frota.service";
@@ -129,10 +128,9 @@ export async function sugerirAlocacaoParaViagens(
           motorista.diasTrabalhados,
         );
 
-        const proximoInicioDisponivel = calcularProximoInicioDisponivel(
-          encontrarFimTrabalhoAnterior(motorista, dataInicioViagem),
-          motorista.diasTrabalhados,
-        )
+        // Regra única de descanso (ver calcularDescansoAntesDaViagem).
+        const proximoInicioDisponivel =
+          calcularDescansoAntesDaViagem(motorista, dataInicioViagem, hoje)?.inicioPermitido ?? null
 
         return {
           id: motorista.id,

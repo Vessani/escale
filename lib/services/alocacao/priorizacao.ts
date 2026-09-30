@@ -1,6 +1,5 @@
-import { encontrarFimJornadaAnterior, projetarCodigoNoDia } from "../jornada.service"
-import { calcularDiasDisponiveis, codigoJornadaNaViagem, MAX_DIAS_CONSECUTIVOS, motoristaEhCompativel } from "./compatibilidade"
-import { MINIMO_HORAS_ENTRE_FOLGAS, MINIMO_HORAS_ENTRE_JORNADAS } from "./disponibilidade"
+import { calcularDiasDisponiveis, codigoJornadaNaViagem, motoristaEhCompativel } from "./compatibilidade"
+import { calcularDescansoAntesDaViagem, type MotoristaParaDescanso } from "./descanso"
 import type { ContextoCompatibilidade, MotoristaParaAlocacao } from "./tipos"
 
 const HORAS_ANTECEDENCIA_CHECKLIST = 1
@@ -11,50 +10,19 @@ export function calcularHorarioIdealChegada(dataInicioViagem: Date): Date {
 }
 
 /**
- * Horário mínimo em que o motorista pode iniciar a próxima jornada, a partir
- * do fim da última jornada conhecida (relatório).
- * - Dia normal (1 a 5 dias trabalhados): fim + 11h (interjornada, art. 235-C CLT).
- * - 6º dia (último antes da folga obrigatória): fim + 35h — o descanso semanal
- *   de 35h já absorve as 11h de interjornada, não se somam.
- * Imune a fuso: soma milissegundos sobre o instante. `null` sem jornada importada.
+ * Chega a tempo = pode iniciar a jornada (fim do trabalho anterior + 11h, ou
+ * +35h depois do 6º dia — ver calcularDescansoAntesDaViagem) até o horário
+ * ideal, 1h antes da viagem pro checklist. Sem trabalho anterior conhecido,
+ * chega.
  */
-export function calcularProximoInicioDisponivel(
-  fimUltimaJornada: Date | string | null,
-  diasTrabalhados: number,
-): Date | null {
-  if (!fimUltimaJornada) {
-    return null
-  }
-
-  const fim = new Date(fimUltimaJornada)
-  const ehSextoDia = diasTrabalhados >= MAX_DIAS_CONSECUTIVOS
-  const horasDescanso = ehSextoDia ? MINIMO_HORAS_ENTRE_FOLGAS : MINIMO_HORAS_ENTRE_JORNADAS
-
-  return new Date(fim.getTime() + horasDescanso * 60 * 60 * 1000)
-}
-
-export function motoristaChegaATempo<T extends MotoristaParaAlocacao>(
+export function motoristaChegaATempo<T extends MotoristaParaDescanso>(
   motorista: T,
   contexto: ContextoCompatibilidade,
 ): boolean {
-  const fimUltimaJornada = encontrarFimJornadaAnterior(motorista.registrosJornada, contexto.dataInicioViagem)
-  if (!fimUltimaJornada) {
-    return true
-  }
-
-  const codigoNoDiaDaUltimaJornada = projetarCodigoNoDia(
-    motorista.registrosJornada,
-    fimUltimaJornada,
-    contexto.hoje,
-    motorista.diasTrabalhados,
-  )
-  const proximoInicioDisponivel = calcularProximoInicioDisponivel(
-    fimUltimaJornada,
-    codigoNoDiaDaUltimaJornada,
-  )
+  const descanso = calcularDescansoAntesDaViagem(motorista, contexto.dataInicioViagem, contexto.hoje)
   const horarioIdeal = calcularHorarioIdealChegada(contexto.dataInicioViagem)
 
-  return proximoInicioDisponivel === null || proximoInicioDisponivel <= horarioIdeal
+  return !descanso || descanso.inicioPermitido <= horarioIdeal
 }
 
 /**
@@ -100,57 +68,46 @@ function classificarFolga(folgaMinutos: number | null): { grupo: number; custo: 
  * quem não tem jornada importada fica por último. Dias disponíveis e nome
  * desempatam dentro do mesmo grupo.
  */
-export function filtrarMotoristasCompativeis<T extends MotoristaParaAlocacao>(
+export function filtrarMotoristasCompativeis<T extends MotoristaParaAlocacao & MotoristaParaDescanso>(
   motoristas: T[],
   contexto: ContextoCompatibilidade,
 ): T[] {
   const horarioIdeal = calcularHorarioIdealChegada(contexto.dataInicioViagem)
 
-  return motoristas
-    .filter((motorista) => motoristaEhCompativel(motorista, contexto))
-    .sort((a, b) => {
-      const fimJornadaA = encontrarFimJornadaAnterior(a.registrosJornada, contexto.dataInicioViagem)
-      const fimJornadaB = encontrarFimJornadaAnterior(b.registrosJornada, contexto.dataInicioViagem)
+  // Chave de ordenação calculada uma vez por motorista (antes era recalculada
+  // a cada comparação do sort), a partir da regra única de descanso — a
+  // mesma do aviso gravado na viagem (ver calcularDescansoAntesDaViagem).
+  const chaves = new Map(
+    motoristas
+      .filter((motorista) => motoristaEhCompativel(motorista, contexto))
+      .map((motorista) => {
+        const descanso = calcularDescansoAntesDaViagem(motorista, contexto.dataInicioViagem, contexto.hoje)
+        const folga = calcularFolgaAteIdeal(descanso?.inicioPermitido ?? null, horarioIdeal)
+        return [
+          motorista,
+          {
+            ...classificarFolga(folga),
+            diasDisponiveis: calcularDiasDisponiveis(codigoJornadaNaViagem(motorista, contexto)),
+          },
+        ] as const
+      }),
+  )
 
-      const codigoUltimaJornadaA = fimJornadaA
-        ? projetarCodigoNoDia(a.registrosJornada, fimJornadaA, contexto.hoje, a.diasTrabalhados)
-        : a.diasTrabalhados
-      const codigoUltimaJornadaB = fimJornadaB
-        ? projetarCodigoNoDia(b.registrosJornada, fimJornadaB, contexto.hoje, b.diasTrabalhados)
-        : b.diasTrabalhados
+  return [...chaves.keys()].sort((a, b) => {
+    const chaveA = chaves.get(a)!
+    const chaveB = chaves.get(b)!
 
-      const chegaATempoA = motoristaChegaATempo(a, contexto) ? 0 : 1
-      const chegaATempoB = motoristaChegaATempo(b, contexto) ? 0 : 1
+    // 1) quem respeita o descanso até o horário ideal vem antes de quem viola; sem dado por último
+    if (chaveA.grupo !== chaveB.grupo) {
+      return chaveA.grupo - chaveB.grupo
+    }
+    // 2) dentro do mesmo grupo, menor "custo" primeiro
+    //    - respeita: menor folga (libera mais cedo p/ viagem mais cedo)
+    //    - viola: menor violação (fim mais próximo do ideal)
+    if (chaveA.custo !== chaveB.custo) {
+      return chaveA.custo - chaveB.custo
+    }
 
-      if (chegaATempoA !== chegaATempoB) {
-        return chegaATempoA - chegaATempoB
-      }
-
-      const folgaA = calcularFolgaAteIdeal(
-        calcularProximoInicioDisponivel(fimJornadaA, codigoUltimaJornadaA),
-        horarioIdeal,
-      )
-      const folgaB = calcularFolgaAteIdeal(
-        calcularProximoInicioDisponivel(fimJornadaB, codigoUltimaJornadaB),
-        horarioIdeal,
-      )
-
-      const chaveA = classificarFolga(folgaA)
-      const chaveB = classificarFolga(folgaB)
-
-      // 1) quem respeita o descanso (folga >= 0) vem antes de quem viola/sem dado
-      if (chaveA.grupo !== chaveB.grupo) {
-        return chaveA.grupo - chaveB.grupo
-      }
-      // 2) dentro do mesmo grupo, menor "custo" primeiro
-      //    - respeita: menor folga (libera mais cedo p/ viagem mais cedo)
-      //    - viola: menor violação (fim mais próximo do ideal)
-      if (chaveA.custo !== chaveB.custo) {
-        return chaveA.custo - chaveB.custo
-      }
-
-      const diasDisponiveisA = calcularDiasDisponiveis(codigoJornadaNaViagem(a, contexto))
-      const diasDisponiveisB = calcularDiasDisponiveis(codigoJornadaNaViagem(b, contexto))
-      return diasDisponiveisB - diasDisponiveisA || a.nome.localeCompare(b.nome)
-    })
+    return chaveB.diasDisponiveis - chaveA.diasDisponiveis || a.nome.localeCompare(b.nome)
+  })
 }
