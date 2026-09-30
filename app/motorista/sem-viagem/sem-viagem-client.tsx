@@ -65,11 +65,11 @@ export default function SemViagemClient({ motoristas, dataReferencia }: Props) {
       return (
         <TableRow key={motorista.id}>
           <TableCell>
-            <Link href={`/motorista/editar/${motorista.id}`} className="font-semibold text-slate-900 hover:text-blue-700">
+            <Link href={`/motorista/editar/${motorista.id}`} className="font-semibold text-foreground hover:text-primary">
               {motorista.nome}
             </Link>
           </TableCell>
-          <TableCell className="text-slate-500">SEVA <span className="font-mono tabular-nums">{motorista.seva}</span></TableCell>
+          <TableCell className="text-muted-foreground">SEVA <span className="font-mono tabular-nums">{motorista.seva}</span></TableCell>
           <TableCell>
             <Badge variant="outline" className={classeBadgeTurno(motorista.turno)}>
               {motorista.turno}
@@ -85,7 +85,7 @@ export default function SemViagemClient({ motoristas, dataReferencia }: Props) {
               </Badge>
             )}
           </TableCell>
-          <TableCell className="max-w-xs whitespace-normal text-slate-600">{motorista.acao.texto}</TableCell>
+          <TableCell className="max-w-xs whitespace-normal text-foreground/80">{motorista.acao.texto}</TableCell>
           <TableCell>
             {motorista.acao.tipo === "DAR_FOLGA" && (
               <div className="flex flex-wrap gap-2">
@@ -128,8 +128,8 @@ export default function SemViagemClient({ motoristas, dataReferencia }: Props) {
 
       {acionaveis.length > 0 && (
         <div className="space-y-2">
-          <h2 className="text-sm font-semibold text-slate-700">Precisam de revisão ({acionaveis.length})</h2>
-          <div className="rounded-lg border border-slate-200 bg-white shadow-sm overflow-hidden">
+          <h2 className="text-sm font-semibold text-foreground/80">Precisam de revisão ({acionaveis.length})</h2>
+          <div className="rounded-lg border border-border bg-card shadow-sm overflow-hidden">
             <Table>
               <TableHeader>
                 <TableRow>
@@ -149,8 +149,8 @@ export default function SemViagemClient({ motoristas, dataReferencia }: Props) {
 
       {semAcao.length > 0 && (
         <div className="space-y-2">
-          <h2 className="text-sm font-semibold text-slate-500">Sem ação necessária ({semAcao.length})</h2>
-          <div className="rounded-lg border border-slate-200 bg-slate-50 shadow-sm overflow-hidden">
+          <h2 className="text-sm font-semibold text-muted-foreground">Sem ação necessária ({semAcao.length})</h2>
+          <div className="rounded-lg border border-border bg-muted shadow-sm overflow-hidden">
             <Table>
               <TableHeader>
                 <TableRow>

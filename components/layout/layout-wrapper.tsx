@@ -191,10 +191,10 @@ export function LayoutWrapper({
   }
 
   return (
-    <div className="flex h-screen bg-slate-100 overflow-hidden">
+    <div className="flex h-screen bg-background overflow-hidden">
       <a
         href="#conteudo-principal"
-        className="sr-only focus:not-sr-only focus:fixed focus:top-2 focus:left-2 focus:z-50 focus:rounded-md focus:bg-white focus:px-4 focus:py-2 focus:text-sm focus:font-medium focus:text-slate-900 focus:shadow-lg"
+        className="sr-only focus:not-sr-only focus:fixed focus:top-2 focus:left-2 focus:z-50 focus:rounded-md focus:bg-card focus:px-4 focus:py-2 focus:text-sm focus:font-medium focus:text-foreground focus:shadow-lg"
       >
         Pular para o conteúdo principal
       </a>
@@ -252,17 +252,17 @@ export function LayoutWrapper({
 
       <main className="flex-1 flex flex-col h-full overflow-hidden">
         {/* Cabeçalho só em telas abaixo de md, com botão para abrir o menu */}
-        <div className="flex h-14 shrink-0 items-center gap-3 border-b border-slate-200 bg-white px-4 md:hidden">
+        <div className="flex h-14 shrink-0 items-center gap-3 border-b border-border bg-card px-4 md:hidden">
           <button
             type="button"
             onClick={() => setMenuAberto(true)}
             aria-label="Abrir menu de navegação"
-            className="rounded-md p-2 text-slate-600 hover:bg-slate-100"
+            className="rounded-md p-2 text-foreground/80 hover:bg-muted"
           >
             <Menu className="w-5 h-5" />
           </button>
-          <span className="flex items-center font-bold text-slate-900">
-            <Truck aria-hidden="true" className="w-5 h-5 mr-2 text-blue-600" />
+          <span className="flex items-center font-bold text-foreground">
+            <Truck aria-hidden="true" className="w-5 h-5 mr-2 text-primary" />
             ESCALADOR
           </span>
         </div>

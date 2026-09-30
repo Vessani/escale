@@ -25,8 +25,8 @@ export default async function EditarClientePage({ params }: { params: Promise<{ 
   return (
     <div className="max-w-2xl mx-auto space-y-6 pb-20">
       <div>
-        <h1 className="text-3xl font-bold tracking-tight text-slate-900">Editar Cliente</h1>
-        <p className="text-slate-500 mt-1">Atualize o nome ou a exigência de integração.</p>
+        <h1 className="text-3xl font-bold tracking-tight text-foreground">Editar Cliente</h1>
+        <p className="text-muted-foreground mt-1">Atualize o nome ou a exigência de integração.</p>
       </div>
       <FormEditarCliente key={cliente.id} cliente={cliente} />
 

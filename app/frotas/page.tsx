@@ -48,23 +48,23 @@ function AcoesFrota({ frota, podeExcluir }: { frota: Frota; podeExcluir: boolean
 /** Tabela para telas a partir de md; em telas menores vira lista de cards (ver FrotasCards). */
 function FrotasTabela({ frotas, agora, podeExcluir }: { frotas: Frota[]; agora: Date; podeExcluir: boolean }) {
   return (
-    <div className="hidden rounded-lg border bg-white shadow-sm overflow-hidden md:block">
+    <div className="hidden rounded-lg border bg-card shadow-sm overflow-hidden md:block">
       <Table>
-        <TableHeader className="bg-slate-50">
+        <TableHeader className="bg-muted">
           <TableRow>
-            <TableHead className="font-semibold text-slate-700">Cavalo</TableHead>
-            <TableHead className="font-semibold text-slate-700">Carreta</TableHead>
-            <TableHead className="font-semibold text-slate-700">Produto</TableHead>
-            <TableHead className="font-semibold text-slate-700">Status</TableHead>
-            <TableHead className="font-semibold text-slate-700 text-right">Ações</TableHead>
+            <TableHead className="font-semibold text-foreground/80">Cavalo</TableHead>
+            <TableHead className="font-semibold text-foreground/80">Carreta</TableHead>
+            <TableHead className="font-semibold text-foreground/80">Produto</TableHead>
+            <TableHead className="font-semibold text-foreground/80">Status</TableHead>
+            <TableHead className="font-semibold text-foreground/80 text-right">Ações</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
           {frotas.map((frota) => (
-            <TableRow key={frota.id} className="hover:bg-slate-50">
+            <TableRow key={frota.id} className="hover:bg-muted/50">
               <TableCell className="font-mono font-medium tabular-nums">{frota.cavalo}</TableCell>
               <TableCell className="font-mono tabular-nums">{frota.carreta}</TableCell>
-              <TableCell className="text-slate-500">{formatarProduto(frota.tipoProduto)}</TableCell>
+              <TableCell className="text-muted-foreground">{formatarProduto(frota.tipoProduto)}</TableCell>
               <TableCell>
                 <StatusFrotaBadge frota={frota} agora={agora} />
               </TableCell>
@@ -84,11 +84,11 @@ function FrotasCards({ frotas, agora, podeExcluir }: { frotas: Frota[]; agora: D
   return (
     <div className="space-y-3 md:hidden">
       {frotas.map((frota) => (
-        <div key={frota.id} className="space-y-3 rounded-lg border bg-white shadow-sm p-4">
+        <div key={frota.id} className="space-y-3 rounded-lg border bg-card shadow-sm p-4">
           <div className="flex items-start justify-between gap-2">
             <div>
-              <p className="font-mono font-semibold tabular-nums text-slate-900">{frota.cavalo} / {frota.carreta}</p>
-              <p className="text-xs text-slate-500">{formatarProduto(frota.tipoProduto)}</p>
+              <p className="font-mono font-semibold tabular-nums text-foreground">{frota.cavalo} / {frota.carreta}</p>
+              <p className="text-xs text-muted-foreground">{formatarProduto(frota.tipoProduto)}</p>
             </div>
             <StatusFrotaBadge frota={frota} agora={agora} />
           </div>
@@ -110,8 +110,8 @@ export default async function FrotasPage() {
     <div className="space-y-6">
       <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight text-slate-900">Frotas</h1>
-          <p className="text-slate-500 mt-1">
+          <h1 className="text-3xl font-bold tracking-tight text-foreground">Frotas</h1>
+          <p className="text-muted-foreground mt-1">
             Cadastro dos conjuntos (cavalo/carreta) e a disponibilidade de cada um.
           </p>
         </div>
@@ -124,16 +124,16 @@ export default async function FrotasPage() {
       </div>
 
       {frotas.length === 0 ? (
-        <div className="border rounded-lg bg-white shadow-sm p-12">
-          <div className="flex flex-col items-center justify-center text-slate-500">
-            <Truck className="w-8 h-8 text-slate-300 mb-2" />
+        <div className="border rounded-lg bg-card shadow-sm p-12">
+          <div className="flex flex-col items-center justify-center text-muted-foreground">
+            <Truck className="w-8 h-8 text-muted-foreground/50 mb-2" />
             <p>Nenhum conjunto cadastrado ainda.</p>
           </div>
         </div>
       ) : (
         <section className="space-y-3">
           <div className="flex items-center justify-between">
-            <h2 className="text-xl font-semibold text-slate-900">Todos os conjuntos</h2>
+            <h2 className="text-xl font-semibold text-foreground">Todos os conjuntos</h2>
             <Badge variant="outline">{frotas.length}</Badge>
           </div>
           <FrotasTabela frotas={frotas} agora={agora} podeExcluir={podeExcluir} />

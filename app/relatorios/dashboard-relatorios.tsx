@@ -39,12 +39,12 @@ function formatarDiaCurto(dia: string) {
 
 function KpiCard({ label, valor, destaque }: { label: string; valor: string | number; destaque?: "success" | "destructive" | "warning" }) {
   const corTexto =
-    destaque === "success" ? "text-success" : destaque === "destructive" ? "text-destructive" : destaque === "warning" ? "text-warning" : "text-slate-900"
+    destaque === "success" ? "text-success" : destaque === "destructive" ? "text-destructive" : destaque === "warning" ? "text-warning" : "text-foreground"
 
   return (
-    <Card className="shadow-sm border-slate-200">
+    <Card className="shadow-sm border-border">
       <CardContent className="pt-6">
-        <p className="text-xs font-medium text-slate-500">{label}</p>
+        <p className="text-xs font-medium text-muted-foreground">{label}</p>
         <p className={`text-2xl font-bold mt-1 tabular-nums ${corTexto}`}>{valor}</p>
       </CardContent>
     </Card>
@@ -76,15 +76,15 @@ export default function DashboardRelatorios({
 
   return (
     <div className="space-y-6">
-      <Card className="shadow-sm border-slate-200">
+      <Card className="shadow-sm border-border">
         <CardContent className="pt-6">
           <form method="get" className="flex flex-wrap items-end gap-4">
             <div className="space-y-1.5">
-              <label className="text-xs font-medium text-slate-700">De</label>
+              <label className="text-xs font-medium text-foreground/80">De</label>
               <Input type="date" name="de" defaultValue={de} className="w-40" />
             </div>
             <div className="space-y-1.5">
-              <label className="text-xs font-medium text-slate-700">Até</label>
+              <label className="text-xs font-medium text-foreground/80">Até</label>
               <Input type="date" name="ate" defaultValue={ate} className="w-40" />
             </div>
             <Button type="submit" variant="outline">
@@ -115,13 +115,13 @@ export default function DashboardRelatorios({
       )}
 
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-        <Card className="shadow-sm border-slate-200">
-          <CardHeader className="bg-slate-50 border-b">
+        <Card className="shadow-sm border-border">
+          <CardHeader className="bg-muted border-b">
             <CardTitle className="text-lg">Viagens por dia</CardTitle>
           </CardHeader>
           <CardContent className="pt-6">
             {porDia.length === 0 ? (
-              <p className="text-sm text-slate-500">Nenhuma viagem no período.</p>
+              <p className="text-sm text-muted-foreground">Nenhuma viagem no período.</p>
             ) : (
               <ResponsiveContainer width="100%" height={260}>
                 <BarChart data={porDia}>
@@ -136,8 +136,8 @@ export default function DashboardRelatorios({
           </CardContent>
         </Card>
 
-        <Card className="shadow-sm border-slate-200">
-          <CardHeader className="bg-slate-50 border-b">
+        <Card className="shadow-sm border-border">
+          <CardHeader className="bg-muted border-b">
             <CardTitle className="text-lg">Viagens por status</CardTitle>
           </CardHeader>
           <CardContent className="pt-6">
@@ -157,13 +157,13 @@ export default function DashboardRelatorios({
           </CardContent>
         </Card>
 
-        <Card className="shadow-sm border-slate-200">
-          <CardHeader className="bg-slate-50 border-b">
+        <Card className="shadow-sm border-border">
+          <CardHeader className="bg-muted border-b">
             <CardTitle className="text-lg">Viagens por produto</CardTitle>
           </CardHeader>
           <CardContent className="pt-6">
             {porProduto.length === 0 ? (
-              <p className="text-sm text-slate-500">Nenhuma viagem no período.</p>
+              <p className="text-sm text-muted-foreground">Nenhuma viagem no período.</p>
             ) : (
               <ResponsiveContainer width="100%" height={260}>
                 <PieChart>
@@ -191,13 +191,13 @@ export default function DashboardRelatorios({
           </CardContent>
         </Card>
 
-        <Card className="shadow-sm border-slate-200">
-          <CardHeader className="bg-slate-50 border-b">
+        <Card className="shadow-sm border-border">
+          <CardHeader className="bg-muted border-b">
             <CardTitle className="text-lg">Motoristas com mais viagens</CardTitle>
           </CardHeader>
           <CardContent className="pt-6">
             {topMotoristas.length === 0 ? (
-              <p className="text-sm text-slate-500">Nenhuma viagem alocada no período.</p>
+              <p className="text-sm text-muted-foreground">Nenhuma viagem alocada no período.</p>
             ) : (
               <ResponsiveContainer width="100%" height={260}>
                 <BarChart data={topMotoristas} layout="vertical" margin={{ left: 24 }}>
@@ -212,13 +212,13 @@ export default function DashboardRelatorios({
           </CardContent>
         </Card>
 
-        <Card className="shadow-sm border-slate-200">
-          <CardHeader className="bg-slate-50 border-b">
+        <Card className="shadow-sm border-border">
+          <CardHeader className="bg-muted border-b">
             <CardTitle className="text-lg">Clientes com mais rotas</CardTitle>
           </CardHeader>
           <CardContent className="pt-6">
             {topClientesRotas.length === 0 ? (
-              <p className="text-sm text-slate-500">Nenhuma entrega no período.</p>
+              <p className="text-sm text-muted-foreground">Nenhuma entrega no período.</p>
             ) : (
               <ResponsiveContainer width="100%" height={260}>
                 <BarChart data={topClientesRotas} layout="vertical" margin={{ left: 24 }}>
@@ -233,13 +233,13 @@ export default function DashboardRelatorios({
           </CardContent>
         </Card>
 
-        <Card className="shadow-sm border-slate-200">
-          <CardHeader className="bg-slate-50 border-b">
+        <Card className="shadow-sm border-border">
+          <CardHeader className="bg-muted border-b">
             <CardTitle className="text-lg">Clientes que mais cancelaram</CardTitle>
           </CardHeader>
           <CardContent className="pt-6">
             {topClientesCancelamentos.length === 0 ? (
-              <p className="text-sm text-slate-500">Nenhum cancelamento no período.</p>
+              <p className="text-sm text-muted-foreground">Nenhum cancelamento no período.</p>
             ) : (
               <ResponsiveContainer width="100%" height={260}>
                 <BarChart data={topClientesCancelamentos} layout="vertical" margin={{ left: 24 }}>

@@ -30,17 +30,17 @@ function RelatorioGeralCard() {
   const href = `/api/relatorios/geral${params.toString() ? `?${params.toString()}` : ""}`
 
   return (
-    <Card className="shadow-sm border-slate-200">
-      <CardHeader className="bg-slate-50 border-b">
+    <Card className="shadow-sm border-border">
+      <CardHeader className="bg-muted border-b">
         <CardTitle className="text-lg">Relatório Geral</CardTitle>
       </CardHeader>
       <CardContent className="pt-6 space-y-4">
-        <p className="text-sm text-slate-500">
+        <p className="text-sm text-muted-foreground">
           Todas as viagens (qualquer status), com motorista e frota cruzados nas colunas.
         </p>
         <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
           <div className="space-y-1.5">
-            <label className="text-xs font-medium text-slate-700">Status</label>
+            <label className="text-xs font-medium text-foreground/80">Status</label>
             <Select value={status} onValueChange={setStatus}>
               <SelectTrigger><SelectValue /></SelectTrigger>
               <SelectContent>
@@ -52,11 +52,11 @@ function RelatorioGeralCard() {
             </Select>
           </div>
           <div className="space-y-1.5">
-            <label className="text-xs font-medium text-slate-700">De</label>
+            <label className="text-xs font-medium text-foreground/80">De</label>
             <Input type="date" value={de} onChange={(e) => setDe(e.target.value)} />
           </div>
           <div className="space-y-1.5">
-            <label className="text-xs font-medium text-slate-700">Até</label>
+            <label className="text-xs font-medium text-foreground/80">Até</label>
             <Input type="date" value={ate} onChange={(e) => setAte(e.target.value)} />
           </div>
         </div>
@@ -76,16 +76,16 @@ function RelatorioPorMotoristaCard({ motoristas }: { motoristas: MotoristaParaSe
   const href = motoristaId ? `/api/relatorios/motorista/${motoristaId}` : ""
 
   return (
-    <Card className="shadow-sm border-slate-200">
-      <CardHeader className="bg-slate-50 border-b">
+    <Card className="shadow-sm border-border">
+      <CardHeader className="bg-muted border-b">
         <CardTitle className="text-lg">Viagens do Motorista</CardTitle>
       </CardHeader>
       <CardContent className="pt-6 space-y-4">
-        <p className="text-sm text-slate-500">
+        <p className="text-sm text-muted-foreground">
           Viagens alocadas, iniciadas ou retornando de um motorista — pra enviar direto pra ele.
         </p>
         <div className="space-y-1.5">
-          <label className="text-xs font-medium text-slate-700">Motorista</label>
+          <label className="text-xs font-medium text-foreground/80">Motorista</label>
           <Select value={motoristaId} onValueChange={setMotoristaId}>
             <SelectTrigger><SelectValue placeholder="Selecione o motorista" /></SelectTrigger>
             <SelectContent>
@@ -111,16 +111,16 @@ function RelatorioDiarioCard() {
   const href = `/api/relatorios/diario${data ? `?data=${data}` : ""}`
 
   return (
-    <Card className="shadow-sm border-slate-200">
-      <CardHeader className="bg-slate-50 border-b">
+    <Card className="shadow-sm border-border">
+      <CardHeader className="bg-muted border-b">
         <CardTitle className="text-lg">Viagens Criadas no Dia</CardTitle>
       </CardHeader>
       <CardContent className="pt-6 space-y-4">
-        <p className="text-sm text-slate-500">
+        <p className="text-sm text-muted-foreground">
           Viagens criadas na data selecionada — pra enviar pra operação.
         </p>
         <div className="space-y-1.5 max-w-xs">
-          <label className="text-xs font-medium text-slate-700">Data</label>
+          <label className="text-xs font-medium text-foreground/80">Data</label>
           <Input type="date" value={data} onChange={(e) => setData(e.target.value)} />
         </div>
         <a href={href}>

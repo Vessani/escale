@@ -146,7 +146,7 @@ export default function CalendarioMotoristas({ inicioParam, hojeIso, dias, motor
   return (
     <div className="space-y-3">
       <div className="flex flex-wrap items-center gap-2 text-xs">
-        <span className="font-semibold text-slate-600">Filtro por status:</span>
+        <span className="font-semibold text-foreground/80">Filtro por status:</span>
         {OPCOES_FILTRO_STATUS.map((opcao) => {
           const ativo = filtroStatus === opcao.valor
           return (
@@ -154,28 +154,28 @@ export default function CalendarioMotoristas({ inicioParam, hojeIso, dias, motor
               key={opcao.valor}
               type="button"
               onClick={() => setFiltroStatus(opcao.valor)}
-              className={`rounded px-2 py-0.5 font-semibold transition ${opcao.classe} ${ativo ? "ring-2 ring-blue-400" : "opacity-80 hover:opacity-100"}`}
+              className={`rounded px-2 py-0.5 font-semibold transition ${opcao.classe} ${ativo ? "ring-2 ring-primary" : "opacity-80 hover:opacity-100"}`}
             >
               {opcao.label}
             </button>
           )
         })}
       </div>
-      <p className="text-xs text-slate-500">
+      <p className="text-xs text-muted-foreground">
         Clique no status de qualquer célula para abrir o seletor e salvar imediatamente.
       </p>
       {mensagemErro ? <p className="text-sm text-destructive">{mensagemErro}</p> : null}
 
       {motoristasFiltrados.length === 0 ? (
-        <div className="rounded-lg border border-slate-200 bg-slate-50 p-6 text-sm text-slate-600">
+        <div className="rounded-lg border border-border bg-muted p-6 text-sm text-foreground/80">
           Nenhum motorista encontrado para o filtro selecionado.
         </div>
       ) : (
-        <div className="isolate overflow-auto rounded-lg border border-slate-200 bg-white shadow-sm">
+        <div className="isolate overflow-auto rounded-lg border border-border bg-card shadow-sm">
           <table className="min-w-[1600px] w-full text-sm">
-          <thead className="bg-slate-50">
+          <thead className="bg-muted">
             <tr>
-              <th className="sticky left-0 z-40 bg-slate-50 border-b border-r px-4 py-3 text-left font-semibold text-slate-700 min-w-80 shadow-[4px_0_6px_-4px_rgba(15,23,42,0.2)]">
+              <th className="sticky left-0 z-40 bg-muted border-b border-r px-4 py-3 text-left font-semibold text-foreground/80 min-w-80 shadow-[4px_0_6px_-4px_rgba(15,23,42,0.2)]">
                 Motorista
               </th>
               {dias.map((diaIso) => {
@@ -184,11 +184,11 @@ export default function CalendarioMotoristas({ inicioParam, hojeIso, dias, motor
                 return (
                   <th
                     key={diaIso}
-                    className={`border-b border-r px-2 py-3 text-center align-top min-w-20 ${ehHoje ? "bg-blue-100" : "bg-slate-50"}`}
+                    className={`border-b border-r px-2 py-3 text-center align-top min-w-20 ${ehHoje ? "bg-primary/10" : "bg-muted"}`}
                   >
-                    <div className="font-semibold tabular-nums text-slate-700">{dia.getDate()}</div>
-                    <div className="text-[11px] uppercase text-slate-500">{formatarSemana(dia)}</div>
-                    {ehHoje ? <div className="text-[10px] font-bold uppercase text-blue-600">Hoje</div> : null}
+                    <div className="font-semibold tabular-nums text-foreground/80">{dia.getDate()}</div>
+                    <div className="text-[11px] uppercase text-muted-foreground">{formatarSemana(dia)}</div>
+                    {ehHoje ? <div className="text-[10px] font-bold uppercase text-primary">Hoje</div> : null}
                   </th>
                 )
               })}
@@ -198,17 +198,17 @@ export default function CalendarioMotoristas({ inicioParam, hojeIso, dias, motor
             {motoristasFiltrados.map((motorista, indiceMotorista) => {
               const diasDisponiveis = calcularDiasDisponiveis(motorista.codigoHoje)
               const statusJornada = obterStatusJornada(motorista.codigoHoje)
-              const fundoColunaFixa = indiceMotorista % 2 === 0 ? "bg-white" : "bg-slate-50"
+              const fundoColunaFixa = indiceMotorista % 2 === 0 ? "bg-card" : "bg-muted"
               const registrosProjetados = motorista.registrosProjetados
               const registrosJornadaBrutos = motorista.registrosJornada
               const classeTurnoBadge = classeBadgeTurno(motorista.turno)
 
               return (
-                <tr key={motorista.id} className="odd:bg-white even:bg-slate-50/40">
+                <tr key={motorista.id} className="odd:bg-card even:bg-muted/40">
                   <td className={`sticky left-0 z-30 ${fundoColunaFixa} border-r border-b px-4 py-3 align-top shadow-[4px_0_6px_-4px_rgba(15,23,42,0.15)]`}>
                     <div className="space-y-2">
                       <div className="flex items-center justify-between gap-2">
-                        <Link href={`/motorista/editar/${motorista.id}`} className="font-semibold text-slate-900 hover:text-blue-700">
+                        <Link href={`/motorista/editar/${motorista.id}`} className="font-semibold text-foreground hover:text-primary">
                           {motorista.nome}
                         </Link>
                         <Badge variant="outline" className={classeTurnoBadge}>
@@ -239,7 +239,7 @@ export default function CalendarioMotoristas({ inicioParam, hojeIso, dias, motor
                           </Button>
                         )}
                       </div>
-                      <div className="flex flex-wrap items-center gap-2 text-xs text-slate-500">
+                      <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
                         <span>SEVA <span className="font-mono tabular-nums">{motorista.seva}</span></span>
                         <span>·</span>
                         <span className="tabular-nums">{diasDisponiveis} dia(s) disponível(is)</span>
@@ -270,12 +270,12 @@ export default function CalendarioMotoristas({ inicioParam, hojeIso, dias, motor
                     return (
                       <td
                         key={chaveCelula}
-                        className={`border-r border-b px-2 py-2 align-top text-center ${celulaAberta ? "relative z-10" : ""} ${ehHoje ? "bg-blue-50" : ""}`}
+                        className={`border-r border-b px-2 py-2 align-top text-center ${celulaAberta ? "relative z-10" : ""} ${ehHoje ? "bg-primary/10" : ""}`}
                       >
                         <div className="space-y-1">
                           {celulaAberta ? (
                             <select
-                              className="w-full rounded border border-slate-300 bg-white px-2 py-1 text-xs font-semibold text-slate-800"
+                              className="w-full rounded border border-border bg-card px-2 py-1 text-xs font-semibold text-foreground"
                               defaultValue={String(codigoNoDia)}
                               disabled={celulaOcupada || isPending}
                               onChange={(evento) => {
@@ -304,7 +304,7 @@ export default function CalendarioMotoristas({ inicioParam, hojeIso, dias, motor
                                 {statusNoDia.texto}
                               </button>
                               {jornadaReal && (
-                                <span className="block font-mono text-[10px] tabular-nums text-slate-400">
+                                <span className="block font-mono text-[10px] tabular-nums text-muted-foreground">
                                   {formatarHoraLocal(jornadaReal.inicioJornada)}–{formatarHoraLocal(jornadaReal.fimJornada)}
                                 </span>
                               )}
@@ -317,14 +317,14 @@ export default function CalendarioMotoristas({ inicioParam, hojeIso, dias, motor
                                 <Link
                                   key={viagem.id}
                                   href={`/viagens/editar/${viagem.id}`}
-                                  className="block rounded-md border border-blue-200 bg-blue-50 p-1 text-xs hover:bg-blue-100"
+                                  className="block rounded-md border border-primary/20 bg-primary/10 p-1 text-xs hover:bg-primary/20"
                                 >
-                                  <div className="font-mono font-semibold tabular-nums text-blue-900">{viagem.numViagem}</div>
+                                  <div className="font-mono font-semibold tabular-nums text-primary">{viagem.numViagem}</div>
                                 </Link>
                               ))}
                             </div>
                           ) : (
-                            <span className="text-[11px] text-slate-400">Sem viagem</span>
+                            <span className="text-[11px] text-muted-foreground">Sem viagem</span>
                           )}
                         </div>
                       </td>

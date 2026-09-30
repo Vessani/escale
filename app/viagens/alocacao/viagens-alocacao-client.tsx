@@ -31,7 +31,7 @@ function MotoristasCompativeisLista({ motoristas }: { motoristas: MotoristaCompa
   const [expandido, setExpandido] = useState(false)
 
   if (motoristas.length === 0) {
-    return <p className="text-sm text-slate-500">Sem opções no momento</p>
+    return <p className="text-sm text-muted-foreground">Sem opções no momento</p>
   }
 
   const visiveis = expandido ? motoristas : motoristas.slice(0, LIMITE_MOTORISTAS_VISIVEIS)
@@ -45,8 +45,8 @@ function MotoristasCompativeisLista({ motoristas }: { motoristas: MotoristaCompa
             {motorista.nome.charAt(0).toUpperCase()}
           </span>
           <div className="min-w-0">
-            <p className="truncate text-sm font-medium text-slate-900">{motorista.nome}</p>
-            <p className="truncate text-xs text-slate-500">
+            <p className="truncate text-sm font-medium text-foreground">{motorista.nome}</p>
+            <p className="truncate text-xs text-muted-foreground">
               {motorista.diasDisponiveis} dia(s) disponível(is)
               {motorista.horarioHabitual ? ` · jornada às ${motorista.horarioHabitual}` : ""}
               {motorista.proximoInicioDisponivel ? ` · disponível a partir de ${motorista.proximoInicioDisponivel}` : ""}
@@ -58,7 +58,7 @@ function MotoristasCompativeisLista({ motoristas }: { motoristas: MotoristaCompa
         <button
           type="button"
           onClick={() => setExpandido(true)}
-          className="pl-8 text-xs font-medium text-blue-700 hover:underline"
+          className="pl-8 text-xs font-medium text-primary hover:underline"
         >
           + {ocultos} outro(s)
         </button>
@@ -67,7 +67,7 @@ function MotoristasCompativeisLista({ motoristas }: { motoristas: MotoristaCompa
         <button
           type="button"
           onClick={() => setExpandido(false)}
-          className="pl-8 text-xs font-medium text-slate-500 hover:underline"
+          className="pl-8 text-xs font-medium text-muted-foreground hover:underline"
         >
           Mostrar menos
         </button>
@@ -184,11 +184,11 @@ export default function AlocacaoViagensClient({ viagens }: Props) {
 
   if (totalPendentes === 0) {
     return (
-      <div className="flex flex-col items-center justify-center gap-4 rounded-lg border border-dashed border-slate-200 bg-slate-50 p-10 text-center">
+      <div className="flex flex-col items-center justify-center gap-4 rounded-lg border border-dashed border-border bg-muted p-10 text-center">
         <CheckCircle2 className="h-10 w-10 text-emerald-500" />
         <div>
-          <p className="text-base font-semibold text-slate-900">Nenhuma viagem pendente.</p>
-          <p className="mt-1 text-sm text-slate-500">Todas as viagens disponíveis já possuem motorista alocado.</p>
+          <p className="text-base font-semibold text-foreground">Nenhuma viagem pendente.</p>
+          <p className="mt-1 text-sm text-muted-foreground">Todas as viagens disponíveis já possuem motorista alocado.</p>
         </div>
         <Link href="/viagens">
           <Button variant="outline">Ver viagens</Button>
@@ -199,10 +199,10 @@ export default function AlocacaoViagensClient({ viagens }: Props) {
 
   return (
     <div className="space-y-4">
-      <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg bg-slate-50 p-4">
+      <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg bg-muted p-4">
         <div className="flex items-center gap-2">
-          <Route className="h-5 w-5 text-slate-600" />
-          <span className="font-medium text-slate-900">{totalPendentes} viagem(ns) pendente(s)</span>
+          <Route className="h-5 w-5 text-foreground/80" />
+          <span className="font-medium text-foreground">{totalPendentes} viagem(ns) pendente(s)</span>
         </div>
         <Badge variant="outline">{isPending ? "Salvando..." : "Pronto para alocar"}</Badge>
       </div>
@@ -221,11 +221,11 @@ export default function AlocacaoViagensClient({ viagens }: Props) {
           const motoristaAtual = viagem.motoristasCompativeis.find((m) => String(m.id) === motoristaSelecionado)
 
           return (
-            <Card key={viagem.id} className="border-slate-200 shadow-sm">
-              <CardHeader className="flex flex-col gap-3 border-b bg-white sm:flex-row sm:items-start sm:justify-between sm:gap-4">
+            <Card key={viagem.id} className="border-border shadow-sm">
+              <CardHeader className="flex flex-col gap-3 border-b bg-card sm:flex-row sm:items-start sm:justify-between sm:gap-4">
                 <div>
-                  <CardTitle className="text-lg text-slate-900">Viagem <span className="font-mono tabular-nums">{viagem.numViagem}</span></CardTitle>
-                  <p className="mt-1 text-sm tabular-nums text-slate-500">
+                  <CardTitle className="text-lg text-foreground">Viagem <span className="font-mono tabular-nums">{viagem.numViagem}</span></CardTitle>
+                  <p className="mt-1 text-sm tabular-nums text-muted-foreground">
                     <span className="font-mono">{viagem.cavalo} / {viagem.carreta}</span> · <span className="font-mono">{formatarDataHoraPtBr(viagem.inicioPrevisto)}</span>
                   </p>
                   {viagem.avisoFrotaIndisponivel && (
@@ -262,25 +262,25 @@ export default function AlocacaoViagensClient({ viagens }: Props) {
 
               <CardContent className="grid gap-4 pt-6 lg:grid-cols-[1.2fr_0.8fr]">
                 <div className="space-y-3">
-                  <div className="flex items-center gap-2 text-sm text-slate-600">
+                  <div className="flex items-center gap-2 text-sm text-foreground/80">
                     <UserCheck className="h-4 w-4" />
                     <span>Motoristas compatíveis: {viagem.motoristasCompativeis.length}</span>
                   </div>
 
-                  <div className="rounded-md border border-slate-200 bg-slate-50 p-3">
+                  <div className="rounded-md border border-border bg-muted p-3">
                     {semCompatibilidade ? (
                       <Alert variant="warning">
                         Nenhum motorista compatível encontrado. Use a edição manual.
                       </Alert>
                     ) : (
                       <div className="space-y-2">
-                        <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+                        <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
                           Sugestão automática
                         </p>
-                        <p className="text-sm font-medium text-slate-900">
+                        <p className="text-sm font-medium text-foreground">
                           {viagem.motoristaSugerido?.nome}
                         </p>
-                        <p className="text-xs text-slate-500">
+                        <p className="text-xs text-muted-foreground">
                           Priorizado por quem libera mais perto do horário ideal, respeitando o descanso legal (dias disponíveis desempata).
                         </p>
                       </div>
@@ -290,21 +290,21 @@ export default function AlocacaoViagensClient({ viagens }: Props) {
                   {viagem.avisoInterjornada && <Alert variant="warning">{viagem.avisoInterjornada}</Alert>}
 
                   <div className="grid gap-2">
-                    <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+                    <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
                       Compatíveis disponíveis
                     </p>
                     <MotoristasCompativeisLista motoristas={viagem.motoristasCompativeis} />
                   </div>
                 </div>
 
-                <div className="space-y-4 rounded-lg border border-slate-200 bg-slate-50 p-4">
+                <div className="space-y-4 rounded-lg border border-border bg-muted p-4">
                   <div className="space-y-2">
-                    <p className="text-sm font-medium text-slate-900">Escolher motorista</p>
+                    <p className="text-sm font-medium text-foreground">Escolher motorista</p>
                     <Select
                       value={motoristaSelecionado}
                       onValueChange={(value) => atualizarSelecao(viagem.id, value)}
                     >
-                      <SelectTrigger className="bg-white">
+                      <SelectTrigger className="bg-card">
                         <SelectValue placeholder="Selecione um motorista">
                           {motoristaAtual && formatarDetalheMotoristaCompativel(motoristaAtual)}
                         </SelectValue>
@@ -352,7 +352,7 @@ export default function AlocacaoViagensClient({ viagens }: Props) {
                   </div>
                 </div>
               </CardContent>
-              <CardFooter className="flex items-center justify-between border-t bg-slate-50 text-xs text-slate-500">
+              <CardFooter className="flex items-center justify-between border-t bg-muted text-xs text-muted-foreground">
                 <span className="tabular-nums">Entrega(s): {viagem.entregas.length}</span>
                 <span className="tabular-nums">Fim previsto: <span className="font-mono">{formatarDataHoraPtBr(viagem.fimPrevisto)}</span></span>
               </CardFooter>

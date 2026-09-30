@@ -110,8 +110,8 @@ export default function UploadXLSXViagem({ onDataLoaded, onError, onImportarLote
   }
 
   return (
-    <Card className="shadow-sm border-slate-200 mb-6">
-      <CardHeader className="bg-slate-50 border-b">
+    <Card className="shadow-sm border-border mb-6">
+      <CardHeader className="bg-muted border-b">
         <CardTitle className="text-lg flex items-center gap-2">
           <Upload className="w-5 h-5" />
           Importar de Arquivo
@@ -142,17 +142,17 @@ export default function UploadXLSXViagem({ onDataLoaded, onError, onImportarLote
               className={`
                 flex flex-col items-center justify-center p-8 border-2 border-dashed rounded-lg
                 cursor-pointer transition-colors
-                ${carregando ? 'bg-slate-50 border-slate-300' : 'hover:border-blue-400 hover:bg-blue-50'}
-                ${arrastandoArquivo ? 'border-blue-500 bg-blue-50' : ''}
-                ${sucesso ? 'border-green-300 bg-green-50' : 'border-slate-300'}
+                ${carregando ? 'bg-muted border-border' : 'hover:border-primary hover:bg-primary/10'}
+                ${arrastandoArquivo ? 'border-primary bg-primary/10' : ''}
+                ${sucesso ? 'border-green-300 bg-green-50' : 'border-border'}
                 ${erro ? 'border-red-300 bg-red-50' : ''}
               `}
             >
               <div className="flex flex-col items-center gap-2">
                 {carregando ? (
                   <>
-                    <Loader className="w-8 h-8 text-blue-500 animate-spin" />
-                    <span className="text-sm font-medium text-slate-600">Processando...</span>
+                    <Loader className="w-8 h-8 text-primary animate-spin" />
+                    <span className="text-sm font-medium text-foreground/80">Processando...</span>
                   </>
                 ) : sucesso ? (
                   <>
@@ -168,18 +168,18 @@ export default function UploadXLSXViagem({ onDataLoaded, onError, onImportarLote
                   </>
                 ) : arrastandoArquivo ? (
                   <>
-                    <Upload className="w-8 h-8 text-blue-500" />
-                    <span className="text-sm font-medium text-blue-700">
+                    <Upload className="w-8 h-8 text-primary" />
+                    <span className="text-sm font-medium text-primary">
                       Solte o arquivo para carregar
                     </span>
                   </>
                 ) : (
                   <>
-                    <Upload className="w-8 h-8 text-slate-400" />
-                    <span className="text-sm font-medium text-slate-600">
+                    <Upload className="w-8 h-8 text-muted-foreground" />
+                    <span className="text-sm font-medium text-foreground/80">
                       Clique para selecionar arquivo
                     </span>
-                    <span className="text-xs text-slate-500">
+                    <span className="text-xs text-muted-foreground">
                       ou arraste um arquivo .xlsx aqui
                     </span>
                   </>
@@ -190,9 +190,9 @@ export default function UploadXLSXViagem({ onDataLoaded, onError, onImportarLote
 
           {/* Lista de viagens encontradas, quando o arquivo tem mais de uma */}
           {viagensDisponiveis.length > 1 && (
-            <div className="rounded-lg border border-slate-200">
-              <div className="flex flex-wrap items-center justify-between gap-3 border-b bg-slate-50 px-4 py-2">
-                <span className="text-sm font-semibold text-slate-700">
+            <div className="rounded-lg border border-border">
+              <div className="flex flex-wrap items-center justify-between gap-3 border-b bg-muted px-4 py-2">
+                <span className="text-sm font-semibold text-foreground/80">
                   {viagensDisponiveis.length} viagens encontradas no arquivo
                 </span>
                 {onImportarLote && (
@@ -208,18 +208,18 @@ export default function UploadXLSXViagem({ onDataLoaded, onError, onImportarLote
                   </Button>
                 )}
               </div>
-              <p className="border-b bg-slate-50 px-4 pb-2 text-xs text-slate-500">
+              <p className="border-b bg-muted px-4 pb-2 text-xs text-muted-foreground">
                 &ldquo;Importar todas&rdquo; calcula a alocação sugerida pra cada viagem e mostra pra você revisar
                 antes de criar. Ou escolha uma abaixo para revisar/ajustar os campos antes de salvar individualmente.
               </p>
-              <ul className="divide-y divide-slate-100">
+              <ul className="divide-y divide-border">
                 {viagensDisponiveis.map((viagem) => {
                   const carregadaAgora = viagem.numViagem === numViagemCarregada
                   return (
                     <li key={viagem.numViagem} className="flex flex-wrap items-center justify-between gap-3 px-4 py-3">
                       <div className="text-sm">
-                        <div className="font-medium text-slate-900">Viagem <span className="font-mono tabular-nums">{viagem.numViagem}</span></div>
-                        <div className="text-xs text-slate-500">
+                        <div className="font-medium text-foreground">Viagem <span className="font-mono tabular-nums">{viagem.numViagem}</span></div>
+                        <div className="text-xs text-muted-foreground">
                           {viagem.entregas.length} entrega(s) · início {viagem.dataInicio}
                         </div>
                       </div>
@@ -252,7 +252,7 @@ export default function UploadXLSXViagem({ onDataLoaded, onError, onImportarLote
           )}
 
           {/* Info sobre o formato esperado */}
-          <div className="p-3 bg-blue-50 border border-blue-200 rounded-md text-sm text-blue-700">
+          <div className="p-3 bg-primary/10 border border-primary/20 rounded-md text-sm text-primary">
             <strong>Formato esperado:</strong> A planilha deve conter dados de viagem com colunas para:
             Viagem, Carreta, Cavalo, Data, Hora, SAP Code, White Code, Data Entrega, Localização, UF, KG, M3 e Observações.
           </div>

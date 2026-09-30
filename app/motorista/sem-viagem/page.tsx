@@ -34,16 +34,16 @@ export default async function MotoristasSemViagemPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-3xl font-bold tracking-tight text-slate-900">Motoristas Sem Viagem Hoje</h1>
-        <p className="text-slate-500 mt-1">
+        <h1 className="text-3xl font-bold tracking-tight text-foreground">Motoristas Sem Viagem Hoje</h1>
+        <p className="text-muted-foreground mt-1">
           {motoristasComAcao.length} de {totalMotoristas} motoristas cadastrados estão sem viagem hoje — confira a ação sugerida pra cada um.
         </p>
       </div>
 
       {motoristasComAcao.length === 0 ? (
-        <div className="border rounded-lg bg-white shadow-sm p-12">
-          <div className="flex flex-col items-center justify-center text-slate-500">
-            <UserX className="w-8 h-8 text-slate-300 mb-2" />
+        <div className="border rounded-lg bg-card shadow-sm p-12">
+          <div className="flex flex-col items-center justify-center text-muted-foreground">
+            <UserX className="w-8 h-8 text-muted-foreground/50 mb-2" />
             <p>Todos os motoristas estão em viagem hoje.</p>
           </div>
         </div>

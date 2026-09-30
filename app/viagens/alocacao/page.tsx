@@ -146,8 +146,8 @@ export default async function PaginaAlocacaoViagens() {
     <div className="space-y-6">
       <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight text-slate-900">Alocação de Viagens</h1>
-          <p className="mt-1 text-slate-500">
+          <h1 className="text-3xl font-bold tracking-tight text-foreground">Alocação de Viagens</h1>
+          <p className="mt-1 text-muted-foreground">
             Cruze viagens pendentes com motoristas compatíveis e ajuste manualmente quando precisar.
           </p>
         </div>
@@ -165,10 +165,10 @@ export default async function PaginaAlocacaoViagens() {
         </div>
       </div>
 
-      <Card className="border-slate-200 shadow-sm">
-        <CardHeader className="bg-slate-50">
+      <Card className="border-border shadow-sm">
+        <CardHeader className="bg-muted">
           <div className="flex items-center gap-2">
-            <Truck className="h-5 w-5 text-slate-600" />
+            <Truck className="h-5 w-5 text-foreground/80" />
             <CardTitle className="text-lg">Viagens sem motorista</CardTitle>
           </div>
           <CardDescription>

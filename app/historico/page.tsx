@@ -64,21 +64,21 @@ export default async function HistoricoPage({
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-3xl font-bold tracking-tight text-slate-900">Histórico</h1>
-        <p className="text-slate-500 mt-1">
+        <h1 className="text-3xl font-bold tracking-tight text-foreground">Histórico</h1>
+        <p className="text-muted-foreground mt-1">
           Tudo que mudou (viagens, motoristas, frotas, clientes, quadro de recados...) num período — quem mudou e o quê.
         </p>
       </div>
 
-      <Card className="shadow-sm border-slate-200">
+      <Card className="shadow-sm border-border">
         <CardContent className="pt-6">
           <form method="get" className="flex flex-wrap items-end gap-4">
             <div className="space-y-1.5">
-              <label className="text-xs font-medium text-slate-700">De</label>
+              <label className="text-xs font-medium text-foreground/80">De</label>
               <Input type="date" name="de" defaultValue={deTexto} className="w-40" />
             </div>
             <div className="space-y-1.5">
-              <label className="text-xs font-medium text-slate-700">Até</label>
+              <label className="text-xs font-medium text-foreground/80">Até</label>
               <Input type="date" name="ate" defaultValue={ateTexto} className="w-40" />
             </div>
             <Button type="submit" variant="outline">
@@ -94,15 +94,15 @@ export default async function HistoricoPage({
         </CardContent>
       </Card>
 
-      <Card className="shadow-sm border-slate-200">
-        <CardHeader className="bg-slate-50 border-b">
+      <Card className="shadow-sm border-border">
+        <CardHeader className="bg-muted border-b">
           <CardTitle className="text-lg">
             {registros.length} mudança{registros.length === 1 ? "" : "s"} no período
           </CardTitle>
         </CardHeader>
         <CardContent className="pt-6">
           {registros.length === 0 ? (
-            <p className="text-sm text-slate-500">Nenhuma mudança registrada nesse período.</p>
+            <p className="text-sm text-muted-foreground">Nenhuma mudança registrada nesse período.</p>
           ) : (
             <ul className="space-y-4">
               {registros.map((registro) => {
@@ -112,18 +112,18 @@ export default async function HistoricoPage({
                 )
 
                 return (
-                  <li key={registro.id} className="border-b border-slate-100 pb-4 last:border-0 last:pb-0">
+                  <li key={registro.id} className="border-b border-border pb-4 last:border-0 last:pb-0">
                     <div className="flex flex-wrap items-center gap-2 text-sm">
-                      <span className="tabular-nums text-slate-500">{formatarDataHoraPtBr(registro.criadoEm)}</span>
+                      <span className="tabular-nums text-muted-foreground">{formatarDataHoraPtBr(registro.criadoEm)}</span>
                       <Badge variant="outline" className={CLASSE_BADGE_ACAO[registro.acao]}>
                         {LABEL_ACAO[registro.acao]}
                       </Badge>
-                      <span className="font-medium text-slate-900">{registro.entidade}</span>
-                      <span className="text-slate-500">·</span>
-                      <span className="text-slate-700">{registro.usuarioNome ?? "Sistema"}</span>
+                      <span className="font-medium text-foreground">{registro.entidade}</span>
+                      <span className="text-muted-foreground">·</span>
+                      <span className="text-foreground/80">{registro.usuarioNome ?? "Sistema"}</span>
                     </div>
                     {alteracoes.length > 0 && (
-                      <ul className="mt-2 space-y-1 text-sm text-slate-600">
+                      <ul className="mt-2 space-y-1 text-sm text-foreground/80">
                         {alteracoes.map((alteracao) => (
                           <li key={alteracao.campo}>{formatarCampoAlterado(alteracao)}</li>
                         ))}

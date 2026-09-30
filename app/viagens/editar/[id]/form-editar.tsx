@@ -166,11 +166,11 @@ export default function FormEditarViagem({ viagem, motoristas, numerosSapQueExig
       <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
         {erroGlobal && <Alert variant="error" className="font-medium">{erroGlobal}</Alert>}
 
-        <Card className="border-blue-200 bg-blue-50/30 shadow-sm">
-          <CardHeader className="flex flex-col gap-3 border-b border-blue-100 bg-blue-50 py-4 sm:flex-row sm:items-center sm:justify-between">
+        <Card className="border-primary/20 bg-primary/5 shadow-sm">
+          <CardHeader className="flex flex-col gap-3 border-b border-primary/20 bg-primary/10 py-4 sm:flex-row sm:items-center sm:justify-between">
             <div className="flex items-center space-x-2">
-              <UserCheck className="h-5 w-5 text-blue-600" />
-              <CardTitle className="text-lg text-blue-900">Alocação de Motorista</CardTitle>
+              <UserCheck className="h-5 w-5 text-primary" />
+              <CardTitle className="text-lg text-primary">Alocação de Motorista</CardTitle>
             </div>
             <div className="flex flex-wrap items-center gap-2">
               <Badge variant="outline" className={classeBadgeStatusViagem(statusSelecionado ?? "CRIADA")}>
@@ -195,7 +195,7 @@ export default function FormEditarViagem({ viagem, motoristas, numerosSapQueExig
                     onValueChange={(value) => field.onChange(value ? Number(value) : null)}
                   >
                     <FormControl>
-                      <SelectTrigger className="bg-white">
+                      <SelectTrigger className="bg-card">
                         <SelectValue placeholder="Selecione um motorista compatível..." />
                       </SelectTrigger>
                     </FormControl>
@@ -232,7 +232,7 @@ export default function FormEditarViagem({ viagem, motoristas, numerosSapQueExig
                       )}
                     </SelectContent>
                   </Select>
-                  <p className="text-xs text-slate-500">
+                  <p className="text-xs text-muted-foreground">
                   Aceita exceções de emergência (turno, integração, jornada ou descanso fora da regra) — nada é bloqueado automaticamente, confira o aviso antes de confirmar.
                   </p>
                   <FormMessage />
@@ -251,7 +251,7 @@ export default function FormEditarViagem({ viagem, motoristas, numerosSapQueExig
                     onValueChange={(value) => field.onChange(value === "nenhum" ? null : Number(value))}
                   >
                     <FormControl>
-                      <SelectTrigger className="bg-white">
+                      <SelectTrigger className="bg-card">
                         <SelectValue placeholder="Nenhum acompanhante..." />
                       </SelectTrigger>
                     </FormControl>
@@ -264,7 +264,7 @@ export default function FormEditarViagem({ viagem, motoristas, numerosSapQueExig
                       ))}
                     </SelectContent>
                   </Select>
-                  <p className="text-xs text-slate-500">
+                  <p className="text-xs text-muted-foreground">
                     Vaga extra sem checagem de compatibilidade — aceita qualquer motorista, inclusive em treinamento. Só bloqueia se ele já estiver em outra viagem no período.
                   </p>
                   <FormMessage />
@@ -280,7 +280,7 @@ export default function FormEditarViagem({ viagem, motoristas, numerosSapQueExig
                   <FormLabel>Status da viagem</FormLabel>
                   <Select value={field.value ?? "CRIADA"} onValueChange={field.onChange}>
                     <FormControl>
-                      <SelectTrigger className="bg-white">
+                      <SelectTrigger className="bg-card">
                         <SelectValue placeholder="Selecione o status" />
                       </SelectTrigger>
                     </FormControl>
@@ -299,8 +299,8 @@ export default function FormEditarViagem({ viagem, motoristas, numerosSapQueExig
           </CardContent>
         </Card>
 
-        <Card className="border-slate-200 shadow-sm">
-          <CardHeader className="border-b bg-slate-50">
+        <Card className="border-border shadow-sm">
+          <CardHeader className="border-b bg-muted">
             <CardTitle className="text-lg">Informações da Rota</CardTitle>
           </CardHeader>
           <CardContent className="grid grid-cols-1 gap-6 pt-6 md:grid-cols-4">
@@ -341,7 +341,7 @@ export default function FormEditarViagem({ viagem, motoristas, numerosSapQueExig
                       type="checkbox"
                       checked={field.value ?? false}
                       onChange={(e) => field.onChange(e.target.checked)}
-                      className="h-4 w-4 rounded border-slate-300"
+                      className="h-4 w-4 rounded border-border"
                     />
                   </FormControl>
                   <FormLabel className="cursor-pointer font-normal">
@@ -355,7 +355,7 @@ export default function FormEditarViagem({ viagem, motoristas, numerosSapQueExig
 
         <EntregasFieldArray control={form.control} />
 
-        <div className="sticky bottom-0 -mx-4 -mb-4 mt-6 flex justify-end border-t border-slate-200 bg-white p-4 shadow-md md:-mx-8 md:-mb-8">
+        <div className="sticky bottom-0 -mx-4 -mb-4 mt-6 flex justify-end border-t border-border bg-card p-4 shadow-md md:-mx-8 md:-mb-8">
           <Button type="button" variant="outline" className="mr-3" onClick={() => router.back()}>
             Cancelar
           </Button>

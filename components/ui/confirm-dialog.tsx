@@ -32,9 +32,9 @@ export function ConfirmDialog({
     <Dialog.Root open={open} onOpenChange={(novoValor) => !confirming && onOpenChange(novoValor)}>
       <Dialog.Portal>
         <Dialog.Overlay className="fixed inset-0 z-40 bg-black/50" />
-        <Dialog.Content className="fixed left-1/2 top-1/2 z-50 w-[calc(100%-2rem)] max-w-sm -translate-x-1/2 -translate-y-1/2 rounded-lg bg-white p-6 shadow-xl">
-          <Dialog.Title className="text-lg font-semibold text-slate-900">{title}</Dialog.Title>
-          <Dialog.Description className="mt-2 text-sm text-slate-600">{description}</Dialog.Description>
+        <Dialog.Content className="fixed left-1/2 top-1/2 z-50 w-[calc(100%-2rem)] max-w-sm -translate-x-1/2 -translate-y-1/2 rounded-lg bg-card p-6 shadow-xl">
+          <Dialog.Title className="text-lg font-semibold text-foreground">{title}</Dialog.Title>
+          <Dialog.Description className="mt-2 text-sm text-foreground/80">{description}</Dialog.Description>
 
           {erro ? (
             <Alert variant="error" className="mt-3">

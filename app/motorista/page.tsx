@@ -67,8 +67,8 @@ export default async function MotoristasPage({
     <div className="space-y-6">
       <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight text-slate-900">Calendário de Motoristas</h1>
-          <p className="text-slate-500 mt-1">
+          <h1 className="text-3xl font-bold tracking-tight text-foreground">Calendário de Motoristas</h1>
+          <p className="text-muted-foreground mt-1">
             Motoristas em linha e dias em colunas, a partir de hoje ({formatarIntervaloDias(inicioJanela, dias[dias.length - 1])}).
           </p>
         </div>
@@ -104,9 +104,9 @@ export default async function MotoristasPage({
       </div>
 
       {motoristas.length === 0 ? (
-        <div className="border rounded-lg bg-white shadow-sm p-12">
-          <div className="flex flex-col items-center justify-center text-slate-500">
-            <Users className="w-8 h-8 text-slate-300 mb-2" />
+        <div className="border rounded-lg bg-card shadow-sm p-12">
+          <div className="flex flex-col items-center justify-center text-muted-foreground">
+            <Users className="w-8 h-8 text-muted-foreground/50 mb-2" />
             <p>Nenhum motorista cadastrado ainda.</p>
           </div>
         </div>

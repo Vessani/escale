@@ -17,8 +17,8 @@ export default async function ClientesPage() {
     <div className="space-y-6">
       <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight text-slate-900">Clientes</h1>
-          <p className="text-slate-500 mt-1">
+          <h1 className="text-3xl font-bold tracking-tight text-foreground">Clientes</h1>
+          <p className="text-muted-foreground mt-1">
             Nomes usados nas entregas da viagem e nas integrações do motorista. Marcar &quot;Exige integração&quot; passa a cobrar integração ativa em qualquer viagem pra esse cliente.
           </p>
         </div>
@@ -33,28 +33,28 @@ export default async function ClientesPage() {
       </div>
 
       {clientes.length === 0 ? (
-        <Card className="border-slate-200 shadow-sm">
-          <CardContent className="flex flex-col items-center justify-center gap-2 p-12 text-slate-500">
-            <Building className="w-8 h-8 text-slate-300" />
+        <Card className="border-border shadow-sm">
+          <CardContent className="flex flex-col items-center justify-center gap-2 p-12 text-muted-foreground">
+            <Building className="w-8 h-8 text-muted-foreground/50" />
             <p>Nenhum cliente cadastrado ainda.</p>
           </CardContent>
         </Card>
       ) : (
-        <div className="rounded-lg border bg-white shadow-sm overflow-hidden">
+        <div className="rounded-lg border bg-card shadow-sm overflow-hidden">
           <Table>
-            <TableHeader className="bg-slate-50">
+            <TableHeader className="bg-muted">
               <TableRow>
-                <TableHead className="font-semibold text-slate-700">Nome</TableHead>
-                <TableHead className="font-semibold text-slate-700">SAP Code</TableHead>
-                <TableHead className="font-semibold text-slate-700">Exige integração</TableHead>
-                {podeGerenciar && <TableHead className="font-semibold text-slate-700 text-right">Ações</TableHead>}
+                <TableHead className="font-semibold text-foreground/80">Nome</TableHead>
+                <TableHead className="font-semibold text-foreground/80">SAP Code</TableHead>
+                <TableHead className="font-semibold text-foreground/80">Exige integração</TableHead>
+                {podeGerenciar && <TableHead className="font-semibold text-foreground/80 text-right">Ações</TableHead>}
               </TableRow>
             </TableHeader>
             <TableBody>
               {clientes.map((cliente) => (
-                <TableRow key={cliente.id} className="hover:bg-slate-50">
+                <TableRow key={cliente.id} className="hover:bg-muted/50">
                   <TableCell className="font-medium">{cliente.nome}</TableCell>
-                  <TableCell className="font-mono tabular-nums text-slate-600">{cliente.numeroSap}</TableCell>
+                  <TableCell className="font-mono tabular-nums text-foreground/80">{cliente.numeroSap}</TableCell>
                   <TableCell>
                     {cliente.exigeIntegracao ? (
                       <Badge variant="warning">Sim</Badge>

@@ -33,7 +33,7 @@ function MotoristaCelula({ viagem }: { viagem: Viagem }) {
 
   return (
     <div className="space-y-1">
-      <span className="text-slate-900 font-medium">{viagem.motorista.nome}</span>
+      <span className="text-foreground font-medium">{viagem.motorista.nome}</span>
       {viagem.avisoInterjornada && (
         <Alert variant="warning" inline title={viagem.avisoInterjornada}>
           Interjornada
@@ -47,8 +47,8 @@ function FrotaCelula({ viagem }: { viagem: Viagem }) {
   return (
     <div className="text-sm">
       <div>
-        <span className="font-mono font-medium tabular-nums text-slate-900">{viagem.cavalo}</span>
-        <span className="font-mono tabular-nums text-slate-500 ml-1">/ {viagem.carreta}</span>
+        <span className="font-mono font-medium tabular-nums text-foreground">{viagem.cavalo}</span>
+        <span className="font-mono tabular-nums text-muted-foreground ml-1">/ {viagem.carreta}</span>
       </div>
       {viagem.avisoFrotaIndisponivel && (
         <Alert variant="warning" inline className="mt-1" title={viagem.avisoFrotaIndisponivel}>
@@ -84,23 +84,23 @@ function AcoesViagem({ viagem, podeExcluir }: { viagem: Viagem; podeExcluir: boo
 /** Tabela para telas a partir de md; em telas menores vira lista de cards (ver ViagensCards). */
 function ViagensTabela({ viagens, podeExcluir }: { viagens: Viagem[]; podeExcluir: boolean }) {
   return (
-    <div className="hidden rounded-lg border bg-white shadow-sm overflow-hidden md:block">
+    <div className="hidden rounded-lg border bg-card shadow-sm overflow-hidden md:block">
       <Table>
-        <TableHeader className="bg-slate-50">
+        <TableHeader className="bg-muted">
           <TableRow>
-            <TableHead className="font-semibold text-slate-700">Nº Viagem</TableHead>
-            <TableHead className="font-semibold text-slate-700">Início Previsto</TableHead>
-            <TableHead className="font-semibold text-slate-700">Fim Previsto</TableHead>
-            <TableHead className="font-semibold text-slate-700">Turno</TableHead>
-            <TableHead className="font-semibold text-slate-700">Status</TableHead>
-            <TableHead className="font-semibold text-slate-700">Caminhão</TableHead>
-            <TableHead className="font-semibold text-slate-700">Motorista</TableHead>
-            <TableHead className="font-semibold text-slate-700 text-right">Ações</TableHead>
+            <TableHead className="font-semibold text-foreground/80">Nº Viagem</TableHead>
+            <TableHead className="font-semibold text-foreground/80">Início Previsto</TableHead>
+            <TableHead className="font-semibold text-foreground/80">Fim Previsto</TableHead>
+            <TableHead className="font-semibold text-foreground/80">Turno</TableHead>
+            <TableHead className="font-semibold text-foreground/80">Status</TableHead>
+            <TableHead className="font-semibold text-foreground/80">Caminhão</TableHead>
+            <TableHead className="font-semibold text-foreground/80">Motorista</TableHead>
+            <TableHead className="font-semibold text-foreground/80 text-right">Ações</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
           {viagens.map((viagem: Viagem) => (
-            <TableRow key={viagem.id} className="hover:bg-slate-50">
+            <TableRow key={viagem.id} className="hover:bg-muted/50">
               <TableCell className="font-mono font-medium tabular-nums">{viagem.numViagem}</TableCell>
               <TableCell className="font-mono tabular-nums">{formatarDataHoraPtBr(viagem.inicioPrevisto)}</TableCell>
               <TableCell className="font-mono tabular-nums">{formatarDataHoraPtBr(viagem.fimPrevisto)}</TableCell>
@@ -144,11 +144,11 @@ function ViagensCards({ viagens, podeExcluir }: { viagens: Viagem[]; podeExcluir
   return (
     <div className="space-y-3 md:hidden">
       {viagens.map((viagem) => (
-        <div key={viagem.id} className="space-y-3 rounded-lg border bg-white shadow-sm p-4">
+        <div key={viagem.id} className="space-y-3 rounded-lg border bg-card shadow-sm p-4">
           <div className="flex items-start justify-between gap-2">
             <div>
-              <p className="font-mono font-semibold tabular-nums text-slate-900">{viagem.numViagem}</p>
-              <p className="font-mono text-xs tabular-nums text-slate-500">
+              <p className="font-mono font-semibold tabular-nums text-foreground">{viagem.numViagem}</p>
+              <p className="font-mono text-xs tabular-nums text-muted-foreground">
                 {formatarDataHoraPtBr(viagem.inicioPrevisto)} até {formatarDataHoraPtBr(viagem.fimPrevisto)}
               </p>
             </div>
@@ -171,8 +171,8 @@ function ViagensCards({ viagens, podeExcluir }: { viagens: Viagem[]; podeExcluir
 
           <dl className="grid grid-cols-2 gap-x-4 gap-y-2 text-sm">
             <div>
-              <dt className="text-xs text-slate-500">Caminhão</dt>
-              <dd className="font-mono font-medium tabular-nums text-slate-900">{viagem.cavalo} / {viagem.carreta}</dd>
+              <dt className="text-xs text-muted-foreground">Caminhão</dt>
+              <dd className="font-mono font-medium tabular-nums text-foreground">{viagem.cavalo} / {viagem.carreta}</dd>
               {viagem.avisoFrotaIndisponivel && (
                 <Alert variant="warning" inline className="mt-1" title={viagem.avisoFrotaIndisponivel}>
                   Frota indisponível
@@ -185,7 +185,7 @@ function ViagensCards({ viagens, podeExcluir }: { viagens: Viagem[]; podeExcluir
               )}
             </div>
             <div>
-              <dt className="text-xs text-slate-500">Motorista</dt>
+              <dt className="text-xs text-muted-foreground">Motorista</dt>
               <dd><MotoristaCelula viagem={viagem} /></dd>
             </div>
           </dl>
@@ -219,8 +219,8 @@ export default async function ViagensPage({
     <div className="space-y-6">
       <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight text-slate-900">Gestão de Viagens</h1>
-          <p className="text-slate-500 mt-1">Use os filtros para acompanhar viagens por status e gerenciar as ações.</p>
+          <h1 className="text-3xl font-bold tracking-tight text-foreground">Gestão de Viagens</h1>
+          <p className="text-muted-foreground mt-1">Use os filtros para acompanhar viagens por status e gerenciar as ações.</p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
           <Link href="/viagens">
@@ -246,16 +246,16 @@ export default async function ViagensPage({
       </div>
 
       {viagensFiltradas.length === 0 ? (
-        <div className="border rounded-lg bg-white shadow-sm p-12">
-          <div className="flex flex-col items-center justify-center text-slate-500">
-            <Truck className="w-8 h-8 text-slate-300 mb-2" />
+        <div className="border rounded-lg bg-card shadow-sm p-12">
+          <div className="flex flex-col items-center justify-center text-muted-foreground">
+            <Truck className="w-8 h-8 text-muted-foreground/50 mb-2" />
             <p>Nenhuma viagem encontrada para este filtro.</p>
           </div>
         </div>
       ) : (
         <section className="space-y-3">
           <div className="flex items-center justify-between">
-            <h2 className="text-xl font-semibold text-slate-900">
+            <h2 className="text-xl font-semibold text-foreground">
               {filtroStatus === "TODOS" ? "Todas as viagens" : `Status: ${formatarStatusViagem(filtroStatus)}`}
             </h2>
             <Badge variant="outline">{viagensFiltradas.length}</Badge>

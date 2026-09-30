@@ -50,7 +50,7 @@ export default function AtualizarSaidaReal({
     <div className="space-y-1">
       <Input
         type="datetime-local"
-        className="h-8 bg-white text-xs tabular-nums"
+        className="h-8 bg-card text-xs tabular-nums"
         value={horarioRealSaida}
         disabled={isPending}
         onChange={(e) => setHorarioRealSaida(e.target.value)}
@@ -60,7 +60,7 @@ export default function AtualizarSaidaReal({
         {atrasado && <AlertTriangle className="h-3 w-3 shrink-0 text-warning" />}
         <Input
           placeholder="Motivo do atraso / observações"
-          className={atrasado ? "h-7 border-warning/30 bg-warning/10 text-xs" : "h-7 bg-white text-xs"}
+          className={atrasado ? "h-7 border-warning/30 bg-warning/10 text-xs" : "h-7 bg-card text-xs"}
           value={motivoAtraso}
           disabled={isPending}
           onChange={(e) => setMotivoAtraso(e.target.value)}

@@ -22,13 +22,13 @@ type Registro = SerializedData<RegistroAuditoria>
 /** Painel só-leitura com o histórico de mudanças de um registro — reusado em Viagem/Motorista/Frota/Cliente. */
 export function HistoricoCard({ registros, titulo = "Histórico" }: { registros: Registro[]; titulo?: string }) {
   return (
-    <Card className="border-slate-200 shadow-sm">
-      <CardHeader className="border-b bg-slate-50">
+    <Card className="border-border shadow-sm">
+      <CardHeader className="border-b bg-muted">
         <CardTitle className="text-lg">{titulo}</CardTitle>
       </CardHeader>
       <CardContent className="pt-6">
         {registros.length === 0 ? (
-          <p className="text-sm text-slate-500">Nenhuma mudança registrada ainda.</p>
+          <p className="text-sm text-muted-foreground">Nenhuma mudança registrada ainda.</p>
         ) : (
           <ul className="space-y-4">
             {registros.map((registro) => {
@@ -38,17 +38,17 @@ export function HistoricoCard({ registros, titulo = "Histórico" }: { registros:
               )
 
               return (
-                <li key={registro.id} className="border-b border-slate-100 pb-4 last:border-0 last:pb-0">
+                <li key={registro.id} className="border-b border-border pb-4 last:border-0 last:pb-0">
                   <div className="flex flex-wrap items-center gap-2 text-sm">
                     <Badge variant="outline" className={CLASSE_BADGE_ACAO[registro.acao]}>
                       {LABEL_ACAO[registro.acao]}
                     </Badge>
-                    <span className="tabular-nums text-slate-500">{formatarDataHoraPtBr(registro.criadoEm)}</span>
-                    <span className="text-slate-500">·</span>
-                    <span className="font-medium text-slate-700">{registro.usuarioNome ?? "Sistema"}</span>
+                    <span className="tabular-nums text-muted-foreground">{formatarDataHoraPtBr(registro.criadoEm)}</span>
+                    <span className="text-muted-foreground">·</span>
+                    <span className="font-medium text-foreground/80">{registro.usuarioNome ?? "Sistema"}</span>
                   </div>
                   {alteracoes.length > 0 && (
-                    <ul className="mt-2 space-y-1 text-sm text-slate-600">
+                    <ul className="mt-2 space-y-1 text-sm text-foreground/80">
                       {alteracoes.map((alteracao) => (
                         <li key={alteracao.campo}>{formatarCampoAlterado(alteracao)}</li>
                       ))}
