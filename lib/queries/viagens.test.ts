@@ -79,16 +79,19 @@ describe("lib/queries/viagens — isolamento por filial", () => {
     expect(chamada.where).toMatchObject({ filialId: FILIAL_ID, deletadoEm: null, status: "CRIADA" })
   })
 
-  it("buscarViagensDoDashboard filtra por filialId, mesmo com filtroStatus TODOS", async () => {
-    await buscarViagensDoDashboard(FILIAL_ID, new Date("2026-08-13T12:00:00"), "TODOS")
+  it("buscarViagensDoDashboard filtra por filialId e traz todos os status (inclusive Finalizadas do dia)", async () => {
+    await buscarViagensDoDashboard(FILIAL_ID, new Date("2026-08-13T12:00:00"))
 
-    const chamada = vi.mocked(prisma.viagem.findMany).mock.calls[0][0] as { where: Record<string, unknown> }
+    const chamada = vi.mocked(prisma.viagem.findMany).mock.calls[0][0] as { where: Record<string, unknown> & { OR: Array<Record<string, unknown>> } }
     expect(chamada.where).toMatchObject({ filialId: FILIAL_ID, deletadoEm: null })
+    // Sem filtro de status no banco — o filtro e as contagens saem da mesma lista, na página.
+    expect(chamada.where).not.toHaveProperty("status")
+    expect(chamada.where.OR).toContainEqual(expect.objectContaining({ status: "FINALIZADA" }))
   })
 
   it("buscarViagensDoDashboard nunca mistura filialId de duas chamadas diferentes", async () => {
-    await buscarViagensDoDashboard(FILIAL_ID, new Date("2026-08-13T12:00:00"), "TODOS")
-    await buscarViagensDoDashboard(OUTRA_FILIAL_ID, new Date("2026-08-13T12:00:00"), "TODOS")
+    await buscarViagensDoDashboard(FILIAL_ID, new Date("2026-08-13T12:00:00"))
+    await buscarViagensDoDashboard(OUTRA_FILIAL_ID, new Date("2026-08-13T12:00:00"))
 
     const chamadas = vi.mocked(prisma.viagem.findMany).mock.calls as Array<[{ where: Record<string, unknown> }]>
     expect(chamadas[0][0].where.filialId).toBe(FILIAL_ID)

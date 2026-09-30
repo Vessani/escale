@@ -25,9 +25,15 @@ type Props = {
   statusAtual: StatusViagem
   inicioPrevisto: string | Date
   fimPrevisto: string | Date
+  /**
+   * Restringe as trocas oferecidas (ex: Dashboard só oferece o ciclo da
+   * viagem em andamento — ver STATUS_ALTERAVEIS_NO_DASHBOARD). O status
+   * atual sempre aparece na lista, desabilitado se não estiver entre elas.
+   */
+  opcoesPermitidas?: readonly StatusViagem[]
 }
 
-export default function AtualizarStatusRapido({ viagemId, statusAtual, inicioPrevisto, fimPrevisto }: Props) {
+export default function AtualizarStatusRapido({ viagemId, statusAtual, inicioPrevisto, fimPrevisto, opcoesPermitidas }: Props) {
   const router = useRouter()
   const [isPending, startTransition] = useTransition()
   const [erro, setErro] = useState("")
@@ -104,8 +110,14 @@ export default function AtualizarStatusRapido({ viagemId, statusAtual, inicioPre
           </SelectValue>
         </SelectTrigger>
         <SelectContent>
-          {STATUS_VIAGEM_OPCOES.map((opcao) => (
-            <SelectItem key={opcao.valor} value={opcao.valor}>
+          {STATUS_VIAGEM_OPCOES.filter(
+            (opcao) => !opcoesPermitidas || opcoesPermitidas.includes(opcao.valor) || opcao.valor === statusSelecionado,
+          ).map((opcao) => (
+            <SelectItem
+              key={opcao.valor}
+              value={opcao.valor}
+              disabled={Boolean(opcoesPermitidas) && !opcoesPermitidas?.includes(opcao.valor)}
+            >
               <span className="flex items-center gap-2">
                 <span aria-hidden className={cn("size-1.5 shrink-0 rounded-full", classePontoStatusViagem(opcao.valor))} />
                 {opcao.label}

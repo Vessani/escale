@@ -86,52 +86,41 @@ export async function buscarViagensSemMotorista(filialId: number) {
 }
 
 /**
- * Viagens do painel do Dashboard: qualquer status com atividade hoje (usa o
- * mesmo critério de sobreposição de `reconciliarFolgaMotoristasNoDiaAtual`),
- * mais qualquer viagem "Retornando" independente da data — ela não pode
- * sumir da tela só porque começou em um dia anterior — mais qualquer
- * "Cancelada" no mesmo dia em que foi cancelada (`canceladoEm`), mesmo que a
- * janela original da viagem já tenha passado. `filtroStatus` estreita ainda
- * mais esse conjunto quando não é "TODOS"; na visão padrão ("TODOS"),
- * "Finalizada" já sai da tela na hora, em vez de esperar a virada do dia.
+ * Viagens do painel do Dashboard (só leitura, fora saída real e status):
+ * qualquer status com atividade no dia (mesmo critério de sobreposição de
+ * `reconciliarFolgaMotoristasNoDiaAtual`), mais qualquer "Retornando"
+ * independente da data — ela não pode sumir só porque começou num dia
+ * anterior — mais Canceladas e Finalizadas NAQUELE dia (canceladoEm /
+ * finalizadoEm), mesmo que a janela original da viagem já tenha passado.
+ *
+ * Traz todos os status de uma vez: o filtro por status e as contagens dos
+ * botões saem da mesma lista, na página (antes a visão "Todos" escondia as
+ * Finalizadas e as contagens só apareciam às vezes).
  */
-export async function buscarViagensDoDashboard(filialId: number, hoje: Date, filtroStatus: FiltroStatusViagem) {
+export async function buscarViagensDoDashboard(filialId: number, hoje: Date) {
   const inicioHoje = inicioDoDia(hoje);
   const fimHoje = fimDoDia(hoje);
-
-  const janelaOuAtividadeRecente = {
-    OR: [
-      { inicioPrevisto: { lte: fimHoje }, fimPrevisto: { gte: inicioHoje } },
-      { status: "RETORNANDO" },
-      { status: "CANCELADA", canceladoEm: { gte: inicioHoje, lte: fimHoje } },
-    ],
-  } satisfies Prisma.ViagemWhereInput;
-
-  const filtroStatusExplicito = filtroStatus === "TODOS"
-    ? ({ status: { not: "FINALIZADA" } } satisfies Prisma.ViagemWhereInput)
-    : ({ status: filtroStatus } satisfies Prisma.ViagemWhereInput);
 
   return await prisma.viagem.findMany({
     where: {
       deletadoEm: null,
       filialId,
-      ...janelaOuAtividadeRecente,
-      ...filtroStatusExplicito,
+      OR: [
+        { inicioPrevisto: { lte: fimHoje }, fimPrevisto: { gte: inicioHoje } },
+        { status: "RETORNANDO" },
+        { status: "CANCELADA", canceladoEm: { gte: inicioHoje, lte: fimHoje } },
+        { status: "FINALIZADA", finalizadoEm: { gte: inicioHoje, lte: fimHoje } },
+      ],
     },
     orderBy: { inicioPrevisto: "asc" },
     include: {
-      entregas: true,
-      motorista: true,
-      motoristaAcompanhante: true,
+      entregas: { select: { cidade: true } },
+      motorista: { select: { nome: true, tipo: true } },
+      motoristaAcompanhante: { select: { nome: true, tipo: true } },
     },
   });
 }
 
-/**
- * Relatório geral: viagens de qualquer status, opcionalmente filtradas por
- * status e por janela de início previsto — usado pelo Excel de
- * viagem+motorista+frota cruzados (ver excel-export.service.ts).
- */
 export async function buscarViagensParaRelatorioGeral(
   filialId: number,
   filtros: { status?: FiltroStatusViagem; de?: Date; ate?: Date },

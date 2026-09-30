@@ -3,41 +3,29 @@ import { requireSessaoPaginaComFilial } from "@/lib/auth-guard"
 import { Button } from "@/components/ui/button"
 import { EmptyState } from "@/components/ui/empty-state"
 import { Input } from "@/components/ui/input"
-import { CalendarDays, CheckCircle2, Info, Pencil, PlayCircle, PlusCircle, Route, UserX } from "lucide-react"
+import { CalendarDays, CheckCircle2, Info, PlayCircle, PlusCircle, Route, UserX } from "lucide-react"
 import { Alert } from "@/components/ui/alert"
 import { Badge } from "@/components/ui/badge"
 import { StatCard } from "@/components/ui/stat-card"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { buscarViagensDoDashboard } from "@/lib/queries/viagens"
-import { buscarMotoristasParaSelect } from "@/lib/queries/motoristas"
-import { montarOpcoesMotoristaPorViagem } from "@/lib/services/opcoes-motorista.service"
+import type { StatusViagem } from "@prisma/client"
+import { NomeMotorista } from "@/components/motorista/icone-tipo-motorista"
+import { STATUS_ALTERAVEIS_NO_DASHBOARD, organizarViagensDoDashboard, viagemEncerrada } from "@/lib/services/dashboard.service"
+import { cn } from "@/lib/utils"
 import { serializeData } from "@/lib/serialization"
 import { STATUS_VIAGEM_OPCOES, formatarStatusViagem, parseStatusFiltro, type FiltroStatusViagem } from "@/lib/services/viagem-status.service"
 import { formatarDataHoraPtBr, parseDataLocal } from "@/lib/utils/date-format"
 import AtualizarSaidaReal from "./atualizar-saida-real"
 import AtualizarStatusRapido from "./viagens/atualizar-status-rapido"
-import AlocarMotoristasDashboard from "./alocar-motoristas-dashboard"
 import QuadroDeObservacoes from "./quadro-de-observacoes"
 import { buscarQuadroObservacoes } from "@/lib/queries/quadro"
 import { formatarCodigoFrota } from "@/lib/services/frota-regras"
 import { LegendaMotoristas } from "@/components/motorista/legenda-motoristas"
 
-async function buscarDadosDashboard(filialId: number, hoje: Date, filtroStatus: ReturnType<typeof parseStatusFiltro>) {
-  const [viagens, motoristasBrutos] = await Promise.all([
-    buscarViagensDoDashboard(filialId, hoje, filtroStatus),
-    buscarMotoristasParaSelect(filialId),
-  ])
-
-  // Situação de cada motorista (cabe na regra? está livre?) calculada aqui no
-  // servidor — o navegador recebe só id, nome, tipo e situação por viagem
-  // (ver montarOpcoesMotoristaPorViagem).
-  const opcoesPorViagem = montarOpcoesMotoristaPorViagem(motoristasBrutos, viagens, hoje)
-  const viagensComMotoristas = viagens.map((viagem) => ({
-    viagem,
-    opcoesMotorista: opcoesPorViagem.get(viagem.id) ?? [],
-  }))
-
-  return serializeData(viagensComMotoristas)
+async function buscarDadosDashboard(filialId: number, hoje: Date) {
+  const viagens = await buscarViagensDoDashboard(filialId, hoje)
+  return serializeData(viagens.map((viagem) => ({ viagem })))
 }
 
 type ItemDashboard = Awaited<ReturnType<typeof buscarDadosDashboard>>[number]
@@ -47,17 +35,27 @@ function cidadesDestino(item: ItemDashboard) {
   return cidades.length > 0 ? cidades.join(" → ") : "-"
 }
 
-function AlocacaoCelula({ item }: { item: ItemDashboard }) {
-  const { viagem, opcoesMotorista } = item
+/**
+ * Motorista(s) só pra leitura — o Dashboard é painel de acompanhamento;
+ * alocar e trocar motorista é na Gestão de Viagens.
+ */
+function MotoristaCelula({ item }: { item: ItemDashboard }) {
+  const { viagem } = item
 
   return (
-    <div className="space-y-1">
-      <AlocarMotoristasDashboard
-        viagemId={viagem.id}
-        motoristaId={viagem.motoristaId}
-        motoristaAcompanhanteId={viagem.motoristaAcompanhanteId}
-        opcoes={opcoesMotorista}
-      />
+    <div className="space-y-0.5">
+      {viagem.motorista ? (
+        <NomeMotorista nome={viagem.motorista.nome} tipo={viagem.motorista.tipo} className="font-medium text-foreground" />
+      ) : (
+        <Badge variant="warning">Sem motorista</Badge>
+      )}
+      {viagem.motoristaAcompanhante && (
+        <p className="flex items-center gap-1 text-xs text-muted-foreground">
+          <span aria-hidden>+</span>
+          <span className="sr-only">Acompanhante:</span>
+          <NomeMotorista nome={viagem.motoristaAcompanhante.nome} tipo={viagem.motoristaAcompanhante.tipo} />
+        </p>
+      )}
       {viagem.avisoInterjornada && (
         <Alert variant="warning" inline title={viagem.avisoInterjornada}>
           Interjornada
@@ -74,9 +72,6 @@ function FrotaCelula({ item }: { item: ItemDashboard }) {
       <div className="flex items-center gap-2">
         <span className="font-mono tabular-nums text-foreground">{formatarCodigoFrota(viagem.cavalo)}</span>
         <span className="font-mono tabular-nums text-muted-foreground">/ {formatarCodigoFrota(viagem.carreta)}</span>
-        <Link href={`/viagens/editar/${viagem.id}`} className="text-muted-foreground hover:text-primary" title="Editar viagem">
-          <Pencil className="h-3.5 w-3.5" />
-        </Link>
       </div>
       {viagem.avisoFrotaIndisponivel && (
         <Alert variant="warning" inline title={viagem.avisoFrotaIndisponivel}>
@@ -113,6 +108,7 @@ function StatusCelula({ item }: { item: ItemDashboard }) {
         statusAtual={viagem.status}
         inicioPrevisto={viagem.inicioPrevisto}
         fimPrevisto={viagem.fimPrevisto}
+        opcoesPermitidas={STATUS_ALTERAVEIS_NO_DASHBOARD}
       />
     </div>
   )
@@ -136,9 +132,9 @@ function ViagensEmAndamentoTabela({ itens }: { itens: ItemDashboard[] }) {
         </TableHeader>
         <TableBody>
           {itens.map((item) => (
-            <TableRow key={item.viagem.id}>
-              <TableCell className="font-medium">
-                <AlocacaoCelula item={item} />
+            <TableRow key={item.viagem.id} className={cn(viagemEncerrada(item.viagem.status) && "opacity-60")}>
+              <TableCell>
+                <MotoristaCelula item={item} />
               </TableCell>
               <TableCell className="font-mono tabular-nums">{item.viagem.numViagem}</TableCell>
               <TableCell>
@@ -165,11 +161,14 @@ function ViagensEmAndamentoCards({ itens }: { itens: ItemDashboard[] }) {
   return (
     <div className="space-y-3 md:hidden">
       {itens.map((item) => (
-        <div key={item.viagem.id} className="space-y-3 rounded-lg border bg-card shadow-sm p-4">
+        <div
+          key={item.viagem.id}
+          className={cn("space-y-3 rounded-lg border bg-card shadow-sm p-4", viagemEncerrada(item.viagem.status) && "opacity-60")}
+        >
           <div className="flex items-start justify-between gap-2">
             <div>
               <p className="text-xs text-muted-foreground">
-                Viagem <span className="font-mono tabular-nums">{item.viagem.numViagem}</span> · <span className="font-mono tabular-nums">{item.viagem.cavalo} / {item.viagem.carreta}</span>
+                Viagem <span className="font-mono tabular-nums">{item.viagem.numViagem}</span> · <span className="font-mono tabular-nums">{formatarCodigoFrota(item.viagem.cavalo)} / {formatarCodigoFrota(item.viagem.carreta)}</span>
               </p>
               {item.viagem.avisoFrotaIndisponivel && (
                 <Alert variant="warning" inline className="mt-1" title={item.viagem.avisoFrotaIndisponivel}>
@@ -182,12 +181,9 @@ function ViagensEmAndamentoCards({ itens }: { itens: ItemDashboard[] }) {
                 </Alert>
               )}
             </div>
-            <Link href={`/viagens/editar/${item.viagem.id}`} className="text-muted-foreground hover:text-primary" title="Editar viagem">
-              <Pencil className="h-4 w-4" />
-            </Link>
           </div>
 
-          <AlocacaoCelula item={item} />
+          <MotoristaCelula item={item} />
 
           <div className="flex flex-wrap items-center gap-2">
             <StatusCelula item={item} />
@@ -250,21 +246,26 @@ export default async function DashboardPage({
   const vendoOutroDia = Boolean(parametros.data)
 
   const { filialId } = await requireSessaoPaginaComFilial()
-  const [itens, quadroObservacoes] = await Promise.all([
-    buscarDadosDashboard(filialId, dataSelecionada, filtroStatus),
+  const [todosDoDia, quadroObservacoes] = await Promise.all([
+    buscarDadosDashboard(filialId, dataSelecionada),
     buscarQuadroObservacoes(filialId),
   ])
+  const { visiveis: itensOrdenados, contagem } = organizarViagensDoDashboard(
+    todosDoDia.map((item) => ({ ...item, status: item.viagem.status, inicioPrevisto: item.viagem.inicioPrevisto })),
+    filtroStatus,
+  )
+  const itens = itensOrdenados
 
   const explicacaoDashboard =
-    "Quadro digital da operação: viagens do dia selecionado em qualquer status, mais Retornando de dias anteriores e Canceladas só até a virada do dia." +
+    "Painel de acompanhamento: viagens do dia selecionado em qualquer status, mais Retornando de dias anteriores e Finalizadas/Canceladas no dia. Aqui só se registra a saída real e o status — editar, alocar e criar é na Gestão de Viagens." +
     (vendoOutroDia ? " Status mostrado é o atual da viagem, não uma foto de como estava naquele dia — pra ver a mudança em si, use o Histórico." : "")
 
-  // Indicadores e contagens saem dos itens já carregados — sem query extra.
-  // Na visão "Todos" a query já exclui Finalizadas (ver buscarViagensDoDashboard),
-  // então a contagem de Finalizadas só é real com o filtro de Finalizada.
-  const contarStatus = (...status: string[]) => itens.filter((item) => status.includes(item.viagem.status)).length
-  const semMotorista = itens.filter((item) => item.viagem.motoristaId === null && item.viagem.status !== "CANCELADA").length
-  const finalizadasVisiveis = filtroStatus !== "TODOS"
+  // Indicadores e contagens saem da lista do dia inteiro, já carregada — sem
+  // query extra, e os números não mudam ao filtrar.
+  const contarStatus = (...status: StatusViagem[]) => status.reduce((soma, atual) => soma + (contagem[atual] ?? 0), 0)
+  const semMotorista = todosDoDia.filter(
+    (item) => item.viagem.motoristaId === null && !viagemEncerrada(item.viagem.status),
+  ).length
 
   return (
     <div className="space-y-6">
@@ -281,15 +282,15 @@ export default async function DashboardPage({
         </div>
         <div className="flex flex-wrap items-center gap-2">
           <Link href={construirHref("TODOS", parametros.data)}>
-            <Button variant={filtroStatus === "TODOS" ? "default" : "outline"}>Todos</Button>
+            <Button variant={filtroStatus === "TODOS" ? "default" : "outline"}>
+              Todos<span className="tabular-nums opacity-70"> · {todosDoDia.length}</span>
+            </Button>
           </Link>
           {STATUS_VIAGEM_OPCOES.map((status) => (
             <Link key={status.valor} href={construirHref(status.valor, parametros.data)}>
               <Button variant={filtroStatus === status.valor ? "default" : "outline"}>
                 {status.label}
-                {filtroStatus === "TODOS" && status.valor !== "FINALIZADA" && (
-                  <span className="tabular-nums opacity-70"> · {contarStatus(status.valor)}</span>
-                )}
+                <span className="tabular-nums opacity-70"> · {contarStatus(status.valor)}</span>
               </Button>
             </Link>
           ))}
@@ -297,7 +298,7 @@ export default async function DashboardPage({
       </div>
 
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        <StatCard rotulo="Viagens" valor={itens.length} icone={Route} />
+        <StatCard rotulo="Viagens" valor={todosDoDia.length} icone={Route} />
         <StatCard
           rotulo="Sem motorista"
           valor={semMotorista}
@@ -305,12 +306,7 @@ export default async function DashboardPage({
           classeValor={semMotorista > 0 ? "text-warning" : undefined}
         />
         <StatCard rotulo="Em andamento" valor={contarStatus("INICIADA", "RETORNANDO")} icone={PlayCircle} />
-        <StatCard
-          rotulo="Finalizadas"
-          valor={finalizadasVisiveis ? contarStatus("FINALIZADA") : "—"}
-          icone={CheckCircle2}
-          title={finalizadasVisiveis ? undefined : 'Na visão "Todos" as finalizadas saem do painel — use o filtro Finalizada para vê-las.'}
-        />
+        <StatCard rotulo="Finalizadas" valor={contarStatus("FINALIZADA")} icone={CheckCircle2} />
       </div>
 
       <form method="get" className="flex flex-wrap items-center gap-2">
@@ -350,7 +346,7 @@ export default async function DashboardPage({
                 : filtroStatus === "TODOS" ? "Hoje" : `Status: ${formatarStatusViagem(filtroStatus)}`}
             </h2>
             <div className="flex items-center gap-4">
-              <LegendaMotoristas />
+              <LegendaMotoristas mostrarSituacao={false} />
               <Badge variant="outline">{itens.length}</Badge>
             </div>
           </div>
