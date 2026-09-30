@@ -10,10 +10,10 @@ vi.mock("@/lib/auth", () => ({
 }))
 
 vi.mock("@/lib/queries/viagens", () => ({
-  buscarViagens: vi.fn(),
+  buscarViagensPaginadas: vi.fn(),
 }))
 
-import { buscarViagens } from "@/lib/queries/viagens"
+import { buscarViagensPaginadas } from "@/lib/queries/viagens"
 import { GET } from "./route"
 
 describe("GET /api/viagens", () => {
@@ -24,20 +24,20 @@ describe("GET /api/viagens", () => {
   it("retorna 401 sem sessão, sem consultar viagens", async () => {
     vi.mocked(getServerSession).mockResolvedValue(null)
 
-    const resposta = await GET()
+    const resposta = await GET(new Request("http://localhost/api/viagens?status=CRIADA&pagina=2"))
 
     expect(resposta.status).toBe(401)
-    expect(buscarViagens).not.toHaveBeenCalled()
+    expect(buscarViagensPaginadas).not.toHaveBeenCalled()
   })
 
   it("busca sempre com a filialId da sessão, e devolve { data: [...] }", async () => {
     vi.mocked(getServerSession).mockResolvedValue({ user: { id: "1", role: "DESPACHANTE", filialId: 7 } } as never)
-    vi.mocked(buscarViagens).mockResolvedValue([{ id: 1, numViagem: "123" }] as never)
+    vi.mocked(buscarViagensPaginadas).mockResolvedValue({ viagens: [{ id: 1, numViagem: "123" }], total: 51, totalPaginas: 2 } as never)
 
-    const resposta = await GET()
+    const resposta = await GET(new Request("http://localhost/api/viagens?status=CRIADA&pagina=2"))
 
     expect(resposta.status).toBe(200)
-    expect(buscarViagens).toHaveBeenCalledWith(7)
-    expect(await resposta.json()).toEqual({ data: [{ id: 1, numViagem: "123" }] })
+    expect(buscarViagensPaginadas).toHaveBeenCalledWith(7, expect.objectContaining({ status: "CRIADA", pagina: 2 }))
+    expect(await resposta.json()).toEqual({ data: { viagens: [{ id: 1, numViagem: "123" }], pagina: 2, totalPaginas: 2, total: 51 } })
   })
 })

@@ -10,7 +10,7 @@ import { StatCard } from "@/components/ui/stat-card"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { buscarViagensDoDashboard } from "@/lib/queries/viagens"
 import { buscarMotoristasParaSelect } from "@/lib/queries/motoristas"
-import { motoristaEstaDisponivelNoPeriodo } from "@/lib/services/alocacao.service"
+import { montarOpcoesMotoristaPorViagem } from "@/lib/services/opcoes-motorista.service"
 import { serializeData } from "@/lib/serialization"
 import { STATUS_VIAGEM_OPCOES, formatarStatusViagem, parseStatusFiltro, type FiltroStatusViagem } from "@/lib/services/viagem-status.service"
 import { formatarDataHoraPtBr, parseDataLocal } from "@/lib/utils/date-format"
@@ -28,22 +28,14 @@ async function buscarDadosDashboard(filialId: number, hoje: Date, filtroStatus: 
     buscarMotoristasParaSelect(filialId),
   ])
 
-  // Disponibilidade é calculada por viagem (exclui a própria viagem da agenda
-  // de cada motorista) — mesmo critério usado em /viagens/editar/[id].
-  const viagensComMotoristas = viagens.map((viagem) => {
-    const motoristas = motoristasBrutos.map((motorista) => {
-      const { viagens: agenda, ...dadosMotorista } = motorista
-      const disponivel = motoristaEstaDisponivelNoPeriodo(
-        { ...motorista, viagens: agenda.filter((v) => v.id !== viagem.id) },
-        new Date(viagem.inicioPrevisto),
-        new Date(viagem.fimPrevisto),
-        hoje,
-      )
-      return { ...dadosMotorista, disponivel }
-    })
-
-    return { viagem, motoristas }
-  })
+  // Situação de cada motorista (cabe na regra? está livre?) calculada aqui no
+  // servidor — o navegador recebe só id, nome, tipo e situação por viagem
+  // (ver montarOpcoesMotoristaPorViagem).
+  const opcoesPorViagem = montarOpcoesMotoristaPorViagem(motoristasBrutos, viagens, hoje)
+  const viagensComMotoristas = viagens.map((viagem) => ({
+    viagem,
+    opcoesMotorista: opcoesPorViagem.get(viagem.id) ?? [],
+  }))
 
   return serializeData(viagensComMotoristas)
 }
@@ -56,7 +48,7 @@ function cidadesDestino(item: ItemDashboard) {
 }
 
 function AlocacaoCelula({ item }: { item: ItemDashboard }) {
-  const { viagem, motoristas } = item
+  const { viagem, opcoesMotorista } = item
 
   return (
     <div className="space-y-1">
@@ -64,12 +56,7 @@ function AlocacaoCelula({ item }: { item: ItemDashboard }) {
         viagemId={viagem.id}
         motoristaId={viagem.motoristaId}
         motoristaAcompanhanteId={viagem.motoristaAcompanhanteId}
-        motoristas={motoristas}
-        turno={viagem.turno}
-        diasViagem={viagem.diasViagem}
-        inicioPrevisto={viagem.inicioPrevisto}
-        integracaoExigida={viagem.integracaoExigida}
-        produto={viagem.produto}
+        opcoes={opcoesMotorista}
       />
       {viagem.avisoInterjornada && (
         <Alert variant="warning" inline title={viagem.avisoInterjornada}>

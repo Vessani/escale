@@ -189,6 +189,8 @@ describe("recalcularAvisosInterjornada", () => {
     return {
       motorista: { findMany: vi.fn().mockResolvedValue(motoristas) },
       viagem: { update: vi.fn() },
+      // Âncora de jornada antes da janela (ver jornada-historico.ts) — nenhuma aqui.
+      $queryRaw: vi.fn().mockResolvedValue([]),
     }
   }
 

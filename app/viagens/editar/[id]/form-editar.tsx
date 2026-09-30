@@ -1,7 +1,7 @@
 "use client"
 
-import type { StatusViagem, TipoMotorista, TipoProduto } from "@prisma/client"
-import { useMemo, useState } from "react"
+import type { StatusViagem, TipoProduto } from "@prisma/client"
+import { useState } from "react"
 import { useRouter } from "next/navigation"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { useForm, useWatch, type Resolver, type SubmitHandler } from "react-hook-form"
@@ -13,8 +13,6 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { editarViagem } from "@/lib/actions/viagens"
 import type { EditarViagemInput } from "@/lib/types/types"
-import { calcularIntegracaoExigida, motoristaEhCompativel } from "@/lib/services/alocacao.service"
-import { mapearRegistrosJornada } from "@/lib/services/jornada.service"
 import {
   STATUS_VIAGEM_OPCOES,
   formatarStatusViagem,
@@ -22,9 +20,8 @@ import {
 } from "@/lib/services/viagem-status.service"
 import { classeBadgeStatusViagem } from "../../badge-styles"
 import { Save, UserCheck } from "lucide-react"
-import { formatDateTimeForInput, inicioDoDia } from "@/lib/utils/date-format"
-import { situacaoDoMotorista } from "@/components/motorista/indicador-compatibilidade"
-import { OpcoesMotoristaAcompanhante, OpcoesMotoristaPrincipal } from "@/components/motorista/opcoes-motorista"
+import { formatDateTimeForInput } from "@/lib/utils/date-format"
+import { OpcoesMotoristaAcompanhante, OpcoesMotoristaPrincipal, ValorMotoristaSelecionado, type OpcaoMotorista } from "@/components/motorista/opcoes-motorista"
 import { PRODUTO_OPCOES } from "@/lib/services/produto.service"
 import { editarViagemSchema, type EditarViagemFormValues } from "@/lib/validation/viagens"
 import RotaFields from "@/components/viagem/rota-fields"
@@ -43,26 +40,6 @@ type EntregaFormModel = {
   obs: string | null
 }
 
-type MotoristaParaSelect = {
-  id: number
-  nome: string
-  turno: EditarViagemFormValues["turno"]
-  diasTrabalhados: number
-  tipo: TipoMotorista
-  disponivel: boolean
-  integracao: Array<{
-    cliente: string
-    status: "ATIVO" | "INATIVO" | "PENDENTE"
-    dataValidade: string | Date
-  }>
-  registrosJornada: Array<{
-    data: string | Date
-    codigo: number
-  }>
-  jornadaRelatorioInicio: string | Date | null
-  jornadaRelatorioFim: string | Date | null
-  produtosAutorizados: TipoProduto[]
-}
 
 type ViagemComRelacionamentos = {
   id: number
@@ -85,46 +62,14 @@ type ViagemComRelacionamentos = {
 
 type FormEditarViagemProps = {
   viagem: ViagemComRelacionamentos
-  motoristas: MotoristaParaSelect[]
-  numerosSapQueExigemIntegracao: string[]
+  /** Já com a situação de cada motorista calculada no servidor (ver montarOpcoesMotoristaPorViagem). */
+  opcoesMotorista: OpcaoMotorista[]
 }
 
-export default function FormEditarViagem({ viagem, motoristas, numerosSapQueExigemIntegracao }: FormEditarViagemProps) {
+export default function FormEditarViagem({ viagem, opcoesMotorista }: FormEditarViagemProps) {
   const router = useRouter()
   const [erroGlobal, setErroGlobal] = useState("")
-  const integracaoExigida = viagem.integracaoExigida ?? calcularIntegracaoExigida(
-    viagem.entregas.map((entrega) => ({ sapcode: entrega.sapcode ?? "" })),
-    new Set(numerosSapQueExigemIntegracao),
-  )
   const statusInicial = normalizarStatusViagem(viagem.status)
-  // "Hoje" do navegador — essa checagem é só um aviso na seleção manual (ver
-  // texto de ajuda abaixo), não é reforçada no servidor, então não precisa
-  // vir do servidor.
-  const hoje = useMemo(() => inicioDoDia(new Date()), [])
-
-  const opcoesPrincipal = useMemo(
-    () =>
-      motoristas.map((motorista) => {
-        const compativel = motoristaEhCompativel(
-          { ...motorista, registrosJornada: mapearRegistrosJornada(motorista.registrosJornada) },
-          {
-            turnoViagem: viagem.turno,
-            diasViagem: viagem.diasViagem,
-            dataInicioViagem: new Date(viagem.inicioPrevisto),
-            integracaoExigida,
-            produtoExigido: viagem.produto,
-            hoje,
-          },
-        )
-        return {
-          id: motorista.id,
-          nome: motorista.nome,
-          tipo: motorista.tipo,
-          situacao: situacaoDoMotorista(compativel, motorista.disponivel),
-        }
-      }),
-    [motoristas, viagem.turno, viagem.diasViagem, viagem.inicioPrevisto, viagem.produto, integracaoExigida, hoje],
-  )
 
   const form = useForm<EditarViagemFormValues>({
     resolver: zodResolver(editarViagemSchema) as Resolver<EditarViagemFormValues>,
@@ -221,11 +166,11 @@ export default function FormEditarViagem({ viagem, motoristas, numerosSapQueExig
                   >
                     <FormControl>
                       <SelectTrigger className="bg-card">
-                        <SelectValue placeholder="Selecione um motorista compatível..." />
+                        <ValorMotoristaSelecionado opcoes={opcoesMotorista} selecionadoId={field.value ?? null} mostrarSituacao placeholder="Selecione um motorista..." />
                       </SelectTrigger>
                     </FormControl>
                     <SelectContent>
-                      <OpcoesMotoristaPrincipal motoristas={opcoesPrincipal} selecionadoId={field.value ?? null} />
+                      <OpcoesMotoristaPrincipal motoristas={opcoesMotorista} selecionadoId={field.value ?? null} />
                     </SelectContent>
                   </Select>
                   <p className="text-xs text-muted-foreground">
@@ -248,12 +193,12 @@ export default function FormEditarViagem({ viagem, motoristas, numerosSapQueExig
                   >
                     <FormControl>
                       <SelectTrigger className="bg-card">
-                        <SelectValue placeholder="Nenhum acompanhante..." />
+                        <ValorMotoristaSelecionado opcoes={opcoesMotorista} selecionadoId={field.value ?? null} mostrarSituacao={false} placeholder="Nenhum acompanhante" />
                       </SelectTrigger>
                     </FormControl>
                     <SelectContent>
                       <SelectItem value="nenhum">Nenhum acompanhante</SelectItem>
-                      <OpcoesMotoristaAcompanhante motoristas={motoristas} selecionadoId={field.value ?? null} />
+                      <OpcoesMotoristaAcompanhante motoristas={opcoesMotorista} selecionadoId={field.value ?? null} />
                     </SelectContent>
                   </Select>
                   <p className="text-xs text-muted-foreground">

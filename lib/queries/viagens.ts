@@ -2,20 +2,56 @@ import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import type { FiltroStatusViagem } from "@/lib/services/viagem-status.service";
 import { fimDoDia, inicioDoDia } from "@/lib/utils/date-format";
+import { VIAGENS_POR_PAGINA, type FiltroListaViagens } from "@/lib/services/filtro-viagens";
 
-// 1. A Busca Principal (Para a tabela de listagem geral)
-export async function buscarViagens(filialId: number) {
-  return await prisma.viagem.findMany({
-    where: {
-      deletadoEm: null,
-      filialId,
-    },
-    orderBy: { inicioPrevisto: 'desc' },
-    include: {
-      entregas: true,
-      motorista: true
-    },
-  });
+/**
+ * Lista da Gestão de Viagens, paginada e filtrada no banco (ver
+ * parseFiltroListaViagens). Antes a tela carregava TODAS as viagens da
+ * filial desde sempre, com todas as entregas — com um ano de dados eram
+ * ~11 mil viagens e uma página de centenas de MB. Traz só os campos que a
+ * lista mostra (sem entregas) e o total, pra paginação.
+ */
+export async function buscarViagensPaginadas(filialId: number, filtro: FiltroListaViagens) {
+  const where: Prisma.ViagemWhereInput = {
+    deletadoEm: null,
+    filialId,
+    ...(filtro.status !== "TODOS" ? { status: filtro.status } : {}),
+    ...(filtro.busca
+      ? { numViagem: { contains: filtro.busca, mode: "insensitive" } }
+      : {
+          // Sobreposição com o período: começa antes do fim dele e termina
+          // depois do começo (pega também viagem longa que atravessa o período).
+          inicioPrevisto: { lte: fimDoDia(filtro.ate) },
+          fimPrevisto: { gte: filtro.de },
+        }),
+  }
+
+  const [viagens, total] = await Promise.all([
+    prisma.viagem.findMany({
+      where,
+      orderBy: [{ inicioPrevisto: "desc" }, { id: "desc" }],
+      skip: (filtro.pagina - 1) * VIAGENS_POR_PAGINA,
+      take: VIAGENS_POR_PAGINA,
+      select: {
+        id: true,
+        numViagem: true,
+        cavalo: true,
+        carreta: true,
+        inicioPrevisto: true,
+        fimPrevisto: true,
+        turno: true,
+        status: true,
+        viagemExtra: true,
+        avisoInterjornada: true,
+        avisoFrotaIndisponivel: true,
+        avisoFrotaProdutoIncompativel: true,
+        motorista: { select: { nome: true, tipo: true } },
+      },
+    }),
+    prisma.viagem.count({ where }),
+  ])
+
+  return { viagens, total, totalPaginas: Math.max(1, Math.ceil(total / VIAGENS_POR_PAGINA)) }
 }
 
 

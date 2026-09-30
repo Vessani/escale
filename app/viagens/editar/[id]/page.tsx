@@ -3,7 +3,9 @@ import { buscarViagemPorId } from "@/lib/queries/viagens"
 import { buscarMotoristasParaSelect } from "@/lib/queries/motoristas"
 import { buscarNumerosSapQueExigemIntegracao } from "@/lib/queries/clientes"
 import { buscarHistoricoDaEntidade } from "@/lib/queries/auditoria"
-import { motoristaEstaDisponivelNoPeriodo } from "@/lib/services/alocacao.service"
+import { calcularIntegracaoExigida } from "@/lib/services/alocacao.service"
+import { montarOpcoesMotoristaPorViagem } from "@/lib/services/opcoes-motorista.service"
+import { inicioDoDia } from "@/lib/utils/date-format"
 import { notFound } from "next/navigation"
 import FormEditarViagem from "./form-editar"
 import { HistoricoCard } from "@/components/auditoria/historico-card"
@@ -33,28 +35,18 @@ export default async function EditarViagemPage({ params }: { params: Promise<{ i
     buscarNumerosSapQueExigemIntegracao(),
     buscarHistoricoDaEntidade("Viagem", viagem.id),
   ])
-  const hoje = new Date()
-
-  const inicioViagem = new Date(viagem.inicioPrevisto)
-  const fimViagem = new Date(viagem.fimPrevisto)
-
-  // Disponibilidade real (sem outra viagem ativa no mesmo período), ignorando
-  // a própria viagem que está sendo editada — senão o motorista já alocado
-  // nela apareceria como "ocupado" por causa da sua própria viagem.
-  const motoristasComDisponibilidade = motoristas.map((motorista) => {
-    const { viagens, ...dadosMotorista } = motorista
-    const disponivel = motoristaEstaDisponivelNoPeriodo(
-      { ...motorista, viagens: viagens.filter((v) => v.id !== viagem.id) },
-      inicioViagem,
-      fimViagem,
-      hoje,
+  // Situação de cada motorista pra esta viagem calculada aqui no servidor —
+  // o formulário recebe só id, nome, tipo e situação (ver montarOpcoesMotoristaPorViagem).
+  const integracaoExigida =
+    viagem.integracaoExigida ??
+    calcularIntegracaoExigida(
+      viagem.entregas.map((entrega) => ({ sapcode: entrega.sapcode ?? "" })),
+      numerosSapQueExigemIntegracao,
     )
-
-    return { ...dadosMotorista, disponivel }
-  })
+  const opcoesMotorista =
+    montarOpcoesMotoristaPorViagem(motoristas, [{ ...viagem, integracaoExigida }], inicioDoDia(new Date())).get(viagem.id) ?? []
 
   const viagemSerializada = serializeData(viagem)
-  const motoristasSerializados = serializeData(motoristasComDisponibilidade)
 
   return (
     <div className="max-w-5xl mx-auto space-y-6 pb-20">
@@ -76,8 +68,7 @@ export default async function EditarViagemPage({ params }: { params: Promise<{ i
       <FormEditarViagem
         key={viagem.id}
         viagem={viagemSerializada}
-        motoristas={motoristasSerializados}
-        numerosSapQueExigemIntegracao={[...numerosSapQueExigemIntegracao]}
+        opcoesMotorista={opcoesMotorista}
       />
 
       <HistoricoCard registros={serializeData(historico)} />

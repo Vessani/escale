@@ -5,13 +5,14 @@ vi.mock("@/lib/prisma", () => ({
     viagem: {
       findMany: vi.fn(),
       findFirst: vi.fn(),
+      count: vi.fn(),
     },
   },
 }))
 
 import { prisma } from "@/lib/prisma"
 import {
-  buscarViagens,
+  buscarViagensPaginadas,
   buscarViagemPorId,
   buscarViagensSemMotorista,
   buscarViagensDoDashboard,
@@ -27,11 +28,35 @@ describe("lib/queries/viagens — isolamento por filial", () => {
     vi.mocked(prisma.viagem.findFirst).mockResolvedValue(null as never)
   })
 
-  it("buscarViagens filtra por filialId e ignora deletadas", async () => {
-    await buscarViagens(FILIAL_ID)
+  it("buscarViagensPaginadas filtra por filialId, ignora deletadas, pagina e não traz entregas", async () => {
+    await buscarViagensPaginadas(FILIAL_ID, {
+      status: "TODOS",
+      de: new Date("2026-09-23T03:00:00Z"),
+      ate: new Date("2026-10-30T03:00:00Z"),
+      busca: "",
+      pagina: 3,
+    })
+
+    const chamada = vi.mocked(prisma.viagem.findMany).mock.calls[0][0] as {
+      where: Record<string, unknown>
+      skip: number
+      take: number
+      select: Record<string, unknown>
+    }
+    expect(chamada.where).toMatchObject({ filialId: FILIAL_ID, deletadoEm: null })
+    expect(chamada.where).toHaveProperty("inicioPrevisto")
+    expect(chamada.skip).toBe(100)
+    expect(chamada.take).toBe(50)
+    expect(chamada.select).not.toHaveProperty("entregas")
+    expect(prisma.viagem.count).toHaveBeenCalledWith({ where: chamada.where })
+  })
+
+  it("buscarViagensPaginadas com busca por número ignora o período", async () => {
+    await buscarViagensPaginadas(FILIAL_ID, { status: "TODOS", de: new Date(), ate: new Date(), busca: "9220", pagina: 1 })
 
     const chamada = vi.mocked(prisma.viagem.findMany).mock.calls[0][0] as { where: Record<string, unknown> }
-    expect(chamada.where).toMatchObject({ filialId: FILIAL_ID, deletadoEm: null })
+    expect(chamada.where).toMatchObject({ numViagem: { contains: "9220", mode: "insensitive" } })
+    expect(chamada.where).not.toHaveProperty("inicioPrevisto")
   })
 
   it("buscarViagemPorId usa findFirst com id + filialId — não acha viagem de outra filial mesmo com id certo", async () => {

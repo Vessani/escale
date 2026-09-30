@@ -15,6 +15,7 @@ import { classeBadgeStatusViagem, classePontoStatusViagem } from "./badge-styles
 import {
   STATUS_VIAGEM_OPCOES,
   ehStatusViagem,
+  formatarStatusViagem,
   normalizarStatusViagem,
   type StatusViagemSelecionavel,
 } from "@/lib/services/viagem-status.service"
@@ -90,8 +91,17 @@ export default function AtualizarStatusRapido({ viagemId, statusAtual, inicioPre
             classeBadgeStatusViagem(statusSelecionado),
           )}
         >
-          {/* O ponto colorido vem da própria opção selecionada (SelectValue repete o conteúdo do item). */}
-          <SelectValue placeholder="Status" />
+          {/*
+            Conteúdo explícito (e não o texto copiado da opção): assim a
+            etiqueta já vem pronta do servidor, sem piscar vazia até o
+            JavaScript carregar.
+          */}
+          <SelectValue placeholder="Status">
+            <span className="flex items-center gap-2">
+              <span aria-hidden className={cn("size-1.5 shrink-0 rounded-full", classePontoStatusViagem(statusSelecionado))} />
+              {formatarStatusViagem(statusSelecionado)}
+            </span>
+          </SelectValue>
         </SelectTrigger>
         <SelectContent>
           {STATUS_VIAGEM_OPCOES.map((opcao) => (

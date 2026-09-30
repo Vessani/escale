@@ -1,7 +1,7 @@
 "use client"
 
 import type { TipoMotorista } from "@prisma/client"
-import { SelectGroup, SelectItem, SelectLabel, SelectSeparator } from "@/components/ui/select"
+import { SelectGroup, SelectItem, SelectLabel, SelectSeparator, SelectValue } from "@/components/ui/select"
 import { NomeMotorista } from "@/components/motorista/icone-tipo-motorista"
 import { IndicadorCompatibilidade, type SituacaoMotorista } from "@/components/motorista/indicador-compatibilidade"
 import { podeSerAcompanhante, podeSerPrincipal } from "@/lib/services/tipo-motorista"
@@ -102,5 +102,43 @@ export function OpcoesMotoristaAcompanhante({
           </SelectItem>
         ))}
     </>
+  )
+}
+
+/**
+ * Valor exibido no seletor fechado, montado aqui em vez de copiado da opção
+ * pelo Radix — assim o nome já vem pronto do servidor, sem piscar vazio até
+ * o JavaScript carregar.
+ */
+export function ValorMotoristaSelecionado({
+  opcoes,
+  selecionadoId,
+  mostrarSituacao,
+  placeholder,
+}: {
+  opcoes: OpcaoMotorista[]
+  selecionadoId: number | null
+  mostrarSituacao: boolean
+  placeholder: string
+}) {
+  const selecionado = selecionadoId === null ? undefined : opcoes.find((opcao) => opcao.id === selecionadoId)
+
+  if (!selecionado) {
+    // Texto explícito também no vazio: o acompanhante usa o valor "nenhum"
+    // (não vazio), e aí o Radix não mostraria o placeholder antes de carregar.
+    return (
+      <SelectValue placeholder={placeholder}>
+        <span className="text-muted-foreground">{placeholder}</span>
+      </SelectValue>
+    )
+  }
+
+  return (
+    <SelectValue placeholder={placeholder}>
+      <span className="flex min-w-0 items-center gap-2">
+        {mostrarSituacao && <IndicadorCompatibilidade situacao={selecionado.situacao} />}
+        <NomeMotorista nome={selecionado.nome} tipo={selecionado.tipo} />
+      </span>
+    </SelectValue>
   )
 }

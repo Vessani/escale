@@ -5,12 +5,15 @@ import { EmptyState } from "@/components/ui/empty-state"
 import { Badge } from "@/components/ui/badge"
 import { Alert } from "@/components/ui/alert"
 import { Download, PlusCircle, Truck } from "lucide-react"
-import { buscarViagens } from "@/lib/queries/viagens"
-import { STATUS_VIAGEM_OPCOES, formatarStatusViagem, parseStatusFiltro } from "@/lib/services/viagem-status.service"
+import { buscarViagensPaginadas } from "@/lib/queries/viagens"
+import { STATUS_VIAGEM_OPCOES, formatarStatusViagem } from "@/lib/services/viagem-status.service"
+import { montarQueryFiltroViagens, parseFiltroListaViagens, type FiltroListaViagens } from "@/lib/services/filtro-viagens"
+import { NomeMotorista } from "@/components/motorista/icone-tipo-motorista"
+import { Input } from "@/components/ui/input"
 import AtualizarStatusRapido from "./atualizar-status-rapido"
 import ExcluirViagemButton from "./excluir-viagem-button"
 import { classeBadgeTurno } from "./badge-styles"
-import { formatarDataHoraPtBr } from "@/lib/utils/date-format"
+import { formatDateForDateInput, formatarDataHoraPtBr } from "@/lib/utils/date-format"
 import { formatarCodigoFrota } from "@/lib/services/frota-regras"
 import {
   Table,
@@ -21,7 +24,7 @@ import {
   TableRow,
 } from "@/components/ui/table"
 
-type Viagem = Awaited<ReturnType<typeof buscarViagens>>[number]
+type Viagem = Awaited<ReturnType<typeof buscarViagensPaginadas>>["viagens"][number]
 
 function MotoristaCelula({ viagem }: { viagem: Viagem }) {
   if (!viagem.motorista) {
@@ -34,7 +37,7 @@ function MotoristaCelula({ viagem }: { viagem: Viagem }) {
 
   return (
     <div className="space-y-1">
-      <span className="text-foreground font-medium">{viagem.motorista.nome}</span>
+      <NomeMotorista nome={viagem.motorista.nome} tipo={viagem.motorista.tipo} className="font-medium text-foreground" />
       {viagem.avisoInterjornada && (
         <Alert variant="warning" inline title={viagem.avisoInterjornada}>
           Interjornada
@@ -192,8 +195,68 @@ function ViagensCards({ viagens, podeExcluir }: { viagens: Viagem[]; podeExcluir
   )
 }
 
+function FiltrosViagens({ filtro }: { filtro: FiltroListaViagens }) {
+  // Formulário GET comum: mudar o período ou buscar volta pra página 1 e
+  // mantém o status escolhido — sem JavaScript, a URL é o estado.
+  return (
+    <form method="get" action="/viagens" className="flex flex-wrap items-end gap-3 rounded-lg border bg-card p-3">
+      {filtro.status !== "TODOS" && <input type="hidden" name="status" value={filtro.status} />}
+      <label className="grid gap-1 text-xs text-muted-foreground">
+        De
+        <Input type="date" name="de" defaultValue={formatDateForDateInput(filtro.de)} className="h-8 w-40 text-xs" />
+      </label>
+      <label className="grid gap-1 text-xs text-muted-foreground">
+        Até
+        <Input type="date" name="ate" defaultValue={formatDateForDateInput(filtro.ate)} className="h-8 w-40 text-xs" />
+      </label>
+      <label className="grid gap-1 text-xs text-muted-foreground">
+        Nº da viagem
+        <Input name="q" defaultValue={filtro.busca} placeholder="Buscar em todo o histórico" className="h-8 w-52 text-xs" />
+      </label>
+      <Button type="submit" size="sm" variant="outline">Filtrar</Button>
+      {(filtro.busca || filtro.status !== "TODOS") && (
+        <Link href="/viagens" className="text-xs text-muted-foreground underline-offset-4 hover:underline">
+          Limpar filtros
+        </Link>
+      )}
+    </form>
+  )
+}
+
+function Paginacao({ filtro, totalPaginas, total }: { filtro: FiltroListaViagens; totalPaginas: number; total: number }) {
+  if (totalPaginas <= 1) return null
+
+  const anterior = filtro.pagina > 1 ? `/viagens${montarQueryFiltroViagens(filtro, { pagina: filtro.pagina - 1 })}` : null
+  const proxima = filtro.pagina < totalPaginas ? `/viagens${montarQueryFiltroViagens(filtro, { pagina: filtro.pagina + 1 })}` : null
+
+  return (
+    <nav aria-label="Paginação" className="flex items-center justify-between gap-2 text-xs text-muted-foreground">
+      <span>
+        Página <span className="tabular-nums">{filtro.pagina}</span> de <span className="tabular-nums">{totalPaginas}</span> ·{" "}
+        <span className="tabular-nums">{total}</span> viagens
+      </span>
+      <div className="flex gap-2">
+        {anterior ? (
+          <Link href={anterior}><Button size="sm" variant="outline">Anterior</Button></Link>
+        ) : (
+          <Button size="sm" variant="outline" disabled>Anterior</Button>
+        )}
+        {proxima ? (
+          <Link href={proxima}><Button size="sm" variant="outline">Próxima</Button></Link>
+        ) : (
+          <Button size="sm" variant="outline" disabled>Próxima</Button>
+        )}
+      </div>
+    </nav>
+  )
+}
+
 type SearchParamsInput = {
   status?: string
+  de?: string
+  ate?: string
+  q?: string
+  pagina?: string
 }
 
 export default async function ViagensPage({
@@ -201,13 +264,11 @@ export default async function ViagensPage({
 }: {
   searchParams?: Promise<SearchParamsInput>
 }) {
-  const parametros = (await searchParams) ?? {}
-  const filtroStatus = parseStatusFiltro(parametros.status)
+  const filtro = parseFiltroListaViagens((await searchParams) ?? {})
+  const filtroStatus = filtro.status
   const { session, filialId } = await requireSessaoPaginaComFilial()
   const podeExcluir = session.user.role === "ADMIN"
-  const viagens = await buscarViagens(filialId)
-  const viagensFiltradas =
-    filtroStatus === "TODOS" ? viagens : viagens.filter((viagem) => viagem.status === filtroStatus)
+  const { viagens: viagensFiltradas, total, totalPaginas } = await buscarViagensPaginadas(filialId, filtro)
 
   return (
     <div className="space-y-6">
@@ -217,11 +278,11 @@ export default async function ViagensPage({
           <p className="text-muted-foreground mt-1">Acompanhe e gerencie as viagens por status.</p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
-          <Link href="/viagens">
+          <Link href={`/viagens${montarQueryFiltroViagens(filtro, { status: "TODOS", pagina: 1 })}`}>
             <Button variant={filtroStatus === "TODOS" ? "default" : "outline"}>Todos</Button>
           </Link>
           {STATUS_VIAGEM_OPCOES.map((status) => (
-            <Link key={status.valor} href={`/viagens?status=${status.valor}`}>
+            <Link key={status.valor} href={`/viagens${montarQueryFiltroViagens(filtro, { status: status.valor, pagina: 1 })}`}>
               <Button variant={filtroStatus === status.valor ? "default" : "outline"}>
                 {status.label}
               </Button>
@@ -239,11 +300,13 @@ export default async function ViagensPage({
         </div>
       </div>
 
+      <FiltrosViagens filtro={filtro} />
+
       {viagensFiltradas.length === 0 ? (
         <EmptyState
           icone={Truck}
           titulo="Nenhuma viagem"
-          descricao="Nenhuma viagem encontrada para este filtro."
+          descricao={filtro.busca ? "Nenhuma viagem com esse número." : "Nenhuma viagem nesse período para este filtro."}
           acao={
             <Link href="/viagens/nova">
               <Button>
@@ -257,12 +320,13 @@ export default async function ViagensPage({
         <section className="space-y-3">
           <div className="flex items-center justify-between">
             <h2 className="text-xl font-semibold text-foreground">
-              {filtroStatus === "TODOS" ? "Todas as viagens" : `Status: ${formatarStatusViagem(filtroStatus)}`}
+              {filtroStatus === "TODOS" ? "Viagens" : `Status: ${formatarStatusViagem(filtroStatus)}`}
             </h2>
-            <Badge variant="outline">{viagensFiltradas.length}</Badge>
+            <Badge variant="outline">{total}</Badge>
           </div>
           <ViagensTabela viagens={viagensFiltradas} podeExcluir={podeExcluir} />
           <ViagensCards viagens={viagensFiltradas} podeExcluir={podeExcluir} />
+          <Paginacao filtro={filtro} totalPaginas={totalPaginas} total={total} />
         </section>
       )}
     </div>

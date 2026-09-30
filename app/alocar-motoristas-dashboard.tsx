@@ -1,88 +1,26 @@
 "use client"
 
-import { useMemo, useState, useTransition } from "react"
+import { useState, useTransition } from "react"
 import { useRouter } from "next/navigation"
-import type { TipoMotorista, TipoProduto, Turno } from "@prisma/client"
 import { atualizarAlocacaoViagem } from "@/lib/actions/viagens"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { motoristaEhCompativel } from "@/lib/services/alocacao.service"
-import { mapearRegistrosJornada } from "@/lib/services/jornada.service"
-import { inicioDoDia } from "@/lib/utils/date-format"
-import { situacaoDoMotorista } from "@/components/motorista/indicador-compatibilidade"
-import { OpcoesMotoristaAcompanhante, OpcoesMotoristaPrincipal } from "@/components/motorista/opcoes-motorista"
-
-type MotoristaParaAlocacao = {
-  id: number
-  nome: string
-  turno: Turno
-  diasTrabalhados: number
-  tipo: TipoMotorista
-  disponivel: boolean
-  integracao: Array<{
-    cliente: string
-    status: "ATIVO" | "INATIVO" | "PENDENTE"
-    dataValidade: string | Date
-  }>
-  registrosJornada: Array<{ data: string | Date; codigo: number }>
-  jornadaRelatorioInicio: string | Date | null
-  jornadaRelatorioFim: string | Date | null
-  produtosAutorizados: TipoProduto[]
-}
+import { Select, SelectContent, SelectItem, SelectTrigger } from "@/components/ui/select"
+import { OpcoesMotoristaAcompanhante, OpcoesMotoristaPrincipal, ValorMotoristaSelecionado, type OpcaoMotorista } from "@/components/motorista/opcoes-motorista"
 
 type Props = {
   viagemId: number
   motoristaId: number | null
   motoristaAcompanhanteId: number | null
-  motoristas: MotoristaParaAlocacao[]
-  turno: Turno
-  diasViagem: number
-  inicioPrevisto: string | Date
-  integracaoExigida: string | null
-  produto: TipoProduto | null
+  /** Já com a situação de cada motorista calculada no servidor (ver montarOpcoesMotoristaPorViagem). */
+  opcoes: OpcaoMotorista[]
 }
 
 /** Alocação inline do Dashboard — grava direto, sem passar pela tela de edição completa (ver atualizarAlocacaoViagem). */
-export default function AlocarMotoristasDashboard({
-  viagemId,
-  motoristaId,
-  motoristaAcompanhanteId,
-  motoristas,
-  turno,
-  diasViagem,
-  inicioPrevisto,
-  integracaoExigida,
-  produto,
-}: Props) {
+export default function AlocarMotoristasDashboard({ viagemId, motoristaId, motoristaAcompanhanteId, opcoes }: Props) {
   const router = useRouter()
   const [isPending, startTransition] = useTransition()
   const [erro, setErro] = useState("")
   const [principal, setPrincipal] = useState<number | null>(motoristaId)
   const [acompanhante, setAcompanhante] = useState<number | null>(motoristaAcompanhanteId)
-  const hoje = useMemo(() => inicioDoDia(new Date()), [])
-
-  const opcoesPrincipal = useMemo(
-    () =>
-      motoristas.map((motorista) => {
-        const compativel = motoristaEhCompativel(
-          { ...motorista, registrosJornada: mapearRegistrosJornada(motorista.registrosJornada) },
-          {
-            turnoViagem: turno,
-            diasViagem,
-            dataInicioViagem: new Date(inicioPrevisto),
-            integracaoExigida,
-            produtoExigido: produto,
-            hoje,
-          },
-        )
-        return {
-          id: motorista.id,
-          nome: motorista.nome,
-          tipo: motorista.tipo,
-          situacao: situacaoDoMotorista(compativel, motorista.disponivel),
-        }
-      }),
-    [motoristas, turno, diasViagem, inicioPrevisto, integracaoExigida, produto, hoje],
-  )
 
   const salvar = (novoPrincipal: number | null, novoAcompanhante: number | null) => {
     setErro("")
@@ -111,10 +49,10 @@ export default function AlocarMotoristasDashboard({
         disabled={isPending}
       >
         <SelectTrigger className="h-8 bg-card text-xs">
-          <SelectValue placeholder="Selecionar motorista..." />
+          <ValorMotoristaSelecionado opcoes={opcoes} selecionadoId={principal} mostrarSituacao placeholder="Selecionar motorista..." />
         </SelectTrigger>
         <SelectContent>
-          <OpcoesMotoristaPrincipal motoristas={opcoesPrincipal} selecionadoId={principal} />
+          <OpcoesMotoristaPrincipal motoristas={opcoes} selecionadoId={principal} />
         </SelectContent>
       </Select>
 
@@ -128,11 +66,11 @@ export default function AlocarMotoristasDashboard({
         disabled={isPending}
       >
         <SelectTrigger className="h-7 bg-card text-[11px] text-muted-foreground">
-          <SelectValue placeholder="+ acompanhante" />
+          <ValorMotoristaSelecionado opcoes={opcoes} selecionadoId={acompanhante} mostrarSituacao={false} placeholder="Sem acompanhante" />
         </SelectTrigger>
         <SelectContent>
           <SelectItem value="nenhum">Sem acompanhante</SelectItem>
-          <OpcoesMotoristaAcompanhante motoristas={motoristas} selecionadoId={acompanhante} />
+          <OpcoesMotoristaAcompanhante motoristas={opcoes} selecionadoId={acompanhante} />
         </SelectContent>
       </Select>
 

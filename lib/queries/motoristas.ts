@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/prisma";
 import { Prisma, Turno } from "@prisma/client";
 import { fimDoDia, inicioDoDia } from "@/lib/utils/date-format";
+import { completarHistoricoComAncora, filtroJanelaJornada, inicioJanelaJornada } from "./jornada-historico";
 
 /**
  * Margem sobre o maior descanso legal (35h, descanso semanal) usada pra
@@ -46,6 +47,7 @@ export const SELECT_VIAGEM_AGENDA = {
 
 export async function buscarMotoristas(filialId: number) {
   const filtroViagem = filtroViagemAtiva(new Date())
+  const desde = inicioJanelaJornada(new Date())
   const motoristas = await prisma.motorista.findMany({
     where: {
       deletadoEm: null,
@@ -59,15 +61,18 @@ export async function buscarMotoristas(filialId: number) {
       // unidas com `viagens` abaixo, pra quem aloca (alocacao.service.ts) só
       // precisar considerar "as viagens desse motorista", sem saber do papel.
       viagensComoAcompanhante: { where: filtroViagem, select: SELECT_VIAGEM_AGENDA },
-      // Histórico de jornada: permite projetar o código do motorista na data
-      // real de início de cada viagem (ver alocacao.service.ts).
+      // Histórico de jornada (só a janela recente + âncora, ver
+      // jornada-historico.ts): permite projetar o código do motorista na
+      // data real de início de cada viagem (ver alocacao.service.ts).
       registrosJornada: {
+        where: filtroJanelaJornada(desde),
         orderBy: { data: "asc" },
       },
     },
   });
 
-  return motoristas.map(({ viagensComoAcompanhante, ...motorista }) => ({
+  const comAncora = await completarHistoricoComAncora(motoristas, desde)
+  return comAncora.map(({ viagensComoAcompanhante, ...motorista }) => ({
     ...motorista,
     viagens: [...motorista.viagens, ...viagensComoAcompanhante],
   }))
@@ -97,6 +102,7 @@ export async function buscarMotoristaPorId(filialId: number, id: number) {
 
 export async function buscarMotoristasParaSelect(filialId: number, turnoDaViagem?: Turno) {
   const filtroViagem = filtroViagemAtiva(new Date())
+  const desde = inicioJanelaJornada(new Date())
   const motoristas = await prisma.motorista.findMany({
     where: {
       deletadoEm: null,
@@ -127,6 +133,7 @@ export async function buscarMotoristasParaSelect(filialId: number, turnoDaViagem
       // pra referência de interjornada (ver alocacao.service.ts e
       // encontrarFimJornadaAnterior em jornada.service.ts).
       registrosJornada: {
+        where: filtroJanelaJornada(desde),
         select: { data: true, codigo: true, fimJornada: true },
         orderBy: { data: "asc" },
       },
@@ -134,7 +141,8 @@ export async function buscarMotoristasParaSelect(filialId: number, turnoDaViagem
     orderBy: { nome: 'asc' }
   });
 
-  return motoristas.map(({ viagensComoAcompanhante, ...motorista }) => ({
+  const comAncora = await completarHistoricoComAncora(motoristas, desde)
+  return comAncora.map(({ viagensComoAcompanhante, ...motorista }) => ({
     ...motorista,
     viagens: [...motorista.viagens, ...viagensComoAcompanhante],
   }))
@@ -157,7 +165,8 @@ export async function buscarMotoristasSemViagemHoje(filialId: number, dataRefere
     fimPrevisto: { gte: inicioDia },
   } satisfies Prisma.ViagemWhereInput
 
-  return prisma.motorista.findMany({
+  const desde = inicioJanelaJornada(dataReferencia)
+  const motoristas = await prisma.motorista.findMany({
     where: {
       deletadoEm: null,
       filialId,
@@ -172,12 +181,15 @@ export async function buscarMotoristasSemViagemHoje(filialId: number, dataRefere
       diasTrabalhados: true,
       tipo: true,
       registrosJornada: {
+        where: filtroJanelaJornada(desde),
         select: { data: true, codigo: true },
         orderBy: { data: "asc" },
       },
     },
     orderBy: { nome: "asc" },
   })
+
+  return completarHistoricoComAncora(motoristas, desde)
 }
 
 export async function contarMotoristasAtivos(filialId: number) {
@@ -185,7 +197,12 @@ export async function contarMotoristasAtivos(filialId: number) {
 }
 
 export async function buscarMotoristasComAgenda(filialId: number, inicio: Date, fim: Date) {
-  return await prisma.motorista.findMany({
+  // Histórico a partir do início do período visível, mais a âncora de antes
+  // dele (ver jornada-historico.ts) — a projeção de um dia sem registro
+  // próprio usa o registro conhecido mais próximo, que pode ser de um mês
+  // anterior, e a âncora cobre exatamente esse caso.
+  const desde = inicioJanelaJornada(inicio, 0)
+  const motoristas = await prisma.motorista.findMany({
     where: {
       deletadoEm: null,
       filialId,
@@ -202,12 +219,12 @@ export async function buscarMotoristasComAgenda(filialId: number, inicio: Date, 
         },
         orderBy: { inicioPrevisto: "asc" },
       },
-      // Histórico completo (não só o mês visível): a projeção de um dia sem
-      // registro próprio usa o registro conhecido mais próximo, que pode ser
-      // de um mês anterior.
       registrosJornada: {
+        where: filtroJanelaJornada(desde),
         orderBy: { data: "asc" },
       },
     },
   });
+
+  return completarHistoricoComAncora(motoristas, desde)
 }

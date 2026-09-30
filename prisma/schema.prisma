@@ -185,6 +185,9 @@
     @@index([carreta])
     @@index([numViagem])
     @@index([filialId])
+    // Lista paginada da Gestão de Viagens e Dashboard: filial + período,
+    // ordenado por início (ver buscarViagensPaginadas/buscarViagensDoDashboard).
+    @@index([filialId, inicioPrevisto])
   }
 
   // Bloco único de recados gerais da operação (ex: "frota 2024 com problema no
@@ -266,6 +269,10 @@
     atualizadoEm DateTime     @updatedAt
 
     viagem       Viagem       @relation(fields: [viagemId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+    // O Postgres não cria índice pra chave estrangeira sozinho — sem isto,
+    // carregar as entregas de qualquer viagem varria a tabela inteira.
+    @@index([viagemId])
   }
 
   model Motorista {
@@ -356,6 +363,10 @@
     atualizadoEm DateTime         @updatedAt
 
     motorista    Motorista?       @relation(fields: [motoristaId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+    // Mesmo motivo do índice de Entrega.viagemId: integrações são sempre
+    // carregadas por motorista.
+    @@index([motoristaId])
   }
 
 

@@ -1,6 +1,7 @@
 import type { Prisma } from "@prisma/client"
 import { filtroViagemAtiva, SELECT_VIAGEM_AGENDA } from "@/lib/queries/motoristas"
 import { inicioDoDia } from "@/lib/utils/date-format"
+import { completarHistoricoComAncora, filtroJanelaJornada, inicioJanelaJornada } from "@/lib/queries/jornada-historico"
 import { calcularAvisoDescanso } from "./alocacao.service"
 import { mapearRegistrosJornada } from "./jornada.service"
 
@@ -32,12 +33,16 @@ export async function recalcularAvisosInterjornada(
   }
 
   const filtroViagem = filtroViagemAtiva(agora)
-  const motoristas = await tx.motorista.findMany({
+  // Histórico só da janela recente + âncora (ver jornada-historico.ts) —
+  // isto roda dentro de TODA gravação de viagem.
+  const desde = inicioJanelaJornada(agora)
+  const motoristasBrutos = await tx.motorista.findMany({
     where: { id: { in: ids }, filialId },
     select: {
       id: true,
       diasTrabalhados: true,
       registrosJornada: {
+        where: filtroJanelaJornada(desde),
         select: { data: true, codigo: true, fimJornada: true },
         orderBy: { data: "asc" },
       },
@@ -47,6 +52,7 @@ export async function recalcularAvisosInterjornada(
     },
   })
 
+  const motoristas = await completarHistoricoComAncora(motoristasBrutos, desde, tx)
   const hoje = inicioDoDia(agora)
 
   for (const motorista of motoristas) {
