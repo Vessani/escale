@@ -4,6 +4,7 @@ vi.mock("@/lib/prisma", () => ({
   prisma: {
     $transaction: vi.fn(),
     frota: { findUnique: vi.fn(), findFirst: vi.fn(), findUniqueOrThrow: vi.fn(), create: vi.fn(), update: vi.fn() },
+    viagem: { findMany: vi.fn() },
   },
 }))
 
@@ -23,7 +24,7 @@ const ATOR: Ator = { usuarioId: "u1", usuarioNome: "Ana" }
 function criarTx() {
   return {
     frota: { findFirst: vi.fn(), create: vi.fn(), update: vi.fn() },
-    viagem: { findFirst: vi.fn() },
+    viagem: { findMany: vi.fn(), update: vi.fn() },
     registroAuditoria: { create: vi.fn() },
   }
 }
@@ -37,21 +38,29 @@ function usarTransacaoCom(tx: Tx) {
 }
 
 describe("calcularAvisoFrotaIndisponivel", () => {
+  const INICIO = new Date("2026-09-30T20:00:00-03:00")
+  const FIM = new Date("2026-10-01T06:02:00-03:00")
+
+  function viagem(id: number, numViagem: string, inicio: string, fim: string) {
+    return { id, numViagem, inicioPrevisto: new Date(inicio), fimPrevisto: new Date(fim) }
+  }
+
   beforeEach(() => {
     vi.clearAllMocks()
+    vi.mocked(prisma.viagem.findMany).mockResolvedValue([])
   })
 
   it("retorna null pra código inválido (vazio ou placeholder '0000'), sem consultar o banco", async () => {
-    const resultado = await calcularAvisoFrotaIndisponivel(FILIAL_ID, "0000", "908", new Date("2026-07-20T08:00:00"))
+    const resultado = await calcularAvisoFrotaIndisponivel(FILIAL_ID, "0000", "908", INICIO, FIM)
 
     expect(resultado).toBeNull()
-    expect(prisma.frota.findUnique).not.toHaveBeenCalled()
+    expect(prisma.frota.findFirst).not.toHaveBeenCalled()
   })
 
   it("retorna null quando o conjunto não está cadastrado", async () => {
     vi.mocked(prisma.frota.findFirst).mockResolvedValue(null)
 
-    const resultado = await calcularAvisoFrotaIndisponivel(FILIAL_ID, "75", "908", new Date("2026-07-20T08:00:00"))
+    const resultado = await calcularAvisoFrotaIndisponivel(FILIAL_ID, "75", "908", INICIO, FIM)
 
     expect(resultado).toBeNull()
     expect(prisma.frota.findFirst).toHaveBeenCalledWith({
@@ -60,64 +69,82 @@ describe("calcularAvisoFrotaIndisponivel", () => {
     })
   })
 
-  it("consulta só pela carreta — o cavalo enviado é ignorado na busca, mesmo divergindo do cadastrado", async () => {
-    vi.mocked(prisma.frota.findFirst).mockResolvedValue(null)
+  it("consulta conjunto e viagens só pela carreta, ignorando CANCELADA/FINALIZADA", async () => {
+    vi.mocked(prisma.frota.findFirst).mockResolvedValue({ emManutencao: false, disponivelEm: null } as never)
 
-    await calcularAvisoFrotaIndisponivel(FILIAL_ID, "9999", "908", new Date("2026-07-20T08:00:00"))
+    await calcularAvisoFrotaIndisponivel(FILIAL_ID, "9999", "908", INICIO, FIM)
 
-    expect(prisma.frota.findFirst).toHaveBeenCalledWith({
-      where: { carreta: "908", filialId: FILIAL_ID, deletadoEm: null },
-      orderBy: { atualizadoEm: "desc" },
+    const chamada = vi.mocked(prisma.viagem.findMany).mock.calls[0][0] as { where: Record<string, unknown> }
+    expect(chamada.where).not.toHaveProperty("cavalo")
+    expect(chamada.where).toMatchObject({
+      carreta: "908",
+      filialId: FILIAL_ID,
+      deletadoEm: null,
+      status: { notIn: ["CANCELADA", "FINALIZADA"] },
     })
   })
 
-  it("retorna null quando disponivelEm já passou", async () => {
-    vi.mocked(prisma.frota.findFirst).mockResolvedValue({
-      id: 1, cavalo: "75", carreta: "908", disponivelEm: new Date("2026-07-19T10:00:00"),
-    } as never)
+  it("NÃO avisa quando a única viagem ativa da carreta é a própria viagem sendo editada (bug do 'Frota indisponível' ao editar)", async () => {
+    vi.mocked(prisma.frota.findFirst).mockResolvedValue({ emManutencao: false, disponivelEm: FIM } as never)
+    vi.mocked(prisma.viagem.findMany).mockResolvedValue([
+      viagem(10, "922087", "2026-09-30T20:00:00-03:00", "2026-10-01T06:02:00-03:00"),
+    ] as never)
 
-    const resultado = await calcularAvisoFrotaIndisponivel(FILIAL_ID, "75", "908", new Date("2026-07-20T08:00:00"))
-
-    expect(resultado).toBeNull()
-  })
-
-  it("avisa quando disponivelEm é depois do início da nova viagem", async () => {
-    vi.mocked(prisma.frota.findFirst).mockResolvedValue({
-      id: 1, cavalo: "75", carreta: "908", disponivelEm: new Date("2026-07-22T18:30:00-03:00"),
-    } as never)
-
-    const resultado = await calcularAvisoFrotaIndisponivel(FILIAL_ID, "75", "908", new Date("2026-07-20T08:00:00-03:00"))
-
-    expect(resultado).toBe("Frota 75/908 só estará disponível a partir de 22/07/2026, 18:30.")
-  })
-
-  it("não avisa quando disponivelEm é exatamente igual ao início da nova viagem", async () => {
-    const mesmoHorario = new Date("2026-07-20T08:00:00")
-    vi.mocked(prisma.frota.findFirst).mockResolvedValue({
-      id: 1, cavalo: "75", carreta: "908", disponivelEm: mesmoHorario,
-    } as never)
-
-    const resultado = await calcularAvisoFrotaIndisponivel(FILIAL_ID, "75", "908", mesmoHorario)
+    const resultado = await calcularAvisoFrotaIndisponivel(FILIAL_ID, "2025", "795", INICIO, FIM, 10)
 
     expect(resultado).toBeNull()
   })
 
-  it("avisa quando o conjunto está marcado como em manutenção, mesmo sem disponivelEm no futuro", async () => {
-    vi.mocked(prisma.frota.findFirst).mockResolvedValue({
-      id: 1, cavalo: "75", carreta: "908", disponivelEm: null, emManutencao: true,
-    } as never)
+  it("avisa quando OUTRA viagem ativa da carreta se sobrepõe, citando ela", async () => {
+    vi.mocked(prisma.frota.findFirst).mockResolvedValue({ emManutencao: false, disponivelEm: null } as never)
+    vi.mocked(prisma.viagem.findMany).mockResolvedValue([
+      viagem(10, "922087", "2026-09-30T20:00:00-03:00", "2026-10-01T06:02:00-03:00"),
+      viagem(11, "922100", "2026-09-30T12:00:00-03:00", "2026-09-30T22:30:00-03:00"),
+    ] as never)
 
-    const resultado = await calcularAvisoFrotaIndisponivel(FILIAL_ID, "75", "908", new Date("2026-07-20T08:00:00"))
+    const resultado = await calcularAvisoFrotaIndisponivel(FILIAL_ID, "2025", "795", INICIO, FIM, 10)
 
-    expect(resultado).toBe("Frota 75/908 está marcada como em manutenção.")
+    expect(resultado).toBe("Frota 2025/795 em uso na viagem 922100 até 30/09/2026, 22:30.")
   })
 
-  it("manutenção avisa mesmo com disponivelEm já passado (manual sempre vence)", async () => {
+  it("não avisa por causa de uma viagem futura da mesma carreta que não se sobrepõe", async () => {
+    // disponivelEm = fim da viagem da semana que vem (maior fim entre as ativas)
+    const fimSemanaQueVem = new Date("2026-10-08T06:00:00-03:00")
+    vi.mocked(prisma.frota.findFirst).mockResolvedValue({ emManutencao: false, disponivelEm: fimSemanaQueVem } as never)
+    vi.mocked(prisma.viagem.findMany).mockResolvedValue([
+      viagem(12, "922300", "2026-10-07T20:00:00-03:00", "2026-10-08T06:00:00-03:00"),
+    ] as never)
+
+    const resultado = await calcularAvisoFrotaIndisponivel(FILIAL_ID, "2025", "795", INICIO, FIM)
+
+    expect(resultado).toBeNull()
+  })
+
+  it("não avisa quando a outra viagem termina exatamente no início desta", async () => {
+    vi.mocked(prisma.frota.findFirst).mockResolvedValue({ emManutencao: false, disponivelEm: INICIO } as never)
+    vi.mocked(prisma.viagem.findMany).mockResolvedValue([
+      viagem(11, "922100", "2026-09-30T10:00:00-03:00", "2026-09-30T20:00:00-03:00"),
+    ] as never)
+
+    const resultado = await calcularAvisoFrotaIndisponivel(FILIAL_ID, "2025", "795", INICIO, FIM)
+
+    expect(resultado).toBeNull()
+  })
+
+  it("mantém a data manual do cadastro (disponivelEm que não é fim de nenhuma viagem ativa)", async () => {
     vi.mocked(prisma.frota.findFirst).mockResolvedValue({
-      id: 1, cavalo: "75", carreta: "908", disponivelEm: new Date("2026-07-19T10:00:00"), emManutencao: true,
+      emManutencao: false, disponivelEm: new Date("2026-10-02T18:30:00-03:00"),
     } as never)
 
-    const resultado = await calcularAvisoFrotaIndisponivel(FILIAL_ID, "75", "908", new Date("2026-07-20T08:00:00"))
+    const resultado = await calcularAvisoFrotaIndisponivel(FILIAL_ID, "75", "908", INICIO, FIM)
+
+    expect(resultado).toBe("Frota 75/908 só estará disponível a partir de 02/10/2026, 18:30.")
+  })
+
+  it("avisa quando o conjunto está marcado como em manutenção (manual sempre vence)", async () => {
+    vi.mocked(prisma.frota.findFirst).mockResolvedValue({ emManutencao: true, disponivelEm: null } as never)
+
+    const resultado = await calcularAvisoFrotaIndisponivel(FILIAL_ID, "75", "908", INICIO, FIM)
 
     expect(resultado).toBe("Frota 75/908 está marcada como em manutenção.")
   })
@@ -130,31 +157,33 @@ describe("sincronizarDisponibilidadeFrota", () => {
 
     await sincronizarDisponibilidadeFrota(tx as never, FILIAL_ID, "75", "908")
 
-    // Nem chega a olhar viagens ativas — sem conjunto cadastrado, não há o que sincronizar.
-    expect(tx.viagem.findFirst).not.toHaveBeenCalled()
+    expect(tx.viagem.findMany).not.toHaveBeenCalled()
     expect(tx.frota.create).not.toHaveBeenCalled()
     expect(tx.frota.update).not.toHaveBeenCalled()
   })
 
-  it("atualiza disponivelEm da dupla já cadastrada com o maior fim entre as viagens ativas, sem criar outra", async () => {
+  it("atualiza disponivelEm com o maior fim entre as viagens ativas da carreta", async () => {
     const tx = criarTx()
-    const fim = new Date("2026-07-20T18:00:00")
-    vi.mocked(tx.viagem.findFirst).mockResolvedValue({ fimPrevisto: fim } as never)
-    vi.mocked(tx.frota.findFirst).mockResolvedValue({ id: 7, cavalo: "75", carreta: "908" } as never)
+    vi.mocked(tx.frota.findFirst).mockResolvedValue({ id: 7, cavalo: "75", carreta: "908", emManutencao: false } as never)
+    vi.mocked(tx.viagem.findMany).mockResolvedValue([
+      { id: 1, numViagem: "A", cavalo: "75", inicioPrevisto: new Date("2026-07-20T08:00:00Z"), fimPrevisto: new Date("2026-07-20T18:00:00Z"), avisoFrotaIndisponivel: null },
+      { id: 2, numViagem: "B", cavalo: "75", inicioPrevisto: new Date("2026-07-22T08:00:00Z"), fimPrevisto: new Date("2026-07-22T18:00:00Z"), avisoFrotaIndisponivel: null },
+    ] as never)
 
     await sincronizarDisponibilidadeFrota(tx as never, FILIAL_ID, "75", "908")
 
     expect(tx.frota.update).toHaveBeenCalledWith({
       where: { id: 7, filialId: FILIAL_ID },
-      data: { disponivelEm: fim },
+      data: { disponivelEm: new Date("2026-07-22T18:00:00Z") },
     })
-    expect(tx.frota.create).not.toHaveBeenCalled()
+    // Nenhuma se sobrepõe: nada a regravar.
+    expect(tx.viagem.update).not.toHaveBeenCalled()
   })
 
-  it("libera o conjunto (disponivelEm null) quando não sobra nenhuma viagem ativa — ex: a única foi cancelada", async () => {
+  it("libera o conjunto (disponivelEm null) quando não sobra nenhuma viagem ativa", async () => {
     const tx = criarTx()
-    vi.mocked(tx.viagem.findFirst).mockResolvedValue(null)
-    vi.mocked(tx.frota.findFirst).mockResolvedValue({ id: 7, cavalo: "75", carreta: "908" } as never)
+    vi.mocked(tx.frota.findFirst).mockResolvedValue({ id: 7, emManutencao: false } as never)
+    vi.mocked(tx.viagem.findMany).mockResolvedValue([])
 
     await sincronizarDisponibilidadeFrota(tx as never, FILIAL_ID, "75", "908")
 
@@ -164,15 +193,27 @@ describe("sincronizarDisponibilidadeFrota", () => {
     })
   })
 
-  it("ignora viagens CANCELADA e FINALIZADA ao calcular a viagem ativa mais tardia", async () => {
+  it("recalcula o aviso gravado nas viagens ativas da carreta: limpa o que não vale mais e marca sobreposições", async () => {
     const tx = criarTx()
-    vi.mocked(tx.viagem.findFirst).mockResolvedValue(null)
-    vi.mocked(tx.frota.findFirst).mockResolvedValue({ id: 7 } as never)
+    vi.mocked(tx.frota.findFirst).mockResolvedValue({ id: 7, emManutencao: false } as never)
+    vi.mocked(tx.viagem.findMany).mockResolvedValue([
+      // Aviso antigo "preso" (ex: conflitava com uma viagem que foi cancelada).
+      { id: 1, numViagem: "A", cavalo: "75", inicioPrevisto: new Date("2026-07-20T08:00:00Z"), fimPrevisto: new Date("2026-07-20T18:00:00Z"), avisoFrotaIndisponivel: "antigo" },
+      { id: 2, numViagem: "B", cavalo: "75", inicioPrevisto: new Date("2026-07-22T08:00:00Z"), fimPrevisto: new Date("2026-07-22T18:00:00Z"), avisoFrotaIndisponivel: null },
+      { id: 3, numViagem: "C", cavalo: "75", inicioPrevisto: new Date("2026-07-22T12:00:00Z"), fimPrevisto: new Date("2026-07-22T20:00:00Z"), avisoFrotaIndisponivel: null },
+    ] as never)
 
     await sincronizarDisponibilidadeFrota(tx as never, FILIAL_ID, "75", "908")
 
-    const chamada = vi.mocked(tx.viagem.findFirst).mock.calls[0][0] as { where: { status: { notIn: string[] } } }
-    expect(chamada.where.status.notIn).toEqual(["CANCELADA", "FINALIZADA"])
+    expect(tx.viagem.update).toHaveBeenCalledWith({ where: { id: 1, filialId: FILIAL_ID }, data: { avisoFrotaIndisponivel: null } })
+    expect(tx.viagem.update).toHaveBeenCalledWith({
+      where: { id: 2, filialId: FILIAL_ID },
+      data: { avisoFrotaIndisponivel: expect.stringContaining("em uso na viagem C") },
+    })
+    expect(tx.viagem.update).toHaveBeenCalledWith({
+      where: { id: 3, filialId: FILIAL_ID },
+      data: { avisoFrotaIndisponivel: expect.stringContaining("em uso na viagem B") },
+    })
   })
 
   it("não faz nada quando cavalo ou carreta é inválido (vazio/placeholder)", async () => {
@@ -180,16 +221,15 @@ describe("sincronizarDisponibilidadeFrota", () => {
 
     await sincronizarDisponibilidadeFrota(tx as never, FILIAL_ID, "0000", "908")
 
-    expect(tx.viagem.findFirst).not.toHaveBeenCalled()
+    expect(tx.viagem.findMany).not.toHaveBeenCalled()
     expect(tx.frota.findFirst).not.toHaveBeenCalled()
-    expect(tx.frota.create).not.toHaveBeenCalled()
     expect(tx.frota.update).not.toHaveBeenCalled()
   })
 
-  it("busca o conjunto e as viagens ativas só pela carreta, com orderBy determinístico quando há mais de um conjunto ativo pra mesma carreta", async () => {
+  it("busca o conjunto só pela carreta, com orderBy determinístico quando há mais de um conjunto ativo", async () => {
     const tx = criarTx()
-    vi.mocked(tx.viagem.findFirst).mockResolvedValue(null)
-    vi.mocked(tx.frota.findFirst).mockResolvedValue({ id: 7, cavalo: "75", carreta: "908" } as never)
+    vi.mocked(tx.frota.findFirst).mockResolvedValue({ id: 7, emManutencao: false } as never)
+    vi.mocked(tx.viagem.findMany).mockResolvedValue([])
 
     await sincronizarDisponibilidadeFrota(tx as never, FILIAL_ID, "75", "908")
 
@@ -197,9 +237,9 @@ describe("sincronizarDisponibilidadeFrota", () => {
       where: { carreta: "908", filialId: FILIAL_ID, deletadoEm: null },
       orderBy: { atualizadoEm: "desc" },
     })
-    const chamadaViagem = vi.mocked(tx.viagem.findFirst).mock.calls[0][0] as { where: Record<string, unknown> }
-    expect(chamadaViagem.where).not.toHaveProperty("cavalo")
-    expect(chamadaViagem.where.carreta).toBe("908")
+    const chamada = vi.mocked(tx.viagem.findMany).mock.calls[0][0] as { where: Record<string, unknown> }
+    expect(chamada.where).not.toHaveProperty("cavalo")
+    expect(chamada.where.carreta).toBe("908")
   })
 })
 

@@ -16,24 +16,98 @@ export type FrotaInput = {
   tipoProduto?: TipoProduto | null
 }
 
+type FrotaParaAviso = { emManutencao: boolean; disponivelEm: Date | null }
+
+type ViagemAtivaDaCarreta = {
+  id: number
+  numViagem: string
+  inicioPrevisto: Date
+  fimPrevisto: Date
+}
+
+type ViagemAvaliada = { id?: number; inicio: Date; fim: Date }
+
+/** Viagens que ainda "seguram" a carreta — mesmo critério de sincronizarDisponibilidadeFrota. */
+function filtroViagensAtivasDaCarreta(filialId: number, carreta: string) {
+  return {
+    carreta,
+    filialId,
+    deletadoEm: null,
+    status: { notIn: ["CANCELADA" as const, "FINALIZADA" as const] },
+  }
+}
+
+const SELECT_VIAGEM_ATIVA_DA_CARRETA = {
+  id: true,
+  numViagem: true,
+  inicioPrevisto: true,
+  fimPrevisto: true,
+} as const
+
 /**
- * Verifica se a frota cadastrada pra essa carreta ainda não está disponível
- * no início da nova viagem — seja porque está marcada como em manutenção
- * (manual), seja porque uma viagem anterior só libera depois. Consulta só
- * pela carreta (o cliente não liga pra qual cavalo está puxando, e corrigir
- * cavalo digitado errado viagem por viagem é trabalho demais) — o cadastro
- * em si continua sendo a dupla cavalo+carreta (ver criarFrotaService). Se
- * houver mais de um conjunto ativo cadastrado pra mesma carreta (cavalo
- * diferente), usa o mais recentemente atualizado. Não bloqueia a
- * criação/edição — só retorna uma mensagem de aviso (ou null), no mesmo
- * espírito do avisoInterjornada (ver alocacao.service.ts /
- * viagem.service.ts).
+ * Regra pura do aviso de frota indisponível pra uma viagem, a partir do
+ * conjunto cadastrado e das viagens ativas da mesma carreta:
+ * 1. Em manutenção (manual) sempre avisa.
+ * 2. Outra viagem ativa da carreta com período sobreposto avisa, citando
+ *    ela. A própria viagem (`avaliada.id`) é ignorada — antes o aviso vinha
+ *    de `disponivelEm`, que é o MAIOR fim previsto entre as viagens ativas
+ *    da carreta incluindo a própria: editar qualquer viagem fazia ela
+ *    conflitar consigo mesma, e uma viagem da semana seguinte na mesma
+ *    carreta marcava as de hoje como indisponíveis.
+ * 3. `disponivelEm` só vale quando não é o fim de nenhuma viagem ativa —
+ *    ou seja, foi preenchido à mão no cadastro (ex: liberação prevista).
+ */
+export function avaliarAvisoFrotaIndisponivel(
+  frota: FrotaParaAviso,
+  viagensAtivas: ViagemAtivaDaCarreta[],
+  avaliada: ViagemAvaliada,
+  cavalo: string,
+  carreta: string,
+): string | null {
+  if (frota.emManutencao) {
+    return `Frota ${cavalo}/${carreta} está marcada como em manutenção.`
+  }
+
+  const conflito = viagensAtivas
+    .filter((viagem) => viagem.id !== avaliada.id)
+    .filter((viagem) => viagem.inicioPrevisto < avaliada.fim && viagem.fimPrevisto > avaliada.inicio)
+    .sort((a, b) => b.fimPrevisto.getTime() - a.fimPrevisto.getTime())[0]
+
+  if (conflito) {
+    return `Frota ${cavalo}/${carreta} em uso na viagem ${conflito.numViagem} até ${formatarDataHoraPtBr(conflito.fimPrevisto)}.`
+  }
+
+  const disponivelEm = frota.disponivelEm
+  if (!disponivelEm || disponivelEm <= avaliada.inicio) {
+    return null
+  }
+
+  const ehFimDeViagem = viagensAtivas.some((viagem) => viagem.fimPrevisto.getTime() === disponivelEm.getTime())
+  if (ehFimDeViagem) {
+    return null
+  }
+
+  return `Frota ${cavalo}/${carreta} só estará disponível a partir de ${formatarDataHoraPtBr(disponivelEm)}.`
+}
+
+/**
+ * Aviso de frota indisponível pra uma viagem prestes a ser gravada (ver
+ * avaliarAvisoFrotaIndisponivel). Consulta só pela carreta (o cliente não
+ * liga pra qual cavalo está puxando, e corrigir cavalo digitado errado
+ * viagem por viagem é trabalho demais) — o cadastro em si continua sendo a
+ * dupla cavalo+carreta (ver criarFrotaService). Se houver mais de um conjunto
+ * ativo cadastrado pra mesma carreta (cavalo diferente), usa o mais
+ * recentemente atualizado. Não bloqueia a criação/edição — só retorna uma
+ * mensagem de aviso (ou null), no mesmo espírito do avisoInterjornada.
+ * `viagemId` é a própria viagem sendo editada (ausente numa viagem nova).
  */
 export async function calcularAvisoFrotaIndisponivel(
   filialId: number,
   cavalo: string,
   carreta: string,
-  inicioNovo: Date,
+  inicio: Date,
+  fim: Date,
+  viagemId?: number,
 ): Promise<string | null> {
   if (!frotaEhValida(cavalo) || !frotaEhValida(carreta)) {
     return null
@@ -48,15 +122,12 @@ export async function calcularAvisoFrotaIndisponivel(
     return null
   }
 
-  if (frota.emManutencao) {
-    return `Frota ${cavalo}/${carreta} está marcada como em manutenção.`
-  }
+  const viagensAtivas = await prisma.viagem.findMany({
+    where: filtroViagensAtivasDaCarreta(filialId, carreta),
+    select: SELECT_VIAGEM_ATIVA_DA_CARRETA,
+  })
 
-  if (!frota.disponivelEm || frota.disponivelEm <= inicioNovo) {
-    return null
-  }
-
-  return `Frota ${cavalo}/${carreta} só estará disponível a partir de ${formatarDataHoraPtBr(frota.disponivelEm)}.`
+  return avaliarAvisoFrotaIndisponivel(frota, viagensAtivas, { id: viagemId, inicio, fim }, cavalo, carreta)
 }
 
 /**
@@ -110,6 +181,8 @@ export async function calcularAvisoFrotaProduto(
  * estado: criada, editada (na carreta antiga também, se a carreta mudou),
  * teve o status alterado, ou foi excluída — senão cancelar/finalizar uma
  * viagem nunca libera a frota (fica presa no fim previsto antigo pra sempre).
+ * Também recalcula o avisoFrotaIndisponivel de todas as viagens ativas da
+ * carreta (ver avaliarAvisoFrotaIndisponivel).
  *
  * Sem RegistroAuditoria própria de propósito: é um recálculo automático
  * disparado por escrita de Viagem, não uma decisão de alguém — a viagem que
@@ -135,21 +208,38 @@ export async function sincronizarDisponibilidadeFrota(
     return
   }
 
-  const viagemAtiva = await tx.viagem.findFirst({
-    where: {
-      carreta,
-      filialId,
-      deletadoEm: null,
-      status: { notIn: ["CANCELADA", "FINALIZADA"] },
-    },
-    orderBy: { fimPrevisto: "desc" },
-    select: { fimPrevisto: true },
+  const viagensAtivas = await tx.viagem.findMany({
+    where: filtroViagensAtivasDaCarreta(filialId, carreta),
+    select: { ...SELECT_VIAGEM_ATIVA_DA_CARRETA, cavalo: true, avisoFrotaIndisponivel: true },
   })
+
+  const maiorFim = viagensAtivas.reduce<Date | null>(
+    (maior, viagem) => (!maior || viagem.fimPrevisto > maior ? viagem.fimPrevisto : maior),
+    null,
+  )
 
   await tx.frota.update({
     where: { id: existente.id, filialId },
-    data: { disponivelEm: viagemAtiva?.fimPrevisto ?? null },
+    data: { disponivelEm: maiorFim },
   })
+  const frotaAtualizada = { emManutencao: existente.emManutencao, disponivelEm: maiorFim }
+
+  // Uma viagem cancelada/finalizada/movida libera (ou ocupa) a carreta pras
+  // outras: recalcula o aviso gravado em todas as viagens ativas dela, senão
+  // ele fica "preso" no valor da última vez que cada uma foi salva.
+  for (const viagem of viagensAtivas) {
+    const aviso = avaliarAvisoFrotaIndisponivel(
+      frotaAtualizada,
+      viagensAtivas,
+      { id: viagem.id, inicio: viagem.inicioPrevisto, fim: viagem.fimPrevisto },
+      viagem.cavalo,
+      carreta,
+    )
+
+    if (aviso !== viagem.avisoFrotaIndisponivel) {
+      await tx.viagem.update({ where: { id: viagem.id, filialId }, data: { avisoFrotaIndisponivel: aviso } })
+    }
+  }
 }
 
 /** Cria um conjunto manualmente pelo cadastro. */

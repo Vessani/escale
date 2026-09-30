@@ -155,6 +155,7 @@ async function inserirViagem(
     dados.cavalo,
     dados.carreta,
     dados.inicioPrevisto as Date,
+    dados.fimPrevisto as Date,
   )
   const avisoFrotaProdutoIncompativel = await calcularAvisoFrotaProduto(filialId, dados.cavalo, dados.carreta, dados.produto)
 
@@ -304,6 +305,8 @@ export async function editarViagemService(filialId: number, idViagem: number, da
     dados.cavalo,
     dados.carreta,
     dados.inicioPrevisto as Date,
+    dados.fimPrevisto as Date,
+    idViagem,
   )
   const avisoFrotaProdutoIncompativel = await calcularAvisoFrotaProduto(filialId, dados.cavalo, dados.carreta, dados.produto)
 
@@ -467,7 +470,14 @@ export async function atualizarStatusViagemService(
   // recalculado dentro da transação, pra qualquer mudança de status.
   const avisosRecalculados = novaData
     ? {
-        avisoFrotaIndisponivel: await calcularAvisoFrotaIndisponivel(filialId, viagemAtual.cavalo, viagemAtual.carreta, novaData.inicioPrevisto),
+        avisoFrotaIndisponivel: await calcularAvisoFrotaIndisponivel(
+          filialId,
+          viagemAtual.cavalo,
+          viagemAtual.carreta,
+          novaData.inicioPrevisto,
+          novaData.fimPrevisto,
+          idViagem,
+        ),
         avisoFrotaProdutoIncompativel: await calcularAvisoFrotaProduto(filialId, viagemAtual.cavalo, viagemAtual.carreta, viagemAtual.produto),
       }
     : {}

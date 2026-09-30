@@ -285,7 +285,8 @@ describe("viagem.service", () => {
 
       await criarViagemAvulsaService(FILIAL_ID, criarViagemInput({ cavalo: "2064", carreta: "908" }), ATOR)
 
-      expect(calcularAvisoFrotaIndisponivel).toHaveBeenCalledWith(FILIAL_ID, "2064", "908", expect.any(Date))
+      // Viagem nova: sem id pra ignorar na checagem de sobreposição.
+      expect(calcularAvisoFrotaIndisponivel).toHaveBeenCalledWith(FILIAL_ID, "2064", "908", expect.any(Date), expect.any(Date))
       const dadosCriados = vi.mocked(tx.viagem.create).mock.calls[0][0].data
       expect(dadosCriados.avisoFrotaIndisponivel).toBe("Frota 2064 só estará disponível a partir das 10:00 (em uso na viagem V-1).")
       expect(sincronizarDisponibilidadeFrota).toHaveBeenCalledWith(tx, FILIAL_ID, "2064", "908")
@@ -528,7 +529,8 @@ describe("viagem.service", () => {
 
       await editarViagemService(FILIAL_ID, 1, criarEdicaoInput({ cavalo: "2064", carreta: "908" }), ATOR)
 
-      expect(calcularAvisoFrotaIndisponivel).toHaveBeenCalledWith(FILIAL_ID, "2064", "908", expect.any(Date))
+      // Edição: passa o próprio id, pra viagem não conflitar consigo mesma.
+      expect(calcularAvisoFrotaIndisponivel).toHaveBeenCalledWith(FILIAL_ID, "2064", "908", expect.any(Date), expect.any(Date), 1)
       const dados = vi.mocked(tx.viagem.update).mock.calls[0][0].data
       expect(dados.avisoFrotaIndisponivel).toBe("Frota 2064/908 só estará disponível a partir de 22/07/2026, 12:00.")
       expect(sincronizarDisponibilidadeFrota).toHaveBeenCalledWith(tx, FILIAL_ID, "2064", "908")
@@ -785,7 +787,7 @@ describe("viagem.service", () => {
       const novoFim = new Date("2026-08-21T08:00:00")
       await atualizarStatusViagemService(FILIAL_ID, 1, "POSTERGADA", ATOR, { inicioPrevisto: novoInicio, fimPrevisto: novoFim })
 
-      expect(calcularAvisoFrotaIndisponivel).toHaveBeenCalledWith(FILIAL_ID, "2064", "908", novoInicio)
+      expect(calcularAvisoFrotaIndisponivel).toHaveBeenCalledWith(FILIAL_ID, "2064", "908", novoInicio, novoFim, 1)
       expect(calcularAvisoFrotaProduto).toHaveBeenCalledWith(FILIAL_ID, "2064", "908", "CO2")
       const dados = vi.mocked(tx.viagem.update).mock.calls[0][0].data
       expect(dados.avisoFrotaIndisponivel).toBe("Frota 2064/908 só estará disponível a partir de 22/07/2026, 12:00.")

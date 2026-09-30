@@ -98,6 +98,7 @@ export async function sugerirAlocacaoParaViagens(
       viagens[indice].cavalo,
       viagens[indice].carreta,
       dataInicioViagem,
+      new Date(viagens[indice].fimPrevisto),
     );
     const avisoFrotaProdutoIncompativel = await calcularAvisoFrotaProduto(
       filialId,
