@@ -12,18 +12,41 @@ export function periodoConflita(inicioA: Date, fimA: Date, inicioB: Date, fimB: 
 /**
  * CANCELADA nunca conta (a viagem não aconteceu, não há descanso a cumprir
  * por causa dela). FINALIZADA conta como qualquer viagem ativa — uma viagem
- * já concluída ainda define quando o motorista pode iniciar a próxima (ver
+ * já concluída ainda define quando o motorista pode iniciar a próxima, a
+ * partir do fim efetivo (ver fimEfetivoViagem), não do fim previsto (ver
  * MINIMO_HORAS_ENTRE_JORNADAS/MINIMO_HORAS_ENTRE_FOLGAS); a consulta que
  * carrega `motorista.viagens` (lib/queries/motoristas.ts) já limita
  * viagens FINALIZADA às recentes, então esta função não precisa repetir esse
  * corte por tempo.
  */
-function viagemBloqueiaAgenda(viagem: ViagemParaDisponibilidade) {
+export function viagemBloqueiaAgenda(viagem: ViagemParaDisponibilidade) {
   if (viagem.deletadoEm) {
     return false
   }
 
   return viagem.status !== "CANCELADA"
+}
+
+/**
+ * Quando o motorista de fato ficou livre de uma viagem: marcar FINALIZADA
+ * libera o motorista a partir desse instante (`finalizadoEm`), se for antes
+ * do fim previsto — a rota encerrou mais cedo e quem escala sabe disso. O
+ * descanso mínimo (11h/35h) continua contando, só que a partir daqui, não do
+ * fim planejado. Nunca antes do início previsto (finalizar por engano antes
+ * de a viagem começar não cria um "fim" anterior ao início). Viagem não
+ * finalizada, ou finalizada antes da coluna existir, usa o fim previsto.
+ */
+export function fimEfetivoViagem(viagem: ViagemParaDisponibilidade): Date {
+  const fimPrevisto = new Date(viagem.fimPrevisto)
+
+  if (viagem.status !== "FINALIZADA" || !viagem.finalizadoEm) {
+    return fimPrevisto
+  }
+
+  const finalizadoEm = new Date(viagem.finalizadoEm)
+  const inicioPrevisto = new Date(viagem.inicioPrevisto)
+  const fim = finalizadoEm < fimPrevisto ? finalizadoEm : fimPrevisto
+  return fim < inicioPrevisto ? inicioPrevisto : fim
 }
 
 /**
@@ -71,7 +94,11 @@ export function periodosConflitamComDescanso(
  * Exportada porque sugestao.ts também precisa dela ao verificar conflito
  * entre atribuições dentro do mesmo lote (ver sugerirAlocacoesEmLote).
  */
-export function descansoMinimoNecessarioApos(motorista: MotoristaParaAlocacao, fimViagemExistente: Date, hoje: Date) {
+export function descansoMinimoNecessarioApos(
+  motorista: Pick<MotoristaParaAlocacao, "registrosJornada" | "diasTrabalhados">,
+  fimViagemExistente: Date,
+  hoje: Date,
+) {
   const codigoAoFim = projetarCodigoNoDia(motorista.registrosJornada, fimViagemExistente, hoje, motorista.diasTrabalhados)
   return codigoAoFim >= MAX_DIAS_CONSECUTIVOS ? MINIMO_HORAS_ENTRE_FOLGAS : MINIMO_HORAS_ENTRE_JORNADAS
 }
@@ -87,7 +114,7 @@ export function motoristaEstaDisponivelNoPeriodo(
       return false
     }
 
-    const fimViagemExistente = new Date(viagem.fimPrevisto)
+    const fimViagemExistente = fimEfetivoViagem(viagem)
     const minimoHoras = descansoMinimoNecessarioApos(motorista, fimViagemExistente, hoje)
 
     return periodosConflitamComDescanso(

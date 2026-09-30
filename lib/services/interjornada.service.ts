@@ -1,0 +1,68 @@
+import type { Prisma } from "@prisma/client"
+import { filtroViagemAtiva, SELECT_VIAGEM_AGENDA } from "@/lib/queries/motoristas"
+import { inicioDoDia } from "@/lib/utils/date-format"
+import { calcularAvisoDescanso } from "./alocacao.service"
+import { mapearRegistrosJornada } from "./jornada.service"
+
+/**
+ * Recalcula e grava o aviso de descanso (`avisoInterjornada`) de todas as
+ * viagens ainda em aberto em que esses motoristas são o principal — com a
+ * regra única de calcularAvisoDescanso (relatório + viagens, finalizada
+ * contando a partir da finalização, 11h ou 35h).
+ *
+ * Chamado dentro da transação de toda gravação que pode mudar o descanso de
+ * alguém: criar/editar/alocar/excluir viagem, mudar status (finalizar libera
+ * o motorista) e importar o Relatório de Jornada. Antes o aviso era calculado
+ * só pra viagem sendo salva e ficava "congelado": finalizar a viagem anterior
+ * ou importar um relatório novo não o atualizava.
+ *
+ * Viagens FINALIZADA/CANCELADA ficam de fora: o aviso delas é histórico (o
+ * que valia quando ainda estavam em aberto) e alimenta os indicadores de
+ * Relatórios. Só grava o que mudou.
+ */
+export async function recalcularAvisosInterjornada(
+  tx: Prisma.TransactionClient,
+  filialId: number,
+  motoristaIds: Array<number | null | undefined>,
+  agora: Date = new Date(),
+) {
+  const ids = [...new Set(motoristaIds.filter((id): id is number => typeof id === "number"))]
+  if (ids.length === 0) {
+    return
+  }
+
+  const filtroViagem = filtroViagemAtiva(agora)
+  const motoristas = await tx.motorista.findMany({
+    where: { id: { in: ids }, filialId },
+    select: {
+      id: true,
+      diasTrabalhados: true,
+      registrosJornada: {
+        select: { data: true, codigo: true, fimJornada: true },
+        orderBy: { data: "asc" },
+      },
+      viagens: { where: filtroViagem, select: { ...SELECT_VIAGEM_AGENDA, avisoInterjornada: true } },
+      // Trabalho como acompanhante também conta como jornada anterior.
+      viagensComoAcompanhante: { where: filtroViagem, select: SELECT_VIAGEM_AGENDA },
+    },
+  })
+
+  const hoje = inicioDoDia(agora)
+
+  for (const motorista of motoristas) {
+    const agenda = {
+      diasTrabalhados: motorista.diasTrabalhados,
+      registrosJornada: mapearRegistrosJornada(motorista.registrosJornada),
+      viagens: [...motorista.viagens, ...motorista.viagensComoAcompanhante],
+    }
+
+    for (const viagem of motorista.viagens) {
+      if (viagem.status === "FINALIZADA" || viagem.status === "CANCELADA") continue
+
+      const aviso = calcularAvisoDescanso(agenda, viagem, hoje)
+      if (aviso !== viagem.avisoInterjornada) {
+        await tx.viagem.update({ where: { id: viagem.id }, data: { avisoInterjornada: aviso } })
+      }
+    }
+  }
+}

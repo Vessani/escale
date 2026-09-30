@@ -8,6 +8,10 @@ vi.mock("@/lib/prisma", () => ({
   },
 }))
 
+vi.mock("@/lib/services/interjornada.service", () => ({
+  recalcularAvisosInterjornada: vi.fn(),
+}))
+
 import { prisma } from "@/lib/prisma"
 import { atualizarJornadaRelatorioDosMotoristas } from "@/lib/services/jornada-relatorio.service"
 

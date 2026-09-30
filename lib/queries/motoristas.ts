@@ -24,7 +24,7 @@ export function limiteFinalizadaRelevante(agora: Date): Date {
  * viagem já finalizada na história do motorista seria carregada pra sempre
  * nessa consulta.
  */
-function filtroViagemAtiva(agora: Date) {
+export function filtroViagemAtiva(agora: Date) {
   return {
     deletadoEm: null,
     OR: [
@@ -34,12 +34,14 @@ function filtroViagemAtiva(agora: Date) {
   } satisfies Prisma.ViagemWhereInput
 }
 
-const SELECT_VIAGEM_AGENDA = {
+export const SELECT_VIAGEM_AGENDA = {
   id: true,
   inicioPrevisto: true,
   fimPrevisto: true,
   status: true,
   deletadoEm: true,
+  // Viagem finalizada libera o motorista a partir daqui — ver fimEfetivoViagem.
+  finalizadoEm: true,
 } as const
 
 export async function buscarMotoristas(filialId: number) {
