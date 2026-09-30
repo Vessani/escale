@@ -114,7 +114,8 @@ export async function buscarViagensDoDashboard(filialId: number, hoje: Date) {
     },
     orderBy: { inicioPrevisto: "asc" },
     include: {
-      entregas: { select: { cidade: true } },
+      // Ordem de cadastro = ordem da rota; o painel de destinos mostra cidade, cliente e horário de cada entrega.
+      entregas: { select: { cidade: true, uf: true, cliente: true, dataEntrega: true }, orderBy: { id: "asc" } },
       motorista: { select: { nome: true, tipo: true } },
       motoristaAcompanhante: { select: { nome: true, tipo: true } },
     },

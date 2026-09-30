@@ -31,8 +31,8 @@ async function buscarDadosDashboard(filialId: number, hoje: Date) {
 
 type ItemDashboard = Awaited<ReturnType<typeof buscarDadosDashboard>>[number]
 
-function cidadesDaViagem(item: ItemDashboard) {
-  return item.viagem.entregas.map((entrega) => entrega.cidade)
+function entregasDaViagem(item: ItemDashboard) {
+  return item.viagem.entregas
 }
 
 /**
@@ -175,7 +175,7 @@ function ViagensEmAndamentoTabela({ itens, diaMostrado }: { itens: ItemDashboard
                 <SaidaCelula item={item} />
               </TableCell>
               <TableCell className="overflow-hidden">
-                <RotaDestinos cidades={cidadesDaViagem(item)} />
+                <RotaDestinos entregas={entregasDaViagem(item)} />
               </TableCell>
             </TableRow>
           ))}
@@ -233,7 +233,7 @@ function ViagensEmAndamentoCards({ itens }: { itens: ItemDashboard[] }) {
 
           <div>
             <p className="text-xs text-muted-foreground">Destinos</p>
-            <RotaDestinos cidades={cidadesDaViagem(item)} maximo={4} className="text-sm" />
+            <RotaDestinos entregas={entregasDaViagem(item)} className="px-0 text-sm" />
           </div>
         </div>
       ))}
