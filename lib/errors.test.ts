@@ -5,6 +5,8 @@ import {
   ViagemNaoEncontradaError,
   StatusViagemObrigatorioError,
   MotoristaProdutoNaoAutorizadoError,
+  MotoristaNaoEncontradoError,
+  MotoristaEmTreinamentoError,
   FrotaDuplicadaError,
   DataInvalidaError,
   NumViagemDuplicadaError,
@@ -38,6 +40,18 @@ describe("subclasses — código estável e mensagem segura de cada uma", () => 
       () => new MotoristaProdutoNaoAutorizadoError(),
       "MOTORISTA_PRODUTO_NAO_AUTORIZADO",
       "Motorista não autorizado a carregar o produto desta viagem.",
+    ],
+    [
+      "MotoristaNaoEncontradoError",
+      () => new MotoristaNaoEncontradoError(),
+      "MOTORISTA_NAO_ENCONTRADO",
+      "Motorista não encontrado nesta filial.",
+    ],
+    [
+      "MotoristaEmTreinamentoError",
+      () => new MotoristaEmTreinamentoError(),
+      "MOTORISTA_EM_TREINAMENTO",
+      "Motorista em treinamento só pode ser alocado como acompanhante.",
     ],
     [
       "FrotaDuplicadaError",

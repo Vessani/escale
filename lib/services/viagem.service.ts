@@ -10,7 +10,7 @@ import {
 import type { TipoProduto } from "@prisma/client";
 import { reconciliarFolgaMotoristasNoDiaAtual } from "./folga.service";
 import { registrarAuditoria, type Ator } from "./auditoria.service";
-import { MotoristaProdutoNaoAutorizadoError, ViagemNaoEncontradaError, StatusViagemObrigatorioError, NumViagemDuplicadaError } from "@/lib/errors";
+import { MotoristaProdutoNaoAutorizadoError, MotoristaNaoEncontradoError, MotoristaEmTreinamentoError, ViagemNaoEncontradaError, StatusViagemObrigatorioError, NumViagemDuplicadaError } from "@/lib/errors";
 import { calcularAvisoFrotaIndisponivel, calcularAvisoFrotaProduto, sincronizarDisponibilidadeFrota } from "./frota.service";
 import { converterEditarViagemParaBD, converterNovaViagemParaBD } from "./viagem-data-converter.service";
 import { mapearRegistrosJornada } from "./jornada.service";
@@ -75,22 +75,61 @@ async function garantirNumViagemDisponivel(filialId: number, numViagem: string, 
  * nada impedia editar a viagem (ou trocar só o produto) mantendo um
  * motorista que já estava alocado antes da troca.
  */
-async function garantirMotoristaAutorizadoParaProduto(
-  motoristaId: number | null | undefined,
-  produtoExigido: TipoProduto | null | undefined,
-) {
-  if (!motoristaId || !produtoExigido) {
-    return
+type MotoristasDaViagem = {
+  principalId: number | null | undefined
+  acompanhanteId?: number | null
+  produtoExigido: TipoProduto | null | undefined
+  /** Quem já estava na viagem antes desta gravação — ver comentário abaixo. */
+  atuais?: { principalId: number | null; acompanhanteId: number | null }
+}
+
+/**
+ * Revalida no servidor os motoristas que chegam do navegador ao gravar uma
+ * viagem — a tela só oferece motoristas válidos, mas a Server Action pode
+ * ser chamada direto, então o id em si não é confiável:
+ * - tem que ser da filial da sessão e não estar excluído (senão dava pra
+ *   alocar motorista de outra filial, ou um já removido);
+ * - o principal não pode estar em treinamento (`liberado = false` — só como
+ *   acompanhante, mesma regra de motoristaEhCompativel);
+ * - o principal precisa estar autorizado pro produto da viagem (bloqueio
+ *   rígido, mesmo nível de turno).
+ *
+ * Excluído/treinamento só são cobrados de quem está ENTRANDO na viagem
+ * (diferente de `atuais`): editar uma viagem antiga cujo motorista foi
+ * excluído ou voltou pra treinamento depois não pode travar a edição dela.
+ * Filial e produto valem sempre.
+ */
+async function garantirMotoristasValidos(filialId: number, dados: MotoristasDaViagem) {
+  const { principalId, acompanhanteId, produtoExigido, atuais } = dados
+
+  if (principalId) {
+    const principal = await buscarMotoristaDaFilial(filialId, principalId, principalId !== atuais?.principalId)
+
+    if (principal.liberado === false && principalId !== atuais?.principalId) {
+      throw new MotoristaEmTreinamentoError()
+    }
+
+    if (produtoExigido && !motoristaAutorizadoParaProduto(principal.produtosAutorizados, produtoExigido)) {
+      throw new MotoristaProdutoNaoAutorizadoError()
+    }
   }
 
-  const motorista = await prisma.motorista.findUnique({
-    where: { id: motoristaId },
-    select: { produtosAutorizados: true },
+  if (acompanhanteId) {
+    await buscarMotoristaDaFilial(filialId, acompanhanteId, acompanhanteId !== atuais?.acompanhanteId)
+  }
+}
+
+async function buscarMotoristaDaFilial(filialId: number, id: number, exigirAtivo: boolean) {
+  const motorista = await prisma.motorista.findFirst({
+    where: { id, filialId, ...(exigirAtivo ? { deletadoEm: null } : {}) },
+    select: { produtosAutorizados: true, liberado: true },
   })
 
-  if (motorista && !motoristaAutorizadoParaProduto(motorista.produtosAutorizados, produtoExigido)) {
-    throw new MotoristaProdutoNaoAutorizadoError()
+  if (!motorista) {
+    throw new MotoristaNaoEncontradoError()
   }
+
+  return motorista
 }
 
 type DadosViagemConvertidos = ReturnType<typeof converterNovaViagemParaBD>
@@ -109,7 +148,7 @@ async function inserirViagem(
   ator: Ator | null,
 ) {
   await garantirNumViagemDisponivel(filialId, dados.numViagem)
-  await garantirMotoristaAutorizadoParaProduto(motoristaId, dados.produto)
+  await garantirMotoristasValidos(filialId, { principalId: motoristaId, produtoExigido: dados.produto })
 
   const avisoFrotaIndisponivel = await calcularAvisoFrotaIndisponivel(
     filialId,
@@ -252,7 +291,14 @@ export async function editarViagemService(filialId: number, idViagem: number, da
       : viagemAtual.status)
 
   const motoristaIdFinal = dados.motoristaId !== undefined ? dados.motoristaId : viagemAtual.motoristaId
-  await garantirMotoristaAutorizadoParaProduto(motoristaIdFinal, dados.produto)
+  const acompanhanteIdFinal =
+    dados.motoristaAcompanhanteId !== undefined ? dados.motoristaAcompanhanteId : viagemAtual.motoristaAcompanhanteId
+  await garantirMotoristasValidos(filialId, {
+    principalId: motoristaIdFinal,
+    acompanhanteId: acompanhanteIdFinal,
+    produtoExigido: dados.produto,
+    atuais: { principalId: viagemAtual.motoristaId, acompanhanteId: viagemAtual.motoristaAcompanhanteId },
+  })
   const avisoFrotaIndisponivel = await calcularAvisoFrotaIndisponivel(
     filialId,
     dados.cavalo,
@@ -490,7 +536,12 @@ export async function atualizarAlocacaoViagemService(
     throw new ViagemNaoEncontradaError()
   }
 
-  await garantirMotoristaAutorizadoParaProduto(dados.motoristaId, viagemAtual.produto)
+  await garantirMotoristasValidos(filialId, {
+    principalId: dados.motoristaId,
+    acompanhanteId: dados.motoristaAcompanhanteId,
+    produtoExigido: viagemAtual.produto,
+    atuais: { principalId: viagemAtual.motoristaId, acompanhanteId: viagemAtual.motoristaAcompanhanteId },
+  })
 
   const statusFinal = statusPermiteAutoAjuste(viagemAtual.status)
     ? resolverStatusPorAlocacao(dados.motoristaId)

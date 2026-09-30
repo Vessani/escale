@@ -40,10 +40,24 @@ export class StatusViagemObrigatorioError extends ErroDeDominio {
   }
 }
 
-/** Bloqueio rígido: motorista sem esse produto em produtosAutorizados — ver garantirMotoristaAutorizadoParaProduto. */
+/** Bloqueio rígido: motorista sem esse produto em produtosAutorizados — ver garantirMotoristasValidos (viagem.service.ts). */
 export class MotoristaProdutoNaoAutorizadoError extends ErroDeDominio {
   constructor() {
     super("MOTORISTA_PRODUTO_NAO_AUTORIZADO", "Motorista não autorizado a carregar o produto desta viagem.")
+  }
+}
+
+/** Motorista escolhido não existe na filial da sessão (ou foi excluído) — ver garantirMotoristasValidos. */
+export class MotoristaNaoEncontradoError extends ErroDeDominio {
+  constructor() {
+    super("MOTORISTA_NAO_ENCONTRADO", "Motorista não encontrado nesta filial.")
+  }
+}
+
+/** Motorista em treinamento (liberado = false) escolhido como principal — ver garantirMotoristasValidos. */
+export class MotoristaEmTreinamentoError extends ErroDeDominio {
+  constructor() {
+    super("MOTORISTA_EM_TREINAMENTO", "Motorista em treinamento só pode ser alocado como acompanhante.")
   }
 }
 
