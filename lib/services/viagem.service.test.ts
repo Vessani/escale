@@ -102,7 +102,7 @@ function criarMotoristaParaSelect(parcial: Record<string, unknown> = {}) {
     nome: "Ana",
     turno: "MANHA",
     diasTrabalhados: 1,
-    liberado: true,
+    tipo: "MOTORISTA" as const,
     // Bate com o produto padrão de criarViagemInput ("CO2") — testes que
     // querem exercitar incompatibilidade de produto sobrescrevem isso.
     produtosAutorizados: ["CO2"],
@@ -124,7 +124,7 @@ describe("viagem.service", () => {
     vi.mocked(calcularAvisoFrotaProduto).mockResolvedValue(null)
     // Bate com o produto padrão de criarViagemInput ("CO2") — testes que
     // querem exercitar o bloqueio de produto sobrescrevem isso.
-    vi.mocked(prisma.motorista.findFirst).mockResolvedValue({ produtosAutorizados: ["CO2"] } as never)
+    vi.mocked(prisma.motorista.findFirst).mockResolvedValue({ produtosAutorizados: ["CO2"], tipo: "MOTORISTA" } as never)
     // Sem outra viagem ativa com o mesmo número por padrão — testado à parte abaixo.
     vi.mocked(prisma.viagem.findFirst).mockResolvedValue(null)
     // Snapshot "antes" da auditoria em deletarViagemService/atualizarSaidaRealService —
@@ -330,14 +330,14 @@ describe("viagem.service", () => {
     })
 
     it("recusa alocar manualmente (ex: revisão do lote importado) um motorista que não está autorizado pro produto da viagem", async () => {
-      vi.mocked(prisma.motorista.findFirst).mockResolvedValue({ produtosAutorizados: ["NITROGENIO"] } as never)
+      vi.mocked(prisma.motorista.findFirst).mockResolvedValue({ produtosAutorizados: ["NITROGENIO"], tipo: "MOTORISTA" } as never)
 
       await expect(
         criarViagemComAlocacaoService(FILIAL_ID, criarViagemInput({ produto: "CO2" }), 7, ATOR),
       ).rejects.toThrow("Motorista não autorizado a carregar o produto desta viagem.")
       expect(prisma.motorista.findFirst).toHaveBeenCalledWith({
         where: { id: 7, filialId: FILIAL_ID, deletadoEm: null },
-        select: { produtosAutorizados: true, liberado: true },
+        select: { produtosAutorizados: true, tipo: true },
       })
     })
   })
@@ -567,7 +567,7 @@ describe("viagem.service", () => {
 
     it("recusa trocar o produto da viagem mantendo um motorista que não está autorizado pro produto novo", async () => {
       vi.mocked(prisma.viagem.findUnique).mockResolvedValue({ status: "ALOCADA", motoristaId: 9, motoristaAcompanhanteId: null } as never)
-      vi.mocked(prisma.motorista.findFirst).mockResolvedValue({ produtosAutorizados: ["CO2"] } as never)
+      vi.mocked(prisma.motorista.findFirst).mockResolvedValue({ produtosAutorizados: ["CO2"], tipo: "MOTORISTA" } as never)
 
       // motoristaId de propósito ausente do payload — o motorista 9, já alocado, é mantido; só o produto muda.
       await expect(
@@ -577,7 +577,7 @@ describe("viagem.service", () => {
 
     it("recusa alocar explicitamente, na própria edição, um motorista incompatível com o produto da viagem", async () => {
       vi.mocked(prisma.viagem.findUnique).mockResolvedValue({ status: "CRIADA", motoristaId: null, motoristaAcompanhanteId: null } as never)
-      vi.mocked(prisma.motorista.findFirst).mockResolvedValue({ produtosAutorizados: [] } as never)
+      vi.mocked(prisma.motorista.findFirst).mockResolvedValue({ produtosAutorizados: [], tipo: "MOTORISTA" } as never)
 
       await expect(
         editarViagemService(FILIAL_ID, 1, criarEdicaoInput({ motoristaId: 12, produto: "CO2" }), ATOR),
@@ -594,13 +594,13 @@ describe("viagem.service", () => {
         ).rejects.toThrow("Motorista não encontrado nesta filial.")
         expect(prisma.motorista.findFirst).toHaveBeenCalledWith({
           where: { id: 99, filialId: FILIAL_ID, deletadoEm: null },
-          select: { produtosAutorizados: true, liberado: true },
+          select: { produtosAutorizados: true, tipo: true },
         })
       })
 
       it("recusa colocar um motorista em treinamento como principal", async () => {
         vi.mocked(prisma.viagem.findUnique).mockResolvedValue({ status: "CRIADA", motoristaId: null, motoristaAcompanhanteId: null } as never)
-        vi.mocked(prisma.motorista.findFirst).mockResolvedValue({ produtosAutorizados: ["CO2"], liberado: false } as never)
+        vi.mocked(prisma.motorista.findFirst).mockResolvedValue({ produtosAutorizados: ["CO2"], tipo: "TREINAMENTO" as const } as never)
 
         await expect(
           editarViagemService(FILIAL_ID, 1, criarEdicaoInput({ motoristaId: 12 }), ATOR),
@@ -612,21 +612,49 @@ describe("viagem.service", () => {
         vi.mocked(tx.viagem.update).mockResolvedValue({ id: 1, motoristaId: 9, motoristaAcompanhanteId: null })
         usarTransacaoCom(tx)
         vi.mocked(prisma.viagem.findUnique).mockResolvedValue({ status: "ALOCADA", motoristaId: 9, motoristaAcompanhanteId: null } as never)
-        vi.mocked(prisma.motorista.findFirst).mockResolvedValue({ produtosAutorizados: ["CO2"], liberado: false } as never)
+        vi.mocked(prisma.motorista.findFirst).mockResolvedValue({ produtosAutorizados: ["CO2"], tipo: "TREINAMENTO" as const } as never)
 
         await editarViagemService(FILIAL_ID, 1, criarEdicaoInput({ motoristaId: 9 }), ATOR)
 
         // Motorista mantido: só a filial é exigida, não deletadoEm: null.
         expect(prisma.motorista.findFirst).toHaveBeenCalledWith({
           where: { id: 9, filialId: FILIAL_ID },
-          select: { produtosAutorizados: true, liberado: true },
+          select: { produtosAutorizados: true, tipo: true },
         })
+      })
+
+      it("recusa enchedor como principal e como acompanhante — enchedor não faz viagem", async () => {
+        vi.mocked(prisma.viagem.findUnique).mockResolvedValue({ status: "ALOCADA", motoristaId: 5, motoristaAcompanhanteId: null, produto: "CO2" } as never)
+
+        vi.mocked(prisma.motorista.findFirst).mockResolvedValue({ produtosAutorizados: ["CO2"], tipo: "ENCHEDOR" } as never)
+        await expect(
+          atualizarAlocacaoViagemService(FILIAL_ID, 1, { motoristaId: 20, motoristaAcompanhanteId: null }, ATOR),
+        ).rejects.toThrow("Enchedor não faz viagem.")
+
+        vi.mocked(prisma.motorista.findFirst)
+          .mockResolvedValueOnce({ produtosAutorizados: ["CO2"], tipo: "MOTORISTA" } as never)
+          .mockResolvedValueOnce({ produtosAutorizados: [], tipo: "ENCHEDOR" } as never)
+        await expect(
+          atualizarAlocacaoViagemService(FILIAL_ID, 1, { motoristaId: 5, motoristaAcompanhanteId: 20 }, ATOR),
+        ).rejects.toThrow("Enchedor não faz viagem.")
+      })
+
+      it.each(["INSTRUTOR", "INTERNO"] as const)("aceita %s como principal quando escolhido à mão", async (tipo) => {
+        const tx = criarTx()
+        vi.mocked(tx.viagem.update).mockResolvedValue({ id: 1, motoristaId: 30, motoristaAcompanhanteId: null })
+        usarTransacaoCom(tx)
+        vi.mocked(prisma.viagem.findUnique).mockResolvedValue({ status: "CRIADA", motoristaId: null, motoristaAcompanhanteId: null, produto: "CO2" } as never)
+        vi.mocked(prisma.motorista.findFirst).mockResolvedValue({ produtosAutorizados: ["CO2"], tipo } as never)
+
+        await atualizarAlocacaoViagemService(FILIAL_ID, 1, { motoristaId: 30, motoristaAcompanhanteId: null }, ATOR)
+
+        expect(tx.viagem.update).toHaveBeenCalled()
       })
 
       it("aceita motorista em treinamento como acompanhante, mas exige que seja da filial", async () => {
         vi.mocked(prisma.viagem.findUnique).mockResolvedValue({ status: "ALOCADA", motoristaId: 5, motoristaAcompanhanteId: null, produto: "CO2" } as never)
         vi.mocked(prisma.motorista.findFirst)
-          .mockResolvedValueOnce({ produtosAutorizados: ["CO2"], liberado: true } as never)
+          .mockResolvedValueOnce({ produtosAutorizados: ["CO2"], tipo: "MOTORISTA" as const } as never)
           .mockResolvedValueOnce(null)
 
         await expect(
@@ -634,7 +662,7 @@ describe("viagem.service", () => {
         ).rejects.toThrow("Motorista não encontrado nesta filial.")
         expect(prisma.motorista.findFirst).toHaveBeenLastCalledWith({
           where: { id: 77, filialId: FILIAL_ID, deletadoEm: null },
-          select: { produtosAutorizados: true, liberado: true },
+          select: { produtosAutorizados: true, tipo: true },
         })
       })
     })
@@ -827,7 +855,7 @@ describe("viagem.service", () => {
         inicioPrevisto: new Date(),
         produto: "CO2",
       } as never)
-      vi.mocked(prisma.motorista.findFirst).mockResolvedValue({ produtosAutorizados: ["CO2"] } as never)
+      vi.mocked(prisma.motorista.findFirst).mockResolvedValue({ produtosAutorizados: ["CO2"], tipo: "MOTORISTA" } as never)
       const tx = criarTx()
       vi.mocked(tx.viagem.update).mockResolvedValue({ id: 1, motoristaId: 5, motoristaAcompanhanteId: null })
       usarTransacaoCom(tx)
@@ -847,7 +875,7 @@ describe("viagem.service", () => {
         inicioPrevisto: new Date(),
         produto: "NITROGENIO",
       } as never)
-      vi.mocked(prisma.motorista.findFirst).mockResolvedValue({ produtosAutorizados: ["CO2"] } as never)
+      vi.mocked(prisma.motorista.findFirst).mockResolvedValue({ produtosAutorizados: ["CO2"], tipo: "MOTORISTA" } as never)
 
       await expect(atualizarAlocacaoViagemService(FILIAL_ID, 1, { motoristaId: 5, motoristaAcompanhanteId: null }, ATOR)).rejects.toThrow(
         "Motorista não autorizado a carregar o produto desta viagem.",

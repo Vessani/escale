@@ -11,13 +11,15 @@ import { obterStatusJornada } from "@/lib/services/jornada.service"
 import type { AcaoSugerida } from "@/lib/services/motoristas-ociosos.service"
 import { classeBadgeTurno } from "../../viagens/badge-styles"
 import { classeBadgeJornada } from "../jornada-status"
+import type { TipoMotorista } from "@prisma/client"
+import { NomeMotorista } from "@/components/motorista/icone-tipo-motorista"
 
 type MotoristaSemViagem = {
   id: number
   nome: string
   seva: number
   turno: "MANHA" | "NOITE"
-  liberado: boolean
+  tipo: TipoMotorista
   codigoHoje: number
   acao: AcaoSugerida
 }
@@ -66,7 +68,7 @@ export default function SemViagemClient({ motoristas, dataReferencia }: Props) {
         <TableRow key={motorista.id}>
           <TableCell>
             <Link href={`/motorista/editar/${motorista.id}`} className="font-semibold text-foreground hover:text-primary">
-              {motorista.nome}
+              <NomeMotorista nome={motorista.nome} tipo={motorista.tipo} />
             </Link>
           </TableCell>
           <TableCell className="text-muted-foreground">SEVA <span className="font-mono tabular-nums">{motorista.seva}</span></TableCell>
@@ -79,11 +81,6 @@ export default function SemViagemClient({ motoristas, dataReferencia }: Props) {
             <span className={`rounded px-2 py-0.5 text-xs font-semibold ${classeBadgeJornada(motorista.codigoHoje)}`}>
               {statusJornada.texto}
             </span>
-            {!motorista.liberado && (
-              <Badge variant="warning" className="ml-2">
-                Em treinamento
-              </Badge>
-            )}
           </TableCell>
           <TableCell className="max-w-xs whitespace-normal text-foreground/80">{motorista.acao.texto}</TableCell>
           <TableCell>

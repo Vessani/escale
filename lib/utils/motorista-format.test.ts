@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest"
-import { formatarDetalheMotoristaCompativel, formatarOpcaoMotoristaCompativel, rotularMotoristaParaSelect } from "./motorista-format"
+import { formatarDetalheMotoristaCompativel, formatarOpcaoMotoristaCompativel } from "./motorista-format"
 import type { MotoristaCompativel } from "@/lib/types/alocacao"
 
 function criarMotorista(parcial: Partial<MotoristaCompativel> = {}): MotoristaCompativel {
@@ -56,23 +56,5 @@ describe("formatarDetalheMotoristaCompativel", () => {
     const motorista = criarMotorista({ diasDisponiveis: 3, proximoInicioDisponivel: "14:00" })
 
     expect(formatarOpcaoMotoristaCompativel(motorista)).toBe(`${motorista.nome} · ${formatarDetalheMotoristaCompativel(motorista)}`)
-  })
-})
-
-describe("rotularMotoristaParaSelect", () => {
-  it("compatível e disponível", () => {
-    expect(rotularMotoristaParaSelect(true, true)).toBe("(Compatível)")
-  })
-
-  it("incompatível mas disponível", () => {
-    expect(rotularMotoristaParaSelect(false, true)).toBe("(Emergência)")
-  })
-
-  it("compatível mas indisponível", () => {
-    expect(rotularMotoristaParaSelect(true, false)).toBe("(Sem descanso / já em viagem)")
-  })
-
-  it("incompatível e indisponível", () => {
-    expect(rotularMotoristaParaSelect(false, false)).toBe("(Emergência + sem descanso)")
   })
 })

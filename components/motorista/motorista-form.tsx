@@ -15,6 +15,8 @@ import { motoristaComIntegracoesSchema, type MotoristaComIntegracoesFormValues }
 import type { RespostaAcao } from "@/lib/types/types"
 import { formatarCpf, somenteDigitosCpf } from "@/lib/utils/cpf"
 import { PRODUTO_OPCOES } from "@/lib/services/produto.service"
+import { IconeTipoMotorista } from "@/components/motorista/icone-tipo-motorista"
+import { TIPO_MOTORISTA_OPCOES, descreverTipoMotorista } from "@/lib/services/tipo-motorista"
 
 type MotoristaFormProps = {
   defaultValues: MotoristaComIntegracoesFormValues
@@ -148,23 +150,27 @@ export default function MotoristaForm({ defaultValues, onSubmit, submitLabel, su
               </FormItem>
             )} />
 
-            <FormField control={form.control} name="liberado" render={({ field }) => (
+            <FormField control={form.control} name="tipo" render={({ field }) => (
               <FormItem>
-                <FormLabel>Situação</FormLabel>
-                <Select value={field.value ? "true" : "false"} onValueChange={(value) => field.onChange(value === "true")}>
+                <FormLabel>Tipo</FormLabel>
+                <Select value={field.value} onValueChange={field.onChange}>
                   <FormControl>
                     <SelectTrigger>
-                      <SelectValue placeholder="Selecione a situação" />
+                      <SelectValue placeholder="Selecione o tipo" />
                     </SelectTrigger>
                   </FormControl>
                   <SelectContent>
-                    <SelectItem value="true">Liberado</SelectItem>
-                    <SelectItem value="false">Em treinamento (não liberado)</SelectItem>
+                    {TIPO_MOTORISTA_OPCOES.map((opcao) => (
+                      <SelectItem key={opcao.valor} value={opcao.valor}>
+                        <span className="flex items-center gap-2">
+                          {opcao.label}
+                          <IconeTipoMotorista tipo={opcao.valor} />
+                        </span>
+                      </SelectItem>
+                    ))}
                   </SelectContent>
                 </Select>
-                <FormDescription>
-                  Não liberado fica de fora da sugestão automática e não pode ser motorista principal — só acompanhante.
-                </FormDescription>
+                <FormDescription>{field.value ? descreverTipoMotorista(field.value) : null}</FormDescription>
                 <FormMessage />
               </FormItem>
             )} />

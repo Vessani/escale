@@ -42,7 +42,7 @@ function criarMotorista(parcial: {
     nome: "Motorista Teste",
     turno: "MANHA" as const,
     diasTrabalhados: 3,
-    liberado: true,
+    tipo: "MOTORISTA" as const,
     integracao: [],
     registrosJornada: [],
     jornadaRelatorioInicio: null,

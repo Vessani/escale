@@ -1,4 +1,5 @@
 import { z } from "./zod"
+import { TIPO_MOTORISTA_VALORES } from "@/lib/services/tipo-motorista"
 import { somenteDigitosCpf, validarCpf } from "@/lib/utils/cpf"
 import { PRODUTO_VALORES } from "@/lib/services/produto.service"
 
@@ -23,7 +24,7 @@ export const motoristaBaseSchema = z.object({
     .min(1, "Informe um código de 1 a 11")
     .max(11, "Informe um código de 1 a 11"),
   turno: turnoSchema,
-  liberado: z.boolean(),
+  tipo: z.enum(TIPO_MOTORISTA_VALORES),
   produtosAutorizados: z.array(produtoSchema).default([]),
 })
 

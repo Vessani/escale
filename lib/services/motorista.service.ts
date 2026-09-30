@@ -15,7 +15,7 @@ export async function criarMotoristaService(filialId: number, dados: NovoMotoris
         seva: dados.seva,
         diasTrabalhados: dados.diasTrabalhados,
         turno: dados.turno,
-        liberado: dados.liberado,
+        tipo: dados.tipo,
         produtosAutorizados: dados.produtosAutorizados,
         filialId,
         integracao: {
@@ -63,7 +63,7 @@ export async function editarMotoristaService(filialId: number, idMotorista: numb
         seva: dados.seva,
         diasTrabalhados: dados.diasTrabalhados,
         turno: dados.turno,
-        liberado: dados.liberado,
+        tipo: dados.tipo,
         produtosAutorizados: dados.produtosAutorizados,
         integracao: {
           deleteMany: {

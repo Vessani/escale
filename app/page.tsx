@@ -12,7 +12,6 @@ import { buscarViagensDoDashboard } from "@/lib/queries/viagens"
 import { buscarMotoristasParaSelect } from "@/lib/queries/motoristas"
 import { motoristaEstaDisponivelNoPeriodo } from "@/lib/services/alocacao.service"
 import { serializeData } from "@/lib/serialization"
-import { classeBadgeStatusViagem } from "./viagens/badge-styles"
 import { STATUS_VIAGEM_OPCOES, formatarStatusViagem, parseStatusFiltro, type FiltroStatusViagem } from "@/lib/services/viagem-status.service"
 import { formatarDataHoraPtBr, parseDataLocal } from "@/lib/utils/date-format"
 import AtualizarSaidaReal from "./atualizar-saida-real"
@@ -20,6 +19,8 @@ import AtualizarStatusRapido from "./viagens/atualizar-status-rapido"
 import AlocarMotoristasDashboard from "./alocar-motoristas-dashboard"
 import QuadroDeObservacoes from "./quadro-de-observacoes"
 import { buscarQuadroObservacoes } from "@/lib/queries/quadro"
+import { formatarCodigoFrota } from "@/lib/services/frota-regras"
+import { LegendaMotoristas } from "@/components/motorista/legenda-motoristas"
 
 async function buscarDadosDashboard(filialId: number, hoje: Date, filtroStatus: ReturnType<typeof parseStatusFiltro>) {
   const [viagens, motoristasBrutos] = await Promise.all([
@@ -84,8 +85,8 @@ function FrotaCelula({ item }: { item: ItemDashboard }) {
   return (
     <div className="space-y-1">
       <div className="flex items-center gap-2">
-        <span className="font-mono tabular-nums text-foreground">{viagem.cavalo}</span>
-        <span className="font-mono tabular-nums text-muted-foreground">/ {viagem.carreta}</span>
+        <span className="font-mono tabular-nums text-foreground">{formatarCodigoFrota(viagem.cavalo)}</span>
+        <span className="font-mono tabular-nums text-muted-foreground">/ {formatarCodigoFrota(viagem.carreta)}</span>
         <Link href={`/viagens/editar/${viagem.id}`} className="text-muted-foreground hover:text-primary" title="Editar viagem">
           <Pencil className="h-3.5 w-3.5" />
         </Link>
@@ -120,9 +121,6 @@ function StatusCelula({ item }: { item: ItemDashboard }) {
   const { viagem } = item
   return (
     <div className="space-y-1">
-      <Badge dot variant="outline" className={classeBadgeStatusViagem(viagem.status)}>
-        {formatarStatusViagem(viagem.status)}
-      </Badge>
       <AtualizarStatusRapido
         viagemId={viagem.id}
         statusAtual={viagem.status}
@@ -364,7 +362,10 @@ export default async function DashboardPage({
                 ? dataTextoInput.split("-").reverse().join("/")
                 : filtroStatus === "TODOS" ? "Hoje" : `Status: ${formatarStatusViagem(filtroStatus)}`}
             </h2>
-            <Badge variant="outline">{itens.length}</Badge>
+            <div className="flex items-center gap-4">
+              <LegendaMotoristas />
+              <Badge variant="outline">{itens.length}</Badge>
+            </div>
           </div>
           <ViagensEmAndamentoTabela itens={itens} />
           <ViagensEmAndamentoCards itens={itens} />

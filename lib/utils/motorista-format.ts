@@ -25,13 +25,3 @@ export function formatarDetalheMotoristaCompativel(motorista: MotoristaCompative
 export function formatarOpcaoMotoristaCompativel(motorista: MotoristaCompativel): string {
   return `${motorista.nome} · ${formatarDetalheMotoristaCompativel(motorista)}`
 }
-
-/** Rótulo padrão de uma opção de motorista principal, cruzando compatibilidade (regra de negócio) com disponibilidade (agenda/descanso). */
-export function rotularMotoristaParaSelect(compativel: boolean, disponivel: boolean): string {
-  if (disponivel) {
-    return compativel ? "(Compatível)" : "(Emergência)"
-  }
-  return compativel
-    ? "(Sem descanso / já em viagem)"
-    : "(Emergência + sem descanso)"
-}

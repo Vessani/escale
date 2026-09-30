@@ -46,7 +46,7 @@ export default async function MotoristasPage({
       turno: motorista.turno,
       seva: motorista.seva,
       diasTrabalhados: motorista.diasTrabalhados,
-      liberado: motorista.liberado,
+      tipo: motorista.tipo,
       viagens: motorista.viagens.map((viagem) => ({
         id: viagem.id,
         numViagem: viagem.numViagem,

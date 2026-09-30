@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest"
-import type { StatusIntegracao, TipoProduto, Turno } from "@prisma/client"
+import type { StatusIntegracao, TipoMotorista, TipoProduto, Turno } from "@prisma/client"
 import {
   calcularAvisoInterjornada,
   calcularDiasDisponiveis,
@@ -24,7 +24,7 @@ type MotoristaMock = {
   nome: string
   turno: Turno
   diasTrabalhados: number
-  liberado: boolean
+  tipo: TipoMotorista
   integracao: Array<{ cliente: string; status: StatusIntegracao; dataValidade: Date }>
   registrosJornada: Array<{ data: Date; codigo: number; fimJornada?: Date | string | null }>
   jornadaRelatorioInicio: Date | string | null
@@ -38,7 +38,7 @@ function criarMotorista(parcial: Partial<MotoristaMock>): MotoristaMock {
     nome: "Motorista Teste",
     turno: "MANHA",
     diasTrabalhados: 3,
-    liberado: true,
+    tipo: "MOTORISTA" as const,
     integracao: [],
     registrosJornada: [],
     jornadaRelatorioInicio: null,
@@ -122,8 +122,8 @@ describe("alocacao.service", () => {
       ).toBe(false)
     })
 
-    it("nega motorista não liberado (em treinamento), mesmo compatível em tudo o mais", () => {
-      const motorista = criarMotorista({ liberado: false, diasTrabalhados: 1 })
+    it("nega motorista em treinamento, mesmo compatível em tudo o mais", () => {
+      const motorista = criarMotorista({ tipo: "TREINAMENTO" as const, diasTrabalhados: 1 })
       expect(
         motoristaEhCompativel(motorista, {
           turnoViagem: "MANHA",
@@ -132,6 +132,22 @@ describe("alocacao.service", () => {
           integracaoExigida: null,
           hoje,
         }),
+      ).toBe(false)
+    })
+
+    it.each(["INSTRUTOR", "INTERNO"] as const)("%s cabe na regra (escolha manual), mas não entra na sugestão automática", (tipo) => {
+      const contexto = { turnoViagem: "MANHA" as Turno, diasViagem: 1, dataInicioViagem: hoje, integracaoExigida: null, hoje }
+      const especial = criarMotorista({ id: 2, nome: "Especial", tipo, diasTrabalhados: 1 })
+      const comum = criarMotorista({ id: 3, nome: "Comum", diasTrabalhados: 1 })
+
+      expect(motoristaEhCompativel(especial, contexto)).toBe(true)
+      expect(filtrarMotoristasCompativeis([especial, comum], contexto).map((m) => m.id)).toEqual([3])
+    })
+
+    it("nega enchedor — não faz viagem", () => {
+      const motorista = criarMotorista({ tipo: "ENCHEDOR", diasTrabalhados: 1 })
+      expect(
+        motoristaEhCompativel(motorista, { turnoViagem: "MANHA", diasViagem: 1, dataInicioViagem: hoje, integracaoExigida: null, hoje }),
       ).toBe(false)
     })
 

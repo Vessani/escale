@@ -24,9 +24,9 @@ export default async function MotoristasSemViagemPage() {
       nome: motorista.nome,
       seva: motorista.seva,
       turno: motorista.turno,
-      liberado: motorista.liberado,
+      tipo: motorista.tipo,
       codigoHoje,
-      acao: determinarAcaoSugerida(codigoHoje, motorista.liberado),
+      acao: determinarAcaoSugerida(codigoHoje, motorista.tipo),
     }
   })
 

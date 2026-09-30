@@ -59,7 +59,8 @@ export default function AtualizarSaidaReal({
       <div className="flex items-center gap-1">
         {atrasado && <AlertTriangle className="h-3 w-3 shrink-0 text-warning" />}
         <Input
-          placeholder="Motivo do atraso / observações"
+          placeholder="Observação"
+          aria-label="Observação ou motivo do atraso"
           className={atrasado ? "h-7 border-warning/30 bg-warning/10 text-xs" : "h-7 bg-card text-xs"}
           value={motivoAtraso}
           disabled={isPending}

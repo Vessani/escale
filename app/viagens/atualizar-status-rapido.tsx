@@ -10,6 +10,8 @@ import { Alert } from "@/components/ui/alert"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Dialog } from "radix-ui"
 import { formatDateTimeForInput } from "@/lib/utils/date-format"
+import { cn } from "@/lib/utils"
+import { classeBadgeStatusViagem, classePontoStatusViagem } from "./badge-styles"
 import {
   STATUS_VIAGEM_OPCOES,
   ehStatusViagem,
@@ -76,14 +78,28 @@ export default function AtualizarStatusRapido({ viagemId, statusAtual, inicioPre
 
   return (
     <div className="space-y-1">
+      {/*
+        Um controle só: o seletor É a etiqueta colorida do status (antes havia
+        a etiqueta e, embaixo, um select repetindo o mesmo texto).
+      */}
       <Select value={statusSelecionado} onValueChange={alterarStatus} disabled={isPending}>
-        <SelectTrigger className="h-8 bg-card text-xs">
+        <SelectTrigger
+          aria-label="Status da viagem"
+          className={cn(
+            "h-7 w-auto gap-1.5 border px-2.5 text-xs font-medium",
+            classeBadgeStatusViagem(statusSelecionado),
+          )}
+        >
+          {/* O ponto colorido vem da própria opção selecionada (SelectValue repete o conteúdo do item). */}
           <SelectValue placeholder="Status" />
         </SelectTrigger>
         <SelectContent>
-            {STATUS_VIAGEM_OPCOES.map((opcao) => (
+          {STATUS_VIAGEM_OPCOES.map((opcao) => (
             <SelectItem key={opcao.valor} value={opcao.valor}>
-              {opcao.label}
+              <span className="flex items-center gap-2">
+                <span aria-hidden className={cn("size-1.5 shrink-0 rounded-full", classePontoStatusViagem(opcao.valor))} />
+                {opcao.label}
+              </span>
             </SelectItem>
           ))}
         </SelectContent>

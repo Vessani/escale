@@ -54,10 +54,17 @@ export class MotoristaNaoEncontradoError extends ErroDeDominio {
   }
 }
 
-/** Motorista em treinamento (liberado = false) escolhido como principal — ver garantirMotoristasValidos. */
+/** Motorista em treinamento escolhido como principal — ver garantirMotoristasValidos. */
 export class MotoristaEmTreinamentoError extends ErroDeDominio {
   constructor() {
     super("MOTORISTA_EM_TREINAMENTO", "Motorista em treinamento só pode ser alocado como acompanhante.")
+  }
+}
+
+/** Enchedor (não faz viagem) escolhido como principal ou acompanhante — ver garantirMotoristasValidos. */
+export class MotoristaNaoViajaError extends ErroDeDominio {
+  constructor() {
+    super("MOTORISTA_NAO_VIAJA", "Enchedor não faz viagem.")
   }
 }
 

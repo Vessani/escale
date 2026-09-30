@@ -2,6 +2,7 @@ import { TipoProduto } from "@prisma/client"
 import { colunaDateParaLocal, fimDoDia } from "@/lib/utils/date-format"
 import { projetarCodigoNoDia } from "../jornada.service"
 import type { ContextoCompatibilidade, MotoristaParaAlocacao } from "./tipos"
+import { podeSerPrincipal } from "../tipo-motorista"
 
 /** Máximo de dias consecutivos de trabalho antes da folga obrigatória — mesmo limite usado pra capar o "Dias Sem Folga" importado do relatório (ver jornada-relatorio.service.ts). */
 export const MAX_DIAS_CONSECUTIVOS = 6
@@ -107,7 +108,11 @@ export function motoristaEhCompativel(
   motorista: MotoristaParaAlocacao,
   contexto: ContextoCompatibilidade,
 ) {
-  if (!motorista.liberado) {
+  // Em treinamento/enchedor nunca vão como principal (ver tipo-motorista.ts).
+  // Instrutor e interno PODEM — só não entram na sugestão automática, filtro
+  // aplicado em filtrarMotoristasCompativeis, não aqui: esta função também
+  // responde "cabe na regra?" pra escolha manual (Dashboard, edição).
+  if (!podeSerPrincipal(motorista.tipo)) {
     return false
   }
 

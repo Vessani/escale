@@ -40,7 +40,7 @@ const motoristaValido = {
   seva: 12345,
   diasTrabalhados: 1,
   turno: "MANHA",
-  liberado: true,
+  tipo: "MOTORISTA" as const,
   produtosAutorizados: ["CO2"],
   integracao: [{ cliente: "Cliente X", dataValidade: "2026-12-31", status: "ATIVO" }],
 }

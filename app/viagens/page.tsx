@@ -9,8 +9,9 @@ import { buscarViagens } from "@/lib/queries/viagens"
 import { STATUS_VIAGEM_OPCOES, formatarStatusViagem, parseStatusFiltro } from "@/lib/services/viagem-status.service"
 import AtualizarStatusRapido from "./atualizar-status-rapido"
 import ExcluirViagemButton from "./excluir-viagem-button"
-import { classeBadgeStatusViagem, classeBadgeTurno } from "./badge-styles"
+import { classeBadgeTurno } from "./badge-styles"
 import { formatarDataHoraPtBr } from "@/lib/utils/date-format"
+import { formatarCodigoFrota } from "@/lib/services/frota-regras"
 import {
   Table,
   TableBody,
@@ -47,8 +48,8 @@ function FrotaCelula({ viagem }: { viagem: Viagem }) {
   return (
     <div className="text-sm">
       <div>
-        <span className="font-mono font-medium tabular-nums text-foreground">{viagem.cavalo}</span>
-        <span className="font-mono tabular-nums text-muted-foreground ml-1">/ {viagem.carreta}</span>
+        <span className="font-mono font-medium tabular-nums text-foreground">{formatarCodigoFrota(viagem.cavalo)}</span>
+        <span className="font-mono tabular-nums text-muted-foreground ml-1">/ {formatarCodigoFrota(viagem.carreta)}</span>
       </div>
       {viagem.avisoFrotaIndisponivel && (
         <Alert variant="warning" inline className="mt-1" title={viagem.avisoFrotaIndisponivel}>
@@ -111,9 +112,6 @@ function ViagensTabela({ viagens, podeExcluir }: { viagens: Viagem[]; podeExclui
               </TableCell>
               <TableCell>
                 <div className="space-y-1">
-                  <Badge dot variant="outline" className={classeBadgeStatusViagem(viagem.status)}>
-                    {formatarStatusViagem(viagem.status)}
-                  </Badge>
                   {viagem.viagemExtra && (
                     <Badge variant="outline" className="border-purple-500/30 bg-purple-500/10 text-purple-600 hover:bg-purple-500/10">
                       Extra
@@ -158,9 +156,6 @@ function ViagensCards({ viagens, podeExcluir }: { viagens: Viagem[]; podeExcluir
           </div>
 
           <div className="flex flex-wrap items-center gap-2">
-            <Badge dot variant="outline" className={classeBadgeStatusViagem(viagem.status)}>
-              {formatarStatusViagem(viagem.status)}
-            </Badge>
             {viagem.viagemExtra && (
               <Badge variant="outline" className="border-purple-500/30 bg-purple-500/10 text-purple-600 hover:bg-purple-500/10">
                 Extra
@@ -172,7 +167,7 @@ function ViagensCards({ viagens, podeExcluir }: { viagens: Viagem[]; podeExcluir
           <dl className="grid grid-cols-2 gap-x-4 gap-y-2 text-sm">
             <div>
               <dt className="text-xs text-muted-foreground">Caminhão</dt>
-              <dd className="font-mono font-medium tabular-nums text-foreground">{viagem.cavalo} / {viagem.carreta}</dd>
+              <dd className="font-mono font-medium tabular-nums text-foreground">{formatarCodigoFrota(viagem.cavalo)} / {formatarCodigoFrota(viagem.carreta)}</dd>
               {viagem.avisoFrotaIndisponivel && (
                 <Alert variant="warning" inline className="mt-1" title={viagem.avisoFrotaIndisponivel}>
                   Frota indisponível

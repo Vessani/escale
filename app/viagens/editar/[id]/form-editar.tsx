@@ -1,6 +1,6 @@
 "use client"
 
-import type { StatusViagem, TipoProduto } from "@prisma/client"
+import type { StatusViagem, TipoMotorista, TipoProduto } from "@prisma/client"
 import { useMemo, useState } from "react"
 import { useRouter } from "next/navigation"
 import { zodResolver } from "@hookform/resolvers/zod"
@@ -23,7 +23,8 @@ import {
 import { classeBadgeStatusViagem } from "../../badge-styles"
 import { Save, UserCheck } from "lucide-react"
 import { formatDateTimeForInput, inicioDoDia } from "@/lib/utils/date-format"
-import { rotularMotoristaParaSelect } from "@/lib/utils/motorista-format"
+import { situacaoDoMotorista } from "@/components/motorista/indicador-compatibilidade"
+import { OpcoesMotoristaAcompanhante, OpcoesMotoristaPrincipal } from "@/components/motorista/opcoes-motorista"
 import { PRODUTO_OPCOES } from "@/lib/services/produto.service"
 import { editarViagemSchema, type EditarViagemFormValues } from "@/lib/validation/viagens"
 import RotaFields from "@/components/viagem/rota-fields"
@@ -47,7 +48,7 @@ type MotoristaParaSelect = {
   nome: string
   turno: EditarViagemFormValues["turno"]
   diasTrabalhados: number
-  liberado: boolean
+  tipo: TipoMotorista
   disponivel: boolean
   integracao: Array<{
     cliente: string
@@ -100,6 +101,30 @@ export default function FormEditarViagem({ viagem, motoristas, numerosSapQueExig
   // texto de ajuda abaixo), não é reforçada no servidor, então não precisa
   // vir do servidor.
   const hoje = useMemo(() => inicioDoDia(new Date()), [])
+
+  const opcoesPrincipal = useMemo(
+    () =>
+      motoristas.map((motorista) => {
+        const compativel = motoristaEhCompativel(
+          { ...motorista, registrosJornada: mapearRegistrosJornada(motorista.registrosJornada) },
+          {
+            turnoViagem: viagem.turno,
+            diasViagem: viagem.diasViagem,
+            dataInicioViagem: new Date(viagem.inicioPrevisto),
+            integracaoExigida,
+            produtoExigido: viagem.produto,
+            hoje,
+          },
+        )
+        return {
+          id: motorista.id,
+          nome: motorista.nome,
+          tipo: motorista.tipo,
+          situacao: situacaoDoMotorista(compativel, motorista.disponivel),
+        }
+      }),
+    [motoristas, viagem.turno, viagem.diasViagem, viagem.inicioPrevisto, viagem.produto, integracaoExigida, hoje],
+  )
 
   const form = useForm<EditarViagemFormValues>({
     resolver: zodResolver(editarViagemSchema) as Resolver<EditarViagemFormValues>,
@@ -200,40 +225,11 @@ export default function FormEditarViagem({ viagem, motoristas, numerosSapQueExig
                       </SelectTrigger>
                     </FormControl>
                     <SelectContent>
-                      {motoristas.length === 0 ? (
-                        <SelectItem value="0" disabled>
-                          Nenhum motorista disponível
-                        </SelectItem>
-                      ) : (
-                        motoristas.map((motorista) => {
-                          const compativel = motoristaEhCompativel(
-                            {
-                              ...motorista,
-                              registrosJornada: mapearRegistrosJornada(motorista.registrosJornada),
-                            },
-                            {
-                              turnoViagem: viagem.turno,
-                              diasViagem: viagem.diasViagem,
-                              dataInicioViagem: new Date(viagem.inicioPrevisto),
-                              integracaoExigida,
-                              produtoExigido: viagem.produto,
-                              hoje,
-                            },
-                          )
-
-                          const rotulo = rotularMotoristaParaSelect(compativel, motorista.disponivel)
-
-                          return (
-                            <SelectItem key={motorista.id} value={String(motorista.id)}>
-                              {motorista.nome} {rotulo}
-                            </SelectItem>
-                          )
-                        })
-                      )}
+                      <OpcoesMotoristaPrincipal motoristas={opcoesPrincipal} selecionadoId={field.value ?? null} />
                     </SelectContent>
                   </Select>
                   <p className="text-xs text-muted-foreground">
-                  Aceita exceções de emergência (turno, integração, jornada ou descanso fora da regra) — nada é bloqueado automaticamente, confira o aviso antes de confirmar.
+                  O ponto indica a situação: verde livre, amarelo sem descanso, vazio fora da regra, vermelho os dois. Exceções são aceitas — confira antes de confirmar.
                   </p>
                   <FormMessage />
                 </FormItem>
@@ -257,15 +253,11 @@ export default function FormEditarViagem({ viagem, motoristas, numerosSapQueExig
                     </FormControl>
                     <SelectContent>
                       <SelectItem value="nenhum">Nenhum acompanhante</SelectItem>
-                      {motoristas.map((motorista) => (
-                        <SelectItem key={motorista.id} value={String(motorista.id)}>
-                          {motorista.nome} {!motorista.liberado && "(Em treinamento)"}
-                        </SelectItem>
-                      ))}
+                      <OpcoesMotoristaAcompanhante motoristas={motoristas} selecionadoId={field.value ?? null} />
                     </SelectContent>
                   </Select>
                   <p className="text-xs text-muted-foreground">
-                    Vaga extra sem checagem de compatibilidade — aceita qualquer motorista, inclusive em treinamento. Só bloqueia se ele já estiver em outra viagem no período.
+                    Sem checagem de compatibilidade — aceita qualquer motorista que viaja, inclusive em treinamento e instrutor.
                   </p>
                   <FormMessage />
                 </FormItem>

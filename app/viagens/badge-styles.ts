@@ -40,3 +40,22 @@ export function classeBadgeStatusViagem(status: StatusViagem) {
 
   return "rounded-full border-border bg-muted text-muted-foreground hover:bg-muted"
 }
+
+/** Cor do ponto (●) de cada status — mesma cor do texto de classeBadgeStatusViagem, usada nas opções do seletor de status. */
+export function classePontoStatusViagem(status: StatusViagem) {
+  switch (status) {
+    case "ALOCADA":
+      return "bg-info"
+    case "INICIADA":
+    case "RETORNANDO":
+      return "bg-chart-2"
+    case "POSTERGADA":
+      return "bg-warning"
+    case "FINALIZADA":
+      return "bg-success"
+    case "CANCELADA":
+      return "bg-destructive"
+    default:
+      return "bg-muted-foreground"
+  }
+}

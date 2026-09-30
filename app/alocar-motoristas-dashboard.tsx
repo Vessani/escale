@@ -2,20 +2,21 @@
 
 import { useMemo, useState, useTransition } from "react"
 import { useRouter } from "next/navigation"
-import type { TipoProduto, Turno } from "@prisma/client"
+import type { TipoMotorista, TipoProduto, Turno } from "@prisma/client"
 import { atualizarAlocacaoViagem } from "@/lib/actions/viagens"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { motoristaEhCompativel } from "@/lib/services/alocacao.service"
 import { mapearRegistrosJornada } from "@/lib/services/jornada.service"
 import { inicioDoDia } from "@/lib/utils/date-format"
-import { rotularMotoristaParaSelect } from "@/lib/utils/motorista-format"
+import { situacaoDoMotorista } from "@/components/motorista/indicador-compatibilidade"
+import { OpcoesMotoristaAcompanhante, OpcoesMotoristaPrincipal } from "@/components/motorista/opcoes-motorista"
 
 type MotoristaParaAlocacao = {
   id: number
   nome: string
   turno: Turno
   diasTrabalhados: number
-  liberado: boolean
+  tipo: TipoMotorista
   disponivel: boolean
   integracao: Array<{
     cliente: string
@@ -59,6 +60,30 @@ export default function AlocarMotoristasDashboard({
   const [acompanhante, setAcompanhante] = useState<number | null>(motoristaAcompanhanteId)
   const hoje = useMemo(() => inicioDoDia(new Date()), [])
 
+  const opcoesPrincipal = useMemo(
+    () =>
+      motoristas.map((motorista) => {
+        const compativel = motoristaEhCompativel(
+          { ...motorista, registrosJornada: mapearRegistrosJornada(motorista.registrosJornada) },
+          {
+            turnoViagem: turno,
+            diasViagem,
+            dataInicioViagem: new Date(inicioPrevisto),
+            integracaoExigida,
+            produtoExigido: produto,
+            hoje,
+          },
+        )
+        return {
+          id: motorista.id,
+          nome: motorista.nome,
+          tipo: motorista.tipo,
+          situacao: situacaoDoMotorista(compativel, motorista.disponivel),
+        }
+      }),
+    [motoristas, turno, diasViagem, inicioPrevisto, integracaoExigida, produto, hoje],
+  )
+
   const salvar = (novoPrincipal: number | null, novoAcompanhante: number | null) => {
     setErro("")
     startTransition(async () => {
@@ -89,26 +114,7 @@ export default function AlocarMotoristasDashboard({
           <SelectValue placeholder="Selecionar motorista..." />
         </SelectTrigger>
         <SelectContent>
-          {motoristas.map((motorista) => {
-            const compativel = motoristaEhCompativel(
-              { ...motorista, registrosJornada: mapearRegistrosJornada(motorista.registrosJornada) },
-              {
-                turnoViagem: turno,
-                diasViagem,
-                dataInicioViagem: new Date(inicioPrevisto),
-                integracaoExigida,
-                produtoExigido: produto,
-                hoje,
-              },
-            )
-            const rotulo = rotularMotoristaParaSelect(compativel, motorista.disponivel)
-
-            return (
-              <SelectItem key={motorista.id} value={String(motorista.id)}>
-                {motorista.nome} {rotulo}
-              </SelectItem>
-            )
-          })}
+          <OpcoesMotoristaPrincipal motoristas={opcoesPrincipal} selecionadoId={principal} />
         </SelectContent>
       </Select>
 
@@ -126,11 +132,7 @@ export default function AlocarMotoristasDashboard({
         </SelectTrigger>
         <SelectContent>
           <SelectItem value="nenhum">Sem acompanhante</SelectItem>
-          {motoristas.map((motorista) => (
-            <SelectItem key={motorista.id} value={String(motorista.id)}>
-              {motorista.nome} {!motorista.liberado && "(Em treinamento)"}
-            </SelectItem>
-          ))}
+          <OpcoesMotoristaAcompanhante motoristas={motoristas} selecionadoId={acompanhante} />
         </SelectContent>
       </Select>
 

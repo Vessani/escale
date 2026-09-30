@@ -1,4 +1,4 @@
-import { StatusIntegracao, StatusViagem, TipoProduto, Turno } from "@prisma/client"
+import { StatusIntegracao, StatusViagem, TipoMotorista, TipoProduto, Turno } from "@prisma/client"
 import type { PontoRegistroJornada } from "../jornada.service"
 
 // Tipos compartilhados entre os módulos de lib/services/alocacao/ — eram
@@ -17,8 +17,8 @@ export type MotoristaParaAlocacao = {
   nome: string
   turno: Turno
   diasTrabalhados: number
-  /** false = em treinamento — nunca compatível como motorista principal (ver motoristaEhCompativel). */
-  liberado: boolean
+  /** Função do motorista — decide se entra na sugestão e em qual papel (ver lib/services/tipo-motorista.ts). */
+  tipo: TipoMotorista
   integracao: IntegracaoBase[]
   registrosJornada: PontoRegistroJornada[]
   /** Último registro do Relatório Sintético de Jornada importado (ver jornada-relatorio.service.ts). */

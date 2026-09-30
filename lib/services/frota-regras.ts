@@ -13,6 +13,11 @@ export function frotaEhValida(codigo: string): boolean {
   return codigo.trim().length > 0 && codigo !== CODIGO_FROTA_PLACEHOLDER
 }
 
+/** Código de frota pra exibir — o placeholder "0000" (truck sem cavalo separado) aparece como "—". */
+export function formatarCodigoFrota(codigo: string): string {
+  return frotaEhValida(codigo) ? codigo : "—"
+}
+
 /**
  * true se as duas viagens usam a mesma carreta (código inválido/placeholder
  * nunca conta como coincidência) — só a carreta importa pro cliente, o

@@ -10,11 +10,12 @@ import {
 import type { TipoProduto } from "@prisma/client";
 import { reconciliarFolgaMotoristasNoDiaAtual } from "./folga.service";
 import { registrarAuditoria, type Ator } from "./auditoria.service";
-import { MotoristaProdutoNaoAutorizadoError, MotoristaNaoEncontradoError, MotoristaEmTreinamentoError, ViagemNaoEncontradaError, StatusViagemObrigatorioError, NumViagemDuplicadaError } from "@/lib/errors";
+import { MotoristaProdutoNaoAutorizadoError, MotoristaNaoEncontradoError, MotoristaEmTreinamentoError, MotoristaNaoViajaError, ViagemNaoEncontradaError, StatusViagemObrigatorioError, NumViagemDuplicadaError } from "@/lib/errors";
 import { calcularAvisoFrotaIndisponivel, calcularAvisoFrotaProduto, sincronizarDisponibilidadeFrota } from "./frota.service";
 import { converterEditarViagemParaBD, converterNovaViagemParaBD } from "./viagem-data-converter.service";
 import { mapearRegistrosJornada } from "./jornada.service";
 import { recalcularAvisosInterjornada } from "./interjornada.service";
+import { podeSerAcompanhante, podeSerPrincipal } from "./tipo-motorista";
 import { calcularDiasEntre, inicioDoDia } from "@/lib/utils/date-format";
 
 function resolverStatusPorAlocacao(motoristaId: number | null) {
@@ -79,14 +80,15 @@ type MotoristasDaViagem = {
  * ser chamada direto, então o id em si não é confiável:
  * - tem que ser da filial da sessão e não estar excluído (senão dava pra
  *   alocar motorista de outra filial, ou um já removido);
- * - o principal não pode estar em treinamento (`liberado = false` — só como
- *   acompanhante, mesma regra de motoristaEhCompativel);
+ * - o tipo precisa permitir o papel (ver tipo-motorista.ts): em treinamento
+ *   só como acompanhante; enchedor não viaja; instrutor e interno podem ir
+ *   em qualquer papel quando escolhidos à mão;
  * - o principal precisa estar autorizado pro produto da viagem (bloqueio
  *   rígido, mesmo nível de turno).
  *
- * Excluído/treinamento só são cobrados de quem está ENTRANDO na viagem
- * (diferente de `atuais`): editar uma viagem antiga cujo motorista foi
- * excluído ou voltou pra treinamento depois não pode travar a edição dela.
+ * Excluído/tipo só são cobrados de quem está ENTRANDO na viagem (diferente
+ * de `atuais`): editar uma viagem antiga cujo motorista foi excluído ou
+ * mudou de tipo depois não pode travar a edição dela.
  * Filial e produto valem sempre.
  */
 async function garantirMotoristasValidos(filialId: number, dados: MotoristasDaViagem) {
@@ -95,8 +97,8 @@ async function garantirMotoristasValidos(filialId: number, dados: MotoristasDaVi
   if (principalId) {
     const principal = await buscarMotoristaDaFilial(filialId, principalId, principalId !== atuais?.principalId)
 
-    if (principal.liberado === false && principalId !== atuais?.principalId) {
-      throw new MotoristaEmTreinamentoError()
+    if (principalId !== atuais?.principalId && !podeSerPrincipal(principal.tipo)) {
+      throw principal.tipo === "ENCHEDOR" ? new MotoristaNaoViajaError() : new MotoristaEmTreinamentoError()
     }
 
     if (produtoExigido && !motoristaAutorizadoParaProduto(principal.produtosAutorizados, produtoExigido)) {
@@ -105,14 +107,19 @@ async function garantirMotoristasValidos(filialId: number, dados: MotoristasDaVi
   }
 
   if (acompanhanteId) {
-    await buscarMotoristaDaFilial(filialId, acompanhanteId, acompanhanteId !== atuais?.acompanhanteId)
+    const entrando = acompanhanteId !== atuais?.acompanhanteId
+    const acompanhante = await buscarMotoristaDaFilial(filialId, acompanhanteId, entrando)
+
+    if (entrando && !podeSerAcompanhante(acompanhante.tipo)) {
+      throw new MotoristaNaoViajaError()
+    }
   }
 }
 
 async function buscarMotoristaDaFilial(filialId: number, id: number, exigirAtivo: boolean) {
   const motorista = await prisma.motorista.findFirst({
     where: { id, filialId, ...(exigirAtivo ? { deletadoEm: null } : {}) },
-    select: { produtosAutorizados: true, liberado: true },
+    select: { produtosAutorizados: true, tipo: true },
   })
 
   if (!motorista) {

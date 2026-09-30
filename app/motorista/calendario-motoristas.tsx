@@ -19,6 +19,8 @@ import {
   type FiltroStatusJornada,
 } from "./calendario-utils"
 import { classeBadgeJornada } from "./jornada-status"
+import type { TipoMotorista } from "@prisma/client"
+import { NomeMotorista } from "@/components/motorista/icone-tipo-motorista"
 
 type Viagem = {
   id: number
@@ -53,7 +55,7 @@ type Motorista = {
   turno: "MANHA" | "NOITE"
   seva: number
   diasTrabalhados: number
-  liberado: boolean
+  tipo: TipoMotorista
   viagens: Viagem[]
   registrosJornada: RegistroJornada[]
 }
@@ -209,15 +211,12 @@ export default function CalendarioMotoristas({ inicioParam, hojeIso, dias, motor
                     <div className="space-y-2">
                       <div className="flex items-center justify-between gap-2">
                         <Link href={`/motorista/editar/${motorista.id}`} className="font-semibold text-foreground hover:text-primary">
-                          {motorista.nome}
+                          <NomeMotorista nome={motorista.nome} tipo={motorista.tipo} />
                         </Link>
                         <Badge variant="outline" className={classeTurnoBadge}>
                           {motorista.turno}
                         </Badge>
                       </div>
-                      {!motorista.liberado && (
-                        <Badge variant="warning">Em treinamento</Badge>
-                      )}
                       <div className="flex items-center gap-2">
                         <Link href={`/motorista/editar/${motorista.id}`}>
                           <Button variant="outline" size="sm">

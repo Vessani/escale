@@ -28,6 +28,25 @@
     NOITE
   }
 
+  // Função do motorista na operação — decide onde ele pode entrar na escala
+  // (ver lib/services/tipo-motorista.ts, fonte única dessas regras):
+  // - MOTORISTA: viaja e entra na sugestão automática;
+  // - TREINAMENTO: só como acompanhante, nunca principal;
+  // - INSTRUTOR: viaja (principal ou acompanhante), mas só por alocação
+  //   manual — acompanha outro motorista ou um em treinamento;
+  // - INTERNO: fica no apoio da operação (render motorista, levar frota pra
+  //   lavar...), fora da sugestão; alocação manual quando precisar. Não
+  //   confundir com o código de jornada 10 "Interno" do calendário, que é um
+  //   dia pontual, não a função;
+  // - ENCHEDOR: não faz viagem.
+  enum TipoMotorista {
+    MOTORISTA
+    TREINAMENTO
+    INSTRUTOR
+    INTERNO
+    ENCHEDOR
+  }
+
   enum AcaoAuditoria {
     CRIACAO
     ATUALIZACAO
@@ -266,9 +285,8 @@
 
     turno           Turno
 
-    // false = em treinamento: fica de fora da sugestão automática e não pode
-    // ser escolhido como motorista principal — só como acompanhante.
-    liberado        Boolean      @default(true)
+    // Substitui o antigo `liberado` (false = TREINAMENTO) — ver enum TipoMotorista.
+    tipo            TipoMotorista @default(MOTORISTA)
 
     // Gases que esse motorista está autorizado a transportar — pode ter mais
     // de um. Vazio ([]) pros motoristas já cadastrados antes desse campo

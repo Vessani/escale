@@ -54,7 +54,7 @@ export default function NovoMotoristaClient({ clientes }: Props) {
           seva: 0,
           diasTrabalhados: 1,
           turno: "MANHA",
-          liberado: true,
+          tipo: "MOTORISTA",
           produtosAutorizados: [],
           integracao: [],
         }}

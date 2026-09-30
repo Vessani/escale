@@ -109,7 +109,7 @@ export async function buscarMotoristasParaSelect(filialId: number, turnoDaViagem
       nome: true,
       turno: true,
       diasTrabalhados: true,
-      liberado: true,
+      tipo: true,
       produtosAutorizados: true,
       jornadaRelatorioInicio: true,
       jornadaRelatorioFim: true,
@@ -170,7 +170,7 @@ export async function buscarMotoristasSemViagemHoje(filialId: number, dataRefere
       seva: true,
       turno: true,
       diasTrabalhados: true,
-      liberado: true,
+      tipo: true,
       registrosJornada: {
         select: { data: true, codigo: true },
         orderBy: { data: "asc" },

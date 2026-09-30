@@ -1,3 +1,5 @@
+import type { TipoMotorista } from "@prisma/client"
+
 export type TipoAcaoSugerida = "DAR_FOLGA" | "REVISAR_INTERNO" | "REVISAR_MANUTENCAO" | "NENHUMA"
 
 export type AcaoSugerida = {
@@ -13,9 +15,18 @@ export type AcaoSugerida = {
  * automática, já que essa tela lista todo mundo de uma vez, não só quem
  * acabou de ter uma viagem alterada.
  */
-export function determinarAcaoSugerida(codigoHoje: number, liberado: boolean): AcaoSugerida {
-  if (!liberado) {
+export function determinarAcaoSugerida(codigoHoje: number, tipoMotorista: TipoMotorista): AcaoSugerida {
+  if (tipoMotorista === "TREINAMENTO") {
     return { tipo: "NENHUMA", texto: "Em treinamento — só pode ser usado como acompanhante." }
+  }
+
+  // Ficar sem viagem é o normal pra quem é do apoio — não sugerir folga por isso.
+  if (tipoMotorista === "ENCHEDOR") {
+    return { tipo: "NENHUMA", texto: "Enchedor — não faz viagem." }
+  }
+
+  if (tipoMotorista === "INTERNO") {
+    return { tipo: "NENHUMA", texto: "Interno — apoio da operação." }
   }
 
   if (codigoHoje >= 1 && codigoHoje <= 6) {

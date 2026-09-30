@@ -1,5 +1,6 @@
 import { calcularDiasDisponiveis, codigoJornadaNaViagem, motoristaEhCompativel } from "./compatibilidade"
 import { calcularDescansoAntesDaViagem, type MotoristaParaDescanso } from "./descanso"
+import { entraNaSugestaoAutomatica } from "../tipo-motorista"
 import type { ContextoCompatibilidade, MotoristaParaAlocacao } from "./tipos"
 
 const HORAS_ANTECEDENCIA_CHECKLIST = 1
@@ -77,8 +78,11 @@ export function filtrarMotoristasCompativeis<T extends MotoristaParaAlocacao & M
   // Chave de ordenação calculada uma vez por motorista (antes era recalculada
   // a cada comparação do sort), a partir da regra única de descanso — a
   // mesma do aviso gravado na viagem (ver calcularDescansoAntesDaViagem).
+  // Só o motorista comum é sugerido — instrutor e interno cabem na regra,
+  // mas são sempre escolha manual (ver entraNaSugestaoAutomatica).
   const chaves = new Map(
     motoristas
+      .filter((motorista) => entraNaSugestaoAutomatica(motorista.tipo))
       .filter((motorista) => motoristaEhCompativel(motorista, contexto))
       .map((motorista) => {
         const descanso = calcularDescansoAntesDaViagem(motorista, contexto.dataInicioViagem, contexto.hoje)

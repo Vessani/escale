@@ -1,3 +1,4 @@
+import type { TipoMotorista } from "@prisma/client"
 import { describe, expect, it, vi, beforeEach } from "vitest"
 import type { EditarMotoristaInput, NovoMotoristaInput } from "@/lib/types/types"
 import { inicioDoDia } from "@/lib/utils/date-format"
@@ -56,7 +57,7 @@ describe("motorista.service", () => {
         seva: 1,
         diasTrabalhados: 3,
         turno: "MANHA",
-        liberado: true,
+        tipo: "MOTORISTA" as const,
         produtosAutorizados: ["CO2"],
         integracao: [{ dataValidade: "2026-12-31", cliente: "AMBEV", status: "ATIVO" }],
       }
@@ -66,7 +67,7 @@ describe("motorista.service", () => {
       expect(resultado).toEqual({ id: 42 })
       const dadosCriados = vi.mocked(tx.motorista.create).mock.calls[0][0].data
       expect(dadosCriados.nome).toBe("Ana")
-      expect(dadosCriados.liberado).toBe(true)
+      expect(dadosCriados.tipo).toBe("MOTORISTA")
       expect(dadosCriados.filialId).toBe(FILIAL_ID)
       expect(dadosCriados.integracao.create[0].cliente).toBe("AMBEV")
 
@@ -82,7 +83,7 @@ describe("motorista.service", () => {
       })
     })
 
-    it("cadastra em treinamento (liberado: false)", async () => {
+    it("cadastra em treinamento (tipo TREINAMENTO)", async () => {
       const tx = criarTx()
       vi.mocked(tx.motorista.create).mockResolvedValue({ id: 43 })
       vi.mocked(tx.registroJornada.upsert).mockResolvedValue({})
@@ -94,22 +95,22 @@ describe("motorista.service", () => {
         seva: 2,
         diasTrabalhados: 1,
         turno: "MANHA",
-        liberado: false,
+        tipo: "TREINAMENTO" as const,
         produtosAutorizados: [],
         integracao: [],
       }, ATOR)
 
       const dadosCriados = vi.mocked(tx.motorista.create).mock.calls[0][0].data
-      expect(dadosCriados.liberado).toBe(false)
+      expect(dadosCriados.tipo).toBe("TREINAMENTO")
     })
   })
 
   describe("editarMotoristaService", () => {
     it("separa integrações existentes (update) de novas (create) e mantém só as informadas", async () => {
-      vi.mocked(prisma.motorista.findUniqueOrThrow).mockResolvedValue({ id: 5, liberado: false } as never)
+      vi.mocked(prisma.motorista.findUniqueOrThrow).mockResolvedValue({ id: 5, tipo: "TREINAMENTO" as const } as never)
 
       const tx = criarTx()
-      vi.mocked(tx.motorista.update).mockResolvedValue({ id: 5, liberado: true })
+      vi.mocked(tx.motorista.update).mockResolvedValue({ id: 5, tipo: "MOTORISTA" as const })
       vi.mocked(tx.registroJornada.upsert).mockResolvedValue({})
       usarTransacaoCom(tx)
 
@@ -119,7 +120,7 @@ describe("motorista.service", () => {
         seva: 1,
         diasTrabalhados: 4,
         turno: "NOITE",
-        liberado: true,
+        tipo: "MOTORISTA" as const,
         produtosAutorizados: ["CO2", "NITROGENIO"],
         integracao: [
           { id: 10, dataValidade: "2026-12-31", cliente: "AMBEV", status: "ATIVO" },
@@ -131,10 +132,10 @@ describe("motorista.service", () => {
 
       const chamada = vi.mocked(tx.motorista.update).mock.calls[0][0] as {
         where: { id: number; filialId: number }
-        data: { liberado: boolean; integracao: { deleteMany: { id: { notIn: number[] } }; update: unknown[]; create: unknown[] } }
+        data: { tipo: TipoMotorista; integracao: { deleteMany: { id: { notIn: number[] } }; update: unknown[]; create: unknown[] } }
       }
       expect(chamada.where).toEqual({ id: 5, filialId: FILIAL_ID })
-      expect(chamada.data.liberado).toBe(true)
+      expect(chamada.data.tipo).toBe("MOTORISTA")
       expect(chamada.data.integracao.deleteMany.id.notIn).toEqual([10])
       expect(chamada.data.integracao.update).toHaveLength(1)
       expect(chamada.data.integracao.create).toHaveLength(1)

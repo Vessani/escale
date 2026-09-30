@@ -7,6 +7,7 @@ import {
   MotoristaProdutoNaoAutorizadoError,
   MotoristaNaoEncontradoError,
   MotoristaEmTreinamentoError,
+  MotoristaNaoViajaError,
   FrotaDuplicadaError,
   DataInvalidaError,
   NumViagemDuplicadaError,
@@ -52,6 +53,12 @@ describe("subclasses — código estável e mensagem segura de cada uma", () => 
       () => new MotoristaEmTreinamentoError(),
       "MOTORISTA_EM_TREINAMENTO",
       "Motorista em treinamento só pode ser alocado como acompanhante.",
+    ],
+    [
+      "MotoristaNaoViajaError",
+      () => new MotoristaNaoViajaError(),
+      "MOTORISTA_NAO_VIAJA",
+      "Enchedor não faz viagem.",
     ],
     [
       "FrotaDuplicadaError",
