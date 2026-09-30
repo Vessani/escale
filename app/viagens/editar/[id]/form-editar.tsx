@@ -173,7 +173,7 @@ export default function FormEditarViagem({ viagem, motoristas, numerosSapQueExig
               <CardTitle className="text-lg text-primary">Alocação de Motorista</CardTitle>
             </div>
             <div className="flex flex-wrap items-center gap-2">
-              <Badge variant="outline" className={classeBadgeStatusViagem(statusSelecionado ?? "CRIADA")}>
+              <Badge dot variant="outline" className={classeBadgeStatusViagem(statusSelecionado ?? "CRIADA")}>
                 {formatarStatusViagem(statusSelecionado ?? "CRIADA")}
               </Badge>
               {viagem.integracaoExigida && (

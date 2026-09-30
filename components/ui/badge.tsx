@@ -30,13 +30,16 @@ const badgeVariants = cva(
   }
 )
 
+/** `dot` mostra uma bolinha na cor do texto antes do conteúdo (usado nos badges de status). Ignorado com `asChild`. */
 function Badge({
   className,
   variant = "default",
   asChild = false,
+  dot = false,
+  children,
   ...props
 }: React.ComponentProps<"span"> &
-  VariantProps<typeof badgeVariants> & { asChild?: boolean }) {
+  VariantProps<typeof badgeVariants> & { asChild?: boolean; dot?: boolean }) {
   const Comp = asChild ? Slot.Root : "span"
 
   return (
@@ -45,7 +48,16 @@ function Badge({
       data-variant={variant}
       className={cn(badgeVariants({ variant }), className)}
       {...props}
-    />
+    >
+      {asChild ? (
+        children
+      ) : (
+        <>
+          {dot && <span aria-hidden="true" className="size-1.5 shrink-0 rounded-full bg-current" />}
+          {children}
+        </>
+      )}
+    </Comp>
   )
 }
 

@@ -2,8 +2,9 @@ import Link from "next/link"
 import { getServerSession } from "next-auth"
 import { authOptions } from "@/lib/auth"
 import { Button } from "@/components/ui/button"
+import { EmptyState } from "@/components/ui/empty-state"
 import { Input } from "@/components/ui/input"
-import { CalendarDays, CheckCircle2, Info, Pencil, PlayCircle, Route, UserX } from "lucide-react"
+import { CalendarDays, CheckCircle2, Info, Pencil, PlayCircle, PlusCircle, Route, UserX } from "lucide-react"
 import { Alert } from "@/components/ui/alert"
 import { Badge } from "@/components/ui/badge"
 import { StatCard } from "@/components/ui/stat-card"
@@ -120,7 +121,7 @@ function StatusCelula({ item }: { item: ItemDashboard }) {
   const { viagem } = item
   return (
     <div className="space-y-1">
-      <Badge variant="outline" className={classeBadgeStatusViagem(viagem.status)}>
+      <Badge dot variant="outline" className={classeBadgeStatusViagem(viagem.status)}>
         {formatarStatusViagem(viagem.status)}
       </Badge>
       <AtualizarStatusRapido
@@ -137,21 +138,21 @@ function StatusCelula({ item }: { item: ItemDashboard }) {
 function ViagensEmAndamentoTabela({ itens }: { itens: ItemDashboard[] }) {
   return (
     <div className="hidden rounded-lg border bg-card shadow-sm overflow-hidden md:block">
-      <Table>
-        <TableHeader className="bg-muted">
+      <Table containerClassName="max-h-[70vh] overflow-auto">
+        <TableHeader className="sticky top-0 z-10 bg-muted">
           <TableRow>
-            <TableHead className="font-semibold text-foreground/80">Motorista(s)</TableHead>
-            <TableHead className="font-semibold text-foreground/80">Nº Viagem</TableHead>
-            <TableHead className="font-semibold text-foreground/80">Frota</TableHead>
-            <TableHead className="font-semibold text-foreground/80">Status</TableHead>
-            <TableHead className="font-semibold text-foreground/80">Início Previsto</TableHead>
-            <TableHead className="font-semibold text-foreground/80">Saída Real</TableHead>
-            <TableHead className="font-semibold text-foreground/80">Destinos</TableHead>
+            <TableHead>Motorista(s)</TableHead>
+            <TableHead>Nº Viagem</TableHead>
+            <TableHead>Frota</TableHead>
+            <TableHead>Status</TableHead>
+            <TableHead>Início Previsto</TableHead>
+            <TableHead>Saída Real</TableHead>
+            <TableHead>Destinos</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
           {itens.map((item) => (
-            <TableRow key={item.viagem.id} className="hover:bg-muted/50">
+            <TableRow key={item.viagem.id}>
               <TableCell className="font-medium">
                 <AlocacaoCelula item={item} />
               </TableCell>
@@ -344,12 +345,19 @@ export default async function DashboardPage({
       </form>
 
       {itens.length === 0 ? (
-        <div className="border rounded-lg bg-card shadow-sm p-12">
-          <div className="flex flex-col items-center justify-center text-muted-foreground">
-            <Route className="w-8 h-8 text-muted-foreground/50 mb-2" />
-            <p>Nenhuma viagem encontrada para este filtro.</p>
-          </div>
-        </div>
+        <EmptyState
+          icone={Route}
+          titulo="Nenhuma viagem"
+          descricao="Nenhuma viagem encontrada para este filtro."
+          acao={
+            <Link href="/viagens/nova">
+              <Button>
+                <PlusCircle className="w-4 h-4 mr-2" />
+                Nova viagem
+              </Button>
+            </Link>
+          }
+        />
       ) : (
         <section className="space-y-3">
           <div className="flex items-center justify-between">

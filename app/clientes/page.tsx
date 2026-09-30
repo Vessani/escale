@@ -3,9 +3,9 @@ import { getServerSession } from "next-auth"
 import { authOptions } from "@/lib/auth"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
-import { Card, CardContent } from "@/components/ui/card"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Building, PlusCircle } from "lucide-react"
+import { EmptyState } from "@/components/ui/empty-state"
 import { buscarClientes } from "@/lib/queries/clientes"
 import ExcluirClienteButton from "./excluir-cliente-button"
 
@@ -36,26 +36,35 @@ export default async function ClientesPage() {
       </div>
 
       {clientes.length === 0 ? (
-        <Card className="border-border shadow-sm">
-          <CardContent className="flex flex-col items-center justify-center gap-2 p-12 text-muted-foreground">
-            <Building className="w-8 h-8 text-muted-foreground/50" />
-            <p>Nenhum cliente cadastrado ainda.</p>
-          </CardContent>
-        </Card>
+        <EmptyState
+          icone={Building}
+          titulo="Nenhum cliente"
+          descricao="Nenhum cliente cadastrado ainda."
+          acao={
+            podeGerenciar && (
+              <Link href="/clientes/novo">
+                <Button>
+                  <PlusCircle className="w-4 h-4 mr-2" />
+                  Novo cliente
+                </Button>
+              </Link>
+            )
+          }
+        />
       ) : (
         <div className="rounded-lg border bg-card shadow-sm overflow-hidden">
           <Table>
-            <TableHeader className="bg-muted">
+            <TableHeader>
               <TableRow>
-                <TableHead className="font-semibold text-foreground/80">Nome</TableHead>
-                <TableHead className="font-semibold text-foreground/80">SAP Code</TableHead>
-                <TableHead className="font-semibold text-foreground/80">Exige integração</TableHead>
-                {podeGerenciar && <TableHead className="font-semibold text-foreground/80 text-right">Ações</TableHead>}
+                <TableHead>Nome</TableHead>
+                <TableHead>SAP Code</TableHead>
+                <TableHead>Exige integração</TableHead>
+                {podeGerenciar && <TableHead className="text-right">Ações</TableHead>}
               </TableRow>
             </TableHeader>
             <TableBody>
               {clientes.map((cliente) => (
-                <TableRow key={cliente.id} className="hover:bg-muted/50">
+                <TableRow key={cliente.id}>
                   <TableCell className="font-medium">{cliente.nome}</TableCell>
                   <TableCell className="font-mono tabular-nums text-foreground/80">{cliente.numeroSap}</TableCell>
                   <TableCell>

@@ -1,7 +1,7 @@
 import { Badge } from "@/components/ui/badge"
-import { Card, CardContent } from "@/components/ui/card"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { UserCog } from "lucide-react"
+import { EmptyState } from "@/components/ui/empty-state"
 import { buscarUsuarios } from "@/lib/queries/usuarios"
 import { buscarFiliais } from "@/lib/queries/filiais"
 import CriarUsuarioForm from "./criar-usuario-form"
@@ -19,26 +19,21 @@ export default async function UsuariosPage() {
       <CriarUsuarioForm filiais={filiais} />
 
       {usuarios.length === 0 ? (
-        <Card className="border-border shadow-sm">
-          <CardContent className="flex flex-col items-center justify-center gap-2 p-12 text-muted-foreground">
-            <UserCog className="w-8 h-8 text-muted-foreground/50" />
-            <p>Nenhum usuário cadastrado ainda.</p>
-          </CardContent>
-        </Card>
+        <EmptyState icone={UserCog} titulo="Nenhum usuário" descricao="Cadastre o primeiro usuário no formulário acima." />
       ) : (
         <div className="rounded-lg border bg-card shadow-sm overflow-hidden">
           <Table>
-            <TableHeader className="bg-muted">
+            <TableHeader>
               <TableRow>
-                <TableHead className="font-semibold text-foreground/80">Nome</TableHead>
-                <TableHead className="font-semibold text-foreground/80">E-mail</TableHead>
-                <TableHead className="font-semibold text-foreground/80">Papel</TableHead>
-                <TableHead className="font-semibold text-foreground/80">Filial</TableHead>
+                <TableHead>Nome</TableHead>
+                <TableHead>E-mail</TableHead>
+                <TableHead>Papel</TableHead>
+                <TableHead>Filial</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {usuarios.map((usuario) => (
-                <TableRow key={usuario.id} className="hover:bg-muted/50">
+                <TableRow key={usuario.id}>
                   <TableCell className="font-medium">{usuario.nome ?? "-"}</TableCell>
                   <TableCell>{usuario.email ?? "-"}</TableCell>
                   <TableCell>

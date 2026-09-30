@@ -11,6 +11,7 @@ import { Alert } from "@/components/ui/alert"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
+import { EmptyState } from "@/components/ui/empty-state"
 import { classeBadgeTurno } from "../badge-styles"
 import { formatarDataHoraPtBr } from "@/lib/utils/date-format"
 import { formatarProduto } from "@/lib/services/produto.service"
@@ -184,16 +185,17 @@ export default function AlocacaoViagensClient({ viagens }: Props) {
 
   if (totalPendentes === 0) {
     return (
-      <div className="flex flex-col items-center justify-center gap-4 rounded-lg border border-dashed border-border bg-muted p-10 text-center">
-        <CheckCircle2 className="h-10 w-10 text-emerald-500" />
-        <div>
-          <p className="text-base font-semibold text-foreground">Nenhuma viagem pendente.</p>
-          <p className="mt-1 text-sm text-muted-foreground">Todas as viagens disponíveis já possuem motorista alocado.</p>
-        </div>
-        <Link href="/viagens">
-          <Button variant="outline">Ver viagens</Button>
-        </Link>
-      </div>
+      <EmptyState
+        icone={CheckCircle2}
+        classeIcone="text-success"
+        titulo="Nenhuma viagem pendente"
+        descricao="Todas as viagens disponíveis já possuem motorista alocado."
+        acao={
+          <Link href="/viagens">
+            <Button variant="outline">Ver viagens</Button>
+          </Link>
+        }
+      />
     )
   }
 

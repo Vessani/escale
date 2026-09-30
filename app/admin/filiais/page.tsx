@@ -1,7 +1,7 @@
 import { Badge } from "@/components/ui/badge"
-import { Card, CardContent } from "@/components/ui/card"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Building2 } from "lucide-react"
+import { EmptyState } from "@/components/ui/empty-state"
 import { buscarFiliais } from "@/lib/queries/filiais"
 import { formatarDataHoraPtBr } from "@/lib/utils/date-format"
 import CriarFilialForm from "./criar-filial-form"
@@ -19,24 +19,19 @@ export default async function FiliaisPage() {
       <CriarFilialForm />
 
       {filiais.length === 0 ? (
-        <Card className="border-border shadow-sm">
-          <CardContent className="flex flex-col items-center justify-center gap-2 p-12 text-muted-foreground">
-            <Building2 className="w-8 h-8 text-muted-foreground/50" />
-            <p>Nenhuma filial cadastrada ainda.</p>
-          </CardContent>
-        </Card>
+        <EmptyState icone={Building2} titulo="Nenhuma filial" descricao="Cadastre a primeira filial no formulário acima." />
       ) : (
         <div className="rounded-lg border bg-card shadow-sm overflow-hidden">
           <Table>
-            <TableHeader className="bg-muted">
+            <TableHeader>
               <TableRow>
-                <TableHead className="font-semibold text-foreground/80">Nome</TableHead>
-                <TableHead className="font-semibold text-foreground/80">Criada em</TableHead>
+                <TableHead>Nome</TableHead>
+                <TableHead>Criada em</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {filiais.map((filial) => (
-                <TableRow key={filial.id} className="hover:bg-muted/50">
+                <TableRow key={filial.id}>
                   <TableCell className="font-medium">{filial.nome}</TableCell>
                   <TableCell>
                     <Badge variant="outline" className="tabular-nums">{formatarDataHoraPtBr(filial.criadoEm)}</Badge>

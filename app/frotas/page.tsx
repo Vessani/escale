@@ -2,6 +2,7 @@ import Link from "next/link"
 import { getServerSession } from "next-auth"
 import { authOptions } from "@/lib/auth"
 import { Button } from "@/components/ui/button"
+import { EmptyState } from "@/components/ui/empty-state"
 import { Badge } from "@/components/ui/badge"
 import { PlusCircle, Truck } from "lucide-react"
 import { buscarFrotas } from "@/lib/queries/frotas"
@@ -50,18 +51,18 @@ function FrotasTabela({ frotas, agora, podeExcluir }: { frotas: Frota[]; agora: 
   return (
     <div className="hidden rounded-lg border bg-card shadow-sm overflow-hidden md:block">
       <Table>
-        <TableHeader className="bg-muted">
+        <TableHeader>
           <TableRow>
-            <TableHead className="font-semibold text-foreground/80">Cavalo</TableHead>
-            <TableHead className="font-semibold text-foreground/80">Carreta</TableHead>
-            <TableHead className="font-semibold text-foreground/80">Produto</TableHead>
-            <TableHead className="font-semibold text-foreground/80">Status</TableHead>
-            <TableHead className="font-semibold text-foreground/80 text-right">Ações</TableHead>
+            <TableHead>Cavalo</TableHead>
+            <TableHead>Carreta</TableHead>
+            <TableHead>Produto</TableHead>
+            <TableHead>Status</TableHead>
+            <TableHead className="text-right">Ações</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
           {frotas.map((frota) => (
-            <TableRow key={frota.id} className="hover:bg-muted/50">
+            <TableRow key={frota.id}>
               <TableCell className="font-mono font-medium tabular-nums">{frota.cavalo}</TableCell>
               <TableCell className="font-mono tabular-nums">{frota.carreta}</TableCell>
               <TableCell className="text-muted-foreground">{formatarProduto(frota.tipoProduto)}</TableCell>
@@ -124,12 +125,19 @@ export default async function FrotasPage() {
       </div>
 
       {frotas.length === 0 ? (
-        <div className="border rounded-lg bg-card shadow-sm p-12">
-          <div className="flex flex-col items-center justify-center text-muted-foreground">
-            <Truck className="w-8 h-8 text-muted-foreground/50 mb-2" />
-            <p>Nenhum conjunto cadastrado ainda.</p>
-          </div>
-        </div>
+        <EmptyState
+          icone={Truck}
+          titulo="Nenhum conjunto"
+          descricao="Nenhum conjunto (cavalo/carreta) cadastrado ainda."
+          acao={
+            <Link href="/frotas/novo">
+              <Button>
+                <PlusCircle className="w-4 h-4 mr-2" />
+                Novo conjunto
+              </Button>
+            </Link>
+          }
+        />
       ) : (
         <section className="space-y-3">
           <div className="flex items-center justify-between">

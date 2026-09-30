@@ -2,6 +2,7 @@ import Link from "next/link"
 import { getServerSession } from "next-auth"
 import { authOptions } from "@/lib/auth"
 import { Button } from "@/components/ui/button"
+import { EmptyState } from "@/components/ui/empty-state"
 import { ChevronLeft, ChevronRight, PlusCircle, Upload, Users } from "lucide-react"
 import { buscarMotoristasComAgenda } from "@/lib/queries/motoristas"
 import { serializeData } from "@/lib/serialization"
@@ -104,12 +105,19 @@ export default async function MotoristasPage({
       </div>
 
       {motoristas.length === 0 ? (
-        <div className="border rounded-lg bg-card shadow-sm p-12">
-          <div className="flex flex-col items-center justify-center text-muted-foreground">
-            <Users className="w-8 h-8 text-muted-foreground/50 mb-2" />
-            <p>Nenhum motorista cadastrado ainda.</p>
-          </div>
-        </div>
+        <EmptyState
+          icone={Users}
+          titulo="Nenhum motorista"
+          descricao="Nenhum motorista cadastrado ainda."
+          acao={
+            <Link href="/motorista/novo">
+              <Button>
+                <PlusCircle className="w-4 h-4 mr-2" />
+                Novo motorista
+              </Button>
+            </Link>
+          }
+        />
       ) : (
         <CalendarioMotoristas
           inicioParam={inicioParam}

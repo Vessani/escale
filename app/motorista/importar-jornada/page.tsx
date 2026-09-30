@@ -168,9 +168,9 @@ export default function ImportarJornadaPage() {
             </Button>
           </CardHeader>
           <CardContent className="pt-6">
-            <div className="max-h-96 overflow-auto rounded-md border">
-              <Table>
-                <TableHeader className="bg-muted">
+            <div className="overflow-hidden rounded-md border">
+              <Table containerClassName="max-h-96 overflow-auto">
+                <TableHeader className="sticky top-0 z-10 bg-muted">
                   <TableRow>
                     <TableHead>Matrícula</TableHead>
                     <TableHead>Motorista</TableHead>
