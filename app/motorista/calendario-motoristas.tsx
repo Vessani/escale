@@ -186,7 +186,7 @@ export default function CalendarioMotoristas({ inicioParam, hojeIso, dias, motor
                     key={diaIso}
                     className={`border-b border-r px-2 py-3 text-center align-top min-w-20 ${ehHoje ? "bg-blue-100" : "bg-slate-50"}`}
                   >
-                    <div className="font-semibold text-slate-700">{dia.getDate()}</div>
+                    <div className="font-semibold tabular-nums text-slate-700">{dia.getDate()}</div>
                     <div className="text-[11px] uppercase text-slate-500">{formatarSemana(dia)}</div>
                     {ehHoje ? <div className="text-[10px] font-bold uppercase text-blue-600">Hoje</div> : null}
                   </th>
@@ -240,9 +240,9 @@ export default function CalendarioMotoristas({ inicioParam, hojeIso, dias, motor
                         )}
                       </div>
                       <div className="flex flex-wrap items-center gap-2 text-xs text-slate-500">
-                        <span>SEVA {motorista.seva}</span>
+                        <span>SEVA <span className="font-mono tabular-nums">{motorista.seva}</span></span>
                         <span>·</span>
-                        <span>{diasDisponiveis} dia(s) disponível(is)</span>
+                        <span className="tabular-nums">{diasDisponiveis} dia(s) disponível(is)</span>
                         <span>·</span>
                         <span className={`rounded px-2 py-0.5 font-semibold ${classeBadgeJornada(motorista.codigoHoje)}`}>
                           Hoje: {statusJornada.texto}
@@ -304,7 +304,7 @@ export default function CalendarioMotoristas({ inicioParam, hojeIso, dias, motor
                                 {statusNoDia.texto}
                               </button>
                               {jornadaReal && (
-                                <span className="block text-[10px] text-slate-400">
+                                <span className="block font-mono text-[10px] tabular-nums text-slate-400">
                                   {formatarHoraLocal(jornadaReal.inicioJornada)}–{formatarHoraLocal(jornadaReal.fimJornada)}
                                 </span>
                               )}
@@ -319,7 +319,7 @@ export default function CalendarioMotoristas({ inicioParam, hojeIso, dias, motor
                                   href={`/viagens/editar/${viagem.id}`}
                                   className="block rounded-md border border-blue-200 bg-blue-50 p-1 text-xs hover:bg-blue-100"
                                 >
-                                  <div className="font-semibold text-blue-900">{viagem.numViagem}</div>
+                                  <div className="font-mono font-semibold tabular-nums text-blue-900">{viagem.numViagem}</div>
                                 </Link>
                               ))}
                             </div>

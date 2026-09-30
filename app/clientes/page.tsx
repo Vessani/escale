@@ -54,7 +54,7 @@ export default async function ClientesPage() {
               {clientes.map((cliente) => (
                 <TableRow key={cliente.id} className="hover:bg-slate-50">
                   <TableCell className="font-medium">{cliente.nome}</TableCell>
-                  <TableCell className="text-slate-600">{cliente.numeroSap}</TableCell>
+                  <TableCell className="font-mono tabular-nums text-slate-600">{cliente.numeroSap}</TableCell>
                   <TableCell>
                     {cliente.exigeIntegracao ? (
                       <Badge variant="warning">Sim</Badge>

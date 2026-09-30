@@ -50,7 +50,7 @@ export default function AtualizarSaidaReal({
     <div className="space-y-1">
       <Input
         type="datetime-local"
-        className="h-8 bg-white text-xs"
+        className="h-8 bg-white text-xs tabular-nums"
         value={horarioRealSaida}
         disabled={isPending}
         onChange={(e) => setHorarioRealSaida(e.target.value)}

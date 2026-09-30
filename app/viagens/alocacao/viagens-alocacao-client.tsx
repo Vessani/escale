@@ -224,9 +224,9 @@ export default function AlocacaoViagensClient({ viagens }: Props) {
             <Card key={viagem.id} className="border-slate-200 shadow-sm">
               <CardHeader className="flex flex-col gap-3 border-b bg-white sm:flex-row sm:items-start sm:justify-between sm:gap-4">
                 <div>
-                  <CardTitle className="text-lg text-slate-900">Viagem {viagem.numViagem}</CardTitle>
-                  <p className="mt-1 text-sm text-slate-500">
-                    {viagem.cavalo} / {viagem.carreta} · {formatarDataHoraPtBr(viagem.inicioPrevisto)}
+                  <CardTitle className="text-lg text-slate-900">Viagem <span className="font-mono tabular-nums">{viagem.numViagem}</span></CardTitle>
+                  <p className="mt-1 text-sm tabular-nums text-slate-500">
+                    <span className="font-mono">{viagem.cavalo} / {viagem.carreta}</span> · <span className="font-mono">{formatarDataHoraPtBr(viagem.inicioPrevisto)}</span>
                   </p>
                   {viagem.avisoFrotaIndisponivel && (
                     <Alert variant="warning" inline className="mt-1" title={viagem.avisoFrotaIndisponivel}>
@@ -353,8 +353,8 @@ export default function AlocacaoViagensClient({ viagens }: Props) {
                 </div>
               </CardContent>
               <CardFooter className="flex items-center justify-between border-t bg-slate-50 text-xs text-slate-500">
-                <span>Entrega(s): {viagem.entregas.length}</span>
-                <span>Fim previsto: {formatarDataHoraPtBr(viagem.fimPrevisto)}</span>
+                <span className="tabular-nums">Entrega(s): {viagem.entregas.length}</span>
+                <span className="tabular-nums">Fim previsto: <span className="font-mono">{formatarDataHoraPtBr(viagem.fimPrevisto)}</span></span>
               </CardFooter>
             </Card>
           )

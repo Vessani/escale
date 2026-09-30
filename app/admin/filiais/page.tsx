@@ -39,7 +39,7 @@ export default async function FiliaisPage() {
                 <TableRow key={filial.id} className="hover:bg-slate-50">
                   <TableCell className="font-medium">{filial.nome}</TableCell>
                   <TableCell>
-                    <Badge variant="outline">{formatarDataHoraPtBr(filial.criadoEm)}</Badge>
+                    <Badge variant="outline" className="tabular-nums">{formatarDataHoraPtBr(filial.criadoEm)}</Badge>
                   </TableCell>
                 </TableRow>
               ))}

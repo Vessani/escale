@@ -45,7 +45,7 @@ function KpiCard({ label, valor, destaque }: { label: string; valor: string | nu
     <Card className="shadow-sm border-slate-200">
       <CardContent className="pt-6">
         <p className="text-xs font-medium text-slate-500">{label}</p>
-        <p className={`text-2xl font-bold mt-1 ${corTexto}`}>{valor}</p>
+        <p className={`text-2xl font-bold mt-1 tabular-nums ${corTexto}`}>{valor}</p>
       </CardContent>
     </Card>
   )

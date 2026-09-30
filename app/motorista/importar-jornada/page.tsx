@@ -181,11 +181,11 @@ export default function ImportarJornadaPage() {
                 <TableBody>
                   {registros.map((registro) => (
                     <TableRow key={`${registro.matricula}-${registro.dia}`}>
-                      <TableCell>{registro.matricula}</TableCell>
+                      <TableCell className="font-mono tabular-nums">{registro.matricula}</TableCell>
                       <TableCell>{registro.nome}</TableCell>
-                      <TableCell>{formatarDataHoraPtBr(registro.inicioJornada)}</TableCell>
-                      <TableCell>{formatarDataHoraPtBr(registro.fimJornada)}</TableCell>
-                      <TableCell>
+                      <TableCell className="font-mono tabular-nums">{formatarDataHoraPtBr(registro.inicioJornada)}</TableCell>
+                      <TableCell className="font-mono tabular-nums">{formatarDataHoraPtBr(registro.fimJornada)}</TableCell>
+                      <TableCell className="tabular-nums">
                         {registro.diasSemFolga}
                         {registro.diasSemFolga > 6 ? " (capado em 6)" : ""}
                       </TableCell>

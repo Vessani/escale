@@ -43,7 +43,7 @@ export function HistoricoCard({ registros, titulo = "Histórico" }: { registros:
                     <Badge variant="outline" className={CLASSE_BADGE_ACAO[registro.acao]}>
                       {LABEL_ACAO[registro.acao]}
                     </Badge>
-                    <span className="text-slate-500">{formatarDataHoraPtBr(registro.criadoEm)}</span>
+                    <span className="tabular-nums text-slate-500">{formatarDataHoraPtBr(registro.criadoEm)}</span>
                     <span className="text-slate-500">·</span>
                     <span className="font-medium text-slate-700">{registro.usuarioNome ?? "Sistema"}</span>
                   </div>

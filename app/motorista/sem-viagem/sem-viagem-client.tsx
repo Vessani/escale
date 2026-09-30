@@ -69,7 +69,7 @@ export default function SemViagemClient({ motoristas, dataReferencia }: Props) {
               {motorista.nome}
             </Link>
           </TableCell>
-          <TableCell className="text-slate-500">SEVA {motorista.seva}</TableCell>
+          <TableCell className="text-slate-500">SEVA <span className="font-mono tabular-nums">{motorista.seva}</span></TableCell>
           <TableCell>
             <Badge variant="outline" className={classeBadgeTurno(motorista.turno)}>
               {motorista.turno}

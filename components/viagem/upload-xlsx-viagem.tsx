@@ -218,7 +218,7 @@ export default function UploadXLSXViagem({ onDataLoaded, onError, onImportarLote
                   return (
                     <li key={viagem.numViagem} className="flex flex-wrap items-center justify-between gap-3 px-4 py-3">
                       <div className="text-sm">
-                        <div className="font-medium text-slate-900">Viagem {viagem.numViagem}</div>
+                        <div className="font-medium text-slate-900">Viagem <span className="font-mono tabular-nums">{viagem.numViagem}</span></div>
                         <div className="text-xs text-slate-500">
                           {viagem.entregas.length} entrega(s) · início {viagem.dataInicio}
                         </div>

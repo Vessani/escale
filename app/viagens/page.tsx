@@ -47,8 +47,8 @@ function FrotaCelula({ viagem }: { viagem: Viagem }) {
   return (
     <div className="text-sm">
       <div>
-        <span className="font-medium text-slate-900">{viagem.cavalo}</span>
-        <span className="text-slate-500 ml-1">/ {viagem.carreta}</span>
+        <span className="font-mono font-medium tabular-nums text-slate-900">{viagem.cavalo}</span>
+        <span className="font-mono tabular-nums text-slate-500 ml-1">/ {viagem.carreta}</span>
       </div>
       {viagem.avisoFrotaIndisponivel && (
         <Alert variant="warning" inline className="mt-1" title={viagem.avisoFrotaIndisponivel}>
@@ -101,9 +101,9 @@ function ViagensTabela({ viagens, podeExcluir }: { viagens: Viagem[]; podeExclui
         <TableBody>
           {viagens.map((viagem: Viagem) => (
             <TableRow key={viagem.id} className="hover:bg-slate-50">
-              <TableCell className="font-medium">{viagem.numViagem}</TableCell>
-              <TableCell>{formatarDataHoraPtBr(viagem.inicioPrevisto)}</TableCell>
-              <TableCell>{formatarDataHoraPtBr(viagem.fimPrevisto)}</TableCell>
+              <TableCell className="font-mono font-medium tabular-nums">{viagem.numViagem}</TableCell>
+              <TableCell className="font-mono tabular-nums">{formatarDataHoraPtBr(viagem.inicioPrevisto)}</TableCell>
+              <TableCell className="font-mono tabular-nums">{formatarDataHoraPtBr(viagem.fimPrevisto)}</TableCell>
               <TableCell>
                 <Badge variant="outline" className={classeBadgeTurno(viagem.turno)}>
                   {viagem.turno}
@@ -147,8 +147,8 @@ function ViagensCards({ viagens, podeExcluir }: { viagens: Viagem[]; podeExcluir
         <div key={viagem.id} className="space-y-3 rounded-lg border bg-white shadow-sm p-4">
           <div className="flex items-start justify-between gap-2">
             <div>
-              <p className="font-semibold text-slate-900">{viagem.numViagem}</p>
-              <p className="text-xs text-slate-500">
+              <p className="font-mono font-semibold tabular-nums text-slate-900">{viagem.numViagem}</p>
+              <p className="font-mono text-xs tabular-nums text-slate-500">
                 {formatarDataHoraPtBr(viagem.inicioPrevisto)} até {formatarDataHoraPtBr(viagem.fimPrevisto)}
               </p>
             </div>
@@ -172,7 +172,7 @@ function ViagensCards({ viagens, podeExcluir }: { viagens: Viagem[]; podeExcluir
           <dl className="grid grid-cols-2 gap-x-4 gap-y-2 text-sm">
             <div>
               <dt className="text-xs text-slate-500">Caminhão</dt>
-              <dd className="font-medium text-slate-900">{viagem.cavalo} / {viagem.carreta}</dd>
+              <dd className="font-mono font-medium tabular-nums text-slate-900">{viagem.cavalo} / {viagem.carreta}</dd>
               {viagem.avisoFrotaIndisponivel && (
                 <Alert variant="warning" inline className="mt-1" title={viagem.avisoFrotaIndisponivel}>
                   Frota indisponível

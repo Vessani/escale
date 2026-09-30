@@ -154,9 +154,9 @@ export default function ConfirmarLoteViagens({ viagens, onConcluido, onCancelar 
             <Card key={numViagem} className="border-slate-200 shadow-sm">
               <CardHeader className="flex flex-col gap-3 border-b bg-white sm:flex-row sm:items-start sm:justify-between sm:gap-4">
                 <div>
-                  <CardTitle className="text-lg text-slate-900">Viagem {numViagem}</CardTitle>
+                  <CardTitle className="text-lg text-slate-900">Viagem <span className="font-mono tabular-nums">{numViagem}</span></CardTitle>
                   <p className="mt-1 text-sm text-slate-500">
-                    {viagem.dados.cavalo} / {viagem.dados.carreta} · {formatarDataHoraPtBr(viagem.dados.inicioPrevisto)}
+                    <span className="font-mono tabular-nums">{viagem.dados.cavalo} / {viagem.dados.carreta}</span> · <span className="font-mono tabular-nums">{formatarDataHoraPtBr(viagem.dados.inicioPrevisto)}</span>
                   </p>
                   {viagem.avisoFrotaIndisponivel && (
                     <Alert variant="warning" inline className="mt-1" title={viagem.avisoFrotaIndisponivel}>
@@ -254,7 +254,7 @@ export default function ConfirmarLoteViagens({ viagens, onConcluido, onCancelar 
               </CardContent>
               <CardFooter className="flex items-center justify-between border-t bg-slate-50 text-xs text-slate-500">
                 <span>Entrega(s): {viagem.dados.entregas.length}</span>
-                <span>Fim previsto: {formatarDataHoraPtBr(viagem.dados.fimPrevisto)}</span>
+                <span>Fim previsto: <span className="font-mono tabular-nums">{formatarDataHoraPtBr(viagem.dados.fimPrevisto)}</span></span>
               </CardFooter>
             </Card>
           )

@@ -83,8 +83,8 @@ function FrotaCelula({ item }: { item: ItemDashboard }) {
   return (
     <div className="space-y-1">
       <div className="flex items-center gap-2">
-        <span className="text-slate-900">{viagem.cavalo}</span>
-        <span className="text-slate-500">/ {viagem.carreta}</span>
+        <span className="font-mono tabular-nums text-slate-900">{viagem.cavalo}</span>
+        <span className="font-mono tabular-nums text-slate-500">/ {viagem.carreta}</span>
         <Link href={`/viagens/editar/${viagem.id}`} className="text-slate-400 hover:text-blue-600" title="Editar viagem">
           <Pencil className="h-3.5 w-3.5" />
         </Link>
@@ -154,14 +154,14 @@ function ViagensEmAndamentoTabela({ itens }: { itens: ItemDashboard[] }) {
               <TableCell className="font-medium">
                 <AlocacaoCelula item={item} />
               </TableCell>
-              <TableCell>{item.viagem.numViagem}</TableCell>
+              <TableCell className="font-mono tabular-nums">{item.viagem.numViagem}</TableCell>
               <TableCell>
                 <FrotaCelula item={item} />
               </TableCell>
               <TableCell>
                 <StatusCelula item={item} />
               </TableCell>
-              <TableCell>{formatarDataHoraPtBr(item.viagem.inicioPrevisto)}</TableCell>
+              <TableCell className="font-mono tabular-nums">{formatarDataHoraPtBr(item.viagem.inicioPrevisto)}</TableCell>
               <TableCell>
                 <SaidaCelula item={item} />
               </TableCell>
@@ -183,7 +183,7 @@ function ViagensEmAndamentoCards({ itens }: { itens: ItemDashboard[] }) {
           <div className="flex items-start justify-between gap-2">
             <div>
               <p className="text-xs text-slate-500">
-                Viagem {item.viagem.numViagem} · {item.viagem.cavalo} / {item.viagem.carreta}
+                Viagem <span className="font-mono tabular-nums">{item.viagem.numViagem}</span> · <span className="font-mono tabular-nums">{item.viagem.cavalo} / {item.viagem.carreta}</span>
               </p>
               {item.viagem.avisoFrotaIndisponivel && (
                 <Alert variant="warning" inline className="mt-1" title={item.viagem.avisoFrotaIndisponivel}>
@@ -210,7 +210,7 @@ function ViagensEmAndamentoCards({ itens }: { itens: ItemDashboard[] }) {
           <dl className="grid grid-cols-2 gap-x-4 gap-y-2 text-sm">
             <div>
               <dt className="text-xs text-slate-500">Início previsto</dt>
-              <dd className="font-medium text-slate-900">{formatarDataHoraPtBr(item.viagem.inicioPrevisto)}</dd>
+              <dd className="font-mono font-medium tabular-nums text-slate-900">{formatarDataHoraPtBr(item.viagem.inicioPrevisto)}</dd>
             </div>
             <div>
               <dt className="text-xs text-slate-500">Saída real</dt>

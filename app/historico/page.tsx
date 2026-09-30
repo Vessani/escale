@@ -114,7 +114,7 @@ export default async function HistoricoPage({
                 return (
                   <li key={registro.id} className="border-b border-slate-100 pb-4 last:border-0 last:pb-0">
                     <div className="flex flex-wrap items-center gap-2 text-sm">
-                      <span className="text-slate-500">{formatarDataHoraPtBr(registro.criadoEm)}</span>
+                      <span className="tabular-nums text-slate-500">{formatarDataHoraPtBr(registro.criadoEm)}</span>
                       <Badge variant="outline" className={CLASSE_BADGE_ACAO[registro.acao]}>
                         {LABEL_ACAO[registro.acao]}
                       </Badge>

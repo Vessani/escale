@@ -28,7 +28,7 @@ function StatusFrotaBadge({ frota, agora }: { frota: Frota; agora: Date }) {
   }
 
   if (status === "EM_VIAGEM") {
-    return <Badge variant="info">Em viagem até {formatarDataHoraPtBr(frota.disponivelEm as Date)}</Badge>
+    return <Badge variant="info" className="tabular-nums">Em viagem até {formatarDataHoraPtBr(frota.disponivelEm as Date)}</Badge>
   }
 
   return <Badge variant="warning">Em manutenção</Badge>
@@ -62,8 +62,8 @@ function FrotasTabela({ frotas, agora, podeExcluir }: { frotas: Frota[]; agora: 
         <TableBody>
           {frotas.map((frota) => (
             <TableRow key={frota.id} className="hover:bg-slate-50">
-              <TableCell className="font-medium">{frota.cavalo}</TableCell>
-              <TableCell>{frota.carreta}</TableCell>
+              <TableCell className="font-mono font-medium tabular-nums">{frota.cavalo}</TableCell>
+              <TableCell className="font-mono tabular-nums">{frota.carreta}</TableCell>
               <TableCell className="text-slate-500">{formatarProduto(frota.tipoProduto)}</TableCell>
               <TableCell>
                 <StatusFrotaBadge frota={frota} agora={agora} />
@@ -87,7 +87,7 @@ function FrotasCards({ frotas, agora, podeExcluir }: { frotas: Frota[]; agora: D
         <div key={frota.id} className="space-y-3 rounded-lg border bg-white shadow-sm p-4">
           <div className="flex items-start justify-between gap-2">
             <div>
-              <p className="font-semibold text-slate-900">{frota.cavalo} / {frota.carreta}</p>
+              <p className="font-mono font-semibold tabular-nums text-slate-900">{frota.cavalo} / {frota.carreta}</p>
               <p className="text-xs text-slate-500">{formatarProduto(frota.tipoProduto)}</p>
             </div>
             <StatusFrotaBadge frota={frota} agora={agora} />
