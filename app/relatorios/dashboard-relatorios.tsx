@@ -21,16 +21,16 @@ import type { IndicadoresDashboard } from "@/lib/queries/dashboard"
 import type { StatusViagem } from "@prisma/client"
 
 const CORES_STATUS: Record<StatusViagem, string> = {
-  CRIADA: "#94a3b8",
+  CRIADA: "var(--muted-foreground)",
   ALOCADA: "var(--info)",
-  INICIADA: "#06b6d4",
-  RETORNANDO: "#06b6d4",
+  INICIADA: "var(--chart-2)",
+  RETORNANDO: "var(--chart-2)",
   POSTERGADA: "var(--warning)",
   FINALIZADA: "var(--success)",
   CANCELADA: "var(--destructive)",
 }
 
-const CORES_PRODUTO = ["#3b82f6", "#8b5cf6", "#f59e0b", "#10b981", "#ec4899", "#94a3b8"]
+const CORES_PRODUTO = ["var(--chart-1)", "var(--chart-2)", "var(--chart-3)", "var(--chart-4)", "var(--chart-5)", "var(--muted-foreground)"]
 
 function formatarDiaCurto(dia: string) {
   const [, mes, dd] = dia.split("-")

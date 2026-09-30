@@ -4,7 +4,8 @@ import type { StatusViagem, Turno } from "@prisma/client"
  * Mesmo estilo "sutil" (fundo bem claro + texto colorido, sem preenchimento
  * sólido) usado pelas variantes semânticas do Badge (ver components/ui/badge.tsx)
  * — aplicado aqui via className porque turno/status têm mais cores distintas
- * (indigo, cyan, rose) do que as 3 variantes semânticas cobrem.
+ * (indigo, ciano/chart-2, rose) do que as 3 variantes semânticas cobrem. As
+ * cores de status batem com CORES_STATUS (app/relatorios/dashboard-relatorios.tsx).
  */
 export function classeBadgeTurno(turno: Turno) {
   return turno === "MANHA"
@@ -22,7 +23,7 @@ export function classeBadgeStatusViagem(status: StatusViagem) {
   }
 
   if (status === "INICIADA" || status === "RETORNANDO") {
-    return "border-cyan-500/30 bg-cyan-500/10 text-cyan-600 hover:bg-cyan-500/10"
+    return "border-chart-2/30 bg-chart-2/10 text-chart-2 hover:bg-chart-2/10"
   }
 
   if (status === "POSTERGADA") {
