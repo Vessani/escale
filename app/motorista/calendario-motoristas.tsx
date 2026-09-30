@@ -4,7 +4,6 @@ import { useMemo, useState, useTransition } from "react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { Badge } from "@/components/ui/badge"
-import { Button } from "@/components/ui/button"
 import { ConfirmDialog } from "@/components/ui/confirm-dialog"
 import { atualizarJornadaMotoristaNoCalendario, deletarMotorista } from "@/lib/actions/motoristas"
 import { calcularDiasDisponiveis } from "@/lib/services/alocacao.service"
@@ -21,6 +20,8 @@ import {
 import { classeBadgeJornada } from "./jornada-status"
 import type { TipoMotorista } from "@prisma/client"
 import { NomeMotorista } from "@/components/motorista/icone-tipo-motorista"
+import { AcoesLinha, BotaoIcone } from "@/components/ui/botao-icone"
+import { Pencil, Trash2 } from "lucide-react"
 
 type Viagem = {
   id: number
@@ -210,33 +211,29 @@ export default function CalendarioMotoristas({ inicioParam, hojeIso, dias, motor
                   <td className={`sticky left-0 z-30 ${fundoColunaFixa} border-r border-b px-4 py-3 align-top shadow-[4px_0_6px_-4px_rgba(15,23,42,0.15)]`}>
                     <div className="space-y-2">
                       <div className="flex items-center justify-between gap-2">
-                        <Link href={`/motorista/editar/${motorista.id}`} className="font-semibold text-foreground hover:text-primary">
+                        <Link href={`/motorista/editar/${motorista.id}`} className="min-w-0 font-semibold text-foreground hover:text-primary">
                           <NomeMotorista nome={motorista.nome} tipo={motorista.tipo} />
                         </Link>
-                        <Badge variant="outline" className={classeTurnoBadge}>
-                          {motorista.turno}
-                        </Badge>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <Link href={`/motorista/editar/${motorista.id}`}>
-                          <Button variant="outline" size="sm">
-                            Editar
-                          </Button>
-                        </Link>
-                        {podeExcluir && (
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            className="border-rose-200 text-rose-700 hover:bg-rose-50 hover:text-rose-800"
-                            disabled={isPending}
-                            onClick={() => {
-                              setErroExclusao(null)
-                              setMotoristaParaExcluir({ id: motorista.id, nome: motorista.nome })
-                            }}
-                          >
-                            {motoristaExcluindoId === motorista.id ? "Excluindo..." : "Excluir"}
-                          </Button>
-                        )}
+                        <div className="flex shrink-0 items-center gap-1">
+                          <AcoesLinha>
+                            <BotaoIcone href={`/motorista/editar/${motorista.id}`} rotulo="Editar motorista" icone={Pencil} />
+                            {podeExcluir && (
+                              <BotaoIcone
+                                rotulo={motoristaExcluindoId === motorista.id ? "Excluindo..." : "Excluir motorista"}
+                                icone={Trash2}
+                                perigo
+                                disabled={isPending}
+                                onClick={() => {
+                                  setErroExclusao(null)
+                                  setMotoristaParaExcluir({ id: motorista.id, nome: motorista.nome })
+                                }}
+                              />
+                            )}
+                          </AcoesLinha>
+                          <Badge variant="outline" className={classeTurnoBadge}>
+                            {motorista.turno}
+                          </Badge>
+                        </div>
                       </div>
                       <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
                         <span>SEVA <span className="font-mono tabular-nums">{motorista.seva}</span></span>

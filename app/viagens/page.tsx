@@ -4,7 +4,8 @@ import { Button } from "@/components/ui/button"
 import { EmptyState } from "@/components/ui/empty-state"
 import { Badge } from "@/components/ui/badge"
 import { Alert } from "@/components/ui/alert"
-import { Download, PlusCircle, Truck } from "lucide-react"
+import { Download, Pencil, PlusCircle, Truck } from "lucide-react"
+import { AcoesLinha, BotaoIcone } from "@/components/ui/botao-icone"
 import { buscarViagensPaginadas } from "@/lib/queries/viagens"
 import { STATUS_VIAGEM_OPCOES, formatarStatusViagem } from "@/lib/services/viagem-status.service"
 import { montarQueryFiltroViagens, parseFiltroListaViagens, type FiltroListaViagens } from "@/lib/services/filtro-viagens"
@@ -70,18 +71,12 @@ function FrotaCelula({ viagem }: { viagem: Viagem }) {
 
 function AcoesViagem({ viagem, podeExcluir }: { viagem: Viagem; podeExcluir: boolean }) {
   return (
-    <div className="flex flex-wrap justify-end gap-2">
-      <Link href={`/api/viagens/${viagem.id}/excel`}>
-        <Button variant="outline" size="sm">
-          <Download className="h-4 w-4 mr-2" />
-          Download
-        </Button>
-      </Link>
-      <Link href={`/viagens/editar/${viagem.id}`}>
-        <Button variant="outline" size="sm">Editar</Button>
-      </Link>
+    <AcoesLinha>
+      {/* prefetch desligado: é um download de arquivo, não uma página. */}
+      <BotaoIcone href={`/api/viagens/${viagem.id}/excel`} prefetch={false} rotulo="Baixar Excel da viagem" icone={Download} />
+      <BotaoIcone href={`/viagens/editar/${viagem.id}`} rotulo="Editar viagem" icone={Pencil} />
       {podeExcluir && <ExcluirViagemButton viagemId={viagem.id} numeroViagem={viagem.numViagem} />}
-    </div>
+    </AcoesLinha>
   )
 }
 

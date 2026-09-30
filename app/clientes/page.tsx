@@ -3,10 +3,11 @@ import { requireSessaoPaginaComFilial } from "@/lib/auth-guard"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
-import { Building, PlusCircle } from "lucide-react"
+import { Building, Pencil, PlusCircle } from "lucide-react"
 import { EmptyState } from "@/components/ui/empty-state"
 import { buscarClientes } from "@/lib/queries/clientes"
 import ExcluirClienteButton from "./excluir-cliente-button"
+import { AcoesLinha, BotaoIcone } from "@/components/ui/botao-icone"
 
 export default async function ClientesPage() {
   const { session } = await requireSessaoPaginaComFilial()
@@ -76,12 +77,10 @@ export default async function ClientesPage() {
                   </TableCell>
                   {podeGerenciar && (
                     <TableCell className="text-right">
-                      <div className="flex flex-wrap justify-end gap-2">
-                        <Link href={`/clientes/editar/${cliente.id}`}>
-                          <Button variant="outline" size="sm">Editar</Button>
-                        </Link>
+                      <AcoesLinha>
+                        <BotaoIcone href={`/clientes/editar/${cliente.id}`} rotulo="Editar cliente" icone={Pencil} />
                         <ExcluirClienteButton clienteId={cliente.id} nome={cliente.nome} />
-                      </div>
+                      </AcoesLinha>
                     </TableCell>
                   )}
                 </TableRow>

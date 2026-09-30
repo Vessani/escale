@@ -3,7 +3,7 @@
 import { useState, useTransition } from "react"
 import { useRouter } from "next/navigation"
 import { Trash2 } from "lucide-react"
-import { Button } from "@/components/ui/button"
+import { BotaoIcone } from "@/components/ui/botao-icone"
 import { ConfirmDialog } from "@/components/ui/confirm-dialog"
 import { deletarViagem } from "@/lib/actions/viagens"
 
@@ -35,18 +35,15 @@ export default function ExcluirViagemButton({ viagemId, numeroViagem }: Props) {
 
   return (
     <>
-      <Button
-        variant="outline"
-        size="sm"
-        className="border-rose-200 text-rose-700 hover:bg-rose-50 hover:text-rose-800"
+      <BotaoIcone
+        rotulo="Excluir viagem"
+        icone={Trash2}
+        perigo
         onClick={() => {
           setErro(null)
           setDialogAberto(true)
         }}
-      >
-        <Trash2 className="h-4 w-4 mr-2" />
-        Excluir
-      </Button>
+      />
 
       <ConfirmDialog
         open={dialogAberto}

@@ -3,12 +3,13 @@ import { requireSessaoPaginaComFilial } from "@/lib/auth-guard"
 import { Button } from "@/components/ui/button"
 import { EmptyState } from "@/components/ui/empty-state"
 import { Badge } from "@/components/ui/badge"
-import { PlusCircle, Truck } from "lucide-react"
+import { Pencil, PlusCircle, Truck } from "lucide-react"
 import { buscarFrotas } from "@/lib/queries/frotas"
 import { calcularStatusFrota } from "@/lib/services/frota-regras"
 import { formatarProduto } from "@/lib/services/produto.service"
 import { formatarDataHoraPtBr } from "@/lib/utils/date-format"
 import ExcluirFrotaButton from "./excluir-frota-button"
+import { AcoesLinha, BotaoIcone } from "@/components/ui/botao-icone"
 import {
   Table,
   TableBody,
@@ -36,12 +37,10 @@ function StatusFrotaBadge({ frota, agora }: { frota: Frota; agora: Date }) {
 
 function AcoesFrota({ frota, podeExcluir }: { frota: Frota; podeExcluir: boolean }) {
   return (
-    <div className="flex flex-wrap justify-end gap-2">
-      <Link href={`/frotas/editar/${frota.id}`}>
-        <Button variant="outline" size="sm">Editar</Button>
-      </Link>
+    <AcoesLinha>
+      <BotaoIcone href={`/frotas/editar/${frota.id}`} rotulo="Editar conjunto" icone={Pencil} />
       {podeExcluir && <ExcluirFrotaButton frotaId={frota.id} cavalo={frota.cavalo} carreta={frota.carreta} />}
-    </div>
+    </AcoesLinha>
   )
 }
 
