@@ -7,4 +7,8 @@ ALTER TABLE "Motorista" ADD COLUMN "tipo" "TipoMotorista" NOT NULL DEFAULT 'MOTO
 
 UPDATE "Motorista" SET "tipo" = 'TREINAMENTO' WHERE "liberado" = false;
 
-ALTER TABLE "Motorista" DROP COLUMN "liberado";
+-- A coluna antiga NÃO é removida aqui de propósito: durante o deploy, a
+-- versão anterior do app continua no ar enquanto a nova é construída e
+-- ainda lê/grava "liberado". O Prisma ignora a coluna a mais. Remover numa
+-- migration futura, depois que esta versão estiver no ar:
+--   ALTER TABLE "Motorista" DROP COLUMN "liberado";
