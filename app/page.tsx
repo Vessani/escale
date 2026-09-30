@@ -3,9 +3,10 @@ import { getServerSession } from "next-auth"
 import { authOptions } from "@/lib/auth"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { Pencil, Route, CalendarDays } from "lucide-react"
+import { CalendarDays, CheckCircle2, Info, Pencil, PlayCircle, Route, UserX } from "lucide-react"
 import { Alert } from "@/components/ui/alert"
 import { Badge } from "@/components/ui/badge"
+import { StatCard } from "@/components/ui/stat-card"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { buscarViagensDoDashboard } from "@/lib/queries/viagens"
 import { buscarMotoristasParaSelect } from "@/lib/queries/motoristas"
@@ -270,15 +271,29 @@ export default async function DashboardPage({
     buscarQuadroObservacoes(filialId),
   ])
 
+  const explicacaoDashboard =
+    "Quadro digital da operação: viagens do dia selecionado em qualquer status, mais Retornando de dias anteriores e Canceladas só até a virada do dia." +
+    (vendoOutroDia ? " Status mostrado é o atual da viagem, não uma foto de como estava naquele dia — pra ver a mudança em si, use o Histórico." : "")
+
+  // Indicadores e contagens saem dos itens já carregados — sem query extra.
+  // Na visão "Todos" a query já exclui Finalizadas (ver buscarViagensDoDashboard),
+  // então a contagem de Finalizadas só é real com o filtro de Finalizada.
+  const contarStatus = (...status: string[]) => itens.filter((item) => status.includes(item.viagem.status)).length
+  const semMotorista = itens.filter((item) => item.viagem.motoristaId === null && item.viagem.status !== "CANCELADA").length
+  const finalizadasVisiveis = filtroStatus !== "TODOS"
+
   return (
     <div className="space-y-6">
       <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
         <div>
-          <h1 className="text-2xl font-semibold tracking-tight text-foreground">Dashboard</h1>
-          <p className="text-muted-foreground mt-1">
-            Quadro digital da operação: viagens do dia selecionado em qualquer status, mais Retornando de dias anteriores e Canceladas só até a virada do dia.
-            {vendoOutroDia && " Status mostrado é o atual da viagem, não uma foto de como estava naquele dia — pra ver a mudança em si, use o Histórico."}
-          </p>
+          <div className="flex items-center gap-2">
+            <h1 className="text-2xl font-semibold tracking-tight text-foreground">Dashboard</h1>
+            <span title={explicacaoDashboard} className="text-muted-foreground hover:text-foreground">
+              <Info aria-hidden="true" className="size-4" />
+              <span className="sr-only">{explicacaoDashboard}</span>
+            </span>
+          </div>
+          <p className="text-muted-foreground mt-1">Viagens do dia selecionado, incluindo retornos pendentes.</p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
           <Link href={construirHref("TODOS", parametros.data)}>
@@ -288,10 +303,30 @@ export default async function DashboardPage({
             <Link key={status.valor} href={construirHref(status.valor, parametros.data)}>
               <Button variant={filtroStatus === status.valor ? "default" : "outline"}>
                 {status.label}
+                {filtroStatus === "TODOS" && status.valor !== "FINALIZADA" && (
+                  <span className="tabular-nums opacity-70"> · {contarStatus(status.valor)}</span>
+                )}
               </Button>
             </Link>
           ))}
         </div>
+      </div>
+
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+        <StatCard rotulo="Viagens" valor={itens.length} icone={Route} />
+        <StatCard
+          rotulo="Sem motorista"
+          valor={semMotorista}
+          icone={UserX}
+          classeValor={semMotorista > 0 ? "text-warning" : undefined}
+        />
+        <StatCard rotulo="Em andamento" valor={contarStatus("INICIADA", "RETORNANDO")} icone={PlayCircle} />
+        <StatCard
+          rotulo="Finalizadas"
+          valor={finalizadasVisiveis ? contarStatus("FINALIZADA") : "—"}
+          icone={CheckCircle2}
+          title={finalizadasVisiveis ? undefined : 'Na visão "Todos" as finalizadas saem do painel — use o filtro Finalizada para vê-las.'}
+        />
       </div>
 
       <form method="get" className="flex flex-wrap items-center gap-2">
