@@ -15,7 +15,8 @@ import { STATUS_ALTERAVEIS_NO_DASHBOARD, organizarViagensDoDashboard, viagemEnce
 import { cn } from "@/lib/utils"
 import { serializeData } from "@/lib/serialization"
 import { STATUS_VIAGEM_OPCOES, formatarStatusViagem, parseStatusFiltro, type FiltroStatusViagem } from "@/lib/services/viagem-status.service"
-import { formatarDataHoraPtBr, parseDataLocal } from "@/lib/utils/date-format"
+import { formatDateForDateInput, formatarDataHoraPtBr, formatarHoraLocal, inicioDoDia, parseDataLocal } from "@/lib/utils/date-format"
+import { RotaDestinos } from "@/components/viagem/rota-destinos"
 import AtualizarSaidaReal from "./atualizar-saida-real"
 import AtualizarStatusRapido from "./viagens/atualizar-status-rapido"
 import QuadroDeObservacoes from "./quadro-de-observacoes"
@@ -30,9 +31,24 @@ async function buscarDadosDashboard(filialId: number, hoje: Date) {
 
 type ItemDashboard = Awaited<ReturnType<typeof buscarDadosDashboard>>[number]
 
-function cidadesDestino(item: ItemDashboard) {
-  const cidades = [...new Set(item.viagem.entregas.map((entrega) => entrega.cidade).filter(Boolean))]
-  return cidades.length > 0 ? cidades.join(" → ") : "-"
+function cidadesDaViagem(item: ItemDashboard) {
+  return item.viagem.entregas.map((entrega) => entrega.cidade)
+}
+
+/**
+ * Início previsto compacto: só a hora quando a viagem é do dia mostrado
+ * (o caso comum no painel), com a data na frente quando é de outro dia
+ * (ex: "Retornando" que saiu ontem).
+ */
+function InicioPrevisto({ inicio, diaMostrado }: { inicio: string | Date; diaMostrado: string }) {
+  const mesmoDia = formatDateForDateInput(inicioDoDia(new Date(inicio))) === diaMostrado
+  const completo = formatarDataHoraPtBr(inicio)
+
+  return (
+    <span title={completo} className="font-mono tabular-nums text-foreground">
+      {mesmoDia ? formatarHoraLocal(inicio) : completo.replace(/\/\d{4},/, "")}
+    </span>
+  )
 }
 
 /**
@@ -68,19 +84,19 @@ function MotoristaCelula({ item }: { item: ItemDashboard }) {
 function FrotaCelula({ item }: { item: ItemDashboard }) {
   const { viagem } = item
   return (
-    <div className="space-y-1">
-      <div className="flex items-center gap-2">
-        <span className="font-mono tabular-nums text-foreground">{formatarCodigoFrota(viagem.cavalo)}</span>
-        <span className="font-mono tabular-nums text-muted-foreground">/ {formatarCodigoFrota(viagem.carreta)}</span>
-      </div>
+    <div className="space-y-0.5">
+      <p className="font-mono font-medium tabular-nums text-foreground">{viagem.numViagem}</p>
+      <p className="font-mono text-[11px] tabular-nums text-muted-foreground" title="Cavalo / carreta">
+        {formatarCodigoFrota(viagem.cavalo)} / {formatarCodigoFrota(viagem.carreta)}
+      </p>
       {viagem.avisoFrotaIndisponivel && (
         <Alert variant="warning" inline title={viagem.avisoFrotaIndisponivel}>
-          Frota indisponível
+          Indisponível
         </Alert>
       )}
       {viagem.avisoFrotaProdutoIncompativel && (
         <Alert variant="warning" inline title={viagem.avisoFrotaProdutoIncompativel}>
-          Frota de outro produto
+          Outro produto
         </Alert>
       )}
     </div>
@@ -115,39 +131,52 @@ function StatusCelula({ item }: { item: ItemDashboard }) {
 }
 
 /** Tabela para telas a partir de md; em telas menores vira lista de cards (ver ViagensEmAndamentoCards). */
-function ViagensEmAndamentoTabela({ itens }: { itens: ItemDashboard[] }) {
+function ViagensEmAndamentoTabela({ itens, diaMostrado }: { itens: ItemDashboard[]; diaMostrado: string }) {
+  // table-fixed + larguras por coluna: a tabela sempre cabe na largura da
+  // tela (sem barra de rolagem lateral) — o que não cabe numa coluna é
+  // truncado, com o texto completo no tooltip.
   return (
     <div className="hidden rounded-lg border bg-card shadow-sm overflow-hidden md:block">
-      <Table containerClassName="max-h-[70vh] overflow-auto">
+      <Table className="table-fixed" containerClassName="max-h-[70vh] overflow-y-auto overflow-x-hidden">
+        <colgroup>
+          <col className="w-[22%]" />
+          <col className="w-[13%]" />
+          <col className="w-[14%]" />
+          <col className="w-[9%]" />
+          <col className="w-[17%]" />
+          <col />
+        </colgroup>
         <TableHeader className="sticky top-0 z-10 bg-muted">
           <TableRow>
             <TableHead>Motorista(s)</TableHead>
-            <TableHead>Nº Viagem</TableHead>
-            <TableHead>Frota</TableHead>
+            <TableHead>Viagem</TableHead>
             <TableHead>Status</TableHead>
-            <TableHead>Início Previsto</TableHead>
-            <TableHead>Saída Real</TableHead>
+            <TableHead>Início</TableHead>
+            <TableHead>Saída real</TableHead>
             <TableHead>Destinos</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
           {itens.map((item) => (
             <TableRow key={item.viagem.id} className={cn(viagemEncerrada(item.viagem.status) && "opacity-60")}>
-              <TableCell>
+              <TableCell className="overflow-hidden">
                 <MotoristaCelula item={item} />
               </TableCell>
-              <TableCell className="font-mono tabular-nums">{item.viagem.numViagem}</TableCell>
-              <TableCell>
+              <TableCell className="overflow-hidden">
                 <FrotaCelula item={item} />
               </TableCell>
               <TableCell>
                 <StatusCelula item={item} />
               </TableCell>
-              <TableCell className="font-mono tabular-nums">{formatarDataHoraPtBr(item.viagem.inicioPrevisto)}</TableCell>
               <TableCell>
+                <InicioPrevisto inicio={item.viagem.inicioPrevisto} diaMostrado={diaMostrado} />
+              </TableCell>
+              <TableCell className="overflow-hidden">
                 <SaidaCelula item={item} />
               </TableCell>
-              <TableCell className="max-w-xs">{cidadesDestino(item)}</TableCell>
+              <TableCell className="overflow-hidden">
+                <RotaDestinos cidades={cidadesDaViagem(item)} />
+              </TableCell>
             </TableRow>
           ))}
         </TableBody>
@@ -204,7 +233,7 @@ function ViagensEmAndamentoCards({ itens }: { itens: ItemDashboard[] }) {
 
           <div>
             <p className="text-xs text-muted-foreground">Destinos</p>
-            <p className="text-sm text-foreground">{cidadesDestino(item)}</p>
+            <RotaDestinos cidades={cidadesDaViagem(item)} maximo={4} className="text-sm" />
           </div>
         </div>
       ))}
@@ -350,7 +379,7 @@ export default async function DashboardPage({
               <Badge variant="outline">{itens.length}</Badge>
             </div>
           </div>
-          <ViagensEmAndamentoTabela itens={itens} />
+          <ViagensEmAndamentoTabela itens={itens} diaMostrado={dataTextoInput} />
           <ViagensEmAndamentoCards itens={itens} />
         </section>
       )}

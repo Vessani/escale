@@ -1,6 +1,7 @@
 import type { TipoMotorista } from "@prisma/client"
 import { Award, Building2, Droplets, GraduationCap, type LucideIcon } from "lucide-react"
 import { cn } from "@/lib/utils"
+import { formatarNomeProprio } from "@/lib/utils/texto"
 import { descreverTipoMotorista, formatarTipoMotorista } from "@/lib/services/tipo-motorista"
 
 const ICONES: Record<Exclude<TipoMotorista, "MOTORISTA">, { Icone: LucideIcon; cor: string }> = {
@@ -32,11 +33,15 @@ export function IconeTipoMotorista({ tipo, className }: { tipo: TipoMotorista; c
   )
 }
 
-/** Nome + ícone do tipo, alinhados — o jeito padrão de mostrar um motorista em lista/select. */
+/**
+ * Nome + ícone do tipo, alinhados — o jeito padrão de mostrar um motorista
+ * em lista/select. O nome aparece como nome próprio ("Francinei Paulino"),
+ * não em maiúsculas como vem da planilha; o cadastro continua igual.
+ */
 export function NomeMotorista({ nome, tipo, className }: { nome: string; tipo: TipoMotorista; className?: string }) {
   return (
     <span className={cn("inline-flex min-w-0 items-center gap-1.5", className)}>
-      <span className="truncate">{nome}</span>
+      <span className="truncate" title={nome}>{formatarNomeProprio(nome)}</span>
       <IconeTipoMotorista tipo={tipo} />
     </span>
   )
