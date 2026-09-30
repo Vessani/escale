@@ -8,6 +8,7 @@ import {
   calcularIntegracaoExigida,
   calcularProximoInicioDisponivel,
   filtrarMotoristasCompativeis,
+  motoristaChegaATempo,
   filtrarMotoristasDisponiveisNoPeriodo,
   motoristaEhCompativel,
   motoristaEstaDisponivelNoPeriodo,
@@ -290,6 +291,33 @@ describe("alocacao.service", () => {
       ).toBe(true) // registro explícito de volta ao trabalho
     })
 
+    it("usa o fim real da viagem para bloquear a invasão da folga ao cruzar para o dia seguinte", () => {
+      const motoristaNoSextoDia = criarMotorista({ diasTrabalhados: 6 })
+      const hojeBrasilia = new Date("2026-07-08T00:00:00-03:00")
+
+      expect(
+        motoristaEhCompativel(motoristaNoSextoDia, {
+          turnoViagem: "MANHA",
+          diasViagem: 1,
+          dataInicioViagem: new Date("2026-07-08T20:00:00-03:00"),
+          fimViagem: new Date("2026-07-09T02:00:00-03:00"),
+          integracaoExigida: null,
+          hoje: hojeBrasilia,
+        }),
+      ).toBe(false)
+
+      expect(
+        motoristaEhCompativel(motoristaNoSextoDia, {
+          turnoViagem: "MANHA",
+          diasViagem: 1,
+          dataInicioViagem: new Date("2026-07-08T08:00:00-03:00"),
+          fimViagem: new Date("2026-07-08T20:00:00-03:00"),
+          integracaoExigida: null,
+          hoje: hojeBrasilia,
+        }),
+      ).toBe(true)
+    })
+
     it("libera quando a viagem não exige integração", () => {
       const motorista = criarMotorista({ diasTrabalhados: 1 })
       expect(
@@ -362,6 +390,33 @@ describe("alocacao.service", () => {
           hoje,
         }),
       ).toBe(true)
+    })
+
+    it("vigora até o fim do dia de Brasília da validade da integração", () => {
+      const motorista = criarMotorista({
+        diasTrabalhados: 1,
+        integracao: [{ cliente: "AMBEV", status: "ATIVO", dataValidade: new Date("2026-07-10T00:00:00Z") }],
+      })
+
+      expect(
+        motoristaEhCompativel(motorista, {
+          turnoViagem: "MANHA",
+          diasViagem: 1,
+          dataInicioViagem: new Date("2026-07-10T08:00:00-03:00"),
+          integracaoExigida: "AMBEV",
+          hoje,
+        }),
+      ).toBe(true)
+
+      expect(
+        motoristaEhCompativel(motorista, {
+          turnoViagem: "MANHA",
+          diasViagem: 1,
+          dataInicioViagem: new Date("2026-07-11T08:00:00-03:00"),
+          integracaoExigida: "AMBEV",
+          hoje,
+        }),
+      ).toBe(false)
     })
   })
 
@@ -523,6 +578,43 @@ describe("alocacao.service", () => {
       const resultado = filtrarMotoristasCompativeis([viola, respeita], contexto)
 
       expect(resultado.map((m) => m.id)).toEqual([1, 2])
+    })
+
+    it("prioriza motoristas que chegam 1h antes do início da viagem e usa o código projetado da última jornada para o descanso de 35h", () => {
+      const hoje = new Date("2026-10-10T00:00:00-03:00")
+      const consegueChegar = criarMotorista({
+        id: 1,
+        nome: "Chega",
+        diasTrabalhados: 3,
+        registrosJornada: [{ data: new Date("2026-10-10T00:00:00-03:00"), codigo: 1, fimJornada: new Date("2026-10-10T17:00:00-03:00") }],
+      })
+      const naoChega = criarMotorista({
+        id: 2,
+        nome: "Não Chega",
+        diasTrabalhados: 3,
+        registrosJornada: [{ data: new Date("2026-10-10T00:00:00-03:00"), codigo: 1, fimJornada: new Date("2026-10-10T20:00:00-03:00") }],
+      })
+      const noSextoDia = criarMotorista({
+        id: 3,
+        nome: "Sexto",
+        diasTrabalhados: 3,
+        registrosJornada: [{ data: new Date("2026-10-09T00:00:00-03:00"), codigo: 6, fimJornada: new Date("2026-10-09T20:00:00-03:00") }],
+      })
+
+      const contextoViagem = {
+        turnoViagem: "MANHA" as Turno,
+        diasViagem: 1,
+        dataInicioViagem: new Date("2026-10-11T05:30:00-03:00"),
+        integracaoExigida: null,
+        hoje,
+      }
+
+      expect(motoristaChegaATempo(consegueChegar, contextoViagem)).toBe(true)
+      expect(motoristaChegaATempo(naoChega, contextoViagem)).toBe(false)
+      expect(motoristaChegaATempo(noSextoDia, contextoViagem)).toBe(false)
+
+      const resultado = filtrarMotoristasCompativeis([naoChega, noSextoDia, consegueChegar], contextoViagem)
+      expect(resultado.map((m) => m.id)).toEqual([1, 3, 2])
     })
   })
 
@@ -817,23 +909,23 @@ describe("alocacao.service", () => {
     it("não repete o mesmo motorista em duas viagens do lote com período sobreposto", () => {
       const maisDisponivel = comAgenda({ id: 1, nome: "Ana", diasTrabalhados: 1 }) // 5 disponíveis
       const menosDisponivel = comAgenda({ id: 2, nome: "Bruno", diasTrabalhados: 3 }) // 3 disponíveis
-      const hoje = new Date("2026-07-04T00:00:00")
+      const hoje = new Date("2026-07-04T00:00:00-03:00")
 
       const viagens = [
         {
           id: 10,
           turno: "MANHA" as Turno,
           diasViagem: 2,
-          inicioPrevisto: new Date("2026-07-04T08:00:00"),
-          fimPrevisto: new Date("2026-07-06T08:00:00"),
+          inicioPrevisto: new Date("2026-07-04T08:00:00-03:00"),
+          fimPrevisto: new Date("2026-07-06T08:00:00-03:00"),
           integracaoExigida: null,
         },
         {
           id: 11,
           turno: "MANHA" as Turno,
           diasViagem: 2,
-          inicioPrevisto: new Date("2026-07-05T08:00:00"), // sobrepõe a viagem 10
-          fimPrevisto: new Date("2026-07-07T08:00:00"),
+          inicioPrevisto: new Date("2026-07-05T08:00:00-03:00"), // sobrepõe a viagem 10
+          fimPrevisto: new Date("2026-07-07T08:00:00-03:00"),
           integracaoExigida: null,
         },
       ]

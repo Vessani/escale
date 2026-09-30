@@ -109,15 +109,15 @@ describe("jornada.service", () => {
 
   describe("diferencaEmDias", () => {
     it("conta dias inteiros ignorando a hora do dia", () => {
-      expect(diferencaEmDias(new Date("2026-07-10T23:59:00"), new Date("2026-07-08T00:01:00"))).toBe(2)
+      expect(diferencaEmDias(new Date("2026-07-10T23:59:00-03:00"), new Date("2026-07-08T00:01:00-03:00"))).toBe(2)
     })
 
     it("retorna 0 para o mesmo dia calendário, mesmo com horas diferentes", () => {
-      expect(diferencaEmDias(new Date("2026-07-10T23:00:00"), new Date("2026-07-10T01:00:00"))).toBe(0)
+      expect(diferencaEmDias(new Date("2026-07-10T23:00:00-03:00"), new Date("2026-07-10T01:00:00-03:00"))).toBe(0)
     })
 
     it("retorna negativo quando a primeira data é anterior à segunda", () => {
-      expect(diferencaEmDias(new Date("2026-07-08T00:00:00"), new Date("2026-07-10T00:00:00"))).toBe(-2)
+      expect(diferencaEmDias(new Date("2026-07-08T00:00:00-03:00"), new Date("2026-07-10T00:00:00-03:00"))).toBe(-2)
     })
   })
 
@@ -251,8 +251,8 @@ describe("jornada.service", () => {
     })
 
     it("sem nenhum registro no histórico, cai no fallback rotacionado a partir de hoje", () => {
-      expect(projetarCodigoNoDia([], new Date("2026-07-08T00:00:00"), hoje, 3)).toBe(3)
-      expect(projetarCodigoNoDia([], new Date("2026-07-10T00:00:00"), hoje, 3)).toBe(5)
+      expect(projetarCodigoNoDia([], new Date("2026-07-08T00:00:00-03:00"), hoje, 3)).toBe(3)
+      expect(projetarCodigoNoDia([], new Date("2026-07-10T00:00:00-03:00"), hoje, 3)).toBe(5)
     })
 
     it("é indiferente à ordem dos registros na lista de entrada", () => {

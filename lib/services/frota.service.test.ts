@@ -83,10 +83,10 @@ describe("calcularAvisoFrotaIndisponivel", () => {
 
   it("avisa quando disponivelEm é depois do início da nova viagem", async () => {
     vi.mocked(prisma.frota.findFirst).mockResolvedValue({
-      id: 1, cavalo: "75", carreta: "908", disponivelEm: new Date("2026-07-22T18:30:00"),
+      id: 1, cavalo: "75", carreta: "908", disponivelEm: new Date("2026-07-22T18:30:00-03:00"),
     } as never)
 
-    const resultado = await calcularAvisoFrotaIndisponivel(FILIAL_ID, "75", "908", new Date("2026-07-20T08:00:00"))
+    const resultado = await calcularAvisoFrotaIndisponivel(FILIAL_ID, "75", "908", new Date("2026-07-20T08:00:00-03:00"))
 
     expect(resultado).toBe("Frota 75/908 só estará disponível a partir de 22/07/2026, 18:30.")
   })

@@ -95,6 +95,6 @@ describe("lib/actions/quadro — atualizarObservacoes", () => {
     const resposta = await atualizarObservacoes("texto")
 
     expect(resposta.sucesso).toBe(false)
-    expect(resposta.erro).toBeTruthy()
+    if (!resposta.sucesso) expect(resposta.erro).toBeTruthy()
   })
 })

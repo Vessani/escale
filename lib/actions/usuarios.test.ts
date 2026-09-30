@@ -157,7 +157,7 @@ describe("lib/actions/usuarios — trocarSenhaPropria", () => {
       const resposta = await trocarSenhaPropria({ ...dadosTroca, confirmarSenha: "outraSenha" })
 
       expect(resposta.sucesso).toBe(false)
-      expect(resposta.erro).toMatch(/não coincidem/i)
+      if (!resposta.sucesso) expect(resposta.erro).toMatch(/não coincidem/i)
       expect(prisma.usuario.findUnique).not.toHaveBeenCalled()
     })
 

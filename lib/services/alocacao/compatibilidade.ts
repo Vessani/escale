@@ -1,4 +1,5 @@
 import { TipoProduto } from "@prisma/client"
+import { colunaDateParaLocal, fimDoDia } from "@/lib/utils/date-format"
 import { projetarCodigoNoDia } from "../jornada.service"
 import type { ContextoCompatibilidade, MotoristaParaAlocacao } from "./tipos"
 
@@ -61,10 +62,13 @@ function temIntegracaoValida(
   const clienteNormalizado = normalizarCliente(cliente)
 
   return motorista.integracao.some((integracao) => {
+    const validade = new Date(integracao.dataValidade)
+    const fimValidadeBrasilia = fimDoDia(colunaDateParaLocal(validade))
+
     return (
       normalizarCliente(integracao.cliente) === clienteNormalizado &&
       integracao.status === "ATIVO" &&
-      new Date(integracao.dataValidade) >= dataInicioViagem
+      fimValidadeBrasilia >= dataInicioViagem
     )
   })
 }
@@ -120,12 +124,16 @@ export function motoristaEhCompativel(
   // Garante que a viagem inteira cabe dentro do ciclo de trabalho: mesmo com
   // diasViagem consistente, o caminho de gravação manual (alocação de
   // emergência) reaplica esta função com um contexto montado à mão, onde
-  // diasViagem pode não bater com o intervalo real. Projetamos o código de
-  // jornada no ÚLTIMO dia coberto e barramos se ele cair na folga (código 7)
-  // ou além — o motorista pode iniciar no 6º dia, nunca terminar no 7º.
+  // diasViagem pode não bater com o intervalo real. Usa o fim real da viagem
+  // (ou o fim estimado desde a data de início) para projetar o código de
+  // jornada no último dia calendário coberto — o motorista pode iniciar no 6º
+  // dia, mas nunca terminar no 7º (folga obrigatória).
+  const fimViagem = contexto.fimViagem ?? new Date(
+    contexto.dataInicioViagem.getTime() + Math.max(contexto.diasViagem - 1, 0) * 24 * 60 * 60 * 1000,
+  )
   const codigoNoUltimoDia = projetarCodigoNoDia(
     motorista.registrosJornada,
-    new Date(contexto.dataInicioViagem.getTime() + (contexto.diasViagem - 1) * 24 * 60 * 60 * 1000),
+    fimViagem,
     contexto.hoje,
     motorista.diasTrabalhados,
   )

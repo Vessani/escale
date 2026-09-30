@@ -1,3 +1,5 @@
+process.env.TZ = "America/Sao_Paulo"
+
 import { describe, expect, it } from "vitest"
 import { JornadaRelatorioParser } from "@/lib/parsers/jornada-relatorio-parser"
 

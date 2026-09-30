@@ -177,7 +177,7 @@ describe("lib/actions/clientes — controle de acesso", () => {
       const resposta = await criarCliente(clienteValido)
 
       expect(resposta.sucesso).toBe(false)
-      expect(resposta.erro).toBeTruthy()
+      if (!resposta.sucesso) expect(resposta.erro).toBeTruthy()
     })
   })
 })
