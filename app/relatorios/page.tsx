@@ -48,8 +48,8 @@ export default async function RelatoriosPage({
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-3xl font-bold tracking-tight text-slate-900">Relatórios</h1>
-        <p className="text-slate-500 mt-1">
+        <h1 className="text-2xl font-semibold tracking-tight text-foreground">Relatórios</h1>
+        <p className="text-muted-foreground mt-1">
           Indicadores das viagens e planilhas Excel para operação e para os motoristas.
         </p>
       </div>

@@ -3,9 +3,9 @@ import { getServerSession } from "next-auth"
 import { authOptions } from "@/lib/auth"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
-import { Card, CardContent } from "@/components/ui/card"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Building, PlusCircle } from "lucide-react"
+import { EmptyState } from "@/components/ui/empty-state"
 import { buscarClientes } from "@/lib/queries/clientes"
 import ExcluirClienteButton from "./excluir-cliente-button"
 
@@ -17,9 +17,12 @@ export default async function ClientesPage() {
     <div className="space-y-6">
       <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight text-slate-900">Clientes</h1>
-          <p className="text-slate-500 mt-1">
-            Nomes usados nas entregas da viagem e nas integrações do motorista. Marcar &quot;Exige integração&quot; passa a cobrar integração ativa em qualquer viagem pra esse cliente.
+          <h1 className="text-2xl font-semibold tracking-tight text-foreground">Clientes</h1>
+          <p
+            className="text-muted-foreground mt-1"
+            title="Nomes usados nas entregas da viagem e nas integrações do motorista. Marcar &quot;Exige integração&quot; passa a cobrar integração ativa em qualquer viagem pra esse cliente."
+          >
+            Clientes das entregas e exigência de integração.
           </p>
         </div>
         {podeGerenciar && (
@@ -33,28 +36,37 @@ export default async function ClientesPage() {
       </div>
 
       {clientes.length === 0 ? (
-        <Card className="border-slate-200 shadow-sm">
-          <CardContent className="flex flex-col items-center justify-center gap-2 p-12 text-slate-500">
-            <Building className="w-8 h-8 text-slate-300" />
-            <p>Nenhum cliente cadastrado ainda.</p>
-          </CardContent>
-        </Card>
+        <EmptyState
+          icone={Building}
+          titulo="Nenhum cliente"
+          descricao="Nenhum cliente cadastrado ainda."
+          acao={
+            podeGerenciar && (
+              <Link href="/clientes/novo">
+                <Button>
+                  <PlusCircle className="w-4 h-4 mr-2" />
+                  Novo cliente
+                </Button>
+              </Link>
+            )
+          }
+        />
       ) : (
-        <div className="rounded-lg border bg-white shadow-sm overflow-hidden">
+        <div className="rounded-lg border bg-card shadow-sm overflow-hidden">
           <Table>
-            <TableHeader className="bg-slate-50">
+            <TableHeader>
               <TableRow>
-                <TableHead className="font-semibold text-slate-700">Nome</TableHead>
-                <TableHead className="font-semibold text-slate-700">SAP Code</TableHead>
-                <TableHead className="font-semibold text-slate-700">Exige integração</TableHead>
-                {podeGerenciar && <TableHead className="font-semibold text-slate-700 text-right">Ações</TableHead>}
+                <TableHead>Nome</TableHead>
+                <TableHead>SAP Code</TableHead>
+                <TableHead>Exige integração</TableHead>
+                {podeGerenciar && <TableHead className="text-right">Ações</TableHead>}
               </TableRow>
             </TableHeader>
             <TableBody>
               {clientes.map((cliente) => (
-                <TableRow key={cliente.id} className="hover:bg-slate-50">
+                <TableRow key={cliente.id}>
                   <TableCell className="font-medium">{cliente.nome}</TableCell>
-                  <TableCell className="text-slate-600">{cliente.numeroSap}</TableCell>
+                  <TableCell className="font-mono tabular-nums text-foreground/80">{cliente.numeroSap}</TableCell>
                   <TableCell>
                     {cliente.exigeIntegracao ? (
                       <Badge variant="warning">Sim</Badge>

@@ -29,12 +29,12 @@ export default function QuadroDeObservacoes({ textoInicial }: Props) {
   }
 
   return (
-    <section className="rounded-lg border bg-white shadow-sm p-4 space-y-2">
+    <section className="rounded-lg border bg-card shadow-sm p-4 space-y-2">
       <div className="flex items-center gap-2">
-        <ClipboardList className="h-4 w-4 text-slate-500" />
-        <h2 className="text-sm font-semibold text-slate-900">Quadro de observações</h2>
+        <ClipboardList className="h-4 w-4 text-muted-foreground" />
+        <h2 className="text-sm font-semibold text-foreground">Quadro de observações</h2>
       </div>
-      <p className="text-xs text-slate-500">
+      <p className="text-xs text-muted-foreground">
         Recados gerais da operação: frota com problema, indo pra oficina, etc. Visível pra todo mundo, sem histórico — o texto atual é sempre o mais recente.
       </p>
       <Textarea
@@ -52,11 +52,11 @@ export default function QuadroDeObservacoes({ textoInicial }: Props) {
         {erro ? (
           <p className="text-destructive">{erro}</p>
         ) : isPending ? (
-          <p className="text-slate-400">Salvando...</p>
+          <p className="text-muted-foreground">Salvando...</p>
         ) : salvo ? (
-          <p className="text-slate-400">Salvo.</p>
+          <p className="text-muted-foreground">Salvo.</p>
         ) : (
-          <p className="text-slate-400">Alterações não salvas — clique fora do campo pra salvar.</p>
+          <p className="text-muted-foreground">Alterações não salvas — clique fora do campo pra salvar.</p>
         )}
       </div>
     </section>

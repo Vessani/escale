@@ -36,8 +36,8 @@ export default function CriarFilialForm() {
   }
 
   return (
-    <Card className="shadow-sm border-slate-200">
-      <CardHeader className="bg-slate-50 border-b">
+    <Card className="shadow-sm border-border">
+      <CardHeader className="bg-muted border-b">
         <CardTitle className="text-lg">Nova filial</CardTitle>
         <CardDescription>Cria uma filial isolada — motoristas, viagens e frotas dela não ficam visíveis pras outras.</CardDescription>
       </CardHeader>

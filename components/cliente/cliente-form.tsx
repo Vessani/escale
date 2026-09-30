@@ -53,8 +53,8 @@ export default function ClienteForm({ defaultValues, onSubmit, submitLabel, subm
       <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-6">
         {erroGlobal && <Alert variant="error" className="font-medium">{erroGlobal}</Alert>}
 
-        <Card className="shadow-sm border-slate-200">
-          <CardHeader className="bg-slate-50 border-b">
+        <Card className="shadow-sm border-border">
+          <CardHeader className="bg-muted border-b">
             <CardTitle className="text-lg">Cliente</CardTitle>
             <CardDescription>
               O nome cadastrado aqui aparece pra escolher nas entregas da viagem e nas integrações do motorista.

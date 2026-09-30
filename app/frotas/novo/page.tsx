@@ -18,13 +18,13 @@ export default function NovaFrotaPage() {
             size="icon"
             type="button"
             onClick={() => router.back()}
-            className="text-slate-500 hover:text-slate-900"
+            className="text-muted-foreground hover:text-foreground"
           >
             <ArrowLeft className="w-5 h-5" />
           </Button>
           <div>
-            <h1 className="text-3xl font-bold tracking-tight text-slate-900">Novo Conjunto</h1>
-            <p className="text-slate-500 mt-1">Cadastre a frota (cavalo/carreta) e a disponibilidade dela.</p>
+            <h1 className="text-2xl font-semibold tracking-tight text-foreground">Novo Conjunto</h1>
+            <p className="text-muted-foreground mt-1">Cadastre a frota (cavalo/carreta) e a disponibilidade dela.</p>
           </div>
         </div>
       </div>

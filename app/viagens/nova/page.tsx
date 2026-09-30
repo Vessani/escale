@@ -106,7 +106,7 @@ export default function NovaViagemPage() {
   return (
     <div className="max-w-5xl mx-auto space-y-6 pb-20">
       <div className="flex items-center justify-between">
-        <h1 className="text-3xl font-bold tracking-tight text-slate-900">Nova Viagem</h1>
+        <h1 className="text-2xl font-semibold tracking-tight text-foreground">Nova Viagem</h1>
         <Button variant="outline" type="button" onClick={() => router.back()}>Cancelar</Button>
       </div>
 
@@ -147,7 +147,7 @@ export default function NovaViagemPage() {
           />
 
           {carregandoRevisao && (
-            <p className="text-sm text-slate-500">Calculando a alocação sugerida para as viagens do arquivo...</p>
+            <p className="text-sm text-muted-foreground">Calculando a alocação sugerida para as viagens do arquivo...</p>
           )}
 
           {!mostrarFormularioAvulso ? (
@@ -159,8 +159,8 @@ export default function NovaViagemPage() {
             <Form {...form}>
               <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
 
-                <Card className="shadow-sm border-slate-200">
-                  <CardHeader className="bg-slate-50 border-b">
+                <Card className="shadow-sm border-border">
+                  <CardHeader className="bg-muted border-b">
                     <CardTitle className="text-lg">Informações do Veículo e Rota</CardTitle>
                   </CardHeader>
                   <CardContent className="pt-6 grid grid-cols-1 md:grid-cols-4 gap-6">
@@ -227,7 +227,7 @@ export default function NovaViagemPage() {
                             type="checkbox"
                             checked={field.value ?? false}
                             onChange={(e) => field.onChange(e.target.checked)}
-                            className="h-4 w-4 rounded border-slate-300"
+                            className="h-4 w-4 rounded border-border"
                           />
                         </FormControl>
                         <FormLabel className="cursor-pointer font-normal">
@@ -244,7 +244,7 @@ export default function NovaViagemPage() {
 
                 <EntregasFieldArray control={form.control} mostrarCamposComplementares />
 
-                <div className="sticky bottom-0 -mx-4 -mb-4 mt-6 p-4 bg-white border-t border-slate-200 flex justify-end shadow-[0_-4px_6px_-1px_rgb(0,0,0,0.05)] md:-mx-8 md:-mb-8">
+                <div className="sticky bottom-0 -mx-4 -mb-4 mt-6 p-4 bg-card border-t border-border flex justify-end shadow-[0_-4px_6px_-1px_rgb(0,0,0,0.05)] md:-mx-8 md:-mb-8">
                   <Button type="submit" disabled={form.formState.isSubmitting} className="w-48 shadow-md">
                     <Save className="w-4 h-4 mr-2" />
                     {form.formState.isSubmitting ? "Processando..." : "Finalizar Viagem"}

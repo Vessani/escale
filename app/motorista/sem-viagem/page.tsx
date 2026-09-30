@@ -1,5 +1,6 @@
 import { getServerSession } from "next-auth"
 import { UserX } from "lucide-react"
+import { EmptyState } from "@/components/ui/empty-state"
 import { authOptions } from "@/lib/auth"
 import { buscarMotoristasSemViagemHoje, contarMotoristasAtivos } from "@/lib/queries/motoristas"
 import { mapearRegistrosJornada, projetarCodigoNoDia } from "@/lib/services/jornada.service"
@@ -34,19 +35,14 @@ export default async function MotoristasSemViagemPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-3xl font-bold tracking-tight text-slate-900">Motoristas Sem Viagem Hoje</h1>
-        <p className="text-slate-500 mt-1">
-          {motoristasComAcao.length} de {totalMotoristas} motoristas cadastrados estão sem viagem hoje — confira a ação sugerida pra cada um.
+        <h1 className="text-2xl font-semibold tracking-tight text-foreground">Motoristas Sem Viagem Hoje</h1>
+        <p className="text-muted-foreground mt-1">
+          {motoristasComAcao.length} de {totalMotoristas} motoristas sem viagem hoje, com a ação sugerida.
         </p>
       </div>
 
       {motoristasComAcao.length === 0 ? (
-        <div className="border rounded-lg bg-white shadow-sm p-12">
-          <div className="flex flex-col items-center justify-center text-slate-500">
-            <UserX className="w-8 h-8 text-slate-300 mb-2" />
-            <p>Todos os motoristas estão em viagem hoje.</p>
-          </div>
-        </div>
+        <EmptyState icone={UserX} titulo="Todos em viagem" descricao="Todos os motoristas estão em viagem hoje." />
       ) : (
         <SemViagemClient motoristas={motoristasComAcao} dataReferencia={formatarDataDia(hoje)} />
       )}

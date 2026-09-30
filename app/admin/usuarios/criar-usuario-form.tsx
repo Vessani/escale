@@ -44,8 +44,8 @@ export default function CriarUsuarioForm({ filiais }: Props) {
   }
 
   return (
-    <Card className="shadow-sm border-slate-200">
-      <CardHeader className="bg-slate-50 border-b">
+    <Card className="shadow-sm border-border">
+      <CardHeader className="bg-muted border-b">
         <CardTitle className="text-lg">Novo usuário</CardTitle>
         <CardDescription>ADMIN e DESPACHANTE pertencem a uma filial e só enxergam os dados dela. SUPERADMIN não pertence a nenhuma.</CardDescription>
       </CardHeader>

@@ -65,7 +65,7 @@ export default function RotaFields<TFieldValues extends FieldValues>({ control }
               type="number"
               readOnly
               disabled
-              className="bg-slate-50 text-slate-600"
+              className="bg-muted text-foreground/80"
               value={normalizeFormValue(duracaoCalculada ?? field.value)}
             />
           </FormControl>

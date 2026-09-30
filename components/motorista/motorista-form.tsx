@@ -70,8 +70,8 @@ export default function MotoristaForm({ defaultValues, onSubmit, submitLabel, su
           </div>
         )}
 
-        <Card className="shadow-sm border-slate-200">
-          <CardHeader className="bg-slate-50 border-b">
+        <Card className="shadow-sm border-border">
+          <CardHeader className="bg-muted border-b">
             <CardTitle className="text-lg">Dados do Condutor</CardTitle>
             <CardDescription>Estes dados serão utilizados para as alocações de viagens.</CardDescription>
           </CardHeader>
@@ -185,7 +185,7 @@ export default function MotoristaForm({ defaultValues, onSubmit, submitLabel, su
                       return (
                         <label
                           key={opcao.valor}
-                          className="flex items-center gap-2 rounded-md border border-slate-200 p-2 text-sm has-checked:border-primary has-checked:bg-primary/5"
+                          className="flex items-center gap-2 rounded-md border border-border p-2 text-sm has-checked:border-primary has-checked:bg-primary/5"
                         >
                           <input
                             type="checkbox"
@@ -212,8 +212,8 @@ export default function MotoristaForm({ defaultValues, onSubmit, submitLabel, su
           </CardContent>
         </Card>
 
-        <Card className="shadow-sm border-slate-200">
-          <CardHeader className="flex flex-col gap-3 border-b bg-slate-50 sm:flex-row sm:items-center sm:justify-between">
+        <Card className="shadow-sm border-border">
+          <CardHeader className="flex flex-col gap-3 border-b bg-muted sm:flex-row sm:items-center sm:justify-between">
             <div>
               <CardTitle className="text-lg">Integrações</CardTitle>
               <CardDescription>Cadastre as integrações ativas do motorista para validação de alocação.</CardDescription>
@@ -236,7 +236,7 @@ export default function MotoristaForm({ defaultValues, onSubmit, submitLabel, su
           </CardHeader>
           <CardContent className="pt-6 space-y-4">
             {fields.length === 0 ? (
-              <p className="text-sm text-slate-500">Nenhuma integração cadastrada para este motorista.</p>
+              <p className="text-sm text-muted-foreground">Nenhuma integração cadastrada para este motorista.</p>
             ) : (
               fields.map((field, index) => (
                 <div key={field.id} className="grid grid-cols-1 md:grid-cols-12 gap-4 border rounded-lg p-4 relative">

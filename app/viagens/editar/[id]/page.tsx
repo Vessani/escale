@@ -62,8 +62,8 @@ export default async function EditarViagemPage({ params }: { params: Promise<{ i
     <div className="max-w-5xl mx-auto space-y-6 pb-20">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight text-slate-900">Alocação e Edição</h1>
-          <p className="text-slate-500 mt-1">
+          <h1 className="text-2xl font-semibold tracking-tight text-foreground">Alocação e Edição</h1>
+          <p className="text-muted-foreground mt-1">
             Revise os dados da viagem Nº {viagem.numViagem} e confirme o motorista alocado.
           </p>
         </div>

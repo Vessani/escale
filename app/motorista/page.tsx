@@ -2,6 +2,7 @@ import Link from "next/link"
 import { getServerSession } from "next-auth"
 import { authOptions } from "@/lib/auth"
 import { Button } from "@/components/ui/button"
+import { EmptyState } from "@/components/ui/empty-state"
 import { ChevronLeft, ChevronRight, PlusCircle, Upload, Users } from "lucide-react"
 import { buscarMotoristasComAgenda } from "@/lib/queries/motoristas"
 import { serializeData } from "@/lib/serialization"
@@ -67,9 +68,9 @@ export default async function MotoristasPage({
     <div className="space-y-6">
       <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight text-slate-900">Calendário de Motoristas</h1>
-          <p className="text-slate-500 mt-1">
-            Motoristas em linha e dias em colunas, a partir de hoje ({formatarIntervaloDias(inicioJanela, dias[dias.length - 1])}).
+          <h1 className="text-2xl font-semibold tracking-tight text-foreground">Calendário de Motoristas</h1>
+          <p className="text-muted-foreground mt-1">
+            Jornada e viagens por dia ({formatarIntervaloDias(inicioJanela, dias[dias.length - 1])}).
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
@@ -104,12 +105,19 @@ export default async function MotoristasPage({
       </div>
 
       {motoristas.length === 0 ? (
-        <div className="border rounded-lg bg-white shadow-sm p-12">
-          <div className="flex flex-col items-center justify-center text-slate-500">
-            <Users className="w-8 h-8 text-slate-300 mb-2" />
-            <p>Nenhum motorista cadastrado ainda.</p>
-          </div>
-        </div>
+        <EmptyState
+          icone={Users}
+          titulo="Nenhum motorista"
+          descricao="Nenhum motorista cadastrado ainda."
+          acao={
+            <Link href="/motorista/novo">
+              <Button>
+                <PlusCircle className="w-4 h-4 mr-2" />
+                Novo motorista
+              </Button>
+            </Link>
+          }
+        />
       ) : (
         <CalendarioMotoristas
           inicioParam={inicioParam}

@@ -36,13 +36,13 @@ export default function NovoMotoristaClient({ clientes }: Props) {
             size="icon"
             type="button"
             onClick={() => router.back()}
-            className="text-slate-500 hover:text-slate-900"
+            className="text-muted-foreground hover:text-foreground"
           >
             <ArrowLeft className="w-5 h-5" />
           </Button>
           <div>
-            <h1 className="text-3xl font-bold tracking-tight text-slate-900">Novo Motorista</h1>
-            <p className="text-slate-500 mt-1">Insira as informações operacionais do condutor.</p>
+            <h1 className="text-2xl font-semibold tracking-tight text-foreground">Novo Motorista</h1>
+            <p className="text-muted-foreground mt-1">Insira as informações operacionais do condutor.</p>
           </div>
         </div>
       </div>

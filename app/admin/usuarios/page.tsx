@@ -1,7 +1,7 @@
 import { Badge } from "@/components/ui/badge"
-import { Card, CardContent } from "@/components/ui/card"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { UserCog } from "lucide-react"
+import { EmptyState } from "@/components/ui/empty-state"
 import { buscarUsuarios } from "@/lib/queries/usuarios"
 import { buscarFiliais } from "@/lib/queries/filiais"
 import CriarUsuarioForm from "./criar-usuario-form"
@@ -12,33 +12,28 @@ export default async function UsuariosPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-3xl font-bold tracking-tight text-slate-900">Usuários</h1>
-        <p className="text-slate-500 mt-1">Cada usuário pertence a uma filial (exceto Superadmin) e só vê os dados dela.</p>
+        <h1 className="text-2xl font-semibold tracking-tight text-foreground">Usuários</h1>
+        <p className="text-muted-foreground mt-1" title="Cada usuário pertence a uma filial (exceto Superadmin) e só vê os dados dela.">Cada usuário só vê os dados da própria filial.</p>
       </div>
 
       <CriarUsuarioForm filiais={filiais} />
 
       {usuarios.length === 0 ? (
-        <Card className="border-slate-200 shadow-sm">
-          <CardContent className="flex flex-col items-center justify-center gap-2 p-12 text-slate-500">
-            <UserCog className="w-8 h-8 text-slate-300" />
-            <p>Nenhum usuário cadastrado ainda.</p>
-          </CardContent>
-        </Card>
+        <EmptyState icone={UserCog} titulo="Nenhum usuário" descricao="Cadastre o primeiro usuário no formulário acima." />
       ) : (
-        <div className="rounded-lg border bg-white shadow-sm overflow-hidden">
+        <div className="rounded-lg border bg-card shadow-sm overflow-hidden">
           <Table>
-            <TableHeader className="bg-slate-50">
+            <TableHeader>
               <TableRow>
-                <TableHead className="font-semibold text-slate-700">Nome</TableHead>
-                <TableHead className="font-semibold text-slate-700">E-mail</TableHead>
-                <TableHead className="font-semibold text-slate-700">Papel</TableHead>
-                <TableHead className="font-semibold text-slate-700">Filial</TableHead>
+                <TableHead>Nome</TableHead>
+                <TableHead>E-mail</TableHead>
+                <TableHead>Papel</TableHead>
+                <TableHead>Filial</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {usuarios.map((usuario) => (
-                <TableRow key={usuario.id} className="hover:bg-slate-50">
+                <TableRow key={usuario.id}>
                   <TableCell className="font-medium">{usuario.nome ?? "-"}</TableCell>
                   <TableCell>{usuario.email ?? "-"}</TableCell>
                   <TableCell>

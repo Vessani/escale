@@ -7,6 +7,8 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
+import { LogoEscale } from "@/components/layout/logo-escale"
+import { Rodape } from "@/components/layout/rodape"
 
 function normalizarErroLogin(erro: string) {
   if (erro === "CredentialsSignin") {
@@ -54,10 +56,13 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="flex items-center justify-center min-h-screen bg-slate-50">
-      <Card className="w-[400px] shadow-lg">
+    <div className="flex min-h-screen flex-col items-center justify-center gap-8 bg-muted p-4">
+      <Card className="w-full max-w-100 shadow-lg">
         <CardHeader className="space-y-1 text-center">
-          <CardTitle className="text-2xl font-bold tracking-tight">Projeto Escalador</CardTitle>
+          <div className="mb-2 flex justify-center text-foreground">
+            <LogoEscale />
+          </div>
+          <CardTitle className="text-2xl font-semibold tracking-tight">Entrar</CardTitle>
           <CardDescription>
             Insira suas credenciais para acessar a operação
           </CardDescription>
@@ -106,6 +111,7 @@ export default function LoginPage() {
           </CardFooter>
         </form>
       </Card>
+      <Rodape className="w-full max-w-100" />
     </div>
   )
 }

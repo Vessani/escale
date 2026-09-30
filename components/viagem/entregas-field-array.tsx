@@ -37,8 +37,8 @@ export default function EntregasFieldArray<TFieldValues extends FieldValues>({
   const nomeCampo = (index: number, campo: string) => `entregas.${index}.${campo}` as Path<TFieldValues>
 
   return (
-    <Card className="shadow-sm border-slate-200">
-      <CardHeader className="flex flex-col gap-3 border-b bg-slate-50 sm:flex-row sm:items-center sm:justify-between">
+    <Card className="shadow-sm border-border">
+      <CardHeader className="flex flex-col gap-3 border-b bg-muted sm:flex-row sm:items-center sm:justify-between">
         <div>
           <CardTitle className="text-lg">Pontos de Entrega</CardTitle>
           <CardDescription>Adicione todas as paradas planejadas</CardDescription>
@@ -48,15 +48,15 @@ export default function EntregasFieldArray<TFieldValues extends FieldValues>({
           variant="outline"
           size="sm"
           onClick={() => append(NOVA_ENTREGA_VAZIA as never)}
-          className="bg-white"
+          className="bg-card"
         >
           <PlusCircle className="w-4 h-4 mr-2" /> Nova Parada
         </Button>
       </CardHeader>
       <CardContent className="pt-6 space-y-6">
         {fields.map((field, index) => (
-          <div key={field.id} className="relative p-4 border border-slate-200 rounded-lg bg-slate-50/50">
-            <div className="absolute -top-3 left-4 bg-white px-2 text-xs font-bold text-slate-400 uppercase tracking-wider">
+          <div key={field.id} className="relative p-4 border border-border rounded-lg bg-muted/50">
+            <div className="absolute -top-3 left-4 bg-card px-2 text-xs font-bold text-muted-foreground uppercase tracking-wider">
               Parada {index + 1}
             </div>
 

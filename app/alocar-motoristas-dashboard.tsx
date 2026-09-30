@@ -85,7 +85,7 @@ export default function AlocarMotoristasDashboard({
         }}
         disabled={isPending}
       >
-        <SelectTrigger className="h-8 bg-white text-xs">
+        <SelectTrigger className="h-8 bg-card text-xs">
           <SelectValue placeholder="Selecionar motorista..." />
         </SelectTrigger>
         <SelectContent>
@@ -121,7 +121,7 @@ export default function AlocarMotoristasDashboard({
         }}
         disabled={isPending}
       >
-        <SelectTrigger className="h-7 bg-white text-[11px] text-slate-500">
+        <SelectTrigger className="h-7 bg-card text-[11px] text-muted-foreground">
           <SelectValue placeholder="+ acompanhante" />
         </SelectTrigger>
         <SelectContent>

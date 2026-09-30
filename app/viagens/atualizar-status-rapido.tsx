@@ -77,7 +77,7 @@ export default function AtualizarStatusRapido({ viagemId, statusAtual, inicioPre
   return (
     <div className="space-y-1">
       <Select value={statusSelecionado} onValueChange={alterarStatus} disabled={isPending}>
-        <SelectTrigger className="h-8 bg-white text-xs">
+        <SelectTrigger className="h-8 bg-card text-xs">
           <SelectValue placeholder="Status" />
         </SelectTrigger>
         <SelectContent>
@@ -94,15 +94,15 @@ export default function AtualizarStatusRapido({ viagemId, statusAtual, inicioPre
       <Dialog.Root open={dialogPostergarAberto} onOpenChange={(aberto) => !aberto && cancelarPostergar()}>
         <Dialog.Portal>
           <Dialog.Overlay className="fixed inset-0 z-40 bg-black/50" />
-          <Dialog.Content className="fixed left-1/2 top-1/2 z-50 w-[calc(100%-2rem)] max-w-sm -translate-x-1/2 -translate-y-1/2 rounded-lg bg-white p-6 shadow-xl">
-            <Dialog.Title className="text-lg font-semibold text-slate-900">Postergar viagem</Dialog.Title>
-            <Dialog.Description className="mt-1 text-sm text-slate-600">
+          <Dialog.Content className="fixed left-1/2 top-1/2 z-50 w-[calc(100%-2rem)] max-w-sm -translate-x-1/2 -translate-y-1/2 rounded-lg bg-card p-6 shadow-xl">
+            <Dialog.Title className="text-lg font-semibold text-foreground">Postergar viagem</Dialog.Title>
+            <Dialog.Description className="mt-1 text-sm text-foreground/80">
               Informe a nova data de início e fim previstos.
             </Dialog.Description>
 
             <div className="mt-4 space-y-3">
               <div>
-                <label className="mb-1 block text-xs font-medium text-slate-700">Novo início previsto</label>
+                <label className="mb-1 block text-xs font-medium text-foreground/80">Novo início previsto</label>
                 <Input
                   type="datetime-local"
                   value={novoInicio}
@@ -111,7 +111,7 @@ export default function AtualizarStatusRapido({ viagemId, statusAtual, inicioPre
                 />
               </div>
               <div>
-                <label className="mb-1 block text-xs font-medium text-slate-700">Novo fim previsto</label>
+                <label className="mb-1 block text-xs font-medium text-foreground/80">Novo fim previsto</label>
                 <Input
                   type="datetime-local"
                   value={novoFim}

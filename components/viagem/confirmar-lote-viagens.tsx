@@ -128,10 +128,10 @@ export default function ConfirmarLoteViagens({ viagens, onConcluido, onCancelar 
 
   return (
     <div className="space-y-4">
-      <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg bg-slate-50 p-4">
+      <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg bg-muted p-4">
         <div className="flex items-center gap-2">
-          <UserCheck className="h-5 w-5 text-slate-600" />
-          <span className="font-medium text-slate-900">
+          <UserCheck className="h-5 w-5 text-foreground/80" />
+          <span className="font-medium text-foreground">
             Revise a alocação sugerida para {viagens.length} viagem(ns) antes de criar
           </span>
         </div>
@@ -151,12 +151,12 @@ export default function ConfirmarLoteViagens({ viagens, onConcluido, onCancelar 
           const motoristaAtual = viagem.motoristasCompativeis.find((m) => String(m.id) === motoristaSelecionado)
 
           return (
-            <Card key={numViagem} className="border-slate-200 shadow-sm">
-              <CardHeader className="flex flex-col gap-3 border-b bg-white sm:flex-row sm:items-start sm:justify-between sm:gap-4">
+            <Card key={numViagem} className="border-border shadow-sm">
+              <CardHeader className="flex flex-col gap-3 border-b bg-card sm:flex-row sm:items-start sm:justify-between sm:gap-4">
                 <div>
-                  <CardTitle className="text-lg text-slate-900">Viagem {numViagem}</CardTitle>
-                  <p className="mt-1 text-sm text-slate-500">
-                    {viagem.dados.cavalo} / {viagem.dados.carreta} · {formatarDataHoraPtBr(viagem.dados.inicioPrevisto)}
+                  <CardTitle className="text-lg text-foreground">Viagem <span className="font-mono tabular-nums">{numViagem}</span></CardTitle>
+                  <p className="mt-1 text-sm text-muted-foreground">
+                    <span className="font-mono tabular-nums">{viagem.dados.cavalo} / {viagem.dados.carreta}</span> · <span className="font-mono tabular-nums">{formatarDataHoraPtBr(viagem.dados.inicioPrevisto)}</span>
                   </p>
                   {viagem.avisoFrotaIndisponivel && (
                     <Alert variant="warning" inline className="mt-1" title={viagem.avisoFrotaIndisponivel}>
@@ -177,7 +177,7 @@ export default function ConfirmarLoteViagens({ viagens, onConcluido, onCancelar 
                     value={produtos[numViagem] ?? ""}
                     onValueChange={(value) => atualizarProduto(numViagem, value)}
                   >
-                    <SelectTrigger className="h-8 w-44 bg-white text-xs">
+                    <SelectTrigger className="h-8 w-44 bg-card text-xs">
                       <SelectValue placeholder="Escolha o produto" />
                     </SelectTrigger>
                     <SelectContent>
@@ -193,23 +193,23 @@ export default function ConfirmarLoteViagens({ viagens, onConcluido, onCancelar 
 
               <CardContent className="grid gap-4 pt-6 lg:grid-cols-[1.2fr_0.8fr]">
                 <div className="space-y-3">
-                  <div className="flex items-center gap-2 text-sm text-slate-600">
+                  <div className="flex items-center gap-2 text-sm text-foreground/80">
                     <UserCheck className="h-4 w-4" />
                     <span>Motoristas compatíveis: {viagem.motoristasCompativeis.length}</span>
                   </div>
 
-                  <div className="rounded-md border border-slate-200 bg-slate-50 p-3">
+                  <div className="rounded-md border border-border bg-muted p-3">
                     {semCompatibilidade ? (
                       <Alert variant="warning">
                         Nenhum motorista compatível — a viagem é criada sem motorista, aloque depois manualmente.
                       </Alert>
                     ) : (
                       <div className="space-y-2">
-                        <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+                        <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
                           Sugestão automática
                         </p>
-                        <p className="text-sm font-medium text-slate-900">{viagem.motoristaSugerido?.nome}</p>
-                        <p className="text-xs text-slate-500">
+                        <p className="text-sm font-medium text-foreground">{viagem.motoristaSugerido?.nome}</p>
+                        <p className="text-xs text-muted-foreground">
                           Priorizado por quem libera mais perto do horário ideal, respeitando o descanso legal (dias disponíveis desempata).
                         </p>
                       </div>
@@ -219,11 +219,11 @@ export default function ConfirmarLoteViagens({ viagens, onConcluido, onCancelar 
                   {viagem.avisoInterjornada && <Alert variant="warning">{viagem.avisoInterjornada}</Alert>}
                 </div>
 
-                <div className="space-y-4 rounded-lg border border-slate-200 bg-slate-50 p-4">
+                <div className="space-y-4 rounded-lg border border-border bg-muted p-4">
                   <div className="space-y-2">
-                    <p className="text-sm font-medium text-slate-900">Motorista</p>
+                    <p className="text-sm font-medium text-foreground">Motorista</p>
                     <Select value={motoristaSelecionado} onValueChange={(value) => atualizarSelecao(numViagem, value)}>
-                      <SelectTrigger className="bg-white">
+                      <SelectTrigger className="bg-card">
                         <SelectValue placeholder="Selecione um motorista (ou deixe sem alocar)">
                           {motoristaAtual && formatarDetalheMotoristaCompativel(motoristaAtual)}
                         </SelectValue>
@@ -252,16 +252,16 @@ export default function ConfirmarLoteViagens({ viagens, onConcluido, onCancelar 
                   )}
                 </div>
               </CardContent>
-              <CardFooter className="flex items-center justify-between border-t bg-slate-50 text-xs text-slate-500">
+              <CardFooter className="flex items-center justify-between border-t bg-muted text-xs text-muted-foreground">
                 <span>Entrega(s): {viagem.dados.entregas.length}</span>
-                <span>Fim previsto: {formatarDataHoraPtBr(viagem.dados.fimPrevisto)}</span>
+                <span>Fim previsto: <span className="font-mono tabular-nums">{formatarDataHoraPtBr(viagem.dados.fimPrevisto)}</span></span>
               </CardFooter>
             </Card>
           )
         })}
       </div>
 
-      <div className="flex flex-wrap justify-end gap-2 border-t border-slate-200 pt-4">
+      <div className="flex flex-wrap justify-end gap-2 border-t border-border pt-4">
         <Button type="button" variant="outline" disabled={isPending} onClick={onCancelar}>
           Cancelar
         </Button>

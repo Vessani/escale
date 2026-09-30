@@ -75,22 +75,23 @@ export default function ImportarJornadaPage() {
           size="icon"
           type="button"
           onClick={() => router.back()}
-          className="text-slate-500 hover:text-slate-900"
+          className="text-muted-foreground hover:text-foreground"
         >
           <ArrowLeft className="w-5 h-5" />
         </Button>
         <div>
-          <h1 className="text-3xl font-bold tracking-tight text-slate-900">Importar Relatório de Jornada</h1>
-          <p className="text-slate-500 mt-1">
-            Sobe o Relatório Sintético de Jornada do dia — atualiza o dia de trabalho de cada motorista (coluna &quot;Dias
-            Sem Folga&quot;) e o horário habitual de jornada, por matrícula. Motoristas em Férias/Exames/Interno não têm o
-            dia sobrescrito.
+          <h1 className="text-2xl font-semibold tracking-tight text-foreground">Importar Relatório de Jornada</h1>
+          <p
+            className="text-muted-foreground mt-1"
+            title='Sobe o Relatório Sintético de Jornada do dia — atualiza o dia de trabalho de cada motorista (coluna "Dias Sem Folga") e o horário habitual de jornada, por matrícula. Motoristas em Férias/Exames/Interno não têm o dia sobrescrito.'
+          >
+            Atualiza o dia de trabalho e o horário de jornada, por matrícula.
           </p>
         </div>
       </div>
 
-      <Card className="shadow-sm border-slate-200">
-        <CardHeader className="bg-slate-50 border-b">
+      <Card className="shadow-sm border-border">
+        <CardHeader className="bg-muted border-b">
           <CardTitle className="text-lg flex items-center gap-2">
             <Upload className="w-5 h-5" />
             Arquivo do relatório
@@ -111,18 +112,18 @@ export default function ImportarJornadaPage() {
             <label
               htmlFor="jornada-upload"
               className={`flex flex-col items-center justify-center p-8 border-2 border-dashed rounded-lg cursor-pointer transition-colors ${
-                carregando ? "bg-slate-50 border-slate-300" : "hover:border-blue-400 hover:bg-blue-50 border-slate-300"
+                carregando ? "bg-muted border-border" : "hover:border-primary hover:bg-primary/10 border-border"
               }`}
             >
               {carregando ? (
                 <>
-                  <Loader className="w-8 h-8 text-blue-500 animate-spin" />
-                  <span className="mt-2 text-sm font-medium text-slate-600">Processando...</span>
+                  <Loader className="w-8 h-8 text-primary animate-spin" />
+                  <span className="mt-2 text-sm font-medium text-foreground/80">Processando...</span>
                 </>
               ) : (
                 <>
-                  <Upload className="w-8 h-8 text-slate-400" />
-                  <span className="mt-2 text-sm font-medium text-slate-600">Clique para selecionar o arquivo</span>
+                  <Upload className="w-8 h-8 text-muted-foreground" />
+                  <span className="mt-2 text-sm font-medium text-foreground/80">Clique para selecionar o arquivo</span>
                 </>
               )}
             </label>
@@ -151,8 +152,8 @@ export default function ImportarJornadaPage() {
       </Card>
 
       {registros && (
-        <Card className="shadow-sm border-slate-200">
-          <CardHeader className="bg-slate-50 border-b flex flex-row items-center justify-between">
+        <Card className="shadow-sm border-border">
+          <CardHeader className="bg-muted border-b flex flex-row items-center justify-between">
             <div>
               <CardTitle className="text-lg">
                 {new Set(registros.map((r) => r.matricula)).size} motorista(s) — {registros.length} jornada(s) encontrada(s)
@@ -168,9 +169,9 @@ export default function ImportarJornadaPage() {
             </Button>
           </CardHeader>
           <CardContent className="pt-6">
-            <div className="max-h-96 overflow-auto rounded-md border">
-              <Table>
-                <TableHeader className="bg-slate-50">
+            <div className="overflow-hidden rounded-md border">
+              <Table containerClassName="max-h-96 overflow-auto">
+                <TableHeader className="sticky top-0 z-10 bg-muted">
                   <TableRow>
                     <TableHead>Matrícula</TableHead>
                     <TableHead>Motorista</TableHead>
@@ -183,11 +184,11 @@ export default function ImportarJornadaPage() {
                 <TableBody>
                   {registros.map((registro) => (
                     <TableRow key={`${registro.matricula}-${registro.dia}`}>
-                      <TableCell>{registro.matricula}</TableCell>
+                      <TableCell className="font-mono tabular-nums">{registro.matricula}</TableCell>
                       <TableCell>{registro.nome}</TableCell>
-                      <TableCell>{formatarDataHoraPtBr(registro.inicioJornada)}</TableCell>
-                      <TableCell>{formatarDataHoraPtBr(registro.fimJornada)}</TableCell>
-                      <TableCell>
+                      <TableCell className="font-mono tabular-nums">{formatarDataHoraPtBr(registro.inicioJornada)}</TableCell>
+                      <TableCell className="font-mono tabular-nums">{formatarDataHoraPtBr(registro.fimJornada)}</TableCell>
+                      <TableCell className="tabular-nums">
                         {registro.diasSemFolga}
                         {registro.diasSemFolga > 6 ? " (capado em 6)" : ""}
                         {registro.diasSemFolga !== registro.diasSemFolgaRelatorio && (

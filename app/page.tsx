@@ -2,10 +2,12 @@ import Link from "next/link"
 import { getServerSession } from "next-auth"
 import { authOptions } from "@/lib/auth"
 import { Button } from "@/components/ui/button"
+import { EmptyState } from "@/components/ui/empty-state"
 import { Input } from "@/components/ui/input"
-import { Pencil, Route, CalendarDays } from "lucide-react"
+import { CalendarDays, CheckCircle2, Info, Pencil, PlayCircle, PlusCircle, Route, UserX } from "lucide-react"
 import { Alert } from "@/components/ui/alert"
 import { Badge } from "@/components/ui/badge"
+import { StatCard } from "@/components/ui/stat-card"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { buscarViagensDoDashboard } from "@/lib/queries/viagens"
 import { buscarMotoristasParaSelect } from "@/lib/queries/motoristas"
@@ -83,9 +85,9 @@ function FrotaCelula({ item }: { item: ItemDashboard }) {
   return (
     <div className="space-y-1">
       <div className="flex items-center gap-2">
-        <span className="text-slate-900">{viagem.cavalo}</span>
-        <span className="text-slate-500">/ {viagem.carreta}</span>
-        <Link href={`/viagens/editar/${viagem.id}`} className="text-slate-400 hover:text-blue-600" title="Editar viagem">
+        <span className="font-mono tabular-nums text-foreground">{viagem.cavalo}</span>
+        <span className="font-mono tabular-nums text-muted-foreground">/ {viagem.carreta}</span>
+        <Link href={`/viagens/editar/${viagem.id}`} className="text-muted-foreground hover:text-primary" title="Editar viagem">
           <Pencil className="h-3.5 w-3.5" />
         </Link>
       </div>
@@ -119,7 +121,7 @@ function StatusCelula({ item }: { item: ItemDashboard }) {
   const { viagem } = item
   return (
     <div className="space-y-1">
-      <Badge variant="outline" className={classeBadgeStatusViagem(viagem.status)}>
+      <Badge dot variant="outline" className={classeBadgeStatusViagem(viagem.status)}>
         {formatarStatusViagem(viagem.status)}
       </Badge>
       <AtualizarStatusRapido
@@ -135,33 +137,33 @@ function StatusCelula({ item }: { item: ItemDashboard }) {
 /** Tabela para telas a partir de md; em telas menores vira lista de cards (ver ViagensEmAndamentoCards). */
 function ViagensEmAndamentoTabela({ itens }: { itens: ItemDashboard[] }) {
   return (
-    <div className="hidden rounded-lg border bg-white shadow-sm overflow-hidden md:block">
-      <Table>
-        <TableHeader className="bg-slate-50">
+    <div className="hidden rounded-lg border bg-card shadow-sm overflow-hidden md:block">
+      <Table containerClassName="max-h-[70vh] overflow-auto">
+        <TableHeader className="sticky top-0 z-10 bg-muted">
           <TableRow>
-            <TableHead className="font-semibold text-slate-700">Motorista(s)</TableHead>
-            <TableHead className="font-semibold text-slate-700">Nº Viagem</TableHead>
-            <TableHead className="font-semibold text-slate-700">Frota</TableHead>
-            <TableHead className="font-semibold text-slate-700">Status</TableHead>
-            <TableHead className="font-semibold text-slate-700">Início Previsto</TableHead>
-            <TableHead className="font-semibold text-slate-700">Saída Real</TableHead>
-            <TableHead className="font-semibold text-slate-700">Destinos</TableHead>
+            <TableHead>Motorista(s)</TableHead>
+            <TableHead>Nº Viagem</TableHead>
+            <TableHead>Frota</TableHead>
+            <TableHead>Status</TableHead>
+            <TableHead>Início Previsto</TableHead>
+            <TableHead>Saída Real</TableHead>
+            <TableHead>Destinos</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
           {itens.map((item) => (
-            <TableRow key={item.viagem.id} className="hover:bg-slate-50">
+            <TableRow key={item.viagem.id}>
               <TableCell className="font-medium">
                 <AlocacaoCelula item={item} />
               </TableCell>
-              <TableCell>{item.viagem.numViagem}</TableCell>
+              <TableCell className="font-mono tabular-nums">{item.viagem.numViagem}</TableCell>
               <TableCell>
                 <FrotaCelula item={item} />
               </TableCell>
               <TableCell>
                 <StatusCelula item={item} />
               </TableCell>
-              <TableCell>{formatarDataHoraPtBr(item.viagem.inicioPrevisto)}</TableCell>
+              <TableCell className="font-mono tabular-nums">{formatarDataHoraPtBr(item.viagem.inicioPrevisto)}</TableCell>
               <TableCell>
                 <SaidaCelula item={item} />
               </TableCell>
@@ -179,11 +181,11 @@ function ViagensEmAndamentoCards({ itens }: { itens: ItemDashboard[] }) {
   return (
     <div className="space-y-3 md:hidden">
       {itens.map((item) => (
-        <div key={item.viagem.id} className="space-y-3 rounded-lg border bg-white shadow-sm p-4">
+        <div key={item.viagem.id} className="space-y-3 rounded-lg border bg-card shadow-sm p-4">
           <div className="flex items-start justify-between gap-2">
             <div>
-              <p className="text-xs text-slate-500">
-                Viagem {item.viagem.numViagem} · {item.viagem.cavalo} / {item.viagem.carreta}
+              <p className="text-xs text-muted-foreground">
+                Viagem <span className="font-mono tabular-nums">{item.viagem.numViagem}</span> · <span className="font-mono tabular-nums">{item.viagem.cavalo} / {item.viagem.carreta}</span>
               </p>
               {item.viagem.avisoFrotaIndisponivel && (
                 <Alert variant="warning" inline className="mt-1" title={item.viagem.avisoFrotaIndisponivel}>
@@ -196,7 +198,7 @@ function ViagensEmAndamentoCards({ itens }: { itens: ItemDashboard[] }) {
                 </Alert>
               )}
             </div>
-            <Link href={`/viagens/editar/${item.viagem.id}`} className="text-slate-400 hover:text-blue-600" title="Editar viagem">
+            <Link href={`/viagens/editar/${item.viagem.id}`} className="text-muted-foreground hover:text-primary" title="Editar viagem">
               <Pencil className="h-4 w-4" />
             </Link>
           </div>
@@ -209,11 +211,11 @@ function ViagensEmAndamentoCards({ itens }: { itens: ItemDashboard[] }) {
 
           <dl className="grid grid-cols-2 gap-x-4 gap-y-2 text-sm">
             <div>
-              <dt className="text-xs text-slate-500">Início previsto</dt>
-              <dd className="font-medium text-slate-900">{formatarDataHoraPtBr(item.viagem.inicioPrevisto)}</dd>
+              <dt className="text-xs text-muted-foreground">Início previsto</dt>
+              <dd className="font-mono font-medium tabular-nums text-foreground">{formatarDataHoraPtBr(item.viagem.inicioPrevisto)}</dd>
             </div>
             <div>
-              <dt className="text-xs text-slate-500">Saída real</dt>
+              <dt className="text-xs text-muted-foreground">Saída real</dt>
               <dd>
                 <SaidaCelula item={item} />
               </dd>
@@ -221,8 +223,8 @@ function ViagensEmAndamentoCards({ itens }: { itens: ItemDashboard[] }) {
           </dl>
 
           <div>
-            <p className="text-xs text-slate-500">Destinos</p>
-            <p className="text-sm text-slate-900">{cidadesDestino(item)}</p>
+            <p className="text-xs text-muted-foreground">Destinos</p>
+            <p className="text-sm text-foreground">{cidadesDestino(item)}</p>
           </div>
         </div>
       ))}
@@ -270,15 +272,29 @@ export default async function DashboardPage({
     buscarQuadroObservacoes(filialId),
   ])
 
+  const explicacaoDashboard =
+    "Quadro digital da operação: viagens do dia selecionado em qualquer status, mais Retornando de dias anteriores e Canceladas só até a virada do dia." +
+    (vendoOutroDia ? " Status mostrado é o atual da viagem, não uma foto de como estava naquele dia — pra ver a mudança em si, use o Histórico." : "")
+
+  // Indicadores e contagens saem dos itens já carregados — sem query extra.
+  // Na visão "Todos" a query já exclui Finalizadas (ver buscarViagensDoDashboard),
+  // então a contagem de Finalizadas só é real com o filtro de Finalizada.
+  const contarStatus = (...status: string[]) => itens.filter((item) => status.includes(item.viagem.status)).length
+  const semMotorista = itens.filter((item) => item.viagem.motoristaId === null && item.viagem.status !== "CANCELADA").length
+  const finalizadasVisiveis = filtroStatus !== "TODOS"
+
   return (
     <div className="space-y-6">
       <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight text-slate-900">Dashboard</h1>
-          <p className="text-slate-500 mt-1">
-            Quadro digital da operação: viagens do dia selecionado em qualquer status, mais Retornando de dias anteriores e Canceladas só até a virada do dia.
-            {vendoOutroDia && " Status mostrado é o atual da viagem, não uma foto de como estava naquele dia — pra ver a mudança em si, use o Histórico."}
-          </p>
+          <div className="flex items-center gap-2">
+            <h1 className="text-2xl font-semibold tracking-tight text-foreground">Dashboard</h1>
+            <span title={explicacaoDashboard} className="text-muted-foreground hover:text-foreground">
+              <Info aria-hidden="true" className="size-4" />
+              <span className="sr-only">{explicacaoDashboard}</span>
+            </span>
+          </div>
+          <p className="text-muted-foreground mt-1">Viagens do dia selecionado, incluindo retornos pendentes.</p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
           <Link href={construirHref("TODOS", parametros.data)}>
@@ -288,10 +304,30 @@ export default async function DashboardPage({
             <Link key={status.valor} href={construirHref(status.valor, parametros.data)}>
               <Button variant={filtroStatus === status.valor ? "default" : "outline"}>
                 {status.label}
+                {filtroStatus === "TODOS" && status.valor !== "FINALIZADA" && (
+                  <span className="tabular-nums opacity-70"> · {contarStatus(status.valor)}</span>
+                )}
               </Button>
             </Link>
           ))}
         </div>
+      </div>
+
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+        <StatCard rotulo="Viagens" valor={itens.length} icone={Route} />
+        <StatCard
+          rotulo="Sem motorista"
+          valor={semMotorista}
+          icone={UserX}
+          classeValor={semMotorista > 0 ? "text-warning" : undefined}
+        />
+        <StatCard rotulo="Em andamento" valor={contarStatus("INICIADA", "RETORNANDO")} icone={PlayCircle} />
+        <StatCard
+          rotulo="Finalizadas"
+          valor={finalizadasVisiveis ? contarStatus("FINALIZADA") : "—"}
+          icone={CheckCircle2}
+          title={finalizadasVisiveis ? undefined : 'Na visão "Todos" as finalizadas saem do painel — use o filtro Finalizada para vê-las.'}
+        />
       </div>
 
       <form method="get" className="flex flex-wrap items-center gap-2">
@@ -309,16 +345,23 @@ export default async function DashboardPage({
       </form>
 
       {itens.length === 0 ? (
-        <div className="border rounded-lg bg-white shadow-sm p-12">
-          <div className="flex flex-col items-center justify-center text-slate-500">
-            <Route className="w-8 h-8 text-slate-300 mb-2" />
-            <p>Nenhuma viagem encontrada para este filtro.</p>
-          </div>
-        </div>
+        <EmptyState
+          icone={Route}
+          titulo="Nenhuma viagem"
+          descricao="Nenhuma viagem encontrada para este filtro."
+          acao={
+            <Link href="/viagens/nova">
+              <Button>
+                <PlusCircle className="w-4 h-4 mr-2" />
+                Nova viagem
+              </Button>
+            </Link>
+          }
+        />
       ) : (
         <section className="space-y-3">
           <div className="flex items-center justify-between">
-            <h2 className="text-xl font-semibold text-slate-900">
+            <h2 className="text-xl font-semibold text-foreground">
               {vendoOutroDia
                 ? dataTextoInput.split("-").reverse().join("/")
                 : filtroStatus === "TODOS" ? "Hoje" : `Status: ${formatarStatusViagem(filtroStatus)}`}
