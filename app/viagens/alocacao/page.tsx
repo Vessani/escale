@@ -6,13 +6,14 @@ import { buscarViagensSemMotorista } from "@/lib/queries/viagens"
 import { buscarNumerosSapQueExigemIntegracao } from "@/lib/queries/clientes"
 import type { ViagemAlocacao } from "@/lib/types/alocacao"
 import {
-  calcularAvisoInterjornada,
+  calcularAvisoDescanso,
   calcularDiasDisponiveis,
   calcularIntegracaoExigida,
   calcularProximoInicioDisponivel,
+  encontrarFimTrabalhoAnterior,
   sugerirAlocacoesEmLote,
 } from "@/lib/services/alocacao.service"
-import { encontrarFimJornadaAnterior, mapearRegistrosJornada, projetarCodigoNoDia } from "@/lib/services/jornada.service"
+import { mapearRegistrosJornada, projetarCodigoNoDia } from "@/lib/services/jornada.service"
 import { formatarHoraLocal, inicioDoDia } from "@/lib/utils/date-format"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -87,15 +88,10 @@ function serializarViagens(
             nome: motoristaSugerido.nome,
           }
         : null,
-      // Fim real da jornada anterior à viagem, achado em memória a partir do
-      // histórico já carregado (não o agregado jornadaRelatorioFim, que só
-      // guarda o turno mais recente do último lote importado, sem relação
-      // com esta viagem — ver encontrarFimJornadaAnterior).
+      // Mesma regra do aviso gravado na viagem (relatório + viagens, finalizada
+      // contando da finalização, 11h/35h) — ver calcularAvisoDescanso.
       avisoInterjornada: motoristaSugerido
-        ? calcularAvisoInterjornada(
-            encontrarFimJornadaAnterior(motoristaSugerido.registrosJornada, new Date(viagem.inicioPrevisto)),
-            new Date(viagem.inicioPrevisto),
-          )
+        ? calcularAvisoDescanso(motoristaSugerido, { id: viagem.id, inicioPrevisto: viagem.inicioPrevisto }, hoje)
         : null,
       // Já calculado e persistido na criação/edição da viagem — ver calcularAvisoFrotaIndisponivel (frota.service.ts).
       avisoFrotaIndisponivel: viagem.avisoFrotaIndisponivel,
@@ -112,7 +108,7 @@ function serializarViagens(
         )
 
         const proximoInicioDisponivel = calcularProximoInicioDisponivel(
-          encontrarFimJornadaAnterior(motorista.registrosJornada, new Date(viagem.inicioPrevisto)),
+          encontrarFimTrabalhoAnterior(motorista, new Date(viagem.inicioPrevisto), viagem.id),
           motorista.diasTrabalhados,
         )
 

@@ -93,9 +93,8 @@ export function mapearRegistrosJornada(registros: RegistroJornadaBruto[]): Ponto
  * calendário, criação de motorista e reconciliação de folga não têm horário
  * real). Cálculo sobre instantes (timestamps), não datas — imune a fuso.
  *
- * Ver também `buscarFimJornadaAnterior` (motorista.service.ts), a versão que
- * consulta direto o banco quando só se tem o id do motorista, sem o
- * histórico já carregado.
+ * Só o lado do relatório: o fim de trabalho completo (relatório + viagens,
+ * com finalização) é `encontrarFimTrabalhoAnterior` (alocacao/avisos.ts).
  */
 export function encontrarFimJornadaAnterior(
   registros: Array<{ fimJornada?: Date | string | null }>,

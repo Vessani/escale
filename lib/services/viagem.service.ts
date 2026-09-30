@@ -3,7 +3,6 @@ import { NovaViagemInput, EditarViagemInput } from "@/lib/types/types";
 import { buscarMotoristasParaSelect } from "@/lib/queries/motoristas";
 import { buscarNumerosSapQueExigemIntegracao } from "@/lib/queries/clientes";
 import {
-  calcularAvisoInterjornada,
   calcularIntegracaoExigida,
   motoristaAutorizadoParaProduto,
   sugerirMotoristaAutomatico,
@@ -14,8 +13,8 @@ import { registrarAuditoria, type Ator } from "./auditoria.service";
 import { MotoristaProdutoNaoAutorizadoError, ViagemNaoEncontradaError, StatusViagemObrigatorioError, NumViagemDuplicadaError } from "@/lib/errors";
 import { calcularAvisoFrotaIndisponivel, calcularAvisoFrotaProduto, sincronizarDisponibilidadeFrota } from "./frota.service";
 import { converterEditarViagemParaBD, converterNovaViagemParaBD } from "./viagem-data-converter.service";
-import { buscarFimJornadaAnterior } from "./motorista.service";
-import { encontrarFimJornadaAnterior, mapearRegistrosJornada } from "./jornada.service";
+import { mapearRegistrosJornada } from "./jornada.service";
+import { recalcularAvisosInterjornada } from "./interjornada.service";
 import { calcularDiasEntre, inicioDoDia } from "@/lib/utils/date-format";
 
 function resolverStatusPorAlocacao(motoristaId: number | null) {
@@ -29,6 +28,19 @@ function statusPermiteAutoAjuste(statusAtual: string) {
 /** Marca o instante da transição para CANCELADA — usado pelo Dashboard pra decidir até quando a viagem cancelada ainda aparece. Não mexe se o status não mudou (evita renovar a janela de visibilidade a cada edição de uma viagem já cancelada). */
 function calcularCanceladoEm(statusNovo: string, statusAntigo: string): Date | undefined {
   return statusNovo === "CANCELADA" && statusAntigo !== "CANCELADA" ? new Date() : undefined
+}
+
+/**
+ * Marca o instante da transição para FINALIZADA — a partir dele o motorista
+ * está livre (o descanso de 11h/35h conta daqui, ver fimEfetivoViagem). Não
+ * mexe se já estava finalizada; limpa se a viagem for reaberta, pra não
+ * deixar uma finalização antiga valendo.
+ */
+function calcularFinalizadoEm(statusNovo: string, statusAntigo: string): Date | null | undefined {
+  if (statusNovo === "FINALIZADA") {
+    return statusAntigo !== "FINALIZADA" ? new Date() : undefined
+  }
+  return statusAntigo === "FINALIZADA" ? null : undefined
 }
 
 /**
@@ -83,15 +95,10 @@ async function garantirMotoristaAutorizadoParaProduto(
 
 type DadosViagemConvertidos = ReturnType<typeof converterNovaViagemParaBD>
 
-/** Busca o fim da jornada real anterior à viagem e calcula o aviso — usado quando só se tem o id do motorista, não o objeto completo com o histórico já carregado (ver buscarFimJornadaAnterior). */
-async function calcularAvisoInterjornadaPorId(filialId: number, motoristaId: number | null, inicioPrevisto: Date) {
-  if (motoristaId === null) {
-    return null
-  }
-
-  const fimJornadaAnterior = await buscarFimJornadaAnterior(filialId, motoristaId, inicioPrevisto)
-  return calcularAvisoInterjornada(fimJornadaAnterior, inicioPrevisto)
-}
+// O aviso de interjornada/descanso não é mais calculado aqui, viagem a
+// viagem: toda gravação chama recalcularAvisosInterjornada dentro da
+// transação, que atualiza as viagens em aberto dos motoristas envolvidos
+// (inclusive a próxima viagem de quem acabou de ser liberado).
 
 async function inserirViagem(
   filialId: number,
@@ -99,7 +106,6 @@ async function inserirViagem(
   integracaoNecessaria: string | null,
   motoristaId: number | null,
   status: NovaViagemInput["status"],
-  avisoInterjornada: string | null,
   ator: Ator | null,
 ) {
   await garantirNumViagemDisponivel(filialId, dados.numViagem)
@@ -112,6 +118,8 @@ async function inserirViagem(
     dados.inicioPrevisto as Date,
   )
   const avisoFrotaProdutoIncompativel = await calcularAvisoFrotaProduto(filialId, dados.cavalo, dados.carreta, dados.produto)
+
+  const statusInicial = status ?? resolverStatusPorAlocacao(motoristaId)
 
   return prisma.$transaction(async (tx) => {
     const viagemCriada = await tx.viagem.create({
@@ -126,10 +134,10 @@ async function inserirViagem(
         turno: dados.turno,
         produto: dados.produto,
         integracaoExigida: integracaoNecessaria,
-        status: status ?? resolverStatusPorAlocacao(motoristaId),
+        status: statusInicial,
+        finalizadoEm: calcularFinalizadoEm(statusInicial, "CRIADA"),
         viagemExtra: dados.viagemExtra ?? false,
         motoristaId,
-        avisoInterjornada,
         avisoFrotaIndisponivel,
         avisoFrotaProdutoIncompativel,
         filialId,
@@ -157,6 +165,7 @@ async function inserirViagem(
     await reconciliarFolgaMotoristasNoDiaAtual(tx, [viagemCriada.motoristaId], [
       { inicioPrevisto: viagemCriada.inicioPrevisto, fimPrevisto: viagemCriada.fimPrevisto },
     ])
+    await recalcularAvisosInterjornada(tx, filialId, [viagemCriada.motoristaId])
     await registrarAuditoria(tx, {
       entidade: "Viagem",
       entidadeId: viagemCriada.id,
@@ -193,15 +202,8 @@ export async function criarViagemAvulsaService(filialId: number, dadosRecebidos:
     hoje,
   });
   const motoristaEscolhidoId = motoristaSugeridoDisponivel?.id ?? null;
-  // motoristaSugeridoDisponivel já vem com o histórico de jornada carregado
-  // (ver `motoristas` acima) — encontra o fim real anterior em memória, sem
-  // precisar de outra consulta (ver encontrarFimJornadaAnterior).
-  const fimJornadaAnterior = motoristaSugeridoDisponivel
-    ? encontrarFimJornadaAnterior(motoristaSugeridoDisponivel.registrosJornada, inicioPrevisto)
-    : null;
-  const avisoInterjornada = calcularAvisoInterjornada(fimJornadaAnterior, inicioPrevisto);
 
-  return inserirViagem(filialId, dados, integracaoNecessaria, motoristaEscolhidoId, dados.status, avisoInterjornada, ator);
+  return inserirViagem(filialId, dados, integracaoNecessaria, motoristaEscolhidoId, dados.status, ator);
 }
 
 /**
@@ -214,9 +216,8 @@ export async function criarViagemComAlocacaoService(filialId: number, dadosReceb
   const dados = converterNovaViagemParaBD(dadosRecebidos);
   const numerosSapQueExigemIntegracao = await buscarNumerosSapQueExigemIntegracao();
   const integracaoNecessaria = calcularIntegracaoExigida(dados.entregas, numerosSapQueExigemIntegracao);
-  const avisoInterjornada = await calcularAvisoInterjornadaPorId(filialId, motoristaId, dados.inicioPrevisto as Date);
 
-  return inserirViagem(filialId, dados, integracaoNecessaria, motoristaId, dados.status, avisoInterjornada, ator);
+  return inserirViagem(filialId, dados, integracaoNecessaria, motoristaId, dados.status, ator);
 }
 
 
@@ -252,7 +253,6 @@ export async function editarViagemService(filialId: number, idViagem: number, da
 
   const motoristaIdFinal = dados.motoristaId !== undefined ? dados.motoristaId : viagemAtual.motoristaId
   await garantirMotoristaAutorizadoParaProduto(motoristaIdFinal, dados.produto)
-  const avisoInterjornada = await calcularAvisoInterjornadaPorId(filialId, motoristaIdFinal, dados.inicioPrevisto as Date)
   const avisoFrotaIndisponivel = await calcularAvisoFrotaIndisponivel(
     filialId,
     dados.cavalo,
@@ -278,9 +278,12 @@ export async function editarViagemService(filialId: number, idViagem: number, da
         status: statusFinal,
         viagemExtra: dados.viagemExtra !== undefined ? dados.viagemExtra : undefined,
         canceladoEm: calcularCanceladoEm(statusFinal, viagemAtual.status),
+        finalizadoEm: calcularFinalizadoEm(statusFinal, viagemAtual.status),
         motoristaId: dados.motoristaId !== undefined ? dados.motoristaId : undefined,
         motoristaAcompanhanteId: dados.motoristaAcompanhanteId !== undefined ? dados.motoristaAcompanhanteId : undefined,
-        avisoInterjornada,
+        // Sem motorista não há descanso a avisar — o recálculo abaixo só
+        // alcança viagens que têm motorista principal.
+        ...(motoristaIdFinal === null ? { avisoInterjornada: null } : {}),
         avisoFrotaIndisponivel,
         avisoFrotaProdutoIncompativel,
         entregas: {
@@ -338,6 +341,12 @@ export async function editarViagemService(filialId: number, idViagem: number, da
         { inicioPrevisto: viagemAtualizada.inicioPrevisto, fimPrevisto: viagemAtualizada.fimPrevisto },
       ],
     )
+    await recalcularAvisosInterjornada(tx, filialId, [
+      viagemAtual.motoristaId,
+      viagemAtualizada.motoristaId,
+      viagemAtual.motoristaAcompanhanteId,
+      viagemAtualizada.motoristaAcompanhanteId,
+    ])
     await registrarAuditoria(tx, {
       entidade: "Viagem",
       entidadeId: idViagem,
@@ -368,6 +377,7 @@ export async function deletarViagemService(filialId: number, id: number, ator: A
       [viagemDeletada.motoristaId, viagemDeletada.motoristaAcompanhanteId],
       [{ inicioPrevisto: viagemDeletada.inicioPrevisto, fimPrevisto: viagemDeletada.fimPrevisto }],
     )
+    await recalcularAvisosInterjornada(tx, filialId, [viagemDeletada.motoristaId, viagemDeletada.motoristaAcompanhanteId])
     await registrarAuditoria(tx, {
       entidade: "Viagem",
       entidadeId: id,
@@ -404,13 +414,13 @@ export async function atualizarStatusViagemService(
     throw new ViagemNaoEncontradaError()
   }
 
-  // Postergar muda a data — os avisos de interjornada/frota gravados na
-  // criação/última edição são recalculados pra essa data nova, senão ficam
-  // "presos" no valor de quando a viagem foi criada/editada pela última vez
-  // (ex: aviso de frota indisponível que não valia mais pro horário novo).
+  // Postergar muda a data — os avisos de frota gravados na criação/última
+  // edição são recalculados pra essa data nova, senão ficam "presos" no valor
+  // de quando a viagem foi criada/editada pela última vez (ex: aviso de frota
+  // indisponível que não valia mais pro horário novo). O de interjornada é
+  // recalculado dentro da transação, pra qualquer mudança de status.
   const avisosRecalculados = novaData
     ? {
-        avisoInterjornada: await calcularAvisoInterjornadaPorId(filialId, viagemAtual.motoristaId, novaData.inicioPrevisto),
         avisoFrotaIndisponivel: await calcularAvisoFrotaIndisponivel(filialId, viagemAtual.cavalo, viagemAtual.carreta, novaData.inicioPrevisto),
         avisoFrotaProdutoIncompativel: await calcularAvisoFrotaProduto(filialId, viagemAtual.cavalo, viagemAtual.carreta, viagemAtual.produto),
       }
@@ -422,6 +432,7 @@ export async function atualizarStatusViagemService(
       data: {
         status,
         canceladoEm: calcularCanceladoEm(status, viagemAtual.status),
+        finalizadoEm: calcularFinalizadoEm(status, viagemAtual.status),
         ...(novaData ? {
           inicioPrevisto: novaData.inicioPrevisto,
           fimPrevisto: novaData.fimPrevisto,
@@ -442,6 +453,9 @@ export async function atualizarStatusViagemService(
         { inicioPrevisto: viagemAtualizada.inicioPrevisto, fimPrevisto: viagemAtualizada.fimPrevisto },
       ],
     )
+    // Finalizar libera o motorista: a próxima viagem dele perde o aviso de
+    // descanso se, contando da finalização, as 11h/35h já estão cumpridas.
+    await recalcularAvisosInterjornada(tx, filialId, [viagemAtualizada.motoristaId, viagemAtualizada.motoristaAcompanhanteId])
     await registrarAuditoria(tx, {
       entidade: "Viagem",
       entidadeId: idViagem,
@@ -481,7 +495,6 @@ export async function atualizarAlocacaoViagemService(
   const statusFinal = statusPermiteAutoAjuste(viagemAtual.status)
     ? resolverStatusPorAlocacao(dados.motoristaId)
     : viagemAtual.status
-  const avisoInterjornada = await calcularAvisoInterjornadaPorId(filialId, dados.motoristaId, viagemAtual.inicioPrevisto)
 
   return await prisma.$transaction(async (tx) => {
     const viagemAtualizada = await tx.viagem.update({
@@ -490,7 +503,9 @@ export async function atualizarAlocacaoViagemService(
         motoristaId: dados.motoristaId,
         motoristaAcompanhanteId: dados.motoristaAcompanhanteId,
         status: statusFinal,
-        avisoInterjornada,
+        // Sem motorista não há descanso a avisar — o recálculo abaixo só
+        // alcança viagens que têm motorista principal.
+        ...(dados.motoristaId === null ? { avisoInterjornada: null } : {}),
       },
     })
 
@@ -504,6 +519,12 @@ export async function atualizarAlocacaoViagemService(
       ],
       [{ inicioPrevisto: viagemAtual.inicioPrevisto, fimPrevisto: viagemAtual.fimPrevisto }],
     )
+    await recalcularAvisosInterjornada(tx, filialId, [
+      viagemAtual.motoristaId,
+      viagemAtualizada.motoristaId,
+      viagemAtual.motoristaAcompanhanteId,
+      viagemAtualizada.motoristaAcompanhanteId,
+    ])
     await registrarAuditoria(tx, {
       entidade: "Viagem",
       entidadeId: idViagem,

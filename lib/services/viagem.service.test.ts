@@ -1,6 +1,5 @@
 import { describe, expect, it, vi, beforeEach } from "vitest"
 import type { EditarViagemInput, NovaViagemInput } from "@/lib/types/types"
-import { dataParaColunaDate, inicioDoDia } from "@/lib/utils/date-format"
 
 vi.mock("@/lib/prisma", () => ({
   prisma: {
@@ -14,9 +13,6 @@ vi.mock("@/lib/prisma", () => ({
     motorista: {
       findUnique: vi.fn(),
     },
-    registroJornada: {
-      findFirst: vi.fn(),
-    },
   },
 }))
 
@@ -26,6 +22,10 @@ vi.mock("@/lib/queries/motoristas", () => ({
 
 vi.mock("@/lib/queries/clientes", () => ({
   buscarNumerosSapQueExigemIntegracao: vi.fn(),
+}))
+
+vi.mock("@/lib/services/interjornada.service", () => ({
+  recalcularAvisosInterjornada: vi.fn(),
 }))
 
 vi.mock("@/lib/services/folga.service", () => ({
@@ -42,6 +42,7 @@ import { prisma } from "@/lib/prisma"
 import { buscarMotoristasParaSelect } from "@/lib/queries/motoristas"
 import { buscarNumerosSapQueExigemIntegracao } from "@/lib/queries/clientes"
 import { reconciliarFolgaMotoristasNoDiaAtual } from "@/lib/services/folga.service"
+import { recalcularAvisosInterjornada } from "@/lib/services/interjornada.service"
 import { calcularAvisoFrotaIndisponivel, calcularAvisoFrotaProduto, sincronizarDisponibilidadeFrota } from "@/lib/services/frota.service"
 import {
   criarViagemAvulsaService,
@@ -114,30 +115,10 @@ function criarMotoristaParaSelect(parcial: Record<string, unknown> = {}) {
   }
 }
 
-/**
- * Simula o histórico de jornada real de um motorista já carregado (mesmo
- * formato que buscarMotoristasParaSelect traz hoje) — usado pra testar o
- * aviso de interjornada a partir de encontrarFimJornadaAnterior, em vez do
- * agregado jornadaRelatorioFim (ver a correção de interjornada).
- *
- * `data` precisa ser o valor bruto de uma coluna `@db.Date` (meia-noite UTC
- * do dia calendário, sem hora) — como registrarJornadaNoDia sempre grava —
- * porque esse mock passa por mapearRegistrosJornada dentro do service, que
- * aplica colunaDateParaLocal esperando exatamente esse formato. Usar `fim`
- * puro (com hora) aqui já causou um teste flaky: nas últimas 3h do dia em
- * Brasília, o dia em UTC já virou amanhã, e colunaDateParaLocal lia o
- * registro como sendo do dia seguinte, distorcendo a jornada projetada.
- */
-function comFimJornadaAnterior(fim: Date) {
-  return [{ data: dataParaColunaDate(inicioDoDia(fim)), codigo: 1, fimJornada: fim }]
-}
-
 describe("viagem.service", () => {
   beforeEach(() => {
     vi.clearAllMocks()
     usarTransacaoCom(criarTx())
-    // Sem dado de jornada por padrão — calcularAvisoInterjornada retorna null.
-    vi.mocked(prisma.registroJornada.findFirst).mockResolvedValue(null)
     // Sem conflito de frota por padrão — testado à parte em frota.service.test.ts.
     vi.mocked(calcularAvisoFrotaIndisponivel).mockResolvedValue(null)
     vi.mocked(calcularAvisoFrotaProduto).mockResolvedValue(null)
@@ -174,25 +155,22 @@ describe("viagem.service", () => {
       expect(reconciliarFolgaMotoristasNoDiaAtual).toHaveBeenCalledWith(tx, [1], expect.anything())
     })
 
-    it("grava avisoInterjornada quando o motorista sugerido teve descanso insuficiente", async () => {
-      const agora = new Date()
-      const fimJornadaRecente = new Date(agora.getTime() - 2 * 60 * 60 * 1000) // só 2h de descanso
-
-      vi.mocked(buscarMotoristasParaSelect).mockResolvedValue([
-        criarMotoristaParaSelect({ registrosJornada: comFimJornadaAnterior(fimJornadaRecente) }),
-      ] as never)
+    it("recalcula o aviso de descanso do motorista sugerido dentro da mesma transação da criação", async () => {
+      vi.mocked(buscarMotoristasParaSelect).mockResolvedValue([criarMotoristaParaSelect()] as never)
 
       const tx = criarTx()
       vi.mocked(tx.viagem.create).mockResolvedValue({ id: 102, motoristaId: 1 })
       usarTransacaoCom(tx)
 
-      await criarViagemAvulsaService(FILIAL_ID, criarViagemInput({ inicioPrevisto: agora.toISOString() }), ATOR)
+      await criarViagemAvulsaService(FILIAL_ID, criarViagemInput(), ATOR)
 
+      // O aviso não é mais calculado à parte na criação — sai do recálculo único.
       const dadosCriados = vi.mocked(tx.viagem.create).mock.calls[0][0].data
-      expect(dadosCriados.avisoInterjornada).toContain("Interjornada")
+      expect(dadosCriados).not.toHaveProperty("avisoInterjornada")
+      expect(recalcularAvisosInterjornada).toHaveBeenCalledWith(tx, FILIAL_ID, [1])
     })
 
-    it("não grava avisoInterjornada quando o motorista não tem jornada de relatório importada", async () => {
+    it("não grava finalizadoEm numa viagem criada em aberto", async () => {
       vi.mocked(buscarMotoristasParaSelect).mockResolvedValue([criarMotoristaParaSelect()] as never)
 
       const tx = criarTx()
@@ -202,7 +180,7 @@ describe("viagem.service", () => {
       await criarViagemAvulsaService(FILIAL_ID, criarViagemInput(), ATOR)
 
       const dadosCriados = vi.mocked(tx.viagem.create).mock.calls[0][0].data
-      expect(dadosCriados.avisoInterjornada).toBeNull()
+      expect(dadosCriados.finalizadoEm).toBeUndefined()
     })
 
     it("cria sem motorista (status CRIADA) quando ninguém é compatível", async () => {
@@ -328,40 +306,26 @@ describe("viagem.service", () => {
       expect(dadosCriados.status).toBe("ALOCADA")
     })
 
-    it("busca o fim da jornada anterior pelo id do motorista e grava avisoInterjornada quando o descanso dele é insuficiente", async () => {
-      const agora = new Date()
-      const fimJornadaRecente = new Date(agora.getTime() - 3 * 60 * 60 * 1000)
-      vi.mocked(prisma.registroJornada.findFirst).mockResolvedValue({ fimJornada: fimJornadaRecente } as never)
-
+    it("recalcula o aviso de descanso do motorista escolhido dentro da transação", async () => {
       const tx = criarTx()
       vi.mocked(tx.viagem.create).mockResolvedValue({ id: 104, motoristaId: 7 })
       usarTransacaoCom(tx)
 
-      await criarViagemComAlocacaoService(FILIAL_ID, criarViagemInput({ inicioPrevisto: agora.toISOString() }), 7, ATOR)
+      await criarViagemComAlocacaoService(FILIAL_ID, criarViagemInput(), 7, ATOR)
 
-      expect(prisma.registroJornada.findFirst).toHaveBeenCalledWith({
-        where: {
-          motoristaId: 7,
-          motorista: { filialId: FILIAL_ID },
-          fimJornada: { not: null, lt: expect.any(Date) },
-        },
-        orderBy: { fimJornada: "desc" },
-        select: { fimJornada: true },
-      })
-      const dadosCriados = vi.mocked(tx.viagem.create).mock.calls[0][0].data
-      expect(dadosCriados.avisoInterjornada).toContain("Interjornada")
+      expect(recalcularAvisosInterjornada).toHaveBeenCalledWith(tx, FILIAL_ID, [7])
     })
 
-    it("não consulta jornada nem gera aviso quando a viagem é criada sem motorista", async () => {
+    it("criada sem motorista, não grava aviso de descanso", async () => {
       const tx = criarTx()
       vi.mocked(tx.viagem.create).mockResolvedValue({ id: 105, motoristaId: null })
       usarTransacaoCom(tx)
 
       await criarViagemComAlocacaoService(FILIAL_ID, criarViagemInput(), null, ATOR)
 
-      expect(prisma.registroJornada.findFirst).not.toHaveBeenCalled()
       const dadosCriados = vi.mocked(tx.viagem.create).mock.calls[0][0].data
-      expect(dadosCriados.avisoInterjornada).toBeNull()
+      expect(dadosCriados).not.toHaveProperty("avisoInterjornada")
+      expect(recalcularAvisosInterjornada).toHaveBeenCalledWith(tx, FILIAL_ID, [null])
     })
 
     it("recusa alocar manualmente (ex: revisão do lote importado) um motorista que não está autorizado pro produto da viagem", async () => {
@@ -494,55 +458,61 @@ describe("viagem.service", () => {
       expect(dados.status).toBe("POSTERGADA")
     })
 
-    it("recalcula avisoInterjornada com base no novo motorista quando motoristaId muda", async () => {
-      vi.mocked(prisma.viagem.findUnique).mockResolvedValue({ status: "CRIADA", motoristaId: null } as never)
-      const agora = new Date()
-      const fimJornadaRecente = new Date(agora.getTime() - 4 * 60 * 60 * 1000)
-      vi.mocked(prisma.registroJornada.findFirst).mockResolvedValue({ fimJornada: fimJornadaRecente } as never)
+    it("recalcula o aviso de descanso do motorista antigo e do novo quando motoristaId muda", async () => {
+      vi.mocked(prisma.viagem.findUnique).mockResolvedValue({ status: "ALOCADA", motoristaId: 4 } as never)
 
       const tx = criarTx()
       vi.mocked(tx.viagem.update).mockResolvedValue({ id: 1, motoristaId: 5 })
       usarTransacaoCom(tx)
 
-      await editarViagemService(FILIAL_ID, 1, criarEdicaoInput({ motoristaId: 5, inicioPrevisto: agora.toISOString() }), ATOR)
+      await editarViagemService(FILIAL_ID, 1, criarEdicaoInput({ motoristaId: 5 }), ATOR)
 
-      expect(prisma.registroJornada.findFirst).toHaveBeenCalledWith({
-        where: {
-          motoristaId: 5,
-          motorista: { filialId: FILIAL_ID },
-          fimJornada: { not: null, lt: expect.any(Date) },
-        },
-        orderBy: { fimJornada: "desc" },
-        select: { fimJornada: true },
-      })
-      const dados = vi.mocked(tx.viagem.update).mock.calls[0][0].data
-      expect(dados.avisoInterjornada).toContain("Interjornada")
+      const [txUsada, filial, motoristas] = vi.mocked(recalcularAvisosInterjornada).mock.calls[0]
+      expect(txUsada).toBe(tx)
+      expect(filial).toBe(FILIAL_ID)
+      // O antigo pode ter ficado livre (próxima viagem dele perde o aviso); o novo ganhou essa viagem.
+      expect(motoristas).toEqual(expect.arrayContaining([4, 5]))
     })
 
     it("mantém o motorista atual (e recalcula o aviso pra ele) quando motoristaId não é enviado na edição", async () => {
-      const agora = new Date()
-      const fimJornadaRecente = new Date(agora.getTime() - 1 * 60 * 60 * 1000)
       vi.mocked(prisma.viagem.findUnique).mockResolvedValue({ status: "ALOCADA", motoristaId: 9 } as never)
-      vi.mocked(prisma.registroJornada.findFirst).mockResolvedValue({ fimJornada: fimJornadaRecente } as never)
 
       const tx = criarTx()
       vi.mocked(tx.viagem.update).mockResolvedValue({ id: 1, motoristaId: 9 })
       usarTransacaoCom(tx)
 
       // motoristaId de propósito ausente do payload — dados.motoristaId fica undefined, não trocando o motorista.
-      await editarViagemService(FILIAL_ID, 1, criarEdicaoInput({ inicioPrevisto: agora.toISOString() }), ATOR)
+      await editarViagemService(FILIAL_ID, 1, criarEdicaoInput(), ATOR)
 
-      expect(prisma.registroJornada.findFirst).toHaveBeenCalledWith({
-        where: {
-          motoristaId: 9,
-          motorista: { filialId: FILIAL_ID },
-          fimJornada: { not: null, lt: expect.any(Date) },
-        },
-        orderBy: { fimJornada: "desc" },
-        select: { fimJornada: true },
-      })
       const dados = vi.mocked(tx.viagem.update).mock.calls[0][0].data
-      expect(dados.avisoInterjornada).toContain("Interjornada")
+      expect(dados).not.toHaveProperty("avisoInterjornada")
+      expect(vi.mocked(recalcularAvisosInterjornada).mock.calls[0][2]).toContain(9)
+    })
+
+    it("desalocar na edição (motoristaId null) limpa o aviso de descanso da viagem", async () => {
+      vi.mocked(prisma.viagem.findUnique).mockResolvedValue({ status: "ALOCADA", motoristaId: 9 } as never)
+
+      const tx = criarTx()
+      vi.mocked(tx.viagem.update).mockResolvedValue({ id: 1, motoristaId: null })
+      usarTransacaoCom(tx)
+
+      await editarViagemService(FILIAL_ID, 1, criarEdicaoInput({ motoristaId: null }), ATOR)
+
+      const dados = vi.mocked(tx.viagem.update).mock.calls[0][0].data
+      expect(dados.avisoInterjornada).toBeNull()
+    })
+
+    it("finalizar pela edição grava finalizadoEm", async () => {
+      vi.mocked(prisma.viagem.findUnique).mockResolvedValue({ status: "INICIADA", motoristaId: 9 } as never)
+
+      const tx = criarTx()
+      vi.mocked(tx.viagem.update).mockResolvedValue({ id: 1, motoristaId: 9 })
+      usarTransacaoCom(tx)
+
+      await editarViagemService(FILIAL_ID, 1, criarEdicaoInput({ status: "FINALIZADA" }), ATOR)
+
+      const dados = vi.mocked(tx.viagem.update).mock.calls[0][0].data
+      expect(dados.finalizadoEm).toBeInstanceOf(Date)
     })
 
     it("verifica disponibilidade de frota e sincroniza o cadastro pra dupla atual", async () => {
@@ -621,6 +591,8 @@ describe("viagem.service", () => {
       const dados = vi.mocked(tx.viagem.update).mock.calls[0][0].data
       expect(dados.deletadoEm).toBeInstanceOf(Date)
       expect(reconciliarFolgaMotoristasNoDiaAtual).toHaveBeenCalledWith(tx, [7, null], expect.anything())
+      // Sem essa viagem na agenda, a próxima do motorista pode perder o aviso de descanso.
+      expect(recalcularAvisosInterjornada).toHaveBeenCalledWith(tx, FILIAL_ID, [7, null])
     })
 
     it("sincroniza a disponibilidade da frota — excluir a viagem pode liberar o conjunto", async () => {
@@ -706,7 +678,44 @@ describe("viagem.service", () => {
       expect(dados.canceladoEm).toBeUndefined()
     })
 
-    it("postergar (com novaData) recalcula avisoInterjornada/avisoFrotaIndisponivel/avisoFrotaProdutoIncompativel pra nova data — não deixa os avisos antigos 'presos'", async () => {
+    it("finalizar grava finalizadoEm e recalcula o aviso de descanso do motorista e do acompanhante — libera a próxima viagem deles", async () => {
+      vi.mocked(prisma.viagem.findUnique).mockResolvedValue({ status: "INICIADA", cavalo: "2064", carreta: "908", produto: "CO2", motoristaId: 3 } as never)
+      const tx = criarTx()
+      vi.mocked(tx.viagem.update).mockResolvedValue({ id: 1, motoristaId: 3, motoristaAcompanhanteId: 8 })
+      usarTransacaoCom(tx)
+
+      await atualizarStatusViagemService(FILIAL_ID, 1, "FINALIZADA", ATOR)
+
+      const dados = vi.mocked(tx.viagem.update).mock.calls[0][0].data
+      expect(dados.finalizadoEm).toBeInstanceOf(Date)
+      expect(recalcularAvisosInterjornada).toHaveBeenCalledWith(tx, FILIAL_ID, [3, 8])
+    })
+
+    it("não renova finalizadoEm quando a viagem já estava FINALIZADA", async () => {
+      vi.mocked(prisma.viagem.findUnique).mockResolvedValue({ status: "FINALIZADA", cavalo: "2064", carreta: "908", produto: "CO2", motoristaId: 3 } as never)
+      const tx = criarTx()
+      vi.mocked(tx.viagem.update).mockResolvedValue({ id: 1, motoristaId: 3, motoristaAcompanhanteId: null })
+      usarTransacaoCom(tx)
+
+      await atualizarStatusViagemService(FILIAL_ID, 1, "FINALIZADA", ATOR)
+
+      const dados = vi.mocked(tx.viagem.update).mock.calls[0][0].data
+      expect(dados.finalizadoEm).toBeUndefined()
+    })
+
+    it("reabrir uma viagem finalizada limpa finalizadoEm — a finalização antiga deixa de liberar o motorista", async () => {
+      vi.mocked(prisma.viagem.findUnique).mockResolvedValue({ status: "FINALIZADA", cavalo: "2064", carreta: "908", produto: "CO2", motoristaId: 3 } as never)
+      const tx = criarTx()
+      vi.mocked(tx.viagem.update).mockResolvedValue({ id: 1, motoristaId: 3, motoristaAcompanhanteId: null })
+      usarTransacaoCom(tx)
+
+      await atualizarStatusViagemService(FILIAL_ID, 1, "RETORNANDO", ATOR)
+
+      const dados = vi.mocked(tx.viagem.update).mock.calls[0][0].data
+      expect(dados.finalizadoEm).toBeNull()
+    })
+
+    it("postergar (com novaData) recalcula avisoFrotaIndisponivel/avisoFrotaProdutoIncompativel pra nova data — não deixa os avisos antigos 'presos'", async () => {
       vi.mocked(prisma.viagem.findUnique).mockResolvedValue({ status: "ALOCADA", cavalo: "2064", carreta: "908", produto: "CO2", motoristaId: 3 } as never)
       vi.mocked(calcularAvisoFrotaIndisponivel).mockResolvedValue("Frota 2064/908 só estará disponível a partir de 22/07/2026, 12:00.")
       vi.mocked(calcularAvisoFrotaProduto).mockResolvedValue("Frota 2064/908 está cadastrada para Nitrogênio, não CO2.")
@@ -725,7 +734,7 @@ describe("viagem.service", () => {
       expect(dados.avisoFrotaProdutoIncompativel).toBe("Frota 2064/908 está cadastrada para Nitrogênio, não CO2.")
     })
 
-    it("sem novaData (cancelar/finalizar/iniciar), não recalcula os avisos — mantém o que já estava gravado", async () => {
+    it("sem novaData (cancelar/finalizar/iniciar), não recalcula os avisos de frota — mantém o que já estava gravado", async () => {
       vi.mocked(prisma.viagem.findUnique).mockResolvedValue({ status: "ALOCADA", cavalo: "2064", carreta: "908", produto: "CO2", motoristaId: 3 } as never)
       const tx = criarTx()
       vi.mocked(tx.viagem.update).mockResolvedValue({ id: 1, motoristaId: 3, motoristaAcompanhanteId: null, cavalo: "2064", carreta: "908" })
@@ -800,6 +809,25 @@ describe("viagem.service", () => {
       await atualizarAlocacaoViagemService(FILIAL_ID, 1, { motoristaId: null, motoristaAcompanhanteId: null }, ATOR)
 
       expect(prisma.motorista.findUnique).not.toHaveBeenCalled()
+    })
+
+    it("desalocar limpa o aviso de descanso da viagem e recalcula o do motorista que saiu", async () => {
+      vi.mocked(prisma.viagem.findUnique).mockResolvedValue({
+        status: "ALOCADA",
+        motoristaId: 5,
+        motoristaAcompanhanteId: null,
+        inicioPrevisto: new Date(),
+        produto: "CO2",
+      } as never)
+      const tx = criarTx()
+      vi.mocked(tx.viagem.update).mockResolvedValue({ id: 1, motoristaId: null, motoristaAcompanhanteId: null })
+      usarTransacaoCom(tx)
+
+      await atualizarAlocacaoViagemService(FILIAL_ID, 1, { motoristaId: null, motoristaAcompanhanteId: null }, ATOR)
+
+      const dados = vi.mocked(tx.viagem.update).mock.calls[0][0].data
+      expect(dados.avisoInterjornada).toBeNull()
+      expect(vi.mocked(recalcularAvisosInterjornada).mock.calls[0][2]).toContain(5)
     })
   })
 

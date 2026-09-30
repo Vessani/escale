@@ -25,14 +25,15 @@ import {
 import { buscarMotoristasParaSelect } from "@/lib/queries/motoristas";
 import { buscarNumerosSapQueExigemIntegracao } from "@/lib/queries/clientes";
 import {
-  calcularAvisoInterjornada,
+  calcularAvisoDescanso,
   calcularDiasDisponiveis,
   calcularIntegracaoExigida,
   calcularProximoInicioDisponivel,
+  encontrarFimTrabalhoAnterior,
   sugerirAlocacoesEmLote,
 } from "@/lib/services/alocacao.service";
 import { calcularAvisoFrotaIndisponivel, calcularAvisoFrotaProduto } from "@/lib/services/frota.service";
-import { encontrarFimJornadaAnterior, mapearRegistrosJornada, projetarCodigoNoDia } from "@/lib/services/jornada.service";
+import { mapearRegistrosJornada, projetarCodigoNoDia } from "@/lib/services/jornada.service";
 import { converterEntradaDeDataHora, formatarHoraLocal, inicioDoDia } from "@/lib/utils/date-format";
 
 export async function criarViagemAvulsa(dados: NovaViagemInput): Promise<RespostaAcao> {
@@ -110,15 +111,10 @@ export async function sugerirAlocacaoParaViagens(
       motoristaSugerido: sugestao.motoristaSugerido
         ? { id: sugestao.motoristaSugerido.id, nome: sugestao.motoristaSugerido.nome }
         : null,
-      // Fim real da jornada anterior à viagem, achado em memória a partir do
-      // histórico já carregado (não o agregado jornadaRelatorioFim, que só
-      // guarda o turno mais recente do último lote importado, sem relação
-      // com esta viagem — ver encontrarFimJornadaAnterior).
+      // Mesma regra do aviso gravado na viagem (relatório + viagens, finalizada
+      // contando da finalização, 11h/35h) — ver calcularAvisoDescanso.
       avisoInterjornada: sugestao.motoristaSugerido
-        ? calcularAvisoInterjornada(
-            encontrarFimJornadaAnterior(sugestao.motoristaSugerido.registrosJornada, dataInicioViagem),
-            dataInicioViagem,
-          )
+        ? calcularAvisoDescanso(sugestao.motoristaSugerido, { inicioPrevisto: dataInicioViagem }, hoje)
         : null,
       avisoFrotaIndisponivel,
       avisoFrotaProdutoIncompativel,
@@ -133,7 +129,7 @@ export async function sugerirAlocacaoParaViagens(
         );
 
         const proximoInicioDisponivel = calcularProximoInicioDisponivel(
-          encontrarFimJornadaAnterior(motorista.registrosJornada, dataInicioViagem),
+          encontrarFimTrabalhoAnterior(motorista, dataInicioViagem),
           motorista.diasTrabalhados,
         )
 

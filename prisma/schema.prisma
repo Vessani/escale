@@ -137,6 +137,9 @@
     // Gravado só na transição pra CANCELADA (ver atualizarStatusViagemService) — usado
     // pra decidir até quando ela some do dashboard (visível no dia do cancelamento).
     canceladoEm       DateTime?    @db.Timestamp(6)
+    // Gravado só na transição pra FINALIZADA — libera o motorista a partir daí
+    // (o descanso de 11h/35h conta desde aqui, ver fimEfetivoViagem).
+    finalizadoEm      DateTime?    @db.Timestamp(6)
 
     motoristaId       Int?
     motorista         Motorista?   @relation("MotoristaPrincipal", fields: [motoristaId], references: [id])

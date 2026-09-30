@@ -34,6 +34,8 @@ export type ViagemParaDisponibilidade = {
   fimPrevisto: Date | string
   status: StatusViagem
   deletadoEm?: Date | string | null
+  /** Instante em que virou FINALIZADA — ver fimEfetivoViagem. Opcional pra não obrigar quem monta agenda à mão (testes, lote) a informá-lo. */
+  finalizadoEm?: Date | string | null
 }
 
 export type MotoristaComAgenda = MotoristaParaAlocacao & {

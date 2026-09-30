@@ -2,6 +2,7 @@ import { prisma } from "@/lib/prisma"
 import type { RegistroJornadaRelatorio } from "@/lib/parsers/jornada-relatorio-parser"
 import { MAX_DIAS_CONSECUTIVOS } from "./alocacao.service"
 import { registrarJornadaNoDia } from "./motorista.service"
+import { recalcularAvisosInterjornada } from "./interjornada.service"
 
 export type ResultadoImportacaoJornada = {
   atualizados: number
@@ -146,6 +147,10 @@ export async function atualizarJornadaRelatorioDosMotoristas(
           })
         }
       }
+
+      // O fim de jornada real acabou de mudar — o aviso de descanso das
+      // próximas viagens dele pode ter aparecido ou sumido.
+      await recalcularAvisosInterjornada(tx, filialId, [motorista.id])
     })
   }
 
