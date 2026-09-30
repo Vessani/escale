@@ -4,6 +4,7 @@ const DIAS_NO_CICLO_JORNADA = 7
 
 /** Duração padrão de cada código especial com prazo — ver calcularCodigoJornadaNoDia. */
 const DIAS_EXAMES = 1
+const DIAS_INTERNO = 1
 const DIAS_FERIAS = 30
 
 export type StatusJornada = {
@@ -18,17 +19,22 @@ export function diferencaEmDias(dataA: Date, dataB: Date) {
 
 /**
  * Código de jornada projetado pra um dia a partir de um código conhecido
- * (`codigoAtual`) numa data âncora (`hoje`). Férias (8) e Exames (9) têm
- * prazo — 30 e 1 dia respectivamente — e depois disso o motorista retoma o
- * ciclo normal de trabalho a partir do código 1, contando desde o fim do
- * prazo; sem isso, marcar alguém como Férias ou Exame preenchia o calendário
- * inteiro dali em diante com o mesmo código pra sempre. Interno (10) e
- * Manutenção (11) continuam sem prazo — precisam ser encerrados manualmente.
+ * (`codigoAtual`) numa data âncora (`hoje`). Férias (8), Exames (9) e
+ * Interno (10) têm prazo — 30, 1 e 1 dia respectivamente — e depois disso o
+ * motorista retoma o ciclo normal de trabalho a partir do código 1, contando
+ * desde o fim do prazo; sem isso, marcar alguém como Férias, Exame ou Interno
+ * preenchia o calendário inteiro dali em diante com o mesmo código pra
+ * sempre. Só Manutenção (11) continua sem prazo — precisa ser encerrada
+ * manualmente.
  */
 export function calcularCodigoJornadaNoDia(codigoAtual: number, dia: Date, hoje: Date) {
   const deslocamento = diferencaEmDias(dia, hoje)
 
-  const duracao = codigoAtual === 9 ? DIAS_EXAMES : codigoAtual === 8 ? DIAS_FERIAS : null
+  const duracao =
+    codigoAtual === 9 ? DIAS_EXAMES
+    : codigoAtual === 10 ? DIAS_INTERNO
+    : codigoAtual === 8 ? DIAS_FERIAS
+    : null
   if (duracao !== null) {
     if (deslocamento < duracao) {
       return codigoAtual
@@ -39,7 +45,7 @@ export function calcularCodigoJornadaNoDia(codigoAtual: number, dia: Date, hoje:
     return rotacao + 1
   }
 
-  if (codigoAtual === 10 || codigoAtual === 11) {
+  if (codigoAtual === 11) {
     return codigoAtual
   }
 

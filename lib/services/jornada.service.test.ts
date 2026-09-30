@@ -142,10 +142,16 @@ describe("jornada.service", () => {
       expect(calcularCodigoJornadaNoDia(4, seteDiasDepois, hoje)).toBe(4)
     })
 
-    it("não rotaciona os códigos especiais 10 (Interno) e 11 (Manutenção) — sem prazo, precisam ser encerrados manualmente", () => {
+    it("não rotaciona o código especial 11 (Manutenção) — sem prazo, precisa ser encerrado manualmente", () => {
       const bemDepois = new Date("2026-08-01T10:00:00")
-      expect(calcularCodigoJornadaNoDia(10, bemDepois, hoje)).toBe(10)
       expect(calcularCodigoJornadaNoDia(11, bemDepois, hoje)).toBe(11)
+    })
+
+    it("Interno (10) dura só 1 dia, como Exames — no dia seguinte já retoma o ciclo normal a partir do código 1", () => {
+      expect(calcularCodigoJornadaNoDia(10, hoje, hoje)).toBe(10)
+      expect(calcularCodigoJornadaNoDia(10, new Date("2026-07-09T10:00:00"), hoje)).toBe(1)
+      expect(calcularCodigoJornadaNoDia(10, new Date("2026-07-10T10:00:00"), hoje)).toBe(2)
+      expect(calcularCodigoJornadaNoDia(10, new Date("2026-08-01T10:00:00"), hoje)).not.toBe(10)
     })
 
     it("Exames (9) dura só 1 dia — no dia seguinte já retoma o ciclo normal a partir do código 1", () => {
