@@ -1,6 +1,5 @@
 import Link from "next/link"
-import { getServerSession } from "next-auth"
-import { authOptions } from "@/lib/auth"
+import { requireSessaoPaginaComFilial } from "@/lib/auth-guard"
 import { Button } from "@/components/ui/button"
 import { EmptyState } from "@/components/ui/empty-state"
 import { Input } from "@/components/ui/input"
@@ -265,8 +264,7 @@ export default async function DashboardPage({
   const dataTextoInput = parametros.data ?? dataLocalParaInput(new Date())
   const vendoOutroDia = Boolean(parametros.data)
 
-  const session = await getServerSession(authOptions)
-  const filialId = session!.user.filialId!
+  const { filialId } = await requireSessaoPaginaComFilial()
   const [itens, quadroObservacoes] = await Promise.all([
     buscarDadosDashboard(filialId, dataSelecionada, filtroStatus),
     buscarQuadroObservacoes(filialId),

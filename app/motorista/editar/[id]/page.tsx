@@ -1,6 +1,5 @@
 import { notFound } from "next/navigation"
-import { getServerSession } from "next-auth"
-import { authOptions } from "@/lib/auth"
+import { requireSessaoPaginaComFilial } from "@/lib/auth-guard"
 import { buscarMotoristaPorId } from "@/lib/queries/motoristas"
 import { buscarClientes } from "@/lib/queries/clientes"
 import { buscarHistoricoDaEntidade } from "@/lib/queries/auditoria"
@@ -18,8 +17,7 @@ export default async function EditarMotoristaPage({ params }: { params: Promise<
     notFound()
   }
 
-  const session = await getServerSession(authOptions)
-  const filialId = session!.user.filialId!
+  const { filialId } = await requireSessaoPaginaComFilial()
 
   const [motorista, clientes, historico] = await Promise.all([
     buscarMotoristaPorId(filialId, motoristaId),

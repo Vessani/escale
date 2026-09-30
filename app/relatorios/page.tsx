@@ -1,5 +1,4 @@
-import { getServerSession } from "next-auth"
-import { authOptions } from "@/lib/auth"
+import { requireSessaoPaginaComFilial } from "@/lib/auth-guard"
 import { buscarMotoristasParaSelect } from "@/lib/queries/motoristas"
 import { buscarIndicadoresDashboard } from "@/lib/queries/dashboard"
 import { inicioDoDia, fimDoDia, parseDataLocal } from "@/lib/utils/date-format"
@@ -38,8 +37,7 @@ export default async function RelatoriosPage({
   const de = inicioDoDia(parseDataLocal(deTexto))
   const ate = fimDoDia(parseDataLocal(ateTexto))
 
-  const session = await getServerSession(authOptions)
-  const filialId = session!.user.filialId!
+  const { filialId } = await requireSessaoPaginaComFilial()
   const [motoristas, indicadores] = await Promise.all([
     buscarMotoristasParaSelect(filialId),
     buscarIndicadoresDashboard(filialId, de, ate),

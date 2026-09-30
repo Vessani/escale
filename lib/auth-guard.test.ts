@@ -1,9 +1,22 @@
 import { describe, expect, it, vi, beforeEach } from "vitest"
 import { getServerSession } from "next-auth"
-import { requireSession, requireSessionComFilial } from "@/lib/auth-guard"
+import { redirect } from "next/navigation"
+import {
+  requireSession,
+  requireSessionComFilial,
+  requireSessaoPagina,
+  requireSessaoPaginaComFilial,
+} from "@/lib/auth-guard"
 
 vi.mock("next-auth", () => ({
   getServerSession: vi.fn(),
+}))
+
+// redirect() do Next lança pra interromper a renderização — o mock imita isso.
+vi.mock("next/navigation", () => ({
+  redirect: vi.fn((destino: string) => {
+    throw new Error(`REDIRECT:${destino}`)
+  }),
 }))
 
 vi.mock("@/lib/auth", () => ({
@@ -63,5 +76,44 @@ describe("auth-guard", () => {
 
       await expect(requireSessionComFilial(["ADMIN"])).rejects.toThrow("Não autorizado.")
     })
+  })
+})
+
+describe("requireSessaoPagina / requireSessaoPaginaComFilial", () => {
+  beforeEach(() => {
+    vi.mocked(getServerSession).mockReset()
+    vi.mocked(redirect).mockClear()
+  })
+
+  it("manda pro login quando não há sessão", async () => {
+    vi.mocked(getServerSession).mockResolvedValue(null)
+
+    await expect(requireSessaoPagina()).rejects.toThrow("REDIRECT:/login")
+  })
+
+  it("manda pra home quando o papel não é permitido", async () => {
+    vi.mocked(getServerSession).mockResolvedValue({ user: { role: "DESPACHANTE" } } as never)
+
+    await expect(requireSessaoPagina(["SUPERADMIN"])).rejects.toThrow("REDIRECT:/")
+  })
+
+  it("retorna a sessão quando o papel é permitido", async () => {
+    const sessao = { user: { role: "SUPERADMIN", filialId: null } }
+    vi.mocked(getServerSession).mockResolvedValue(sessao as never)
+
+    await expect(requireSessaoPagina(["SUPERADMIN"])).resolves.toEqual(sessao)
+  })
+
+  it("manda SUPERADMIN (sem filial) pra área administrativa nas telas operacionais", async () => {
+    vi.mocked(getServerSession).mockResolvedValue({ user: { role: "SUPERADMIN", filialId: null } } as never)
+
+    await expect(requireSessaoPaginaComFilial()).rejects.toThrow("REDIRECT:/admin/filiais")
+  })
+
+  it("devolve sessão e filialId quando há filial", async () => {
+    const sessao = { user: { role: "DESPACHANTE", filialId: 3 } }
+    vi.mocked(getServerSession).mockResolvedValue(sessao as never)
+
+    await expect(requireSessaoPaginaComFilial()).resolves.toEqual({ session: sessao, filialId: 3 })
   })
 })

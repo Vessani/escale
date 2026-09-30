@@ -1,5 +1,4 @@
-import { getServerSession } from "next-auth"
-import { authOptions } from "@/lib/auth"
+import { requireSessaoPaginaComFilial } from "@/lib/auth-guard"
 import { buscarViagemPorId } from "@/lib/queries/viagens"
 import { buscarMotoristasParaSelect } from "@/lib/queries/motoristas"
 import { buscarNumerosSapQueExigemIntegracao } from "@/lib/queries/clientes"
@@ -21,8 +20,7 @@ export default async function EditarViagemPage({ params }: { params: Promise<{ i
     notFound()
   }
 
-  const session = await getServerSession(authOptions)
-  const filialId = session!.user.filialId!
+  const { filialId } = await requireSessaoPaginaComFilial()
 
   const viagem = await buscarViagemPorId(filialId, viagemId)
 

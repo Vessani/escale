@@ -1,7 +1,6 @@
-import { getServerSession } from "next-auth"
 import { UserX } from "lucide-react"
 import { EmptyState } from "@/components/ui/empty-state"
-import { authOptions } from "@/lib/auth"
+import { requireSessaoPaginaComFilial } from "@/lib/auth-guard"
 import { buscarMotoristasSemViagemHoje, contarMotoristasAtivos } from "@/lib/queries/motoristas"
 import { mapearRegistrosJornada, projetarCodigoNoDia } from "@/lib/services/jornada.service"
 import { determinarAcaoSugerida } from "@/lib/services/motoristas-ociosos.service"
@@ -9,8 +8,7 @@ import { formatarDataDia } from "../calendario-utils"
 import SemViagemClient from "./sem-viagem-client"
 
 export default async function MotoristasSemViagemPage() {
-  const session = await getServerSession(authOptions)
-  const filialId = session!.user.filialId!
+  const { filialId } = await requireSessaoPaginaComFilial()
   const hoje = new Date()
 
   const [motoristas, totalMotoristas] = await Promise.all([

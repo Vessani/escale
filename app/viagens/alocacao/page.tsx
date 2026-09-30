@@ -1,6 +1,5 @@
 import Link from "next/link"
-import { getServerSession } from "next-auth"
-import { authOptions } from "@/lib/auth"
+import { requireSessaoPaginaComFilial } from "@/lib/auth-guard"
 import { buscarMotoristas } from "@/lib/queries/motoristas"
 import { buscarViagensSemMotorista } from "@/lib/queries/viagens"
 import { buscarNumerosSapQueExigemIntegracao } from "@/lib/queries/clientes"
@@ -127,8 +126,7 @@ function serializarViagens(
 }
 
 export default async function PaginaAlocacaoViagens() {
-  const session = await getServerSession(authOptions)
-  const filialId = session!.user.filialId!
+  const { filialId } = await requireSessaoPaginaComFilial()
   const [viagensBrutas, motoristasBrutos, numerosSapQueExigemIntegracao] = await Promise.all([
     buscarViagensSemMotorista(filialId),
     buscarMotoristas(filialId),

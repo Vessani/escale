@@ -1,3 +1,4 @@
+import { requireSessaoPaginaComFilial } from "@/lib/auth-guard"
 import { notFound } from "next/navigation"
 import { buscarClientePorId } from "@/lib/queries/clientes"
 import { buscarHistoricoDaEntidade } from "@/lib/queries/auditoria"
@@ -6,6 +7,7 @@ import { HistoricoCard } from "@/components/auditoria/historico-card"
 import { serializeData } from "@/lib/serialization"
 
 export default async function EditarClientePage({ params }: { params: Promise<{ id: string }> }) {
+  await requireSessaoPaginaComFilial(["ADMIN"])
   const { id } = await params
   const clienteId = Number.parseInt(id, 10)
 

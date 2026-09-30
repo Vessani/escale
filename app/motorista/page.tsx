@@ -1,6 +1,5 @@
 import Link from "next/link"
-import { getServerSession } from "next-auth"
-import { authOptions } from "@/lib/auth"
+import { requireSessaoPaginaComFilial } from "@/lib/auth-guard"
 import { Button } from "@/components/ui/button"
 import { EmptyState } from "@/components/ui/empty-state"
 import { ChevronLeft, ChevronRight, PlusCircle, Upload, Users } from "lucide-react"
@@ -35,9 +34,8 @@ export default async function MotoristasPage({
   const janelaSeguinte = new Date(inicioJanela)
   janelaSeguinte.setDate(janelaSeguinte.getDate() + TAMANHO_JANELA_CALENDARIO)
 
-  const session = await getServerSession(authOptions)
-  const filialId = session!.user.filialId!
-  const podeExcluir = session?.user?.role === "ADMIN"
+  const { session, filialId } = await requireSessaoPaginaComFilial()
+  const podeExcluir = session.user.role === "ADMIN"
   const motoristas = await buscarMotoristasComAgenda(filialId, inicioJanela, fimJanela)
   const inicioParam = formatarDataDia(inicioJanela)
   const diasIso = dias.map((dia) => formatarDataDia(dia))

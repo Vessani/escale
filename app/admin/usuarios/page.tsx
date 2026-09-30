@@ -1,3 +1,4 @@
+import { requireSessaoPagina } from "@/lib/auth-guard"
 import { Badge } from "@/components/ui/badge"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { UserCog } from "lucide-react"
@@ -7,6 +8,7 @@ import { buscarFiliais } from "@/lib/queries/filiais"
 import CriarUsuarioForm from "./criar-usuario-form"
 
 export default async function UsuariosPage() {
+  await requireSessaoPagina(["SUPERADMIN"])
   const [usuarios, filiais] = await Promise.all([buscarUsuarios(), buscarFiliais()])
 
   return (

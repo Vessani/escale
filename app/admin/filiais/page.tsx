@@ -1,3 +1,4 @@
+import { requireSessaoPagina } from "@/lib/auth-guard"
 import { Badge } from "@/components/ui/badge"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Building2 } from "lucide-react"
@@ -7,6 +8,7 @@ import { formatarDataHoraPtBr } from "@/lib/utils/date-format"
 import CriarFilialForm from "./criar-filial-form"
 
 export default async function FiliaisPage() {
+  await requireSessaoPagina(["SUPERADMIN"])
   const filiais = await buscarFiliais()
 
   return (

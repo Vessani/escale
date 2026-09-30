@@ -12,7 +12,7 @@
     "postinstall": "prisma generate"
   },
   "dependencies": {
-    "@auth/prisma-adapter": "^2.11.2",
+    "@auth/prisma-adapter": "^2.11.3",
     "@hookform/resolvers": "^5.4.0",
     "@phosphor-icons/react": "^2.1.10",
     "@prisma/adapter-pg": "^7.8.0",
@@ -23,8 +23,8 @@
     "clsx": "^2.1.1",
     "dotenv": "^17.4.2",
     "lucide-react": "^1.21.0",
-    "next": "16.2.9",
-    "next-auth": "^4.24.14",
+    "next": "16.3.7",
+    "next-auth": "^4.24.15",
     "pg": "^8.22.0",
     "radix-ui": "^1.6.0",
     "react": "19.2.4",
@@ -46,7 +46,7 @@
     "@types/react-dom": "^19",
     "cross-env": "^10.1.0",
     "eslint": "^9",
-    "eslint-config-next": "16.2.9",
+    "eslint-config-next": "16.3.7",
     "playwright": "^1.61.1",
     "prisma": "^7.8.0",
     "tailwindcss": "^4",

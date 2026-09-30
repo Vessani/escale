@@ -1,5 +1,4 @@
-import { getServerSession } from "next-auth"
-import { authOptions } from "@/lib/auth"
+import { requireSessaoPaginaComFilial } from "@/lib/auth-guard"
 import { buscarHistoricoDoDia } from "@/lib/queries/auditoria"
 import { inicioDoDia, fimDoDia, parseDataLocal, formatarDataHoraPtBr } from "@/lib/utils/date-format"
 import { serializeData } from "@/lib/serialization"
@@ -56,8 +55,7 @@ export default async function HistoricoPage({
   const de = inicioDoDia(parseDataLocal(deTexto))
   const ate = fimDoDia(parseDataLocal(ateTexto))
 
-  const session = await getServerSession(authOptions)
-  const filialId = session!.user.filialId!
+  const { filialId } = await requireSessaoPaginaComFilial()
 
   const registros = serializeData(await buscarHistoricoDoDia(filialId, de, ate))
 

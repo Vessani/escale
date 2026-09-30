@@ -1,6 +1,5 @@
 import Link from "next/link"
-import { getServerSession } from "next-auth"
-import { authOptions } from "@/lib/auth"
+import { requireSessaoPaginaComFilial } from "@/lib/auth-guard"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
@@ -10,8 +9,9 @@ import { buscarClientes } from "@/lib/queries/clientes"
 import ExcluirClienteButton from "./excluir-cliente-button"
 
 export default async function ClientesPage() {
-  const [clientes, session] = await Promise.all([buscarClientes(), getServerSession(authOptions)])
-  const podeGerenciar = session?.user?.role === "ADMIN"
+  const { session } = await requireSessaoPaginaComFilial()
+  const clientes = await buscarClientes()
+  const podeGerenciar = session.user.role === "ADMIN"
 
   return (
     <div className="space-y-6">

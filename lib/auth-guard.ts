@@ -1,3 +1,4 @@
+import { redirect } from "next/navigation"
 import { getServerSession } from "next-auth"
 import { authOptions } from "@/lib/auth"
 import { NaoAutorizadoError } from "@/lib/errors"
@@ -38,6 +39,41 @@ export async function requireSessionComFilial(rolesPermitidos?: string[]) {
 
   if (session.user.filialId === null) {
     throw new NaoAutorizadoError()
+  }
+
+  return { session, filialId: session.user.filialId }
+}
+
+/**
+ * Versão de requireSession pra Server Components (páginas): em vez de lançar,
+ * redireciona — sem sessão vai pro login, papel não permitido volta pra home.
+ * Defesa em profundidade: o proxy (proxy.ts) já bloqueia a navegação sem
+ * login, mas a página não pode depender só dele (uma falha/desvio do proxy
+ * exporia os dados que a página carrega no servidor).
+ */
+export async function requireSessaoPagina(rolesPermitidos?: string[]) {
+  const session = await getServerSession(authOptions)
+
+  if (!session) {
+    redirect("/login")
+  }
+
+  if (rolesPermitidos && !rolesPermitidos.includes(session.user.role)) {
+    redirect("/")
+  }
+
+  return session
+}
+
+/**
+ * requireSessaoPagina pras telas operacionais: exige filial. SUPERADMIN (sem
+ * filial) é mandado pra área dele, mesmo destino do proxy.
+ */
+export async function requireSessaoPaginaComFilial(rolesPermitidos?: string[]) {
+  const session = await requireSessaoPagina(rolesPermitidos)
+
+  if (session.user.filialId === null) {
+    redirect("/admin/filiais")
   }
 
   return { session, filialId: session.user.filialId }

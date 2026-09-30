@@ -1,6 +1,5 @@
 import Link from "next/link"
-import { getServerSession } from "next-auth"
-import { authOptions } from "@/lib/auth"
+import { requireSessaoPaginaComFilial } from "@/lib/auth-guard"
 import { Button } from "@/components/ui/button"
 import { EmptyState } from "@/components/ui/empty-state"
 import { Badge } from "@/components/ui/badge"
@@ -209,9 +208,8 @@ export default async function ViagensPage({
 }) {
   const parametros = (await searchParams) ?? {}
   const filtroStatus = parseStatusFiltro(parametros.status)
-  const session = await getServerSession(authOptions)
-  const filialId = session!.user.filialId!
-  const podeExcluir = session?.user?.role === "ADMIN"
+  const { session, filialId } = await requireSessaoPaginaComFilial()
+  const podeExcluir = session.user.role === "ADMIN"
   const viagens = await buscarViagens(filialId)
   const viagensFiltradas =
     filtroStatus === "TODOS" ? viagens : viagens.filter((viagem) => viagem.status === filtroStatus)

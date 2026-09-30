@@ -1,6 +1,5 @@
 import { notFound } from "next/navigation"
-import { getServerSession } from "next-auth"
-import { authOptions } from "@/lib/auth"
+import { requireSessaoPaginaComFilial } from "@/lib/auth-guard"
 import { buscarFrotaPorId } from "@/lib/queries/frotas"
 import { buscarHistoricoDaEntidade } from "@/lib/queries/auditoria"
 import FormEditarFrota from "./form-editar"
@@ -15,8 +14,7 @@ export default async function EditarFrotaPage({ params }: { params: Promise<{ id
     notFound()
   }
 
-  const session = await getServerSession(authOptions)
-  const filialId = session!.user.filialId!
+  const { filialId } = await requireSessaoPaginaComFilial()
 
   const [frota, historico] = await Promise.all([
     buscarFrotaPorId(filialId, frotaId),
