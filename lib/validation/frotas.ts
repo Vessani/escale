@@ -1,4 +1,4 @@
-import * as z from "zod"
+import { z } from "./zod"
 import { PRODUTO_VALORES } from "@/lib/services/produto.service"
 
 // Limites espelham lib/prisma/schema.prisma (Frota.cavalo/carreta @db.VarChar(7))

@@ -93,12 +93,19 @@ npm run lint
 2. **Configurar variáveis:**
    - No dashboard Vercel → Settings → Environment Variables
    - Adicionar `DATABASE_URL` e `NEXTAUTH_SECRET`
+   - Se `DATABASE_URL` passa por pooler em modo transação (ex: Supabase,
+     porta 6543), adicionar também `DIRECT_URL` com a conexão direta —
+     é a que as migrations usam
 
 3. **Deploy automático:**
    ```bash
    git push origin main
    # Vercel faz deploy automaticamente
    ```
+   O build (`npm run vercel-build`, ver `scripts/vercel-build.sh`) roda
+   `prisma migrate deploy` antes do `next build` **só no deploy de
+   produção** — previews não migram, pra uma branch não mergeada não alterar
+   o banco de produção. Não precisa mais rodar a migration à mão.
 
 ### **Opção 2: AWS EC2 / Digital Ocean / Linode**
 

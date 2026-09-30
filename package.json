@@ -5,6 +5,7 @@
   "scripts": {
     "dev": "next dev --webpack",
     "build": "next build",
+    "vercel-build": "sh scripts/vercel-build.sh",
     "start": "next start",
     "lint": "eslint",
     "test": "cross-env TZ=UTC vitest run",

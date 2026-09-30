@@ -1,4 +1,4 @@
-import * as z from "zod"
+import { z } from "./zod"
 
 export const clienteSchema = z.object({
   nome: z.string().min(2, "Nome obrigatório").max(100, "Máximo de 100 caracteres"),

@@ -1,10 +1,10 @@
-import * as z from "zod"
+import { z } from "./zod"
 import { STATUS_VIAGEM_VALORES } from "@/lib/services/viagem-status.service"
 import { PRODUTO_VALORES } from "@/lib/services/produto.service"
 
 const turnoSchema = z.enum(["MANHA", "NOITE"])
 const statusViagemSchema = z.enum(STATUS_VIAGEM_VALORES)
-const produtoSchema = z.enum(PRODUTO_VALORES)
+const produtoSchema = z.enum(PRODUTO_VALORES, { error: "Selecione o produto." })
 
 const MENSAGEM_PERIODO_INVALIDO = "A data de término não pode ser antes da data de início."
 

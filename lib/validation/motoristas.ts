@@ -1,4 +1,4 @@
-import * as z from "zod"
+import { z } from "./zod"
 import { somenteDigitosCpf, validarCpf } from "@/lib/utils/cpf"
 import { PRODUTO_VALORES } from "@/lib/services/produto.service"
 

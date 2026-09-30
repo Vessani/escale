@@ -8,7 +8,11 @@ export default defineConfig({
   migrations: {
     path: "prisma/migrations",
   },
+  // Só a CLI (migrate/generate) usa esta URL — o app em runtime conecta por
+  // DATABASE_URL em lib/prisma.ts. DIRECT_URL é pra quando DATABASE_URL
+  // passa por um pooler em modo transação (ex: Supabase na porta 6543), que
+  // não suporta o lock que o `prisma migrate deploy` usa.
   datasource: {
-    url: process.env["DATABASE_URL"],
+    url: process.env["DIRECT_URL"] ?? process.env["DATABASE_URL"],
   },
 });
