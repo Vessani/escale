@@ -4,7 +4,7 @@ import { Truck } from "lucide-react"
 export function LogoEscale({ compacto = false }: { compacto?: boolean }) {
   return (
     <span className="flex items-center gap-2.5">
-      <span className="size-8 shrink-0 rounded-lg bg-primary text-primary-foreground grid place-items-center">
+      <span className="size-8 shrink-0 rounded-lg bg-destaque text-destaque-foreground grid place-items-center">
         <Truck aria-hidden="true" className="size-4" />
       </span>
       {compacto ? <span className="sr-only">Escale</span> : <span className="font-semibold tracking-tight text-lg">Escale</span>}

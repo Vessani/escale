@@ -50,7 +50,7 @@ export default function TrocarSenhaDialog({ colapsado = false }: { colapsado?: b
         <button
           type="button"
           title={colapsado ? "Trocar senha" : undefined}
-          className="mt-2 w-full flex items-center justify-center px-3 py-2 text-sm text-slate-300 bg-slate-800/60 hover:bg-slate-800 rounded-md transition-colors"
+          className="mt-2 w-full flex items-center justify-center px-3 py-2 text-sm text-white/80 bg-white/10 hover:bg-white/15 rounded-md transition-colors"
         >
           <KeyRound aria-hidden="true" className={`w-4 h-4 ${colapsado ? "" : "mr-2"}`} />
           <span className={colapsado ? "sr-only" : ""}>Trocar senha</span>
