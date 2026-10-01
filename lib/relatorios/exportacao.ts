@@ -1,16 +1,15 @@
 import { formatarNomeProprio } from "@/lib/utils/texto"
 import { formatarStatusViagem } from "@/lib/services/viagem-status.service"
 import { buscarRelatorioCircadiano } from "@/lib/queries/circadiano"
-import { buscarFolgasEstouradas } from "@/lib/queries/sem-folga"
+import { buscarEstourosSetimoDia } from "@/lib/queries/estouro-setimo-dia"
 import { carregarDadosJornada } from "@/lib/queries/relatorios/jornada"
 import {
   buscarDadosDisponibilidade,
   buscarIntegracoesParaRelatorio,
   buscarViagensComAviso,
-  buscarViagensNaoConstam,
   buscarViagensPontualidade,
 } from "@/lib/queries/relatorios/operacao"
-import { descansosDescumpridos, jornadasLongas, painelPorMotorista } from "@/lib/services/relatorios/jornada-analise"
+import { estourosDeJornada, painelPorMotorista, quebrasDeIntersticio } from "@/lib/services/relatorios/jornada-analise"
 import {
   TOLERANCIA_SAIDA_MINUTOS,
   analisarPontualidade,
@@ -25,7 +24,7 @@ import { formatarCodigoFrota } from "@/lib/services/frota-regras"
 import type { OcorrenciaCircadiano } from "@/lib/services/circadiano.service"
 import { ROTULO_RESPONSAVEL, ROTULO_SITUACAO, ROTULO_VEICULO, descreverTipo, situacaoManutencao } from "@/lib/services/manutencao-regras"
 import { aba, type AbaPronta, type Coluna } from "@/lib/excel/planilha"
-import { PERIODO_PADRAO, parseDiasIntegracao, parseHorasJornadaLonga } from "./catalogo"
+import { PERIODO_PADRAO, parseDiasIntegracao, parseHorasEstouroJornada } from "./catalogo"
 import { formatarDiaCompleto, formatarDuracao, rotuloTurno } from "./formato"
 import { resolverPeriodo, type Periodo, type PeriodoPadrao } from "./periodo"
 
@@ -112,54 +111,58 @@ export const EXPORTADORES_RELATORIO: Record<string, Exportador> = {
     ]
   }),
 
-  "sem-folga": comPeriodo(PERIODO_PADRAO.semFolga, "dias-sem-folga", async (filialId, periodo) => {
-    const registros = await buscarFolgasEstouradas(filialId, periodo.de, periodo.ate)
-    type Registro = (typeof registros)[number]
+  "estouro-7-dia": comPeriodo(PERIODO_PADRAO.estouroSetimoDia, "estouro-7-dia", async (filialId, periodo) => {
+    const estouros = await buscarEstourosSetimoDia(filialId, periodo.de, periodo.ate)
+    type Estouro = (typeof estouros)[number]
     return [
-      aba<Registro>({
-        nome: "Dias sem folga",
-        titulo: "Dias sem folga · 7º dia seguido ou mais",
-        subtitulo: textoPeriodo(periodo),
+      aba<Estouro>({
+        nome: "Estouro de 7º dia",
+        titulo: "Estouro de 7º dia",
+        subtitulo: `${textoPeriodo(periodo)} · trabalhou o 7º dia seguido, ou folgou menos de 35h depois do 6º dia`,
         resumo: [
-          { rotulo: "Ocorrências", valor: registros.length },
-          { rotulo: "Motoristas", valor: new Set(registros.map((r) => r.motoristaId)).size },
+          { rotulo: "7º dia trabalhado", valor: estouros.filter((e) => e.tipo === "SETIMO_DIA").length },
+          { rotulo: "Folga menor que 35h", valor: estouros.filter((e) => e.tipo === "FOLGA_CURTA").length },
+          { rotulo: "Motoristas", valor: new Set(estouros.map((e) => e.motoristaId)).size },
         ],
-        linhas: registros,
+        linhas: estouros,
         destaque: () => "perigo",
-        vazio: "Ninguém passou de 6 dias seguidos sem folga.",
+        vazio: "Nenhum estouro de 7º dia no período.",
         colunas: [
-          { titulo: "Dia", valor: (r) => r.dia, tipo: "data" },
-          { titulo: "Motorista", valor: (r) => nome(r.motorista) },
-          { titulo: "Turno", valor: (r) => rotuloTurno(r.turno) },
-          { titulo: "Dias sem folga", valor: (r) => r.diasSemFolga, tipo: "numero" },
-          { titulo: "Início", valor: (r) => r.inicio, tipo: "dataHora" },
-          { titulo: "Fim", valor: (r) => r.fim, tipo: "dataHora" },
-          ...colunasAtividade<Registro>(),
+          { titulo: "Dia", valor: (e) => e.dia, tipo: "data" },
+          { titulo: "Motorista", valor: (e) => nome(e.motorista) },
+          { titulo: "Turno", valor: (e) => rotuloTurno(e.turno) },
+          { titulo: "Ocorrência", valor: (e) => (e.tipo === "SETIMO_DIA" ? `${e.diasSemFolga}º dia seguido` : "Folga menor que 35h") },
+          { titulo: "Parou (6º dia)", valor: (e) => e.fimAnterior, tipo: "dataHora" },
+          { titulo: "Folgou", valor: (e) => (e.folgaMinutos === null ? "" : formatarDuracao(e.folgaMinutos)) },
+          { titulo: "Faltou", valor: (e) => (e.faltaramMinutos === null ? "" : formatarDuracao(e.faltaramMinutos)) },
+          { titulo: "Início", valor: (e) => e.inicio, tipo: "dataHora" },
+          { titulo: "Fim", valor: (e) => e.fim, tipo: "dataHora" },
+          ...colunasAtividade<Estouro>(),
         ],
       }),
     ]
   }),
 
-  interjornada: comPeriodo(PERIODO_PADRAO.interjornada, "descanso-nao-cumprido", async (filialId, periodo) => {
+  "quebra-intersticio": comPeriodo(PERIODO_PADRAO.quebraIntersticio, "quebra-intersticio", async (filialId, periodo) => {
     const dados = await carregarDadosJornada(filialId, periodo.de, periodo.ate)
-    const ocorrencias = descansosDescumpridos(dados.motoristas, dados.jornadas, dados.viagens, periodo.de, periodo.ate)
+    const ocorrencias = quebrasDeIntersticio(dados.motoristas, dados.jornadas, dados.viagens, periodo.de, periodo.ate)
     type Ocorrencia = (typeof ocorrencias)[number]
     return [
       aba<Ocorrencia>({
-        nome: "Descanso não cumprido",
-        titulo: "Descanso não cumprido (realizado)",
-        subtitulo: `${textoPeriodo(periodo)} · mínimo de 11h, ou 35h depois do 6º dia seguido`,
+        nome: "Quebra de interstício",
+        titulo: "Quebra de interstício (realizado)",
+        subtitulo: `${textoPeriodo(periodo)} · descanso menor que 11h entre jornadas`,
         resumo: [
-          { rotulo: "Interjornada (11h)", valor: ocorrencias.filter((o) => o.tipo === "INTERJORNADA").length },
-          { rotulo: "Semanal (35h)", valor: ocorrencias.filter((o) => o.tipo === "SEMANAL").length },
+          { rotulo: "Quebras", valor: ocorrencias.length },
+          { rotulo: "Motoristas", valor: new Set(ocorrencias.map((o) => o.motoristaId)).size },
         ],
         linhas: ocorrencias,
-        destaque: (o) => (o.tipo === "SEMANAL" ? "perigo" : "alerta"),
-        vazio: "Todos descansaram o mínimo.",
+        destaque: (o) => (o.faltaramMinutos >= 120 ? "perigo" : "alerta"),
+        vazio: "Todos descansaram as 11h.",
         colunas: [
+          { titulo: "Dia", valor: (o) => o.inicioSeguinte, tipo: "data" },
           { titulo: "Motorista", valor: (o) => nome(o.motorista) },
           { titulo: "Turno", valor: (o) => rotuloTurno(o.turno) },
-          { titulo: "Tipo", valor: (o) => (o.tipo === "SEMANAL" ? "Semanal (35h)" : "Interjornada (11h)") },
           { titulo: "Parou", valor: (o) => o.fimAnterior, tipo: "dataHora" },
           { titulo: "Voltou", valor: (o) => o.inicioSeguinte, tipo: "dataHora" },
           { titulo: "Descansou", valor: (o) => formatarDuracao(o.descansoMinutos) },
@@ -170,15 +173,15 @@ export const EXPORTADORES_RELATORIO: Record<string, Exportador> = {
     ]
   }),
 
-  "jornadas-longas": comPeriodo(PERIODO_PADRAO.jornadasLongas, "jornadas-longas", async (filialId, periodo, params) => {
-    const limite = parseHorasJornadaLonga(params.get("horas"))
+  "estouro-jornada": comPeriodo(PERIODO_PADRAO.estouroJornada, "estouro-jornada", async (filialId, periodo, params) => {
+    const limite = parseHorasEstouroJornada(params.get("horas"))
     const dados = await carregarDadosJornada(filialId, periodo.de, periodo.ate)
-    const ocorrencias = jornadasLongas(dados.motoristas, dados.jornadas, dados.viagens, periodo.de, periodo.ate, limite)
+    const ocorrencias = estourosDeJornada(dados.motoristas, dados.jornadas, dados.viagens, periodo.de, periodo.ate, limite)
     type Ocorrencia = (typeof ocorrencias)[number]
     return [
       aba<Ocorrencia>({
         nome: `Acima de ${limite}h`,
-        titulo: `Jornadas acima de ${limite}h`,
+        titulo: `Estouro de jornada · acima de ${limite}h`,
         subtitulo: textoPeriodo(periodo),
         resumo: [{ rotulo: "Jornadas", valor: ocorrencias.length }],
         linhas: ocorrencias,
@@ -221,9 +224,9 @@ export const EXPORTADORES_RELATORIO: Record<string, Exportador> = {
           { titulo: "Maior jornada", valor: (l) => formatarDuracao(l.maiorJornadaMinutos) },
           { titulo: "Viagens", valor: (l) => l.viagens, tipo: "numero", somar: true },
           { titulo: "Circadiano", valor: (l) => l.circadiano, tipo: "numero", somar: true },
-          { titulo: "7º dia", valor: (l) => l.diasSemFolgaEstourados, tipo: "numero", somar: true },
-          { titulo: "Descanso", valor: (l) => l.descansosDescumpridos, tipo: "numero", somar: true },
-          { titulo: "Longas", valor: (l) => l.jornadasLongas, tipo: "numero", somar: true },
+          { titulo: "Estouro 7º dia", valor: (l) => l.estourosSetimoDia, tipo: "numero", somar: true },
+          { titulo: "Quebra interstício", valor: (l) => l.quebrasIntersticio, tipo: "numero", somar: true },
+          { titulo: "Estouro jornada", valor: (l) => l.estourosJornada, tipo: "numero", somar: true },
           { titulo: "Total de alertas", valor: (l) => l.totalAlertas, tipo: "numero", somar: true },
         ],
       }),
@@ -408,33 +411,4 @@ export const EXPORTADORES_RELATORIO: Record<string, Exportador> = {
       }),
     ]
   }),
-
-  "nao-consta": async (filialId) => {
-    const viagens = await buscarViagensNaoConstam(filialId)
-    type Viagem = (typeof viagens)[number]
-    return {
-      arquivo: "viagens-nao-constam-no-relatorio",
-      abas: [
-        aba<Viagem>({
-          nome: "Não constam",
-          titulo: "Viagens que não constam no relatório de jornada",
-          subtitulo: "Cancele ou corrija cada uma",
-          resumo: [{ rotulo: "Pendentes", valor: viagens.length }],
-          linhas: viagens,
-          destaque: () => "alerta",
-          vazio: "Nada pendente.",
-          colunas: [
-            { titulo: "Dia", valor: (v) => v.inicioPrevisto, tipo: "data" },
-            { titulo: "Nº Viagem", valor: (v) => v.numViagem, tipo: "codigo" },
-            { titulo: "Status", valor: (v) => formatarStatusViagem(v.status) },
-            { titulo: "Motorista", valor: (v) => nome(v.motorista?.nome) },
-            { titulo: "Início", valor: (v) => v.inicioPrevisto, tipo: "dataHora" },
-            { titulo: "Fim previsto", valor: (v) => v.fimPrevisto, tipo: "dataHora" },
-            { titulo: "Cavalo", valor: (v) => frota(v.cavalo), tipo: "codigo" },
-            { titulo: "Carreta", valor: (v) => frota(v.carreta), tipo: "codigo" },
-          ],
-        }),
-      ],
-    }
-  },
 }

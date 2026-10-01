@@ -78,9 +78,9 @@ export default async function PainelMotoristasPage({ searchParams }: { searchPar
                 <TableHead className="text-right">Maior jornada</TableHead>
                 <TableHead className="text-right">Viagens</TableHead>
                 <TableHead className="text-center">Circadiano</TableHead>
-                <TableHead className="text-center">7º dia</TableHead>
-                <TableHead className="text-center">Descanso</TableHead>
-                <TableHead className="text-center">Longas</TableHead>
+                <TableHead className="text-center">Estouro 7º dia</TableHead>
+                <TableHead className="text-center">Quebra interstício</TableHead>
+                <TableHead className="text-center">Estouro jornada</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -96,9 +96,9 @@ export default async function PainelMotoristasPage({ searchParams }: { searchPar
                   <TableCell className="text-right tabular-nums">{linha.maiorJornadaMinutos ? formatarDuracao(linha.maiorJornadaMinutos) : "—"}</TableCell>
                   <TableCell className="text-right tabular-nums">{linha.viagens}</TableCell>
                   <CelulaAlerta valor={linha.circadiano} relatorio="circadiano" periodo={periodo} />
-                  <CelulaAlerta valor={linha.diasSemFolgaEstourados} relatorio="sem-folga" periodo={periodo} />
-                  <CelulaAlerta valor={linha.descansosDescumpridos} relatorio="interjornada" periodo={periodo} />
-                  <CelulaAlerta valor={linha.jornadasLongas} relatorio="jornadas-longas" periodo={periodo} />
+                  <CelulaAlerta valor={linha.estourosSetimoDia} relatorio="estouro-7-dia" periodo={periodo} />
+                  <CelulaAlerta valor={linha.quebrasIntersticio} relatorio="quebra-intersticio" periodo={periodo} />
+                  <CelulaAlerta valor={linha.estourosJornada} relatorio="estouro-jornada" periodo={periodo} />
                 </TableRow>
               ))}
             </TableBody>

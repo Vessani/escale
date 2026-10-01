@@ -10,7 +10,7 @@ import {
 } from "./operacao"
 import { periodoOuPadrao, resolverPeriodo, diasNoPeriodo } from "@/lib/relatorios/periodo"
 import { formatarDuracao, formatarDuracaoLonga } from "@/lib/relatorios/formato"
-import { parseDiasIntegracao, parseHorasJornadaLonga } from "@/lib/relatorios/catalogo"
+import { parseDiasIntegracao, parseHorasEstouroJornada } from "@/lib/relatorios/catalogo"
 
 const h = (iso: string) => new Date(`${iso}-03:00`)
 const dia = (iso: string) => h(`${iso}T00:00:00`)
@@ -193,8 +193,8 @@ describe("período, formato e parâmetros", () => {
     expect(formatarDuracaoLonga(4130)).toBe("2d 20h50")
     expect(formatarDuracaoLonga(2880)).toBe("2d")
     expect(formatarDuracaoLonga(90)).toBe("1h30")
-    expect(parseHorasJornadaLonga("13")).toBe(13)
-    expect(parseHorasJornadaLonga("99")).toBe(12)
+    expect(parseHorasEstouroJornada("13")).toBe(13)
+    expect(parseHorasEstouroJornada("99")).toBe(12)
     expect(parseDiasIntegracao("60")).toBe(60)
     expect(parseDiasIntegracao(null)).toBe(30)
   })

@@ -11,32 +11,32 @@ import {
   textoFrota,
 } from "@/components/relatorio/pagina-relatorio"
 import { carregarDadosJornada } from "@/lib/queries/relatorios/jornada"
-import { OPCOES_HORAS_JORNADA_LONGA, PERIODO_PADRAO, parseHorasJornadaLonga } from "@/lib/relatorios/catalogo"
+import { OPCOES_HORAS_ESTOURO_JORNADA, PERIODO_PADRAO, parseHorasEstouroJornada } from "@/lib/relatorios/catalogo"
 import { periodoOuPadrao } from "@/lib/relatorios/periodo"
 import { formatarDiaCurto, formatarDuracao, formatarHorarioRelativo } from "@/lib/relatorios/formato"
-import { jornadasLongas } from "@/lib/services/relatorios/jornada-analise"
+import { estourosDeJornada } from "@/lib/services/relatorios/jornada-analise"
 import { formatarNomeProprio } from "@/lib/utils/texto"
 
 type SearchParamsInput = { de?: string; ate?: string; horas?: string }
 
-export default async function JornadasLongasPage({ searchParams }: { searchParams?: Promise<SearchParamsInput> }) {
+export default async function EstouroJornadaPage({ searchParams }: { searchParams?: Promise<SearchParamsInput> }) {
   const parametros = (await searchParams) ?? {}
   const { filialId } = await requireSessaoPaginaComFilial()
-  const periodo = periodoOuPadrao(parametros.de, parametros.ate, PERIODO_PADRAO.jornadasLongas)
-  const limite = parseHorasJornadaLonga(parametros.horas)
+  const periodo = periodoOuPadrao(parametros.de, parametros.ate, PERIODO_PADRAO.estouroJornada)
+  const limite = parseHorasEstouroJornada(parametros.horas)
   const dados = await carregarDadosJornada(filialId, periodo.de, periodo.ate)
-  const ocorrencias = jornadasLongas(dados.motoristas, dados.jornadas, dados.viagens, periodo.de, periodo.ate, limite)
+  const ocorrencias = estourosDeJornada(dados.motoristas, dados.jornadas, dados.viagens, periodo.de, periodo.ate, limite)
 
   return (
     <div className="space-y-6">
-      <CabecalhoRelatorio titulo="Jornadas longas">
+      <CabecalhoRelatorio titulo="Estouro de jornada">
         Jornadas reais (relatório de jornada) que passaram de <strong>{limite}h</strong> do início ao fim.
       </CabecalhoRelatorio>
 
       <FiltroRelatorio
-        action="/relatorios/jornadas-longas"
+        action="/relatorios/estouro-jornada"
         periodo={periodo}
-        exportarTipo="jornadas-longas"
+        exportarTipo="estouro-jornada"
         exportarQuery={{ de: periodo.deTexto, ate: periodo.ateTexto, horas: limite }}
       >
         <label className="grid gap-1 text-xs text-muted-foreground">
@@ -46,7 +46,7 @@ export default async function JornadasLongasPage({ searchParams }: { searchParam
             defaultValue={limite}
             className="h-8 w-28 rounded-md border border-input bg-background px-2 text-xs text-foreground"
           >
-            {OPCOES_HORAS_JORNADA_LONGA.map((horas) => (
+            {OPCOES_HORAS_ESTOURO_JORNADA.map((horas) => (
               <option key={horas} value={horas}>{horas} horas</option>
             ))}
           </select>

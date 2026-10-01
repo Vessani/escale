@@ -7,6 +7,15 @@ const nextConfig: NextConfig = {
   devIndicators: {
     position: "bottom-right",
   },
+  // Relatórios renomeados — links e favoritos antigos continuam funcionando.
+  async redirects() {
+    return [
+      { source: "/relatorios/sem-folga", destination: "/relatorios/estouro-7-dia", permanent: true },
+      { source: "/relatorios/interjornada", destination: "/relatorios/quebra-intersticio", permanent: true },
+      { source: "/relatorios/jornadas-longas", destination: "/relatorios/estouro-jornada", permanent: true },
+      { source: "/relatorios/nao-consta", destination: "/relatorios", permanent: true },
+    ];
+  },
 };
 
 export default nextConfig;
