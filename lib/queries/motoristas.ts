@@ -260,3 +260,9 @@ export async function buscarNomesMotoristas(filialId: number) {
     select: { id: true, nome: true },
   })
 }
+
+/** Matrículas (SEVA) dos motoristas ativos da filial — a conferência do relatório de jornada mostra só esses. */
+export async function buscarMatriculasCadastradas(filialId: number): Promise<number[]> {
+  const motoristas = await prisma.motorista.findMany({ where: { filialId, deletadoEm: null }, select: { seva: true } })
+  return [...new Set(motoristas.map((motorista) => motorista.seva))]
+}

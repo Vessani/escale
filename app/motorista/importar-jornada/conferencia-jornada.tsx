@@ -50,6 +50,12 @@ function rotuloDia(diaIso: string) {
   return `${partes.day}/${partes.month} · ${partes.weekday}`
 }
 
+/** "01/09 ter" — dia da coluna, com o dia da semana curto. */
+function diaCurto(diaIso: string) {
+  const [data, semana] = rotuloDia(diaIso).split(" · ")
+  return { data, semana: semana.slice(0, 3) }
+}
+
 /** Data em Brasília (YYYY-MM-DD), pra saber se o fim caiu em outro dia. */
 const dataLocal = (valor: string) => formatDateTimeForInput(valor).slice(0, 10)
 
@@ -100,10 +106,13 @@ function semEdicoesDe(edicoes: EdicoesJornada, id: number, ids: number[]): Edico
  */
 export function ConferenciaJornada({
   brutas,
+  matriculasCadastradas,
   importando,
   onConfirmar,
 }: {
   brutas: LinhaJornadaBruta[]
+  /** Matrículas dos motoristas cadastrados na filial — por padrão só eles aparecem (os outros nem são importados). */
+  matriculasCadastradas: number[]
   importando: boolean
   onConfirmar: (registros: RegistroJornadaRelatorio[], ajustes: AjusteJornada[]) => void
 }) {
@@ -111,10 +120,23 @@ export function ConferenciaJornada({
   const [soCorrigir, setSoCorrigir] = useState(false)
   const [busca, setBusca] = useState("")
   const [rascunho, setRascunho] = useState<Rascunho | null>(null)
+  const [soCadastrados, setSoCadastrados] = useState(true)
+
+  const cadastradas = useMemo(() => new Set(matriculasCadastradas), [matriculasCadastradas])
+  /** Motoristas do arquivo sem cadastro no Escale (a importação não teria onde gravar). */
+  const naoCadastrados = useMemo(() => {
+    const porMatricula = new Map<number, string>()
+    for (const bruta of brutas) if (!cadastradas.has(bruta.matricula)) porMatricula.set(bruta.matricula, bruta.nome)
+    return [...porMatricula].map(([matricula, nome]) => ({ matricula, nome })).sort((a, b) => a.nome.localeCompare(b.nome, "pt-BR"))
+  }, [brutas, cadastradas])
+  const consideradas = useMemo(
+    () => (soCadastrados ? brutas.filter((bruta) => cadastradas.has(bruta.matricula)) : brutas),
+    [brutas, cadastradas, soCadastrados],
+  )
 
   const brutaPorId = useMemo(() => new Map(brutas.map((bruta) => [bruta.id, bruta])), [brutas])
-  const semEdicao = useMemo(() => new Map(JornadaRelatorioParser.processar(brutas).map((linha) => [linha.id, linha])), [brutas])
-  const linhas = useMemo(() => JornadaRelatorioParser.processar(brutas, edicoes), [brutas, edicoes])
+  const semEdicao = useMemo(() => new Map(JornadaRelatorioParser.processar(consideradas).map((linha) => [linha.id, linha])), [consideradas])
+  const linhas = useMemo(() => JornadaRelatorioParser.processar(consideradas, edicoes), [consideradas, edicoes])
   const registros = useMemo(() => registrosParaImportar(linhas), [linhas])
   const ordenadas = useMemo(
     () =>
@@ -122,8 +144,9 @@ export function ConferenciaJornada({
         .map((linha) => ({ linha, categoria: categoriaDaLinha(linha) }))
         .sort(
           (a, b) =>
-            a.linha.dia.localeCompare(b.linha.dia) ||
             a.linha.nome.localeCompare(b.linha.nome, "pt-BR") ||
+            a.linha.matricula - b.linha.matricula ||
+            a.linha.dia.localeCompare(b.linha.dia) ||
             a.linha.inicioJornada.localeCompare(b.linha.inicioJornada),
         ),
     [linhas],
@@ -132,6 +155,17 @@ export function ConferenciaJornada({
   const paraCorrigir = ordenadas.filter((item) => precisaAtencao(item.categoria)).length
   const setimosDias = registros.filter((registro) => folgaEstourada(registro.diasSemFolga)).length
   const motoristas = new Set(registros.map((registro) => registro.matricula)).size
+
+  /** Quantas linhas de cada motorista estão em destaque (e se alguma é 7º dia) — vai na faixa do motorista. */
+  const destaquePorMotorista = useMemo(() => {
+    const mapa = new Map<number, { total: number; setimoDia: boolean }>()
+    for (const { linha, categoria } of ordenadas) {
+      if (!precisaAtencao(categoria)) continue
+      const atual = mapa.get(linha.matricula) ?? { total: 0, setimoDia: false }
+      mapa.set(linha.matricula, { total: atual.total + 1, setimoDia: atual.setimoDia || categoria === "SETIMO_DIA" })
+    }
+    return mapa
+  }, [ordenadas])
 
   const termo = busca.trim().toLowerCase()
   const visiveis = ordenadas.filter(({ linha, categoria }) => {
@@ -238,6 +272,22 @@ export function ConferenciaJornada({
           </Alert>
         )}
 
+        {naoCadastrados.length > 0 && (
+          <div className="flex flex-col gap-1 rounded-md border bg-muted/40 px-3 py-2 text-sm text-muted-foreground md:flex-row md:items-center md:justify-between">
+            <span title={naoCadastrados.map((motorista) => `${motorista.nome} (${motorista.matricula})`).join(", ")}>
+              {soCadastrados ? "Escondidos" : "Mostrando também"} {naoCadastrados.length} motorista(s) do arquivo sem cadastro no Escale
+              {soCadastrados ? "" : " — eles não entram na importação"}.
+            </span>
+            <button
+              type="button"
+              onClick={() => setSoCadastrados((atual) => !atual)}
+              className="w-fit font-medium text-primary underline-offset-4 hover:underline"
+            >
+              {soCadastrados ? "Mostrar" : "Esconder"}
+            </button>
+          </div>
+        )}
+
         <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
           <div className="inline-flex w-fit rounded-lg border bg-muted/40 p-1" role="group" aria-label="Quais linhas mostrar">
             {[
@@ -273,27 +323,28 @@ export function ConferenciaJornada({
         </div>
 
         <div className="overflow-hidden rounded-md border">
-          <Table containerClassName="max-h-[65vh] overflow-auto" className="min-w-[820px] table-fixed">
+          <Table containerClassName="max-h-[65vh] overflow-auto" className="min-w-[700px] table-fixed">
             <TableHeader className="sticky top-0 z-10 bg-muted">
               <TableRow>
-                <TableHead className="w-24">Matrícula</TableHead>
-                <TableHead>Motorista</TableHead>
+                <TableHead className="w-32">Dia</TableHead>
                 <TableHead className="w-48">Início</TableHead>
                 <TableHead className="w-48">Fim</TableHead>
                 <TableHead className="w-32">Dias sem folga</TableHead>
-                <TableHead className="w-24 text-right">Ações</TableHead>
+                <TableHead className="text-right">Ações</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {visiveis.length === 0 && (
                 <TableRow>
-                  <TableCell colSpan={6} className="py-8 text-center text-sm text-muted-foreground">
+                  <TableCell colSpan={5} className="py-8 text-center text-sm text-muted-foreground">
                     {soCorrigir ? "Nada em destaque — pode confirmar." : "Nenhuma linha encontrada."}
                   </TableCell>
                 </TableRow>
               )}
               {visiveis.map(({ linha, categoria }, indice) => {
-                const novoDia = indice === 0 || visiveis[indice - 1].linha.dia !== linha.dia
+                const novoMotorista = indice === 0 || visiveis[indice - 1].linha.matricula !== linha.matricula
+                const destaque = destaquePorMotorista.get(linha.matricula)
+                const dia = diaCurto(linha.dia)
                 const emEdicao = rascunho?.id === linha.id ? rascunho : null
                 const fora = linha.situacao !== "IMPORTAR"
                 const podeEditar = linha.situacao === "IMPORTAR" || linha.situacao === "MESMO_DIA"
@@ -303,16 +354,36 @@ export function ConferenciaJornada({
                 const diasDepois = diasEntre(linha.inicioJornada, linha.fimJornada)
                 return (
                   <Fragment key={`${linha.situacao}-${linha.id}`}>
-                    {novoDia && (
+                    {novoMotorista && (
                       <TableRow className="bg-muted/70 hover:bg-muted/70">
-                        <TableCell colSpan={6} className="py-1.5 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                          {rotuloDia(linha.dia)}
+                        <TableCell colSpan={5} className="py-2">
+                          <div className="flex items-center justify-between gap-3">
+                            <span className="truncate text-sm font-semibold text-foreground">
+                              {linha.nome}
+                              <span className="ml-2 font-mono text-xs font-normal text-muted-foreground">{linha.matricula}</span>
+                              {!cadastradas.has(linha.matricula) && (
+                                <span className="ml-2 text-xs font-normal text-muted-foreground">· sem cadastro, não importa</span>
+                              )}
+                            </span>
+                            {destaque && (
+                              <span
+                                className={cn(
+                                  "shrink-0 rounded-full px-2 py-0.5 text-xs font-medium",
+                                  destaque.setimoDia ? "bg-destructive/15 text-destructive" : "bg-background text-muted-foreground ring-1 ring-border",
+                                )}
+                              >
+                                {destaque.total} em destaque
+                              </span>
+                            )}
+                          </div>
                         </TableCell>
                       </TableRow>
                     )}
                     <TableRow className={ESTILO_CATEGORIA[categoria].linha} title={motivo(linha) || undefined}>
-                      <TableCell className="font-mono tabular-nums">{linha.matricula}</TableCell>
-                      <TableCell className={cn("truncate", linha.situacao === "IGNORADA" && "line-through")}>{linha.nome}</TableCell>
+                      <TableCell className={cn("tabular-nums", linha.situacao === "IGNORADA" && "line-through")}>
+                        <span className="font-mono">{dia.data}</span>
+                        <span className="ml-1.5 text-xs text-muted-foreground">{dia.semana}</span>
+                      </TableCell>
                       {emEdicao ? (
                         <>
                           <TableCell>
