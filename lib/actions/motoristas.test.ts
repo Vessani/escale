@@ -22,6 +22,7 @@ vi.mock("@/lib/services/motorista.service", () => ({
 
 vi.mock("@/lib/services/jornada-relatorio.service", () => ({
   atualizarJornadaRelatorioDosMotoristas: vi.fn(),
+  registrarAjustesJornada: vi.fn(),
 }))
 
 import * as motoristaService from "@/lib/services/motorista.service"
@@ -157,6 +158,22 @@ describe("lib/actions/motoristas — controle de acesso", () => {
 
       expect(resposta).toEqual({ sucesso: true, resultado })
       expect(jornadaRelatorioService.atualizarJornadaRelatorioDosMotoristas).toHaveBeenCalledTimes(1)
+    })
+
+    it("atualizarJornadaRelatorio grava no histórico os ajustes feitos na conferência", async () => {
+      vi.mocked(jornadaRelatorioService.atualizarJornadaRelatorioDosMotoristas).mockResolvedValue({ atualizados: 1, naoEncontrados: [], duplicados: [] })
+      const ajuste = { matricula: 101, dia: "2026-09-17T03:00:00.000Z", contexto: "Importação do relatório · MOTORISTA (101)", antes: { "Dias sem folga": 5 }, depois: { "Dias sem folga": 4 } }
+
+      await atualizarJornadaRelatorio([], [ajuste])
+
+      expect(jornadaRelatorioService.registrarAjustesJornada).toHaveBeenCalledWith(undefined, [ajuste], expect.objectContaining({ usuarioId: "1" }))
+    })
+
+    it("atualizarJornadaRelatorio recusa ajustes malformados sem importar nada", async () => {
+      const resposta = await atualizarJornadaRelatorio([], [{ matricula: "x", dia: 1 }] as never)
+
+      expect(resposta.sucesso).toBe(false)
+      expect(jornadaRelatorioService.atualizarJornadaRelatorioDosMotoristas).not.toHaveBeenCalled()
     })
   })
 

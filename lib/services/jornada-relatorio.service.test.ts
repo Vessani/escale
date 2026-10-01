@@ -14,7 +14,7 @@ vi.mock("@/lib/services/interjornada.service", () => ({
 }))
 
 import { prisma } from "@/lib/prisma"
-import { atualizarJornadaRelatorioDosMotoristas } from "@/lib/services/jornada-relatorio.service"
+import { atualizarJornadaRelatorioDosMotoristas, registrarAjustesJornada } from "@/lib/services/jornada-relatorio.service"
 
 const FILIAL_ID = 1
 
@@ -233,5 +233,37 @@ describe("atualizarJornadaRelatorioDosMotoristas", () => {
     >
     expect(chamadas[0][0].create.inicioJornada).toEqual(new Date("2026-07-08T06:00:00.000Z"))
     expect(chamadas[1][0].create.inicioJornada).toEqual(new Date("2026-07-09T20:00:00.000Z"))
+  })
+})
+
+describe("registrarAjustesJornada", () => {
+  beforeEach(() => vi.clearAllMocks())
+
+  it("grava um registro 'Jornada' no histórico por linha ajustada, com antes → depois", async () => {
+    const tx = { registroAuditoria: { create: vi.fn() } }
+    vi.mocked(prisma.$transaction).mockImplementation(((callback: (tx: unknown) => unknown) => Promise.resolve(callback(tx))) as never)
+
+    await registrarAjustesJornada(
+      FILIAL_ID,
+      [{ matricula: 101, dia: "2026-09-17T03:00:00.000Z", contexto: "Importação do relatório · MOTORISTA (101)", antes: { "Dias sem folga": 5 }, depois: { "Dias sem folga": 4 } }],
+      { usuarioId: "u1", usuarioNome: "Alan" },
+    )
+
+    expect(tx.registroAuditoria.create).toHaveBeenCalledWith({
+      data: expect.objectContaining({
+        entidade: "RegistroJornada",
+        entidadeId: "101-2026-09-17",
+        acao: "ATUALIZACAO",
+        antes: { "Dias sem folga": 5 },
+        depois: { "Dias sem folga": 4, _contexto: "Importação do relatório · MOTORISTA (101)" },
+        usuarioNome: "Alan",
+        filialId: FILIAL_ID,
+      }),
+    })
+  })
+
+  it("sem ajustes não abre transação", async () => {
+    await registrarAjustesJornada(FILIAL_ID, [], null)
+    expect(prisma.$transaction).not.toHaveBeenCalled()
   })
 })

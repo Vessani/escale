@@ -3,7 +3,7 @@ import { diaParaTexto } from "@/lib/relatorios/periodo"
 import { buscarHistoricoDoDia } from "@/lib/queries/auditoria"
 import { inicioDoDia, fimDoDia, parseDataLocal, formatarDataHoraPtBr } from "@/lib/utils/date-format"
 import { serializeData } from "@/lib/serialization"
-import { diffAuditoria, formatarCampoAlterado } from "@/lib/utils/diff-auditoria"
+import { contextoAuditoria, diffAuditoria, formatarCampoAlterado } from "@/lib/utils/diff-auditoria"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Input } from "@/components/ui/input"
@@ -127,6 +127,9 @@ export default async function HistoricoPage({
                       <span className="text-muted-foreground">·</span>
                       <span className="text-foreground/80">{registro.usuarioNome ?? "Sistema"}</span>
                     </div>
+                    {contextoAuditoria(registro.depois) && (
+                      <p className="mt-1 text-xs text-muted-foreground">{contextoAuditoria(registro.depois)}</p>
+                    )}
                     {alteracoes.length > 0 && (
                       <ul className="mt-2 space-y-1 text-sm text-foreground/80">
                         {alteracoes.map((alteracao) => (

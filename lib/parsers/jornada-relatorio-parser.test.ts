@@ -1,7 +1,7 @@
 process.env.TZ = "America/Sao_Paulo"
 
 import { describe, expect, it } from "vitest"
-import { JornadaRelatorioParser } from "@/lib/parsers/jornada-relatorio-parser"
+import { JornadaRelatorioParser, SEM_EDICOES, registrosParaImportar } from "@/lib/parsers/jornada-relatorio-parser"
 
 type LinhaFake = Record<string, unknown>
 
@@ -188,8 +188,8 @@ describe("jornada-relatorio-parser", () => {
       expect(dia6.diasSemFolgaRelatorio).toBe(6)
     })
 
-    it("zera a correção depois de uma folga", () => {
-      expect(doDia(extrairOrdenado(linhas304), 2026, 9, 14).diasSemFolga).toBe(5)
+    it("depois de 35h ou mais sem jornada a contagem recomeça em 1 (no relatório real ele sempre volta pra 1 nesse caso)", () => {
+      expect(doDia(extrairOrdenado(linhas304), 2026, 9, 14).diasSemFolga).toBe(1)
     })
 
     it("batida sem par conta como dia trabalhado, marcada", () => {
@@ -197,7 +197,7 @@ describe("jornada-relatorio-parser", () => {
 
       expect(resultado).toHaveLength(4)
       const dia29 = doDia(resultado, 2026, 9, 29)
-      expect(dia29.diasSemFolga).toBe(4)
+      expect(dia29.diasSemFolga).toBe(1)
       expect(dia29.correcao).toBe("BATIDA_SEM_PAR")
     })
 
@@ -242,5 +242,112 @@ describe("jornada-relatorio-parser", () => {
       expect(resultado.map((r) => r.diasSemFolga)).toEqual([2, 3])
       expect(resultado.map((r) => r.diasSemFolgaRelatorio)).toEqual([2, 3])
     })
+  })
+})
+
+// Casos tirados do relatório real de set/2026 (nomes trocados).
+describe("jornada-relatorio-parser — batidas e conferência", () => {
+  // Jornada real 05:51–14:20 (4º dia) e, 1h12 depois, uma batida solta (o relatório contou como 5º dia).
+  const batidaExtra = comCabecalho(
+    linha(101, "16/09/2026 07:06:03", "16/09/2026 17:48:31", 3),
+    linha(101, "17/09/2026 05:51:27", "17/09/2026 14:20:53", 4),
+    linha(101, "17/09/2026 15:32:43", "17/09/2026 15:33:42", 5),
+    linha(101, "18/09/2026 09:25:47", "18/09/2026 20:29:43", 6),
+    linha(101, "19/09/2026 07:40:19", "19/09/2026 18:02:33", 7),
+  )
+
+  it("batida solta logo depois da jornada não apaga a jornada real nem soma um dia (7º dia falso)", () => {
+    const linhas = JornadaRelatorioParser.processar(JornadaRelatorioParser.extrairLinhas(batidaExtra))
+    const importar = registrosParaImportar(linhas)
+
+    expect(importar.map((r) => [new Date(r.inicioJornada).getHours(), r.diasSemFolga])).toEqual([
+      [7, 3],
+      [5, 4],
+      [9, 5],
+      [7, 6],
+    ])
+    expect(importar[1]).toMatchObject({ correcao: "BATIDA_EXTRA", fimJornada: new Date(2026, 8, 17, 14, 20, 53).toISOString() })
+    expect(linhas.find((l) => l.situacao === "ABSORVIDA")).toMatchObject({ diasSemFolgaRelatorio: 5 })
+    expect(linhas.find((l) => l.correcao === "BATIDA_EXTRA")?.batidaExtra).toBe("15:32")
+  })
+
+  it("entrada em batida e saída numa linha curta (28 min) viram uma jornada só", () => {
+    const resultado = JornadaRelatorioParser.extrairDeLinhas(
+      comCabecalho(
+        linha(900, "07/09/2026 18:39:00", "08/09/2026 06:13:00", 5),
+        linha(900, "08/09/2026 18:59:00", "08/09/2026 19:00:00", 6),
+        linha(900, "09/09/2026 06:10:00", "09/09/2026 06:38:00", 7),
+        linha(900, "09/09/2026 18:49:00", "10/09/2026 06:10:00", 8),
+      ),
+    )
+
+    expect(resultado.map((r) => r.diasSemFolga)).toEqual([5, 6, 7])
+    expect(resultado[1]).toMatchObject({ correcao: "BATIDAS_UNIDAS", fimJornada: new Date(2026, 8, 9, 6, 38).toISOString() })
+  })
+
+  it("duas jornadas reais no mesmo dia: as duas aparecem, só a mais tarde vai pro calendário", () => {
+    const linhas = JornadaRelatorioParser.processar(
+      JornadaRelatorioParser.extrairLinhas(
+        comCabecalho(
+          linha(815, "05/09/2026 01:58:00", "05/09/2026 03:22:00", 2),
+          linha(815, "05/09/2026 22:02:00", "06/09/2026 06:12:00", 3),
+        ),
+      ),
+    )
+
+    expect(linhas.map((l) => l.situacao)).toEqual(["MESMO_DIA", "IMPORTAR"])
+  })
+
+  it("ignorar uma linha tira ela da contagem; se ficar 35h sem jornada, conta como folga", () => {
+    const brutas = JornadaRelatorioParser.extrairLinhas(
+      comCabecalho(
+        linha(500, "01/09/2026 06:00:00", "01/09/2026 16:00:00", 4),
+        linha(500, "01/09/2026 20:00:00", "01/09/2026 20:40:00", 5),
+        linha(500, "02/09/2026 06:00:00", "02/09/2026 16:00:00", 6),
+        linha(500, "03/09/2026 06:00:00", "03/09/2026 16:00:00", 7),
+      ),
+    )
+    const [, passagem, dia02] = brutas
+
+    // Passagem de 40 min na base não era jornada: sai da contagem.
+    const semPassagem = registrosParaImportar(JornadaRelatorioParser.processar(brutas, { ...SEM_EDICOES, ignoradas: [passagem.id] }))
+    expect(semPassagem.map((r) => r.diasSemFolga)).toEqual([4, 5, 6])
+
+    // Sem a passagem e sem o dia 02 → 38h parado depois do dia 01 = folga; o dia 03 vira 1º dia.
+    const semDia02 = registrosParaImportar(
+      JornadaRelatorioParser.processar(brutas, { ...SEM_EDICOES, ignoradas: [passagem.id, dia02.id] }),
+    )
+    expect(semDia02.map((r) => r.diasSemFolga)).toEqual([4, 1])
+  })
+
+  it("ajuste manual de dias desloca as linhas seguintes até a próxima folga", () => {
+    const brutas = JornadaRelatorioParser.extrairLinhas(
+      comCabecalho(
+        linha(500, "01/09/2026 06:00:00", "01/09/2026 16:00:00", 5),
+        linha(500, "02/09/2026 06:00:00", "02/09/2026 16:00:00", 6),
+        linha(500, "03/09/2026 06:00:00", "03/09/2026 16:00:00", 7),
+        linha(500, "06/09/2026 06:00:00", "06/09/2026 16:00:00", 1),
+      ),
+    )
+
+    const linhas = JornadaRelatorioParser.processar(brutas, { ...SEM_EDICOES, dias: { [brutas[0].id]: 3 } })
+    expect(linhas.map((l) => l.diasSemFolga)).toEqual([3, 4, 5, 1])
+    expect(linhas.map((l) => l.editada)).toEqual([true, false, false, false])
+  })
+
+  it("horário corrigido vale pra jornada; desfazer a correção mantém a batida como jornada", () => {
+    const brutas = JornadaRelatorioParser.extrairLinhas(batidaExtra)
+    const batida = brutas[2]
+
+    const corrigida = JornadaRelatorioParser.processar(brutas, {
+      ...SEM_EDICOES,
+      horarios: { [batida.id]: { inicio: batida.inicio, fim: new Date(2026, 8, 17, 18, 0).toISOString() } },
+    })
+    // Com fim às 18:00 não é mais batida: vira jornada (e o dia 17 fica com a mais tarde).
+    expect(corrigida.find((l) => l.id === batida.id)).toMatchObject({ situacao: "IMPORTAR", editada: true, diasSemFolga: 5 })
+
+    const semCorrecao = JornadaRelatorioParser.processar(brutas, { ...SEM_EDICOES, semCorrecao: [batida.id] })
+    expect(semCorrecao.find((l) => l.id === batida.id)).toMatchObject({ situacao: "IMPORTAR", correcao: null })
+    expect(semCorrecao.at(-1)?.diasSemFolga).toBe(7)
   })
 })

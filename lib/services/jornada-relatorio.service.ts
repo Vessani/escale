@@ -4,6 +4,9 @@ import type { RegistroJornadaRelatorio } from "@/lib/parsers/jornada-relatorio-p
 import { MAX_DIAS_CONSECUTIVOS } from "./alocacao.service"
 import { registrarJornadaNoDia } from "./motorista.service"
 import { recalcularAvisosInterjornada } from "./interjornada.service"
+import { registrarAuditoria, type Ator } from "./auditoria.service"
+import type { AjusteJornada } from "@/lib/validation/ajuste-jornada"
+import { CAMPO_CONTEXTO_AUDITORIA } from "@/lib/utils/diff-auditoria"
 
 export type ResultadoImportacaoJornada = {
   atualizados: number
@@ -173,4 +176,29 @@ export async function atualizarJornadaRelatorioDosMotoristas(
   }
 
   return { atualizados: paraAtualizar.length, naoEncontrados, duplicados }
+}
+
+/**
+ * Linhas que alguém corrigiu na conferência antes de importar (horário,
+ * dias sem folga, linha ignorada...). O import em si não é auditado linha a
+ * linha (ver acima), mas um ajuste manual é uma decisão de alguém — vira um
+ * registro "Jornada" no Histórico, com antes → depois legível.
+ */
+export async function registrarAjustesJornada(filialId: number, ajustes: AjusteJornada[], ator: Ator | null) {
+  if (ajustes.length === 0) return
+  await prisma.$transaction(async (tx) => {
+    for (const ajuste of ajustes) {
+      await registrarAuditoria(tx, {
+        entidade: "RegistroJornada",
+        // Matrícula + dia (o RegistroJornada ainda pode nem existir, ou ser de outra linha do relatório).
+        entidadeId: `${ajuste.matricula}-${ajuste.dia.slice(0, 10)}`,
+        acao: "ATUALIZACAO",
+        antes: ajuste.antes,
+        // O contexto não entra no diff — o Histórico mostra como subtítulo do registro.
+        depois: { ...ajuste.depois, [CAMPO_CONTEXTO_AUDITORIA]: ajuste.contexto },
+        ator,
+        filialId,
+      })
+    }
+  })
 }
