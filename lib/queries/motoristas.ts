@@ -251,3 +251,12 @@ export async function buscarMotoristasParaApi(filialId: number) {
     },
   })
 }
+
+/** Só id e nome dos motoristas ativos — pra selects que não precisam de agenda nem jornada. */
+export async function buscarNomesMotoristas(filialId: number) {
+  return prisma.motorista.findMany({
+    where: { deletadoEm: null, filialId },
+    orderBy: { nome: "asc" },
+    select: { id: true, nome: true },
+  })
+}

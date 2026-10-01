@@ -1,35 +1,31 @@
+import {
+  BedDouble,
+  CalendarX,
+  Clock,
+  FileQuestion,
+  MoonStar,
+  ShieldCheck,
+  Timer,
+  TriangleAlert,
+  Truck,
+  Users,
+} from "lucide-react"
 import { requireSessaoPaginaComFilial } from "@/lib/auth-guard"
-import { buscarMotoristasParaSelect } from "@/lib/queries/motoristas"
+import { buscarNomesMotoristas } from "@/lib/queries/motoristas"
 import { buscarIndicadoresDashboard } from "@/lib/queries/dashboard"
-import { inicioDoDia, fimDoDia, parseDataLocal } from "@/lib/utils/date-format"
+import { buscarRelatorioCircadiano } from "@/lib/queries/circadiano"
+import { buscarFolgasEstouradas } from "@/lib/queries/sem-folga"
+import { contarAlertasOperacao } from "@/lib/queries/relatorios/operacao"
+import { PERIODO_PADRAO } from "@/lib/relatorios/catalogo"
+import { periodoOuPadrao } from "@/lib/relatorios/periodo"
+import { DIAS_INTEGRACAO_PADRAO } from "@/lib/services/relatorios/operacao"
 import RelatoriosClient from "./relatorios-client"
 import DashboardRelatorios from "./dashboard-relatorios"
-import Link from "next/link"
-import { CalendarX, MoonStar } from "lucide-react"
-import { buscarFolgasEstouradas } from "@/lib/queries/sem-folga"
-import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { buscarRelatorioCircadiano } from "@/lib/queries/circadiano"
-import { periodoCircadiano, periodoSemFolga } from "@/lib/services/circadiano-periodo"
+import { GradeRelatorios } from "./cartoes-relatorio"
 
 type SearchParamsInput = {
   de?: string
   ate?: string
-}
-
-/** YYYY-MM-DD local (sem componente de hora) — mesmo formato de <input type="date">. */
-function dataLocalParaInput(data: Date): string {
-  const ano = data.getFullYear()
-  const mes = String(data.getMonth() + 1).padStart(2, "0")
-  const dia = String(data.getDate()).padStart(2, "0")
-  return `${ano}-${mes}-${dia}`
-}
-
-function periodoPadrao() {
-  const hoje = new Date()
-  const trintaDiasAtras = new Date(hoje)
-  trintaDiasAtras.setDate(trintaDiasAtras.getDate() - 30)
-  return { de: dataLocalParaInput(trintaDiasAtras), ate: dataLocalParaInput(hoje) }
 }
 
 export default async function RelatoriosPage({
@@ -38,81 +34,117 @@ export default async function RelatoriosPage({
   searchParams?: Promise<SearchParamsInput>
 }) {
   const parametros = (await searchParams) ?? {}
-  const padrao = periodoPadrao()
-  const deTexto = parametros.de ?? padrao.de
-  const ateTexto = parametros.ate ?? padrao.ate
-  const de = inicioDoDia(parseDataLocal(deTexto))
-  const ate = fimDoDia(parseDataLocal(ateTexto))
+  const periodoIndicadores = periodoOuPadrao(parametros.de, parametros.ate, { diasAntes: 30, diasDepois: 0 })
+  const periodoCircadiano = periodoOuPadrao(undefined, undefined, PERIODO_PADRAO.circadiano)
+  const periodoSemFolga = periodoOuPadrao(undefined, undefined, PERIODO_PADRAO.semFolga)
 
   const { filialId } = await requireSessaoPaginaComFilial()
-  const periodoCircadianoPadrao = periodoCircadiano()!
-  const periodoSemFolgaPadrao = periodoSemFolga()!
-  const [motoristas, indicadores, circadiano, semFolga] = await Promise.all([
-    buscarMotoristasParaSelect(filialId),
-    buscarIndicadoresDashboard(filialId, de, ate),
-    buscarRelatorioCircadiano(filialId, periodoCircadianoPadrao.de, periodoCircadianoPadrao.ate),
-    buscarFolgasEstouradas(filialId, periodoSemFolgaPadrao.de, periodoSemFolgaPadrao.ate),
+  const [motoristas, indicadores, circadiano, semFolga, alertas] = await Promise.all([
+    buscarNomesMotoristas(filialId),
+    buscarIndicadoresDashboard(filialId, periodoIndicadores.de, periodoIndicadores.ate),
+    buscarRelatorioCircadiano(filialId, periodoCircadiano.de, periodoCircadiano.ate),
+    buscarFolgasEstouradas(filialId, periodoSemFolga.de, periodoSemFolga.ate),
+    contarAlertasOperacao(filialId, DIAS_INTEGRACAO_PADRAO),
   ])
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-8">
       <div>
         <h1 className="text-2xl font-semibold tracking-tight text-foreground">Relatórios</h1>
         <p className="text-muted-foreground mt-1">
-          Indicadores das viagens e planilhas Excel para operação e para os motoristas.
+          Jornada dos motoristas, operação e indicadores das viagens — todos com tela e Excel.
         </p>
       </div>
 
-      <DashboardRelatorios indicadores={indicadores} de={deTexto} ate={ateTexto} />
+      <GradeRelatorios
+        titulo="Jornada e segurança"
+        cartoes={[
+          {
+            href: "/relatorios/circadiano",
+            titulo: "Ciclo circadiano",
+            descricao: "Turno do dia passando das 22:00 e da noite passando das 05:00 — previsto e realizado.",
+            icone: MoonStar,
+            contagem: circadiano.previstas.length,
+            contagemTexto: circadiano.previstas.length === 1 ? "viagem agendada vai passar" : "viagens agendadas vão passar",
+          },
+          {
+            href: "/relatorios/sem-folga",
+            titulo: "Dias sem folga",
+            descricao: "Quem trabalhou o 7º dia seguido (ou mais) sem folga.",
+            icone: CalendarX,
+            contagem: semFolga.length,
+            contagemTexto: "nos últimos 30 dias",
+          },
+          {
+            href: "/relatorios/interjornada",
+            titulo: "Descanso não cumprido",
+            descricao: "Quem voltou antes de 11h de descanso (ou 35h depois do 6º dia), pelo relatório de jornada.",
+            icone: BedDouble,
+          },
+          {
+            href: "/relatorios/jornadas-longas",
+            titulo: "Jornadas longas",
+            descricao: "Jornadas reais acima de um limite de horas, com a viagem que o motorista fazia.",
+            icone: Timer,
+          },
+          {
+            href: "/relatorios/motoristas",
+            titulo: "Painel por motorista",
+            descricao: "Dias e horas trabalhadas, viagens e alertas de cada motorista no mês.",
+            icone: Users,
+          },
+        ]}
+      />
 
-      <Card className="shadow-sm border-border">
-        <CardHeader className="bg-muted border-b">
-          <CardTitle className="text-lg flex items-center gap-2">
-            <MoonStar className="size-5 text-indigo-500" aria-hidden /> Ciclo circadiano
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="pt-6 flex flex-wrap items-center justify-between gap-4">
-          <div className="space-y-1 text-sm">
-            <p className="text-muted-foreground">
-              Motoristas do dia que passam das 22:00 e da noite que passam das 05:00 — com início, fim, viagem e frota.
-            </p>
-            <p>
-              <strong className={circadiano.previstas.length > 0 ? "text-destructive" : undefined}>
-                {circadiano.previstas.length}
-              </strong>{" "}
-              {circadiano.previstas.length === 1 ? "viagem agendada vai passar" : "viagens agendadas vão passar"} do horário ·{" "}
-              <strong>{circadiano.realizadas.length}</strong> {circadiano.realizadas.length === 1 ? "jornada passou" : "jornadas passaram"} nos últimos 7 dias
-            </p>
-          </div>
-          <Button asChild>
-            <Link href="/relatorios/circadiano">Abrir relatório</Link>
-          </Button>
-        </CardContent>
-      </Card>
+      <GradeRelatorios
+        titulo="Operação"
+        cartoes={[
+          {
+            href: "/relatorios/integracoes",
+            titulo: "Integrações vencendo",
+            descricao: "Integrações com clientes vencidas ou vencendo — renove antes de travar a alocação.",
+            icone: ShieldCheck,
+            contagem: alertas.integracoes,
+            contagemTexto: `vencida(s) ou vencendo em ${DIAS_INTEGRACAO_PADRAO} dias`,
+          },
+          {
+            href: "/relatorios/pontualidade",
+            titulo: "Pontualidade de saída",
+            descricao: "Saída real x prevista: atrasos por motivo, motorista e cliente.",
+            icone: Clock,
+          },
+          {
+            href: "/relatorios/avisos",
+            titulo: "Viagens com aviso",
+            descricao: "Viagens que foram com aviso de descanso ou de frota, e quem alterou por último.",
+            icone: TriangleAlert,
+          },
+          {
+            href: "/relatorios/frota",
+            titulo: "Uso da frota",
+            descricao: "Dias em viagem e ocupação de cada conjunto; os parados primeiro.",
+            icone: Truck,
+          },
+          {
+            href: "/relatorios/nao-consta",
+            titulo: "Não consta no relatório",
+            descricao: "Viagens que o relatório de jornada desmente — pra cancelar ou corrigir.",
+            icone: FileQuestion,
+            contagem: alertas.naoConstam,
+            contagemTexto: alertas.naoConstam === 1 ? "viagem pendente" : "viagens pendentes",
+          },
+        ]}
+      />
 
-      <Card className="shadow-sm border-border">
-        <CardHeader className="bg-muted border-b">
-          <CardTitle className="text-lg flex items-center gap-2">
-            <CalendarX className="size-5 text-destructive" aria-hidden /> Dias sem folga
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="pt-6 flex flex-wrap items-center justify-between gap-4">
-          <div className="space-y-1 text-sm">
-            <p className="text-muted-foreground">
-              Motoristas que trabalharam o 7º dia seguido (ou mais) sem folga, segundo o relatório de jornada.
-            </p>
-            <p>
-              <strong className={semFolga.length > 0 ? "text-destructive" : undefined}>{semFolga.length}</strong>{" "}
-              {semFolga.length === 1 ? "dia" : "dias"} nos últimos 30 dias
-            </p>
-          </div>
-          <Button asChild>
-            <Link href="/relatorios/sem-folga">Abrir relatório</Link>
-          </Button>
-        </CardContent>
-      </Card>
+      <section className="space-y-3">
+        <h2 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">Indicadores das viagens</h2>
+        <DashboardRelatorios indicadores={indicadores} de={periodoIndicadores.deTexto} ate={periodoIndicadores.ateTexto} />
+      </section>
 
-      <RelatoriosClient motoristas={motoristas.map(({ id, nome }) => ({ id, nome }))} />
+      <section className="space-y-3">
+        <h2 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">Planilhas de viagens</h2>
+        <RelatoriosClient motoristas={motoristas} />
+      </section>
     </div>
   )
 }
