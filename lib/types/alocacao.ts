@@ -1,4 +1,4 @@
-import type { TipoProduto } from "@prisma/client"
+import type { TipoMotorista, TipoProduto } from "@prisma/client"
 
 export type EntregaAlocacao = {
   id: number
@@ -16,6 +16,8 @@ export type EntregaAlocacao = {
 export type MotoristaCompativel = {
   id: number
   nome: string
+  /** Função do motorista — ícone ao lado do nome. */
+  tipo: TipoMotorista
   diasTrabalhados: number
   diasDisponiveis: number
   turno: "MANHA" | "NOITE"
@@ -23,6 +25,10 @@ export type MotoristaCompativel = {
   horarioHabitual: string | null
   /** Horário mínimo do próximo início respeitando o descanso legal, ex: "06:00". `null` sem dado. */
   proximoInicioDisponivel: string | null
+  /** Instante (ISO) em que o descanso legal antes da viagem fica cumprido; `null` sem trabalho anterior conhecido. */
+  liberadoEm: string | null
+  /** Aviso de descanso que a viagem ganharia com ESTE motorista (ver calcularAvisoDescanso) — null se ok. */
+  avisoDescanso: string | null
 }
 
 export type MotoristaSugerido = {
@@ -57,6 +63,8 @@ export type ViagemAlocacao = {
 /** Sugestão de alocação para uma viagem que ainda não existe no banco (revisão antes de criar em lote). */
 export type SugestaoAlocacaoPendente = {
   numViagem: string
+  /** Produto da carreta no cadastro de frota (null se não cadastrada ou sem produto) — preenche a revisão do import. */
+  produtoDaFrota: TipoProduto | null
   motoristaSugerido: MotoristaSugerido
   motoristasCompativeis: MotoristaCompativel[]
   /** Calculado pro motorista sugerido — ver calcularAvisoInterjornada (alocacao.service.ts). */

@@ -1,5 +1,7 @@
 'use server'
 import { revalidatePath } from "next/cache";
+import { buscarProdutoPorCarreta } from "@/lib/queries/frotas";
+import { montarMotoristaCompativel } from "@/lib/services/motorista-compativel.service";
 import {
   NovaViagemInput,
   EditarViagemInput,
@@ -26,14 +28,12 @@ import { buscarMotoristasParaSelect } from "@/lib/queries/motoristas";
 import { buscarNumerosSapQueExigemIntegracao } from "@/lib/queries/clientes";
 import {
   calcularAvisoDescanso,
-  calcularDiasDisponiveis,
   calcularIntegracaoExigida,
-  calcularDescansoAntesDaViagem,
   sugerirAlocacoesEmLote,
 } from "@/lib/services/alocacao.service";
 import { calcularAvisoFrotaIndisponivel, calcularAvisoFrotaProduto } from "@/lib/services/frota.service";
-import { prepararJornadaDoMotorista, projetarCodigoNoDia } from "@/lib/services/jornada.service";
-import { converterEntradaDeDataHora, formatarHoraLocal, inicioDoDia } from "@/lib/utils/date-format";
+import { prepararJornadaDoMotorista } from "@/lib/services/jornada.service";
+import { converterEntradaDeDataHora, inicioDoDia } from "@/lib/utils/date-format";
 
 export async function criarViagemAvulsa(dados: NovaViagemInput): Promise<RespostaAcao> {
   try {
@@ -68,9 +68,12 @@ export async function sugerirAlocacaoParaViagens(
 ): Promise<SugestaoAlocacaoPendente[]> {
   const { filialId } = await requireSessionComFilial();
 
-  const [motoristasBrutos, numerosSapQueExigemIntegracao] = await Promise.all([
+  const [motoristasBrutos, numerosSapQueExigemIntegracao, produtoPorCarreta] = await Promise.all([
     buscarMotoristasParaSelect(filialId),
     buscarNumerosSapQueExigemIntegracao(),
+    // Produto de cada carreta cadastrada — preenche o produto da viagem na
+    // revisão do import, pra não precisar escolher viagem por viagem.
+    buscarProdutoPorCarreta(filialId, viagens.map((viagem) => viagem.carreta)),
   ]);
   const motoristas = motoristasBrutos.map((motorista) => ({
     ...motorista,
@@ -108,6 +111,7 @@ export async function sugerirAlocacaoParaViagens(
 
     return {
       numViagem: viagens[indice].numViagem,
+      produtoDaFrota: produtoPorCarreta.get(viagens[indice].carreta) ?? null,
       motoristaSugerido: sugestao.motoristaSugerido
         ? { id: sugestao.motoristaSugerido.id, nome: sugestao.motoristaSugerido.nome }
         : null,
@@ -118,30 +122,9 @@ export async function sugerirAlocacaoParaViagens(
         : null,
       avisoFrotaIndisponivel,
       avisoFrotaProdutoIncompativel,
-      motoristasCompativeis: sugestao.motoristasCompativeis.map((motorista) => {
-        // Mesma jornada projetada usada pra decidir compatibilidade, não o
-        // cache de "hoje" — ver mesma lógica em app/viagens/alocacao/page.tsx.
-        const codigoNaViagem = projetarCodigoNoDia(
-          motorista.registrosJornada,
-          dataInicioViagem,
-          hoje,
-          motorista.diasTrabalhados,
-        );
-
-        // Regra única de descanso (ver calcularDescansoAntesDaViagem).
-        const proximoInicioDisponivel =
-          calcularDescansoAntesDaViagem(motorista, dataInicioViagem, hoje)?.inicioPermitido ?? null
-
-        return {
-          id: motorista.id,
-          nome: motorista.nome,
-          diasTrabalhados: codigoNaViagem,
-          diasDisponiveis: calcularDiasDisponiveis(codigoNaViagem),
-          turno: motorista.turno,
-          horarioHabitual: motorista.jornadaRelatorioInicio ? formatarHoraLocal(motorista.jornadaRelatorioInicio) : null,
-          proximoInicioDisponivel: proximoInicioDisponivel ? formatarHoraLocal(proximoInicioDisponivel) : null,
-        };
-      }),
+      motoristasCompativeis: sugestao.motoristasCompativeis.map((motorista) =>
+        montarMotoristaCompativel(motorista, { inicioPrevisto: dataInicioViagem }, hoje),
+      ),
     };
   }));
 }

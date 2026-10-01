@@ -84,8 +84,8 @@ describe("calendario-utils", () => {
     })
 
     it("usa o tamanho padrão de janela do calendário (30 dias)", () => {
-      expect(TAMANHO_JANELA_CALENDARIO).toBe(30)
-      expect(gerarJanelaDias(new Date(2026, 0, 1), TAMANHO_JANELA_CALENDARIO)).toHaveLength(30)
+      expect(TAMANHO_JANELA_CALENDARIO).toBe(7)
+      expect(gerarJanelaDias(new Date(2026, 0, 1), TAMANHO_JANELA_CALENDARIO)).toHaveLength(7)
     })
   })
 

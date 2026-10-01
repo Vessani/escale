@@ -50,6 +50,18 @@ function buscarJornadaRealNoDia(registros: RegistroJornada[], dia: Date) {
   return { inicioJornada: registro.inicioJornada, fimJornada: registro.fimJornada }
 }
 
+/** Horário da viagem dentro de um dia: "07:00–19:18", "07:00 →" (continua), "→ 19:18" (termina) ou "dia todo". */
+function horarioDaViagemNoDia(viagem: Viagem, dia: Date) {
+  const inicio = new Date(viagem.inicioPrevisto)
+  const fim = new Date(viagem.fimPrevisto)
+  const comecaNoDia = inicio >= inicioDoDia(dia)
+  const terminaNoDia = fim <= fimDoDia(dia)
+  if (comecaNoDia && terminaNoDia) return `${formatarHoraLocal(inicio)}–${formatarHoraLocal(fim)}`
+  if (comecaNoDia) return `${formatarHoraLocal(inicio)} →`
+  if (terminaNoDia) return `→ ${formatarHoraLocal(fim)}`
+  return "dia todo"
+}
+
 type Motorista = {
   id: number
   nome: string
@@ -175,10 +187,16 @@ export default function CalendarioMotoristas({ inicioParam, hojeIso, dias, motor
         </div>
       ) : (
         <div className="isolate overflow-auto rounded-lg border border-border bg-card shadow-sm">
-          <table className="min-w-[1600px] w-full text-sm">
+          <table className="w-full min-w-[960px] table-fixed text-sm">
+          <colgroup>
+            <col className="w-72" />
+            {dias.map((diaIso) => (
+              <col key={diaIso} />
+            ))}
+          </colgroup>
           <thead className="bg-muted">
             <tr>
-              <th className="sticky left-0 z-40 bg-muted border-b border-r px-4 py-3 text-left font-semibold text-foreground/80 min-w-80 shadow-[4px_0_6px_-4px_rgba(15,23,42,0.2)]">
+              <th className="sticky left-0 z-40 bg-muted border-b border-r px-4 py-3 text-left font-semibold text-foreground/80 shadow-[4px_0_6px_-4px_rgba(15,23,42,0.2)]">
                 Motorista
               </th>
               {dias.map((diaIso) => {
@@ -187,11 +205,14 @@ export default function CalendarioMotoristas({ inicioParam, hojeIso, dias, motor
                 return (
                   <th
                     key={diaIso}
-                    className={`border-b border-r px-2 py-3 text-center align-top min-w-20 ${ehHoje ? "bg-primary/10" : "bg-muted"}`}
+                    className={`border-b border-r px-2 py-2.5 text-center align-middle ${ehHoje ? "bg-primary/10" : "bg-muted"}`}
                   >
-                    <div className="font-semibold tabular-nums text-foreground/80">{dia.getDate()}</div>
-                    <div className="text-[11px] uppercase text-muted-foreground">{formatarSemana(dia)}</div>
-                    {ehHoje ? <div className="text-[10px] font-bold uppercase text-primary">Hoje</div> : null}
+                    <div className={`text-sm font-semibold tabular-nums ${ehHoje ? "text-primary" : "text-foreground/80"}`}>
+                      {String(dia.getDate()).padStart(2, "0")}/{String(dia.getMonth() + 1).padStart(2, "0")}
+                    </div>
+                    <div className={`text-[11px] uppercase ${ehHoje ? "font-bold text-primary" : "text-muted-foreground"}`}>
+                      {ehHoje ? "Hoje" : formatarSemana(dia).replace(".", "")}
+                    </div>
                   </th>
                 )
               })}
@@ -231,19 +252,18 @@ export default function CalendarioMotoristas({ inicioParam, hojeIso, dias, motor
                             )}
                           </AcoesLinha>
                           <Badge variant="outline" className={classeTurnoBadge}>
-                            {motorista.turno}
+                            {motorista.turno === "NOITE" ? "Noite" : "Dia"}
                           </Badge>
                         </div>
                       </div>
-                      <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+                      <div className="flex items-center gap-2 text-xs text-muted-foreground">
                         <span>SEVA <span className="font-mono tabular-nums">{motorista.seva}</span></span>
                         <span>·</span>
                         <span className="tabular-nums">{diasDisponiveis} dia(s) disponível(is)</span>
-                        <span>·</span>
-                        <span className={`rounded px-2 py-0.5 font-semibold ${classeBadgeJornada(motorista.codigoHoje)}`}>
-                          Hoje: {statusJornada.texto}
-                        </span>
                       </div>
+                      <span className={`inline-block w-fit rounded px-2 py-0.5 text-xs font-semibold ${classeBadgeJornada(motorista.codigoHoje)}`}>
+                        Hoje: {statusJornada.texto}
+                      </span>
                     </div>
                   </td>
 
@@ -266,62 +286,68 @@ export default function CalendarioMotoristas({ inicioParam, hojeIso, dias, motor
                     return (
                       <td
                         key={chaveCelula}
-                        className={`border-r border-b px-2 py-2 align-top text-center ${celulaAberta ? "relative z-10" : ""} ${ehHoje ? "bg-primary/10" : ""}`}
+                        className={`border-r border-b px-2 py-2 align-top ${celulaAberta ? "relative z-10" : ""} ${ehHoje ? "bg-primary/5" : ""}`}
                       >
-                        <div className="space-y-1">
-                          {celulaAberta ? (
-                            <select
-                              className="w-full rounded border border-border bg-card px-2 py-1 text-xs font-semibold text-foreground"
-                              defaultValue={String(codigoNoDia)}
-                              disabled={celulaOcupada || isPending}
-                              onChange={(evento) => {
-                                salvarJornada(motorista.id, diaIso, Number(evento.target.value))
-                              }}
-                              onBlur={() => {
-                                if (!celulaOcupada) {
-                                  setCelulaEmEdicao(null)
-                                }
-                              }}
-                              autoFocus
-                            >
-                              {OPCOES_CODIGO_JORNADA.map((opcao) => (
-                                <option key={opcao.valor} value={opcao.valor}>
-                                  {opcao.label}
-                                </option>
-                              ))}
-                            </select>
-                          ) : (
-                            <>
+                        {/* Três faixas de altura fixa (status, horário da jornada, viagens): tudo alinhado entre as colunas. */}
+                        <div className="flex flex-col items-stretch gap-1.5">
+                          <div className="flex h-6 items-center justify-center">
+                            {celulaAberta ? (
+                              <select
+                                className="w-full rounded border border-border bg-card px-2 py-0.5 text-xs font-semibold text-foreground"
+                                defaultValue={String(codigoNoDia)}
+                                disabled={celulaOcupada || isPending}
+                                onChange={(evento) => {
+                                  salvarJornada(motorista.id, diaIso, Number(evento.target.value))
+                                }}
+                                onBlur={() => {
+                                  if (!celulaOcupada) {
+                                    setCelulaEmEdicao(null)
+                                  }
+                                }}
+                                autoFocus
+                              >
+                                {OPCOES_CODIGO_JORNADA.map((opcao) => (
+                                  <option key={opcao.valor} value={opcao.valor}>
+                                    {opcao.label}
+                                  </option>
+                                ))}
+                              </select>
+                            ) : (
                               <button
                                 type="button"
                                 onClick={() => setCelulaEmEdicao(chaveCelula)}
-                                className={`inline-flex rounded px-2 py-0.5 text-xs font-semibold hover:brightness-95 ${classeBadgeJornada(codigoNoDia)}`}
+                                title="Clique pra trocar o status do dia"
+                                className={`w-full rounded px-2 py-0.5 text-xs font-semibold hover:brightness-95 ${classeBadgeJornada(codigoNoDia)}`}
                               >
                                 {statusNoDia.texto}
                               </button>
-                              {jornadaReal && (
-                                <span className="block font-mono text-[10px] tabular-nums text-muted-foreground">
-                                  {formatarHoraLocal(jornadaReal.inicioJornada)}–{formatarHoraLocal(jornadaReal.fimJornada)}
-                                </span>
-                              )}
-                            </>
-                          )}
+                            )}
+                          </div>
 
-                          {viagensNoDia.length > 0 ? (
-                            <div className="space-y-1">
-                              {viagensNoDia.map((viagem) => (
+                          <div
+                            className="flex h-4 items-center justify-center font-mono text-[11px] tabular-nums text-muted-foreground"
+                            title={jornadaReal ? "Jornada real (relatório de jornada)" : undefined}
+                          >
+                            {jornadaReal ? `${formatarHoraLocal(jornadaReal.inicioJornada)}–${formatarHoraLocal(jornadaReal.fimJornada)}` : ""}
+                          </div>
+
+                          <div className="flex min-h-10 flex-col justify-center gap-1">
+                            {viagensNoDia.length > 0 ? (
+                              viagensNoDia.map((viagem) => (
                                 <Link
                                   key={viagem.id}
                                   href={`/viagens/editar/${viagem.id}`}
-                                  className="block rounded-md border border-primary/20 bg-primary/10 p-1 text-xs hover:bg-primary/20"
+                                  title={`Viagem ${viagem.numViagem} · ${horarioDaViagemNoDia(viagem, dia)}`}
+                                  className="flex flex-col items-center rounded-md border border-primary/20 bg-primary/10 px-1 py-0.5 leading-tight hover:bg-primary/20"
                                 >
-                                  <div className="font-mono font-semibold tabular-nums text-primary">{viagem.numViagem}</div>
+                                  <span className="font-mono text-xs font-semibold tabular-nums text-primary">{viagem.numViagem}</span>
+                                  <span className="font-mono text-[10px] tabular-nums text-primary/80">{horarioDaViagemNoDia(viagem, dia)}</span>
                                 </Link>
-                              ))}
-                            </div>
-                          ) : (
-                            <span className="text-[11px] text-muted-foreground">Sem viagem</span>
-                          )}
+                              ))
+                            ) : (
+                              <span className="text-center text-[11px] text-muted-foreground/70">Sem viagem</span>
+                            )}
+                          </div>
                         </div>
                       </td>
                     )

@@ -1,30 +1,26 @@
 "use client"
 
-import { useMemo, useState, useTransition } from "react"
-import type { MotoristaCompativel, MotoristaSugerido } from "@/lib/types/alocacao"
+import { useEffect, useMemo, useRef, useState, useTransition } from "react"
+import type { TipoProduto } from "@prisma/client"
+import type { SugestaoAlocacaoPendente } from "@/lib/types/alocacao"
 import type { NovaViagemFormValues } from "@/lib/validation/viagens"
 import type { ResultadoImportacaoLote } from "@/lib/types/types"
-import { criarViagensEmLoteComAlocacao } from "@/lib/actions/viagens"
+import { criarViagensEmLoteComAlocacao, sugerirAlocacaoParaViagens } from "@/lib/actions/viagens"
 import { periodoConflita } from "@/lib/services/alocacao.service"
 import { useConflitosAlocacao } from "@/lib/hooks/use-conflitos-alocacao"
 import { viagensCompartilhamFrota } from "@/lib/services/frota-regras"
-import { PRODUTO_OPCOES, ehTipoProduto } from "@/lib/services/produto.service"
+import { PRODUTO_OPCOES, ehTipoProduto, formatarProduto } from "@/lib/services/produto.service"
 import { Alert } from "@/components/ui/alert"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
-import { classeBadgeTurno } from "@/app/viagens/badge-styles"
-import { formatarDataHoraPtBr } from "@/lib/utils/date-format"
-import { formatarDetalheMotoristaCompativel, formatarOpcaoMotoristaCompativel } from "@/lib/utils/motorista-format"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { CheckCircle2, UserCheck } from "lucide-react"
+import { CartaoViagemAlocacao } from "@/components/viagem/cartao-viagem-alocacao"
+import { EscolhaMotorista, SEM_MOTORISTA } from "@/components/viagem/escolha-motorista"
+import { CheckCircle2, Loader2, PackageCheck, UserCheck } from "lucide-react"
 
 export type ViagemParaConfirmar = {
   dados: NovaViagemFormValues
-  motoristaSugerido: MotoristaSugerido
-  motoristasCompativeis: MotoristaCompativel[]
-  avisoInterjornada: string | null
-  avisoFrotaIndisponivel: string | null
+  sugestao: SugestaoAlocacaoPendente
 }
 
 type Props = {
@@ -33,30 +29,93 @@ type Props = {
   onCancelar: () => void
 }
 
+/** Valor do seletor "produto de todas" quando cada viagem tem um diferente. */
+const VARIOS = "VARIOS"
+
+function selecaoInicial(sugestao: SugestaoAlocacaoPendente) {
+  return sugestao.motoristaSugerido ? String(sugestao.motoristaSugerido.id) : SEM_MOTORISTA
+}
+
+/**
+ * Revisão do lote importado da planilha, antes de criar. O produto vem do
+ * cadastro da carreta quando existe e, no resto, é escolhido UMA vez pra
+ * todas (com ajuste por viagem). Trocar o produto refaz a sugestão daquela
+ * viagem — os motoristas compatíveis dependem dele.
+ */
 export default function ConfirmarLoteViagens({ viagens, onConcluido, onCancelar }: Props) {
-  const [isPending, startTransition] = useTransition()
-  const [selecoes, setSelecoes] = useState<Record<string, string>>(() =>
-    Object.fromEntries(
-      viagens.map((viagem) => [
-        viagem.dados.numViagem,
-        viagem.motoristaSugerido ? String(viagem.motoristaSugerido.id) : "",
-      ]),
-    ),
-  )
+  const [criando, iniciarCriacao] = useTransition()
   const [erro, setErro] = useState("")
-  // A planilha não traz produto — cada viagem do lote precisa de uma escolha
-  // explícita aqui antes de confirmar (produto passou a ser obrigatório em
-  // toda viagem nova, ver validation/viagens.ts).
-  const [produtos, setProdutos] = useState<Record<string, string>>({})
-  const atualizarProduto = (numViagem: string, produto: string) =>
-    setProdutos((atual) => ({ ...atual, [numViagem]: produto }))
+  const [sugestoes, setSugestoes] = useState<Record<string, SugestaoAlocacaoPendente>>(() =>
+    Object.fromEntries(viagens.map((viagem) => [viagem.dados.numViagem, viagem.sugestao])),
+  )
+  const [produtos, setProdutos] = useState<Record<string, TipoProduto | "">>(() =>
+    Object.fromEntries(viagens.map((viagem) => [viagem.dados.numViagem, viagem.sugestao.produtoDaFrota ?? ""])),
+  )
+  const [selecoes, setSelecoes] = useState<Record<string, string>>(() =>
+    Object.fromEntries(viagens.map((viagem) => [viagem.dados.numViagem, selecaoInicial(viagem.sugestao)])),
+  )
+  const [recalculando, setRecalculando] = useState<Set<string>>(new Set())
+
+  /** Refaz a sugestão das viagens informadas com o produto escolhido (os compatíveis dependem dele). */
+  const recalcular = async (produtosNovos: Record<string, TipoProduto | "">, numeros: string[]) => {
+    const alvo = viagens.filter((viagem) => numeros.includes(viagem.dados.numViagem) && produtosNovos[viagem.dados.numViagem])
+    if (alvo.length === 0) return
+    setRecalculando((atual) => new Set([...atual, ...alvo.map((viagem) => viagem.dados.numViagem)]))
+    try {
+      const resultado = await sugerirAlocacaoParaViagens(
+        alvo.map((viagem) => ({ ...viagem.dados, produto: produtosNovos[viagem.dados.numViagem] as TipoProduto })),
+      )
+      setSugestoes((atual) => ({ ...atual, ...Object.fromEntries(resultado.map((sugestao) => [sugestao.numViagem, sugestao])) }))
+      setSelecoes((atual) => {
+        const proximo = { ...atual }
+        for (const sugestao of resultado) {
+          const escolhido = atual[sugestao.numViagem]
+          // Mantém quem a pessoa escolheu, se continua compatível com o produto.
+          const continuaValido = sugestao.motoristasCompativeis.some((m) => String(m.id) === escolhido)
+          proximo[sugestao.numViagem] = continuaValido && escolhido !== SEM_MOTORISTA ? escolhido : selecaoInicial(sugestao)
+        }
+        return proximo
+      })
+    } catch {
+      setErro("Não foi possível recalcular a sugestão de motorista. Tente de novo.")
+    } finally {
+      setRecalculando((atual) => {
+        const proximo = new Set(atual)
+        for (const viagem of alvo) proximo.delete(viagem.dados.numViagem)
+        return proximo
+      })
+    }
+  }
+
+  // Produto já veio do cadastro da carreta: a sugestão inicial (feita sem
+  // produto) precisa ser refeita com ele.
+  const recalculouInicial = useRef(false)
+  useEffect(() => {
+    if (recalculouInicial.current) return
+    recalculouInicial.current = true
+    const comProduto = viagens.filter((viagem) => viagem.sugestao.produtoDaFrota).map((viagem) => viagem.dados.numViagem)
+    void recalcular(produtos, comProduto)
+    // Só na montagem.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
+  const mudarProduto = (numeros: string[], produto: TipoProduto) => {
+    const proximos = { ...produtos, ...Object.fromEntries(numeros.map((numero) => [numero, produto])) }
+    setProdutos(proximos)
+    void recalcular(proximos, numeros)
+  }
+
+  const valoresProduto = new Set(Object.values(produtos))
+  const produtoDeTodas = valoresProduto.size === 1 ? [...valoresProduto][0] : VARIOS
+  const semProduto = viagens.filter((viagem) => !ehTipoProduto(produtos[viagem.dados.numViagem] ?? "")).length
+  const vindosDaFrota = viagens.filter((viagem) => viagem.sugestao.produtoDaFrota).length
 
   const itensParaConflito = useMemo(
     () =>
       viagens.map((viagem) => ({
         chave: viagem.dados.numViagem,
         numViagem: viagem.dados.numViagem,
-        motoristaSugeridoId: viagem.motoristaSugerido ? String(viagem.motoristaSugerido.id) : "",
+        motoristaSugeridoId: "",
         inicioPrevisto: viagem.dados.inicioPrevisto,
         fimPrevisto: viagem.dados.fimPrevisto,
       })),
@@ -64,120 +123,146 @@ export default function ConfirmarLoteViagens({ viagens, onConcluido, onCancelar 
   )
   const { conflitosPorViagem } = useConflitosAlocacao(itensParaConflito, selecoes)
 
-  // Frota (cavalo/carreta) usada em mais de uma viagem do próprio lote, em período sobreposto.
-  // sugerirAlocacaoParaViagens só verifica cada viagem contra o banco — nenhuma delas existe
-  // ainda, então um conflito só entre viagens do mesmo arquivo não aparece em avisoFrotaIndisponivel.
+  // Mesma carreta em duas viagens do próprio lote, em período sobreposto (o
+  // aviso de frota do servidor só olha o banco, onde elas ainda não existem).
   const conflitosFrotaPorViagem = useMemo(() => {
     const mapa: Record<string, string[]> = {}
-
-    for (const viagemA of viagens) {
-      const numerosConflitantes = viagens
-        .filter((viagemB) => {
-          if (viagemB.dados.numViagem === viagemA.dados.numViagem) return false
-          if (!viagensCompartilhamFrota(viagemA.dados.carreta, viagemB.dados.carreta)) {
-            return false
-          }
-
-          return periodoConflita(
-            new Date(viagemA.dados.inicioPrevisto),
-            new Date(viagemA.dados.fimPrevisto),
-            new Date(viagemB.dados.inicioPrevisto),
-            new Date(viagemB.dados.fimPrevisto),
-          )
-        })
-        .map((viagemB) => viagemB.dados.numViagem)
-
-      if (numerosConflitantes.length > 0) {
-        mapa[viagemA.dados.numViagem] = numerosConflitantes
-      }
+    for (const a of viagens) {
+      const conflitantes = viagens
+        .filter(
+          (b) =>
+            b.dados.numViagem !== a.dados.numViagem &&
+            viagensCompartilhamFrota(a.dados.carreta, b.dados.carreta) &&
+            periodoConflita(new Date(a.dados.inicioPrevisto), new Date(a.dados.fimPrevisto), new Date(b.dados.inicioPrevisto), new Date(b.dados.fimPrevisto)),
+        )
+        .map((b) => b.dados.numViagem)
+      if (conflitantes.length > 0) mapa[a.dados.numViagem] = conflitantes
     }
-
     return mapa
   }, [viagens])
 
-  const atualizarSelecao = (numViagem: string, motoristaId: string) => {
-    setSelecoes((atual) => ({ ...atual, [numViagem]: motoristaId }))
-  }
-
   const confirmarCriacao = () => {
     setErro("")
-
-    const semProduto = viagens.find((viagem) => !ehTipoProduto(produtos[viagem.dados.numViagem] ?? ""))
-    if (semProduto) {
-      setErro(`Escolha o produto da viagem ${semProduto.dados.numViagem} antes de confirmar.`)
+    const pendente = viagens.find((viagem) => !ehTipoProduto(produtos[viagem.dados.numViagem] ?? ""))
+    if (pendente) {
+      setErro(`Escolha o produto da viagem ${pendente.dados.numViagem} antes de confirmar.`)
       return
     }
 
     const payload = viagens.map((viagem) => {
       const selecionado = selecoes[viagem.dados.numViagem]
       return {
-        dados: { ...viagem.dados, produto: produtos[viagem.dados.numViagem] } as typeof viagem.dados,
-        motoristaId: selecionado ? Number(selecionado) : null,
+        dados: { ...viagem.dados, produto: produtos[viagem.dados.numViagem] as TipoProduto },
+        motoristaId: selecionado && selecionado !== SEM_MOTORISTA ? Number(selecionado) : null,
       }
     })
 
-    startTransition(async () => {
+    iniciarCriacao(async () => {
       try {
-        const resultado = await criarViagensEmLoteComAlocacao(payload)
-        onConcluido(resultado)
+        onConcluido(await criarViagensEmLoteComAlocacao(payload))
       } catch {
         setErro("Ocorreu um erro inesperado ao criar as viagens.")
       }
     })
   }
 
+  const alocadas = viagens.filter((viagem) => (selecoes[viagem.dados.numViagem] ?? SEM_MOTORISTA) !== SEM_MOTORISTA).length
+
   return (
     <div className="space-y-4">
-      <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg bg-muted p-4">
-        <div className="flex items-center gap-2">
-          <UserCheck className="h-5 w-5 text-foreground/80" />
-          <span className="font-medium text-foreground">
-            Revise a alocação sugerida para {viagens.length} viagem(ns) antes de criar
+      <div className="sticky top-0 z-20 space-y-3 rounded-xl border bg-card/95 p-4 shadow-sm backdrop-blur">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div className="flex items-center gap-2">
+            <UserCheck className="size-5 text-primary" aria-hidden />
+            <div>
+              <p className="font-medium text-foreground">Revise {viagens.length} viagem(ns) antes de criar</p>
+              <p className="text-xs text-muted-foreground">
+                {alocadas} com motorista · {viagens.length - alocadas} sem
+                {recalculando.size > 0 && " · recalculando sugestões..."}
+              </p>
+            </div>
+          </div>
+          <div className="flex flex-wrap items-center gap-2">
+            <Button type="button" variant="outline" disabled={criando} onClick={onCancelar}>
+              Cancelar
+            </Button>
+            <Button type="button" disabled={criando || recalculando.size > 0} onClick={confirmarCriacao}>
+              {criando ? (
+                "Criando viagens..."
+              ) : (
+                <>
+                  <CheckCircle2 className="mr-2 size-4" aria-hidden />
+                  Criar {viagens.length} viagem(ns)
+                </>
+              )}
+            </Button>
+          </div>
+        </div>
+
+        <div className="flex flex-wrap items-center gap-3 border-t pt-3">
+          <PackageCheck className="size-4 text-muted-foreground" aria-hidden />
+          <span className="text-sm font-medium text-foreground">Produto das viagens</span>
+          <Select
+            value={produtoDeTodas === VARIOS || produtoDeTodas === "" ? "" : produtoDeTodas}
+            onValueChange={(valor) => mudarProduto(viagens.map((viagem) => viagem.dados.numViagem), valor as TipoProduto)}
+            disabled={criando}
+          >
+            <SelectTrigger className="h-8 w-48 bg-card text-xs">
+              <SelectValue placeholder={produtoDeTodas === VARIOS ? "Vários — aplicar a todas" : "Escolha pra todas"} />
+            </SelectTrigger>
+            <SelectContent>
+              {PRODUTO_OPCOES.map((opcao) => (
+                <SelectItem key={opcao.valor} value={opcao.valor}>
+                  {opcao.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <span className="text-xs text-muted-foreground">
+            {vindosDaFrota > 0 && `${vindosDaFrota} preenchida(s) pelo cadastro da carreta. `}
+            {semProduto > 0 ? (
+              <span className="font-medium text-warning">{semProduto} sem produto.</span>
+            ) : (
+              "Dá pra ajustar viagem por viagem."
+            )}
           </span>
         </div>
-        <Badge variant="outline">{isPending ? "Criando..." : "Aguardando confirmação"}</Badge>
+        {erro && <Alert variant="error">{erro}</Alert>}
       </div>
 
-      {erro && <Alert variant="error">{erro}</Alert>}
-
       <div className="grid gap-4">
-        {viagens.map((viagem) => {
-          const numViagem = viagem.dados.numViagem
-          const sugestao = viagem.motoristaSugerido ? String(viagem.motoristaSugerido.id) : ""
-          const motoristaSelecionado = selecoes[numViagem] || sugestao
-          const semCompatibilidade = viagem.motoristasCompativeis.length === 0
-          // Fechado, o campo mostra dias disponíveis + horário livre, sem repetir
-          // o nome (esse já tá na carta de sugestão ao lado).
-          const motoristaAtual = viagem.motoristasCompativeis.find((m) => String(m.id) === motoristaSelecionado)
+        {viagens.map(({ dados }) => {
+          const numViagem = dados.numViagem
+          const sugestao = sugestoes[numViagem]
+          const produto = produtos[numViagem] ?? ""
+          const ocupado = recalculando.has(numViagem)
+          const avisos = [
+            ...(sugestao.avisoFrotaIndisponivel ? [{ rotulo: "Frota indisponível no horário", detalhe: sugestao.avisoFrotaIndisponivel }] : []),
+            ...(sugestao.avisoFrotaProdutoIncompativel ? [{ rotulo: "Frota de outro produto", detalhe: sugestao.avisoFrotaProdutoIncompativel }] : []),
+            ...(conflitosFrotaPorViagem[numViagem]
+              ? [{ rotulo: `Mesma carreta na(s) viagem(ns) ${conflitosFrotaPorViagem[numViagem].join(", ")}`, detalhe: "No mesmo período, dentro desta planilha." }]
+              : []),
+          ]
 
           return (
-            <Card key={numViagem} className="border-border shadow-sm">
-              <CardHeader className="flex flex-col gap-3 border-b bg-card sm:flex-row sm:items-start sm:justify-between sm:gap-4">
-                <div>
-                  <CardTitle className="text-lg text-foreground">Viagem <span className="font-mono tabular-nums">{numViagem}</span></CardTitle>
-                  <p className="mt-1 text-sm text-muted-foreground">
-                    <span className="font-mono tabular-nums">{viagem.dados.cavalo} / {viagem.dados.carreta}</span> · <span className="font-mono tabular-nums">{formatarDataHoraPtBr(viagem.dados.inicioPrevisto)}</span>
-                  </p>
-                  {viagem.avisoFrotaIndisponivel && (
-                    <Alert variant="warning" inline className="mt-1" title={viagem.avisoFrotaIndisponivel}>
-                      Frota indisponível no horário
-                    </Alert>
-                  )}
-                  {conflitosFrotaPorViagem[numViagem] && (
-                    <Alert variant="warning" inline className="mt-1">
-                      Mesma frota também usada na(s) viagem(ns) {conflitosFrotaPorViagem[numViagem].join(", ")} deste lote, no mesmo período.
-                    </Alert>
-                  )}
-                </div>
-                <div className="flex flex-col items-end gap-2">
-                  <Badge variant="outline" className={classeBadgeTurno(viagem.dados.turno)}>
-                    {viagem.dados.turno}
-                  </Badge>
-                  <Select
-                    value={produtos[numViagem] ?? ""}
-                    onValueChange={(value) => atualizarProduto(numViagem, value)}
-                  >
-                    <SelectTrigger className="h-8 w-44 bg-card text-xs">
+            <CartaoViagemAlocacao
+              key={numViagem}
+              numViagem={numViagem}
+              cavalo={dados.cavalo}
+              carreta={dados.carreta}
+              inicioPrevisto={String(dados.inicioPrevisto)}
+              fimPrevisto={String(dados.fimPrevisto)}
+              turno={dados.turno}
+              entregas={dados.entregas.map((entrega) => ({ ...entrega, dataEntrega: String(entrega.dataEntrega) }))}
+              avisos={avisos}
+              etiquetas={
+                produto ? <Badge variant="outline">{formatarProduto(produto)}</Badge> : <Badge variant="warning">Sem produto</Badge>
+              }
+              lateral={
+                <label className="grid gap-1 text-xs font-medium text-muted-foreground">
+                  Produto desta viagem
+                  <Select value={produto} onValueChange={(valor) => mudarProduto([numViagem], valor as TipoProduto)} disabled={criando}>
+                    <SelectTrigger className="h-8 bg-card text-xs">
                       <SelectValue placeholder="Escolha o produto" />
                     </SelectTrigger>
                     <SelectContent>
@@ -188,93 +273,33 @@ export default function ConfirmarLoteViagens({ viagens, onConcluido, onCancelar 
                       ))}
                     </SelectContent>
                   </Select>
-                </div>
-              </CardHeader>
-
-              <CardContent className="grid gap-4 pt-6 lg:grid-cols-[1.2fr_0.8fr]">
-                <div className="space-y-3">
-                  <div className="flex items-center gap-2 text-sm text-foreground/80">
-                    <UserCheck className="h-4 w-4" />
-                    <span>Motoristas compatíveis: {viagem.motoristasCompativeis.length}</span>
-                  </div>
-
-                  <div className="rounded-md border border-border bg-muted p-3">
-                    {semCompatibilidade ? (
-                      <Alert variant="warning">
-                        Nenhum motorista compatível — a viagem é criada sem motorista, aloque depois manualmente.
-                      </Alert>
-                    ) : (
-                      <div className="space-y-2">
-                        <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                          Sugestão automática
-                        </p>
-                        <p className="text-sm font-medium text-foreground">{viagem.motoristaSugerido?.nome}</p>
-                        <p className="text-xs text-muted-foreground">
-                          Priorizado por quem libera mais perto do horário ideal, respeitando o descanso legal (dias disponíveis desempata).
-                        </p>
-                      </div>
-                    )}
-                  </div>
-
-                  {viagem.avisoInterjornada && <Alert variant="warning">{viagem.avisoInterjornada}</Alert>}
-                </div>
-
-                <div className="space-y-4 rounded-lg border border-border bg-muted p-4">
-                  <div className="space-y-2">
-                    <p className="text-sm font-medium text-foreground">Motorista</p>
-                    <Select value={motoristaSelecionado} onValueChange={(value) => atualizarSelecao(numViagem, value)}>
-                      <SelectTrigger className="bg-card">
-                        <SelectValue placeholder="Selecione um motorista (ou deixe sem alocar)">
-                          {motoristaAtual && formatarDetalheMotoristaCompativel(motoristaAtual)}
-                        </SelectValue>
-                      </SelectTrigger>
-                      <SelectContent>
-                        {viagem.motoristasCompativeis.length === 0 ? (
-                          <SelectItem value="0" disabled>
-                            Sem motorista compatível
-                          </SelectItem>
-                        ) : (
-                          viagem.motoristasCompativeis.map((motorista) => (
-                            <SelectItem key={motorista.id} value={String(motorista.id)}>
-                              {formatarOpcaoMotoristaCompativel(motorista)}
-                            </SelectItem>
-                          ))
-                        )}
-                      </SelectContent>
-                    </Select>
-                  </div>
-
-                  {conflitosPorViagem[numViagem] && (
-                    <Alert variant="warning">
-                      Esse motorista também está selecionado na(s) viagem(ns) {conflitosPorViagem[numViagem].join(", ")},
-                      sem 11h de descanso entre elas.
-                    </Alert>
-                  )}
-                </div>
-              </CardContent>
-              <CardFooter className="flex items-center justify-between border-t bg-muted text-xs text-muted-foreground">
-                <span>Entrega(s): {viagem.dados.entregas.length}</span>
-                <span>Fim previsto: <span className="font-mono tabular-nums">{formatarDataHoraPtBr(viagem.dados.fimPrevisto)}</span></span>
-              </CardFooter>
-            </Card>
+                </label>
+              }
+            >
+              <p className="mb-2 flex items-center gap-2 text-sm font-medium text-foreground">
+                Motorista
+                <span className="font-normal text-muted-foreground">
+                  · {sugestao.motoristasCompativeis.length} compatíve{sugestao.motoristasCompativeis.length === 1 ? "l" : "is"}
+                  {!produto && " (sem filtrar por produto)"}
+                </span>
+                {ocupado && <Loader2 className="size-3.5 animate-spin text-muted-foreground" aria-label="Recalculando" />}
+              </p>
+              {sugestao.motoristasCompativeis.length === 0 ? (
+                <Alert variant="warning">Nenhum motorista compatível — a viagem é criada sem motorista; aloque depois.</Alert>
+              ) : (
+                <EscolhaMotorista
+                  compativeis={sugestao.motoristasCompativeis}
+                  sugeridoId={sugestao.motoristaSugerido?.id ?? null}
+                  valor={selecoes[numViagem] ?? SEM_MOTORISTA}
+                  onChange={(valor) => setSelecoes((atual) => ({ ...atual, [numViagem]: valor }))}
+                  inicioViagem={String(dados.inicioPrevisto)}
+                  disabled={criando || ocupado}
+                  conflitoNoLote={conflitosPorViagem[numViagem]}
+                />
+              )}
+            </CartaoViagemAlocacao>
           )
         })}
-      </div>
-
-      <div className="flex flex-wrap justify-end gap-2 border-t border-border pt-4">
-        <Button type="button" variant="outline" disabled={isPending} onClick={onCancelar}>
-          Cancelar
-        </Button>
-        <Button type="button" disabled={isPending} onClick={confirmarCriacao}>
-          {isPending ? (
-            "Criando viagens..."
-          ) : (
-            <>
-              <CheckCircle2 className="mr-2 h-4 w-4" />
-              Confirmar e Criar {viagens.length} Viagem(ns)
-            </>
-          )}
-        </Button>
       </div>
     </div>
   )

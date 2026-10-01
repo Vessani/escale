@@ -1,4 +1,5 @@
 import Link from "next/link"
+import { montarMotoristaCompativel } from "@/lib/services/motorista-compativel.service"
 import { requireSessaoPaginaComFilial } from "@/lib/auth-guard"
 import { buscarMotoristas } from "@/lib/queries/motoristas"
 import { buscarViagensSemMotorista } from "@/lib/queries/viagens"
@@ -6,13 +7,11 @@ import { buscarNumerosSapQueExigemIntegracao } from "@/lib/queries/clientes"
 import type { ViagemAlocacao } from "@/lib/types/alocacao"
 import {
   calcularAvisoDescanso,
-  calcularDiasDisponiveis,
   calcularIntegracaoExigida,
-  calcularDescansoAntesDaViagem,
   sugerirAlocacoesEmLote,
 } from "@/lib/services/alocacao.service"
-import { prepararJornadaDoMotorista, projetarCodigoNoDia } from "@/lib/services/jornada.service"
-import { formatarHoraLocal, inicioDoDia } from "@/lib/utils/date-format"
+import { prepararJornadaDoMotorista } from "@/lib/services/jornada.service"
+import { inicioDoDia } from "@/lib/utils/date-format"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { ArrowRightLeft, Truck } from "lucide-react"
@@ -94,32 +93,9 @@ function serializarViagens(
       // Já calculado e persistido na criação/edição da viagem — ver calcularAvisoFrotaIndisponivel (frota.service.ts).
       avisoFrotaIndisponivel: viagem.avisoFrotaIndisponivel,
       avisoFrotaProdutoIncompativel: viagem.avisoFrotaProdutoIncompativel,
-      motoristasCompativeis: motoristasCompativeis.map((motorista) => {
-        // Mesma jornada projetada usada pra decidir compatibilidade, não o
-        // cache de "hoje" — senão o número mostrado destoa do motivo real
-        // pelo qual o motorista foi sugerido.
-        const codigoNaViagem = projetarCodigoNoDia(
-          motorista.registrosJornada,
-          new Date(viagem.inicioPrevisto),
-          hoje,
-          motorista.diasTrabalhados,
-        )
-
-        // Regra única de descanso (ver calcularDescansoAntesDaViagem) — a
-        // mesma que ordenou a sugestão e que gera o aviso de interjornada.
-        const proximoInicioDisponivel =
-          calcularDescansoAntesDaViagem(motorista, new Date(viagem.inicioPrevisto), hoje, viagem.id)?.inicioPermitido ?? null
-
-        return {
-          id: motorista.id,
-          nome: motorista.nome,
-          diasTrabalhados: codigoNaViagem,
-          diasDisponiveis: calcularDiasDisponiveis(codigoNaViagem),
-          turno: motorista.turno,
-          horarioHabitual: motorista.jornadaRelatorioInicio ? formatarHoraLocal(motorista.jornadaRelatorioInicio) : null,
-          proximoInicioDisponivel: proximoInicioDisponivel ? formatarHoraLocal(proximoInicioDisponivel) : null,
-        }
-      }),
+      motoristasCompativeis: motoristasCompativeis.map((motorista) =>
+        montarMotoristaCompativel(motorista, { id: viagem.id, inicioPrevisto: new Date(viagem.inicioPrevisto) }, hoje),
+      ),
     }
   })
 }

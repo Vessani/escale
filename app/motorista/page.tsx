@@ -13,6 +13,7 @@ import {
   gerarJanelaDias,
   parseDataInicioParam,
   TAMANHO_JANELA_CALENDARIO,
+  DIAS_ANTES_DE_HOJE,
 } from "./calendario-utils"
 
 type SearchParamsInput = {
@@ -26,7 +27,9 @@ export default async function MotoristasPage({
 }) {
   const parametros = (await searchParams) ?? {}
   const hoje = new Date()
-  const inicioJanela = parseDataInicioParam(parametros.inicio) ?? inicioDoDia(hoje)
+  const inicioPadrao = inicioDoDia(hoje)
+  inicioPadrao.setDate(inicioPadrao.getDate() - DIAS_ANTES_DE_HOJE)
+  const inicioJanela = parseDataInicioParam(parametros.inicio) ?? inicioPadrao
   const dias = gerarJanelaDias(inicioJanela, TAMANHO_JANELA_CALENDARIO)
   const fimJanela = fimDoDia(dias[dias.length - 1])
   const janelaAnterior = new Date(inicioJanela)

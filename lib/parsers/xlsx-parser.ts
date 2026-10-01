@@ -1,4 +1,5 @@
 import * as XLSX from 'xlsx'
+import { turnoPorHora } from "@/lib/services/turno"
 import { calcularDiasEntre, formatarDataExcel, formatarDateTimeLocal, normalizarHora, validarNumeroPositivo } from '@/lib/utils/date-format'
 
 export interface DadosViagemPlanilha {
@@ -179,15 +180,13 @@ class XLSXDataExtractor {
  * Importante: retorna apenas strings para datas (não Date objects) —
  * Date objects não são serializáveis em JSON para Next.js server actions
  */
-const HORA_CORTE_TURNO_NOITE = 16
 
 class XLSXToFormDataConverter {
   /**
    * MANHA/NOITE conforme a hora de início da viagem: a partir das 16h é NOITE.
    */
   private static determinarTurnoPorHora(horaInicio: string): 'MANHA' | 'NOITE' {
-    const horas = Number(horaInicio.split(':')[0])
-    return horas >= HORA_CORTE_TURNO_NOITE ? 'NOITE' : 'MANHA'
+    return turnoPorHora(Number(horaInicio.split(':')[0]))
   }
 
   static convert(dados: DadosViagemPlanilha) {
