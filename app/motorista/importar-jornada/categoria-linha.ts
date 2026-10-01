@@ -31,31 +31,26 @@ export function precisaAtencao(categoria: CategoriaLinha) {
   return categoria !== "OK"
 }
 
-export const ESTILO_CATEGORIA: Record<CategoriaLinha, { linha: string; ponto: string; rotulo: string }> = {
+export const ESTILO_CATEGORIA: Record<CategoriaLinha, { linha: string; ponto: string }> = {
   SETIMO_DIA: {
     linha: "bg-destructive/10 text-destructive hover:bg-destructive/15 font-medium [&>td:first-child]:border-l-4 [&>td:first-child]:border-l-destructive",
     ponto: "bg-destructive",
-    rotulo: "7º dia",
   },
   EDITADA: {
     linha: "bg-info/10 hover:bg-info/15 [&>td:first-child]:border-l-4 [&>td:first-child]:border-l-info",
     ponto: "bg-info",
-    rotulo: "Editadas",
   },
   CORRIGIDA: {
     linha: "bg-warning/10 hover:bg-warning/15 [&>td:first-child]:border-l-4 [&>td:first-child]:border-l-warning",
     ponto: "bg-warning",
-    rotulo: "Corrigidas",
   },
   SEM_PAR: {
     linha: "bg-atencao/15 hover:bg-atencao/25 [&>td:first-child]:border-l-4 [&>td:first-child]:border-l-atencao",
     ponto: "bg-atencao",
-    rotulo: "Sem par",
   },
   FORA: {
     linha: "bg-muted/60 text-muted-foreground [&>td:first-child]:border-l-4 [&>td:first-child]:border-l-border",
     ponto: "bg-muted-foreground/40",
-    rotulo: "Fora do calendário",
   },
-  OK: { linha: "", ponto: "", rotulo: "Sem problema" },
+  OK: { linha: "", ponto: "" },
 }
