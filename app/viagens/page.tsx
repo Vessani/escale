@@ -44,6 +44,11 @@ function MotoristaCelula({ viagem }: { viagem: Viagem }) {
           Interjornada
         </Alert>
       )}
+      {viagem.avisoRelatorioJornada && (
+        <Alert variant="warning" inline title={viagem.avisoRelatorioJornada}>
+          Não consta no relatório
+        </Alert>
+      )}
     </div>
   )
 }

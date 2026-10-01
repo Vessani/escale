@@ -25,15 +25,17 @@ vi.mock("@/lib/prisma", () => ({
     $transaction: vi.fn(),
     usuario: {
       create: vi.fn(),
+      findFirst: vi.fn(),
       findUnique: vi.fn(),
       update: vi.fn(),
+      count: vi.fn(),
     },
   },
 }))
 
 import bcrypt from "bcrypt"
 import { prisma } from "@/lib/prisma"
-import { criarUsuario, trocarSenhaPropria } from "@/lib/actions/usuarios"
+import { alterarUsuarioAtivo, criarUsuario, trocarSenhaPropria } from "@/lib/actions/usuarios"
 
 const usuarioValido = { nome: "Maria Souza", email: "maria@transportadora.com", senha: "12345678", role: "DESPACHANTE" as const, filialId: 1 }
 
@@ -207,5 +209,52 @@ describe("lib/actions/usuarios — trocarSenhaPropria", () => {
       expect(resposta).toEqual({ sucesso: false, erro: "Usuário inválido." })
       expect(prisma.usuario.update).not.toHaveBeenCalled()
     })
+  })
+})
+
+describe("lib/actions/usuarios — alterarUsuarioAtivo", () => {
+  const superadmin = { user: { id: "admin-1", role: "SUPERADMIN", filialId: null } }
+
+  beforeEach(() => {
+    vi.clearAllMocks()
+    vi.mocked(getServerSession).mockResolvedValue(superadmin as never)
+  })
+
+  it("só SUPERADMIN pode", async () => {
+    vi.mocked(getServerSession).mockResolvedValue({ user: { id: "a", role: "ADMIN", filialId: 1 } } as never)
+
+    const resposta = await alterarUsuarioAtivo("u2", false)
+
+    expect(resposta.sucesso).toBe(false)
+    expect(prisma.usuario.findUnique).not.toHaveBeenCalled()
+  })
+
+  it("não deixa desativar a si mesmo", async () => {
+    const resposta = await alterarUsuarioAtivo("admin-1", false)
+
+    expect(resposta).toEqual({ sucesso: false, erro: "Você não pode desativar o seu próprio usuário." })
+  })
+
+  it("não deixa desativar o último Superadmin ativo", async () => {
+    vi.mocked(prisma.usuario.findUnique).mockResolvedValue({ id: "s2", ativo: true, role: "SUPERADMIN", filialId: null } as never)
+    vi.mocked(prisma.usuario.count).mockResolvedValue(0)
+
+    const resposta = await alterarUsuarioAtivo("s2", false)
+
+    expect(resposta.sucesso).toBe(false)
+    expect(prisma.$transaction).not.toHaveBeenCalled()
+  })
+
+  it("desativa e audita antes/depois", async () => {
+    vi.mocked(prisma.usuario.findUnique).mockResolvedValue({ id: "u2", ativo: true, role: "DESPACHANTE", filialId: 3 } as never)
+    const tx = criarTx()
+    usarTransacaoCom(tx)
+
+    const resposta = await alterarUsuarioAtivo("u2", false)
+
+    expect(resposta).toEqual({ sucesso: true })
+    expect(tx.usuario.update).toHaveBeenCalledWith({ where: { id: "u2" }, data: { ativo: false } })
+    const auditoria = vi.mocked(tx.registroAuditoria.create).mock.calls[0][0] as { data: Record<string, unknown> }
+    expect(auditoria.data).toMatchObject({ entidade: "Usuario", entidadeId: "u2", filialId: 3 })
   })
 })

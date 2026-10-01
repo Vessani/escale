@@ -6,9 +6,11 @@ import { EmptyState } from "@/components/ui/empty-state"
 import { buscarUsuarios } from "@/lib/queries/usuarios"
 import { buscarFiliais } from "@/lib/queries/filiais"
 import CriarUsuarioForm from "./criar-usuario-form"
+import AlternarAtivoButton from "./alternar-ativo-button"
+import { AcoesLinha } from "@/components/ui/botao-icone"
 
 export default async function UsuariosPage() {
-  await requireSessaoPagina(["SUPERADMIN"])
+  const session = await requireSessaoPagina(["SUPERADMIN"])
   const [usuarios, filiais] = await Promise.all([buscarUsuarios(), buscarFiliais()])
 
   return (
@@ -31,17 +33,33 @@ export default async function UsuariosPage() {
                 <TableHead>E-mail</TableHead>
                 <TableHead>Papel</TableHead>
                 <TableHead>Filial</TableHead>
+                <TableHead>Situação</TableHead>
+                <TableHead className="w-12"><span className="sr-only">Ações</span></TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {usuarios.map((usuario) => (
-                <TableRow key={usuario.id}>
+                <TableRow key={usuario.id} className={usuario.ativo ? undefined : "text-muted-foreground"}>
                   <TableCell className="font-medium">{usuario.nome ?? "-"}</TableCell>
                   <TableCell>{usuario.email ?? "-"}</TableCell>
                   <TableCell>
                     <Badge variant="outline">{usuario.role}</Badge>
                   </TableCell>
                   <TableCell>{usuario.filial?.nome ?? "-"}</TableCell>
+                  <TableCell>
+                    {usuario.ativo ? (
+                      <Badge variant="outline" className="border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-900 dark:bg-emerald-950 dark:text-emerald-300">Ativo</Badge>
+                    ) : (
+                      <Badge variant="outline" className="text-muted-foreground">Desativado</Badge>
+                    )}
+                  </TableCell>
+                  <TableCell>
+                    <AcoesLinha>
+                      {usuario.id !== session.user.id && (
+                        <AlternarAtivoButton usuarioId={usuario.id} nome={usuario.nome ?? usuario.email ?? "Este usuário"} ativo={usuario.ativo} />
+                      )}
+                    </AcoesLinha>
+                  </TableCell>
                 </TableRow>
               ))}
             </TableBody>

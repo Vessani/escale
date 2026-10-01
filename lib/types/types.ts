@@ -99,5 +99,7 @@ declare module "next-auth/jwt" {
     id: string;
     role: string;
     filialId: number | null;
+    /** Momento do login (ms) — a sessão vale 12h a partir daqui. */
+    loginEm?: number;
   }
 }

@@ -10,6 +10,10 @@ type ConfirmDialogProps = {
   title: string
   description: string
   confirmLabel?: string
+  /** Texto do botão enquanto confirma (padrão: "Excluindo..."). */
+  confirmingLabel?: string
+  /** false = botão de confirmar neutro, pra ações que não destroem nada. */
+  destructive?: boolean
   cancelLabel?: string
   confirming?: boolean
   erro?: string | null
@@ -23,6 +27,8 @@ export function ConfirmDialog({
   title,
   description,
   confirmLabel = "Excluir",
+  confirmingLabel = "Excluindo...",
+  destructive = true,
   cancelLabel = "Cancelar",
   confirming = false,
   erro,
@@ -48,8 +54,8 @@ export function ConfirmDialog({
                 {cancelLabel}
               </Button>
             </Dialog.Close>
-            <Button type="button" variant="destructive" disabled={confirming} onClick={onConfirm}>
-              {confirming ? "Excluindo..." : confirmLabel}
+            <Button type="button" variant={destructive ? "destructive" : "default"} disabled={confirming} onClick={onConfirm}>
+              {confirming ? confirmingLabel : confirmLabel}
             </Button>
           </div>
         </Dialog.Content>

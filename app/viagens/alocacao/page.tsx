@@ -11,7 +11,7 @@ import {
   calcularDescansoAntesDaViagem,
   sugerirAlocacoesEmLote,
 } from "@/lib/services/alocacao.service"
-import { mapearRegistrosJornada, projetarCodigoNoDia } from "@/lib/services/jornada.service"
+import { prepararJornadaDoMotorista, projetarCodigoNoDia } from "@/lib/services/jornada.service"
 import { formatarHoraLocal, inicioDoDia } from "@/lib/utils/date-format"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -33,7 +33,7 @@ function serializarViagens(
 
   const motoristas = motoristasBrutos.map((motorista) => ({
     ...motorista,
-    registrosJornada: mapearRegistrosJornada(motorista.registrosJornada),
+    ...prepararJornadaDoMotorista(motorista),
   }))
 
   const viagensParaSugestao = viagensPendentes.map((viagem) => ({

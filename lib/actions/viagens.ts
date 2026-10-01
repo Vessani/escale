@@ -32,7 +32,7 @@ import {
   sugerirAlocacoesEmLote,
 } from "@/lib/services/alocacao.service";
 import { calcularAvisoFrotaIndisponivel, calcularAvisoFrotaProduto } from "@/lib/services/frota.service";
-import { mapearRegistrosJornada, projetarCodigoNoDia } from "@/lib/services/jornada.service";
+import { prepararJornadaDoMotorista, projetarCodigoNoDia } from "@/lib/services/jornada.service";
 import { converterEntradaDeDataHora, formatarHoraLocal, inicioDoDia } from "@/lib/utils/date-format";
 
 export async function criarViagemAvulsa(dados: NovaViagemInput): Promise<RespostaAcao> {
@@ -74,7 +74,7 @@ export async function sugerirAlocacaoParaViagens(
   ]);
   const motoristas = motoristasBrutos.map((motorista) => ({
     ...motorista,
-    registrosJornada: mapearRegistrosJornada(motorista.registrosJornada),
+    ...prepararJornadaDoMotorista(motorista),
   }));
   const hoje = inicioDoDia(new Date());
 

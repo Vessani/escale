@@ -2,7 +2,7 @@ import type { TipoMotorista, TipoProduto, Turno } from "@prisma/client"
 import { situacaoDoMotorista, type SituacaoMotorista } from "@/components/motorista/indicador-compatibilidade"
 import { motoristaEhCompativel, motoristaEstaDisponivelNoPeriodo } from "./alocacao.service"
 import type { IntegracaoBase, ViagemParaDisponibilidade } from "./alocacao/tipos"
-import { mapearRegistrosJornada } from "./jornada.service"
+import { prepararJornadaDoMotorista } from "./jornada.service"
 
 /** O que o seletor de motorista precisa pra cada opção — nada além disso vai pro navegador. */
 export type OpcaoMotoristaServidor = {
@@ -23,6 +23,8 @@ type MotoristaComAgendaBruta = {
   jornadaRelatorioFim: Date | string | null
   integracao: IntegracaoBase[]
   registrosJornada: Array<{ data: Date | string; codigo: number; fimJornada?: Date | string | null }>
+  /** Cobertura do Relatório de Jornada da filial — ver prepararJornadaDoMotorista. */
+  filial?: { relatorioJornadaAte: Date | string | null } | null
   viagens: ViagemParaDisponibilidade[]
 }
 
@@ -54,7 +56,7 @@ export function montarOpcoesMotoristaPorViagem(
 ): Map<number, OpcaoMotoristaServidor[]> {
   const preparados = motoristas.map((motorista) => ({
     ...motorista,
-    registrosJornada: mapearRegistrosJornada(motorista.registrosJornada),
+    ...prepararJornadaDoMotorista(motorista),
   }))
 
   return new Map(

@@ -43,6 +43,7 @@ export async function buscarViagensPaginadas(filialId: number, filtro: FiltroLis
         status: true,
         viagemExtra: true,
         avisoInterjornada: true,
+        avisoRelatorioJornada: true,
         avisoFrotaIndisponivel: true,
         avisoFrotaProdutoIncompativel: true,
         motorista: { select: { nome: true, tipo: true } },
@@ -76,7 +77,8 @@ export async function buscarViagensSemMotorista(filialId: number) {
     where: {
       deletadoEm: null,
       filialId,
-      status: 'CRIADA'
+      status: 'CRIADA',
+      motoristaId: null,
     },
     orderBy: { inicioPrevisto: 'asc' },
     include: {

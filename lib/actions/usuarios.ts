@@ -19,6 +19,15 @@ export async function criarUsuario(dados: UsuarioFormValues): Promise<RespostaAc
       return { sucesso: false, erro: validacao.error.issues[0]?.message ?? "Dados inválidos." };
     }
 
+    // O login ignora maiúsculas no e-mail — então o cadastro também precisa.
+    const emailEmUso = await prisma.usuario.findFirst({
+      where: { email: { equals: validacao.data.email, mode: "insensitive" } },
+      select: { id: true },
+    });
+    if (emailEmUso) {
+      return { sucesso: false, erro: "Já existe um usuário com esse e-mail." };
+    }
+
     const senhaHash = await bcrypt.hash(validacao.data.senha, CUSTO_HASH_SENHA);
     const filialId = validacao.data.role === "SUPERADMIN" ? null : validacao.data.filialId;
 
@@ -48,6 +57,60 @@ export async function criarUsuario(dados: UsuarioFormValues): Promise<RespostaAc
     return { sucesso: true };
   } catch (erro) {
     return { sucesso: false, erro: errorToMessage(erro, "Erro ao criar usuário.") };
+  }
+}
+
+/**
+ * Ativa/desativa um usuário. Desativar derruba a sessão dele no próximo
+ * acesso (callbacks.jwt em lib/auth.ts confere `ativo` no banco). Usuário
+ * nunca é apagado — a auditoria guarda quem fez cada coisa.
+ */
+export async function alterarUsuarioAtivo(usuarioId: string, ativo: boolean): Promise<RespostaAcao> {
+  try {
+    const session = await requireSession(["SUPERADMIN"]);
+
+    if (usuarioId === session.user.id && !ativo) {
+      return { sucesso: false, erro: "Você não pode desativar o seu próprio usuário." };
+    }
+
+    const usuario = await prisma.usuario.findUnique({
+      where: { id: usuarioId },
+      select: { id: true, ativo: true, role: true, filialId: true },
+    });
+    if (!usuario) {
+      return { sucesso: false, erro: "Usuário não encontrado." };
+    }
+    if (usuario.ativo === ativo) {
+      return { sucesso: true };
+    }
+
+    // Nunca deixar o sistema sem nenhum Superadmin ativo.
+    if (!ativo && usuario.role === "SUPERADMIN") {
+      const outrosSuperadmins = await prisma.usuario.count({
+        where: { role: "SUPERADMIN", ativo: true, id: { not: usuarioId } },
+      });
+      if (outrosSuperadmins === 0) {
+        return { sucesso: false, erro: "Não dá pra desativar o último Superadmin ativo." };
+      }
+    }
+
+    await prisma.$transaction(async (tx) => {
+      await tx.usuario.update({ where: { id: usuarioId }, data: { ativo } });
+      await registrarAuditoria(tx, {
+        entidade: "Usuario",
+        entidadeId: usuarioId,
+        acao: "ATUALIZACAO",
+        antes: { ativo: usuario.ativo },
+        depois: { ativo },
+        ator: atorDaSessao(session),
+        filialId: usuario.filialId,
+      });
+    });
+
+    revalidatePath("/admin/usuarios");
+    return { sucesso: true };
+  } catch (erro) {
+    return { sucesso: false, erro: errorToMessage(erro, "Erro ao alterar o usuário.") };
   }
 }
 

@@ -87,6 +87,23 @@ export function mapearRegistrosJornada(registros: RegistroJornadaBruto[]): Ponto
 }
 
 /**
+ * O que a regra de descanso precisa da jornada de um motorista vindo do
+ * banco: o histórico convertido (mapearRegistrosJornada) e até que dia o
+ * Relatório de Jornada da filial cobre (`filial.relatorioJornadaAte`, ver
+ * viagemDesmentidaPeloRelatorio). Espalhe o resultado sobre o motorista.
+ */
+export function prepararJornadaDoMotorista(motorista: {
+  registrosJornada: RegistroJornadaBruto[]
+  filial?: { relatorioJornadaAte: Date | string | null } | null
+}): { registrosJornada: PontoRegistroJornada[]; relatorioJornadaAte: Date | null } {
+  const cobertura = motorista.filial?.relatorioJornadaAte
+  return {
+    registrosJornada: mapearRegistrosJornada(motorista.registrosJornada),
+    relatorioJornadaAte: cobertura ? colunaDateParaLocal(new Date(cobertura)) : null,
+  }
+}
+
+/**
  * Fim da última jornada real (com horário importado — ver RegistroJornada)
  * estritamente anterior ao instante informado, a partir de um histórico já
  * carregado em memória. Substitui o uso do agregado

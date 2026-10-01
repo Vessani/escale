@@ -2,8 +2,11 @@ import type { Prisma } from "@prisma/client"
 import { filtroViagemAtiva, SELECT_VIAGEM_AGENDA } from "@/lib/queries/motoristas"
 import { inicioDoDia } from "@/lib/utils/date-format"
 import { completarHistoricoComAncora, filtroJanelaJornada, inicioJanelaJornada } from "@/lib/queries/jornada-historico"
-import { calcularAvisoDescanso } from "./alocacao.service"
-import { mapearRegistrosJornada } from "./jornada.service"
+import { calcularAvisoDescanso, viagemBloqueiaAgenda, viagemDesmentidaPeloRelatorio } from "./alocacao.service"
+
+export const AVISO_VIAGEM_DESMENTIDA =
+  "O relatório de jornada não mostra o motorista trabalhando nos dias desta viagem — ela não conta pro descanso. Confira se aconteceu e cancele ou corrija."
+import { prepararJornadaDoMotorista } from "./jornada.service"
 
 /**
  * Recalcula e grava o aviso de descanso (`avisoInterjornada`) de todas as
@@ -41,12 +44,16 @@ export async function recalcularAvisosInterjornada(
     select: {
       id: true,
       diasTrabalhados: true,
+      filial: { select: { relatorioJornadaAte: true } },
       registrosJornada: {
         where: filtroJanelaJornada(desde),
         select: { data: true, codigo: true, fimJornada: true },
         orderBy: { data: "asc" },
       },
-      viagens: { where: filtroViagem, select: { ...SELECT_VIAGEM_AGENDA, avisoInterjornada: true } },
+      viagens: {
+        where: filtroViagem,
+        select: { ...SELECT_VIAGEM_AGENDA, avisoInterjornada: true, avisoRelatorioJornada: true },
+      },
       // Trabalho como acompanhante também conta como jornada anterior.
       viagensComoAcompanhante: { where: filtroViagem, select: SELECT_VIAGEM_AGENDA },
     },
@@ -58,11 +65,19 @@ export async function recalcularAvisosInterjornada(
   for (const motorista of motoristas) {
     const agenda = {
       diasTrabalhados: motorista.diasTrabalhados,
-      registrosJornada: mapearRegistrosJornada(motorista.registrosJornada),
+      ...prepararJornadaDoMotorista(motorista),
       viagens: [...motorista.viagens, ...motorista.viagensComoAcompanhante],
     }
 
     for (const viagem of motorista.viagens) {
+      // Vale também pra finalizada: se o relatório não mostra o motorista
+      // trabalhando nos dias dela, alguém precisa conferir.
+      const avisoRelatorio =
+        viagemBloqueiaAgenda(viagem) && viagemDesmentidaPeloRelatorio(agenda, viagem) ? AVISO_VIAGEM_DESMENTIDA : null
+      if (avisoRelatorio !== (viagem.avisoRelatorioJornada ?? null)) {
+        await tx.viagem.update({ where: { id: viagem.id }, data: { avisoRelatorioJornada: avisoRelatorio } })
+      }
+
       if (viagem.status === "FINALIZADA" || viagem.status === "CANCELADA") continue
 
       const aviso = calcularAvisoDescanso(agenda, viagem, hoje)

@@ -307,6 +307,16 @@ describe("viagem.service", () => {
       expect(dadosCriados.status).toBe("ALOCADA")
     })
 
+    it("com motorista, grava ALOCADA mesmo se o formulário mandou CRIADA", async () => {
+      const tx = criarTx()
+      vi.mocked(tx.viagem.create).mockResolvedValue({ id: 103, motoristaId: 7 })
+      usarTransacaoCom(tx)
+
+      await criarViagemComAlocacaoService(FILIAL_ID, { ...criarViagemInput(), status: "CRIADA" }, 7, ATOR)
+
+      expect(vi.mocked(tx.viagem.create).mock.calls[0][0].data.status).toBe("ALOCADA")
+    })
+
     it("recalcula o aviso de descanso do motorista escolhido dentro da transação", async () => {
       const tx = criarTx()
       vi.mocked(tx.viagem.create).mockResolvedValue({ id: 104, motoristaId: 7 })
@@ -460,6 +470,20 @@ describe("viagem.service", () => {
 
       const dados = vi.mocked(tx.viagem.update).mock.calls[0][0].data
       expect(dados.status).toBe("POSTERGADA")
+    })
+
+    it("CRIADA enviada explicitamente com motorista vira ALOCADA (e ALOCADA sem motorista vira CRIADA)", async () => {
+      const tx = criarTx()
+      vi.mocked(tx.viagem.update).mockResolvedValue({ id: 1, motoristaId: 5 })
+      usarTransacaoCom(tx)
+
+      vi.mocked(prisma.viagem.findUnique).mockResolvedValue({ status: "CRIADA", motoristaId: null } as never)
+      await editarViagemService(FILIAL_ID, 1, criarEdicaoInput({ motoristaId: 5, status: "CRIADA" }), ATOR)
+      expect(vi.mocked(tx.viagem.update).mock.calls[0][0].data.status).toBe("ALOCADA")
+
+      vi.mocked(prisma.viagem.findUnique).mockResolvedValue({ status: "ALOCADA", motoristaId: 5 } as never)
+      await editarViagemService(FILIAL_ID, 1, criarEdicaoInput({ motoristaId: null, status: "ALOCADA" }), ATOR)
+      expect(vi.mocked(tx.viagem.update).mock.calls[1][0].data.status).toBe("CRIADA")
     })
 
     it("recalcula o aviso de descanso do motorista antigo e do novo quando motoristaId muda", async () => {

@@ -55,6 +55,8 @@ export async function buscarMotoristas(filialId: number) {
     },
     orderBy: { nome: 'asc' },
     include: {
+      // Até que dia o Relatório de Jornada cobre — ver viagemDesmentidaPeloRelatorio.
+      filial: { select: { relatorioJornadaAte: true } },
       integracao: true,
       viagens: { where: filtroViagem, select: SELECT_VIAGEM_AGENDA },
       // Viagens onde ele é acompanhante também contam como agenda ocupada —
@@ -119,6 +121,8 @@ export async function buscarMotoristasParaSelect(filialId: number, turnoDaViagem
       produtosAutorizados: true,
       jornadaRelatorioInicio: true,
       jornadaRelatorioFim: true,
+      // Até que dia o Relatório de Jornada cobre — ver viagemDesmentidaPeloRelatorio.
+      filial: { select: { relatorioJornadaAte: true } },
       integracao: {
         select: {
           cliente: true,
@@ -227,4 +231,23 @@ export async function buscarMotoristasComAgenda(filialId: number, inicio: Date, 
   });
 
   return completarHistoricoComAncora(motoristas, desde)
+}
+/**
+ * Listagem da API (/api/motoristas), pra consumo externo: só o necessário,
+ * e nunca o CPF — dado pessoal que não precisa sair do sistema por aqui.
+ */
+export async function buscarMotoristasParaApi(filialId: number) {
+  return prisma.motorista.findMany({
+    where: { deletadoEm: null, filialId },
+    orderBy: { nome: "asc" },
+    select: {
+      id: true,
+      nome: true,
+      tipo: true,
+      turno: true,
+      seva: true,
+      produtosAutorizados: true,
+      integracao: { select: { id: true, cliente: true, dataValidade: true, status: true } },
+    },
+  })
 }

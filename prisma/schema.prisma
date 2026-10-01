@@ -102,6 +102,13 @@
     nome     String   @db.VarChar(100)
     criadoEm DateTime @default(now())
 
+    // Último dia coberto pelo Relatório de Jornada importado (o dia mais
+    // recente de qualquer motorista do lote). Até esse dia o relatório é a
+    // verdade: viagem do Escale num dia em que o relatório não mostra o
+    // motorista trabalhando não conta como trabalho (ver
+    // viagemDesmentidaPeloRelatorio em lib/services/alocacao/disponibilidade.ts).
+    relatorioJornadaAte DateTime? @db.Date
+
     usuarios         Usuario[]
     motoristas       Motorista[]
     viagens          Viagem[]
@@ -111,6 +118,13 @@
 
   model Viagem {
     id                Int          @id @default(autoincrement())
+
+    // Preenchido quando o Relatório de Jornada cobre os dias desta viagem e
+    // não mostra o motorista trabalhando — a viagem provavelmente não
+    // aconteceu (ou foi com outro motorista). Ela deixa de contar pro
+    // descanso; o aviso é pra alguém conferir e cancelar/corrigir. Ver
+    // recalcularAvisosInterjornada.
+    avisoRelatorioJornada String?
     // Sem @unique aqui de propósito: a unicidade real só vale entre viagens
     // ativas (deletadoEm IS NULL) da mesma filial, e é aplicada por um índice
     // único parcial escrito à mão na migration — do contrário, um número
@@ -380,6 +394,11 @@
     emailVerified DateTime?
     image         String?
 
+    // false = desativado: não entra mais, e a sessão aberta cai no próximo
+    // acesso (ver callbacks.jwt em lib/auth.ts). Nunca apagar usuário — a
+    // auditoria referencia quem fez cada coisa.
+    ativo         Boolean   @default(true)
+
     // Nulo só pra SUPERADMIN — ADMIN/DESPACHANTE sempre têm filial (regra
     // aplicada na action de criar usuário, não dá pra expressar isso no schema).
     filialId      Int?
@@ -387,6 +406,20 @@
 
     accounts      Account[]
     sessions      Session[]
+  }
+
+  // Tentativas de login que falharam — base do limite de tentativas (ver
+  // lib/services/login.service.ts). Guardadas no banco e não em memória
+  // porque na Vercel cada requisição pode cair numa instância diferente.
+  // Linhas antigas são apagadas sozinhas a cada nova falha.
+  model TentativaLogin {
+    id       Int      @id @default(autoincrement())
+    email    String   @db.VarChar(200)
+    ip       String?  @db.VarChar(100)
+    criadoEm DateTime @default(now())
+
+    @@index([email, criadoEm])
+    @@index([ip, criadoEm])
   }
 
   model Account {

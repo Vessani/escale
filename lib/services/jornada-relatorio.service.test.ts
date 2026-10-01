@@ -5,6 +5,7 @@ vi.mock("@/lib/prisma", () => ({
   prisma: {
     $transaction: vi.fn(),
     motorista: { findMany: vi.fn() },
+    filial: { updateMany: vi.fn() },
   },
 }))
 
@@ -74,6 +75,21 @@ describe("atualizarJornadaRelatorioDosMotoristas", () => {
     }
     expect(upsertArgs.where.motoristaId_data.motoristaId).toBe(42)
     expect(upsertArgs.create.codigo).toBe(4)
+  })
+
+  it("avança a cobertura do relatório da filial pro dia mais recente do lote (nunca pra trás)", async () => {
+    vi.mocked(prisma.motorista.findMany).mockResolvedValue([{ id: 42, seva: 815, diasTrabalhados: 2 }] as never)
+
+    await atualizarJornadaRelatorioDosMotoristas(FILIAL_ID, [
+      criarRegistro({ dia: "2026-07-10T03:00:00.000Z" }),
+      criarRegistro({ dia: "2026-07-12T03:00:00.000Z", inicioJornada: "2026-07-12T10:00:00.000Z", fimJornada: "2026-07-12T18:00:00.000Z" }),
+    ])
+
+    const cobertura = new Date("2026-07-12T00:00:00.000Z")
+    expect(prisma.filial.updateMany).toHaveBeenCalledWith({
+      where: { id: FILIAL_ID, OR: [{ relatorioJornadaAte: null }, { relatorioJornadaAte: { lt: cobertura } }] },
+      data: { relatorioJornadaAte: cobertura },
+    })
   })
 
   it("capa em 6 quando Dias Sem Folga vem maior (7+) — evita colidir com o código 7 (Folga)", async () => {

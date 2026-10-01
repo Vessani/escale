@@ -24,6 +24,12 @@ export type MotoristaParaAlocacao = {
   /** Último registro do Relatório Sintético de Jornada importado (ver jornada-relatorio.service.ts). */
   jornadaRelatorioInicio: Date | string | null
   jornadaRelatorioFim: Date | string | null
+  /**
+   * Último dia coberto pelo Relatório de Jornada da filial (meia-noite
+   * local). Até esse dia o relatório prevalece sobre as viagens do Escale —
+   * ver viagemDesmentidaPeloRelatorio. Ausente = regra desligada.
+   */
+  relatorioJornadaAte?: Date | null
   /** Gases que o motorista está autorizado a transportar — [] pra quem ainda não foi editado desde que o campo existe (bloqueia qualquer viagem com produto exigido, ver motoristaEhCompativel). */
   produtosAutorizados: TipoProduto[]
 }

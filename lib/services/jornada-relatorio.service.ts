@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/prisma"
+import { dataParaColunaDate, inicioDoDia } from "@/lib/utils/date-format"
 import type { RegistroJornadaRelatorio } from "@/lib/parsers/jornada-relatorio-parser"
 import { MAX_DIAS_CONSECUTIVOS } from "./alocacao.service"
 import { registrarJornadaNoDia } from "./motorista.service"
@@ -118,6 +119,22 @@ export async function atualizarJornadaRelatorioDosMotoristas(
   if (paraAtualizar.length === 0) {
     return { atualizados: 0, naoEncontrados, duplicados }
   }
+
+  // Até que dia o relatório cobre — antes do recálculo dos avisos abaixo,
+  // que já precisa disso (viagemDesmentidaPeloRelatorio). Só avança: importar
+  // um relatório antigo depois não "encolhe" a cobertura.
+  const ultimoDiaDoLote = registros.reduce(
+    (maisRecente, registro) => (new Date(registro.dia) > maisRecente ? new Date(registro.dia) : maisRecente),
+    new Date(registros[0].dia),
+  )
+  const coberturaDoLote = dataParaColunaDate(inicioDoDia(ultimoDiaDoLote))
+  await prisma.filial.updateMany({
+    where: {
+      id: filialId,
+      OR: [{ relatorioJornadaAte: null }, { relatorioJornadaAte: { lt: coberturaDoLote } }],
+    },
+    data: { relatorioJornadaAte: coberturaDoLote },
+  })
 
   // Uma transação por motorista, não uma só pro lote inteiro — o relatório
   // pode trazer dezenas de dias por motorista, e centenas de upserts

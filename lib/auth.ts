@@ -2,12 +2,11 @@ import { NextAuthOptions } from "next-auth";
 import CredentialsProvider from "next-auth/providers/credentials";
 import { PrismaAdapter } from "@auth/prisma-adapter";
 import { prisma } from "@/lib/prisma";
-import bcrypt from "bcrypt";
 import { Adapter } from "next-auth/adapters";
+import { autenticarUsuario, DURACAO_SESSAO_SEGUNDOS, revalidarToken } from "@/lib/services/auth.service";
 
 export const authOptions: NextAuthOptions = {
-  // Trocamos o 'as any' pelo tipo oficial Adapter
-  adapter: PrismaAdapter(prisma) as Adapter, 
+  adapter: PrismaAdapter(prisma) as Adapter,
   providers: [
     CredentialsProvider({
       name: "Credenciais",
@@ -15,40 +14,31 @@ export const authOptions: NextAuthOptions = {
         email: { label: "E-mail", type: "email" },
         senha: { label: "Senha", type: "password" }
       },
-      async authorize(credentials) {
-        if (!credentials?.email || !credentials?.senha) {
-          throw new Error("Por favor, preencha o e-mail e a senha.");
-        }
-
-        const usuario = await prisma.usuario.findUnique({
-          where: { email: credentials.email }
-        });
-
-        if (!usuario || !usuario.senha) {
-          throw new Error("Credenciais inválidas.");
-        }
-
-        const senhaValida = await bcrypt.compare(credentials.senha, usuario.senha);
-
-        if (!senhaValida) {
-          throw new Error("Credenciais inválidas.");
-        }
-
-        return {
-          id: usuario.id,
-          name: usuario.nome,
-          email: usuario.email,
-          role: usuario.role,
-          filialId: usuario.filialId,
-        };
+      async authorize(credentials, req) {
+        return autenticarUsuario(credentials, req?.headers);
       }
     })
   ],
   session: {
-    strategy: "jwt"
+    strategy: "jwt",
+    // 12h a partir do login. O cookie também expira nisso, e o callback jwt
+    // confere loginEm pra que usar o sistema não estique a sessão além do turno.
+    maxAge: DURACAO_SESSAO_SEGUNDOS,
   },
   pages: {
     signIn: '/login',
+  },
+  // Sessão derrubada de propósito (expirou, usuário desativado) não é erro do
+  // sistema: uma linha de aviso em vez do stack trace do next-auth.
+  logger: {
+    error(code, metadata) {
+      const erro = (metadata instanceof Error ? metadata : (metadata as { error?: unknown })?.error) as Error | undefined;
+      if (code === "JWT_SESSION_ERROR" && erro?.name === "SessaoInvalidaError") {
+        console.warn(`[auth] sessão encerrada: ${erro.message}`);
+        return;
+      }
+      console.error(`[next-auth][error][${code}]`, metadata);
+    },
   },
   callbacks: {
     async jwt({ token, user }) {
@@ -56,10 +46,13 @@ export const authOptions: NextAuthOptions = {
         token.id = user.id;
         token.role = user.role;
         token.filialId = user.filialId;
+        token.loginEm = Date.now();
+        return token;
       }
-      return token;
+      // Confere no banco a cada acesso: usuário desativado ou com papel
+      // alterado passa a valer na hora (lançar aqui derruba a sessão).
+      return revalidarToken(token);
     },
-    // Sem nenhum 'any' aqui também!
     async session({ session, token }) {
       if (token && session.user) {
         session.user.id = token.id;

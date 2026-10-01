@@ -1,12 +1,17 @@
 import { encontrarFimJornadaAnterior } from "../jornada.service"
-import { descansoMinimoNecessarioApos, fimEfetivoViagem, viagemBloqueiaAgenda } from "./disponibilidade"
+import {
+  descansoMinimoNecessarioApos,
+  fimEfetivoViagem,
+  viagemBloqueiaAgenda,
+  viagemDesmentidaPeloRelatorio,
+} from "./disponibilidade"
 import type { MotoristaParaAlocacao, ViagemParaDisponibilidade } from "./tipos"
 
 /**
  * Motorista com o que a regra de descanso precisa. `viagens` é opcional:
  * sem agenda carregada, só o relatório de jornada conta.
  */
-export type MotoristaParaDescanso = Pick<MotoristaParaAlocacao, "registrosJornada" | "diasTrabalhados"> & {
+export type MotoristaParaDescanso = Pick<MotoristaParaAlocacao, "registrosJornada" | "diasTrabalhados" | "relatorioJornadaAte"> & {
   viagens?: ViagemParaDisponibilidade[]
 }
 
@@ -25,7 +30,9 @@ export type DescansoAntesDaViagem = {
  * rastreador) e o fim efetivo das viagens dele que começaram antes — viagem
  * finalizada conta a partir da finalização (ver fimEfetivoViagem), as demais
  * pelo fim previsto. `viagemId` é a própria viagem avaliada, ignorada na
- * agenda (ausente pra uma viagem ainda não gravada).
+ * agenda (ausente pra uma viagem ainda não gravada). Viagem que o relatório
+ * desmente (dias cobertos por ele sem o motorista trabalhar) não conta — o
+ * relatório prevalece, ver viagemDesmentidaPeloRelatorio.
  */
 export function encontrarFimTrabalhoAnterior(
   motorista: MotoristaParaDescanso,
@@ -37,6 +44,7 @@ export function encontrarFimTrabalhoAnterior(
   for (const viagem of motorista.viagens ?? []) {
     if (viagem.id === viagemId || !viagemBloqueiaAgenda(viagem)) continue
     if (new Date(viagem.inicioPrevisto) >= inicioViagem) continue
+    if (viagemDesmentidaPeloRelatorio(motorista, viagem)) continue
 
     const fim = fimEfetivoViagem(viagem)
     if (!maisRecente || fim > maisRecente) {

@@ -1,3 +1,4 @@
+import { inicioDoDia } from "@/lib/utils/date-format"
 import { projetarCodigoNoDia } from "../jornada.service"
 import { MAX_DIAS_CONSECUTIVOS } from "./compatibilidade"
 import type { MotoristaComAgenda, MotoristaParaAlocacao, ViagemParaDisponibilidade } from "./tipos"
@@ -25,6 +26,41 @@ export function viagemBloqueiaAgenda(viagem: ViagemParaDisponibilidade) {
   }
 
   return viagem.status !== "CANCELADA"
+}
+
+/**
+ * O Relatório de Jornada (rastreador) prevalece sobre o Escale nos dias que
+ * ele cobre: se a viagem caiu inteira em dias já cobertos pelo relatório e
+ * ele não mostra o motorista trabalhando em NENHUM desses dias, a viagem não
+ * aconteceu (ou foi com outro motorista) e não conta como trabalho — nem pro
+ * descanso de 11h/35h, nem como agenda ocupada. Caso real: viagem esquecida
+ * como "Alocada" num dia de folga gerava aviso de interjornada no primeiro
+ * dia de trabalho seguinte.
+ *
+ * Só vale com evidência: a filial precisa ter relatório importado cobrindo o
+ * último dia da viagem, e o motorista precisa aparecer no relatório (algum
+ * dia com horário real) desde antes da viagem — senão "não aparecer" pode
+ * ser só "não é rastreado" ou "relatório de antes dele entrar".
+ */
+export function viagemDesmentidaPeloRelatorio(
+  motorista: Pick<MotoristaParaAlocacao, "registrosJornada" | "relatorioJornadaAte">,
+  viagem: ViagemParaDisponibilidade,
+): boolean {
+  if (!motorista.relatorioJornadaAte) return false
+
+  const primeiroDia = inicioDoDia(new Date(viagem.inicioPrevisto))
+  const ultimoDia = inicioDoDia(fimEfetivoViagem(viagem))
+  if (ultimoDia > inicioDoDia(motorista.relatorioJornadaAte)) return false
+
+  let apareceAntes = false
+  for (const registro of motorista.registrosJornada) {
+    if (!registro.fimJornada) continue
+    const dia = inicioDoDia(registro.data)
+    if (dia >= primeiroDia && dia <= ultimoDia) return false
+    if (dia < primeiroDia) apareceAntes = true
+  }
+
+  return apareceAntes
 }
 
 /**
@@ -110,7 +146,7 @@ export function motoristaEstaDisponivelNoPeriodo(
   hoje: Date,
 ) {
   return !motorista.viagens.some((viagem) => {
-    if (!viagemBloqueiaAgenda(viagem)) {
+    if (!viagemBloqueiaAgenda(viagem) || viagemDesmentidaPeloRelatorio(motorista, viagem)) {
       return false
     }
 

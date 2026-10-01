@@ -13,7 +13,7 @@ import { registrarAuditoria, type Ator } from "./auditoria.service";
 import { MotoristaProdutoNaoAutorizadoError, MotoristaNaoEncontradoError, MotoristaEmTreinamentoError, MotoristaNaoViajaError, ViagemNaoEncontradaError, StatusViagemObrigatorioError, NumViagemDuplicadaError } from "@/lib/errors";
 import { calcularAvisoFrotaIndisponivel, calcularAvisoFrotaProduto, sincronizarDisponibilidadeFrota } from "./frota.service";
 import { converterEditarViagemParaBD, converterNovaViagemParaBD } from "./viagem-data-converter.service";
-import { mapearRegistrosJornada } from "./jornada.service";
+import { prepararJornadaDoMotorista } from "./jornada.service";
 import { recalcularAvisosInterjornada } from "./interjornada.service";
 import { podeSerAcompanhante, podeSerPrincipal } from "./tipo-motorista";
 import { calcularDiasEntre, inicioDoDia } from "@/lib/utils/date-format";
@@ -24,6 +24,17 @@ function resolverStatusPorAlocacao(motoristaId: number | null) {
 
 function statusPermiteAutoAjuste(statusAtual: string) {
   return statusAtual === "CRIADA" || statusAtual === "ALOCADA"
+}
+
+/**
+ * CRIADA e ALOCADA não são escolha de quem cadastra: dizem só se a viagem
+ * tem motorista. Qualquer gravação passa por aqui pra "Criada com motorista"
+ * (ou "Alocada sem motorista") nunca existir — antes, o formulário de nova
+ * viagem mandava CRIADA mesmo com motorista escolhido. Os demais status
+ * (EM_ANDAMENTO, CANCELADA...) passam intactos.
+ */
+export function normalizarStatusPorAlocacao<S extends string>(status: S, motoristaId: number | null): S | "CRIADA" | "ALOCADA" {
+  return statusPermiteAutoAjuste(status) ? resolverStatusPorAlocacao(motoristaId) : status
 }
 
 /** Marca o instante da transição para CANCELADA — usado pelo Dashboard pra decidir até quando a viagem cancelada ainda aparece. Não mexe se o status não mudou (evita renovar a janela de visibilidade a cada edição de uma viagem já cancelada). */
@@ -156,7 +167,7 @@ async function inserirViagem(
   )
   const avisoFrotaProdutoIncompativel = await calcularAvisoFrotaProduto(filialId, dados.cavalo, dados.carreta, dados.produto)
 
-  const statusInicial = status ?? resolverStatusPorAlocacao(motoristaId)
+  const statusInicial = normalizarStatusPorAlocacao(status ?? "CRIADA", motoristaId)
 
   return prisma.$transaction(async (tx) => {
     const viagemCriada = await tx.viagem.create({
@@ -226,7 +237,7 @@ export async function criarViagemAvulsaService(filialId: number, dadosRecebidos:
   const motoristasBrutos = await buscarMotoristasParaSelect(filialId);
   const motoristas = motoristasBrutos.map((motorista) => ({
     ...motorista,
-    registrosJornada: mapearRegistrosJornada(motorista.registrosJornada),
+    ...prepararJornadaDoMotorista(motorista),
   }));
   const hoje = inicioDoDia(new Date());
 
@@ -278,17 +289,8 @@ export async function editarViagemService(filialId: number, idViagem: number, da
 
   await garantirNumViagemDisponivel(filialId, dados.numViagem, idViagem)
 
-  const statusDerivado =
-    dados.motoristaId !== undefined
-      ? resolverStatusPorAlocacao(dados.motoristaId ?? null)
-      : undefined
-  const statusFinal =
-    dados.status ??
-    (statusDerivado && statusPermiteAutoAjuste(viagemAtual.status)
-      ? statusDerivado
-      : viagemAtual.status)
-
   const motoristaIdFinal = dados.motoristaId !== undefined ? dados.motoristaId : viagemAtual.motoristaId
+  const statusFinal = normalizarStatusPorAlocacao(dados.status ?? viagemAtual.status, motoristaIdFinal ?? null)
   const acompanhanteIdFinal =
     dados.motoristaAcompanhanteId !== undefined ? dados.motoristaAcompanhanteId : viagemAtual.motoristaAcompanhanteId
   await garantirMotoristasValidos(filialId, {
@@ -479,13 +481,15 @@ export async function atualizarStatusViagemService(
       }
     : {}
 
+  const statusFinal = normalizarStatusPorAlocacao(status, viagemAtual.motoristaId)
+
   return await prisma.$transaction(async (tx) => {
     const viagemAtualizada = await tx.viagem.update({
       where: { id: idViagem, filialId },
       data: {
-        status,
-        canceladoEm: calcularCanceladoEm(status, viagemAtual.status),
-        finalizadoEm: calcularFinalizadoEm(status, viagemAtual.status),
+        status: statusFinal,
+        canceladoEm: calcularCanceladoEm(statusFinal, viagemAtual.status),
+        finalizadoEm: calcularFinalizadoEm(statusFinal, viagemAtual.status),
         ...(novaData ? {
           inicioPrevisto: novaData.inicioPrevisto,
           fimPrevisto: novaData.fimPrevisto,
