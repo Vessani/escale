@@ -12,14 +12,34 @@ export type ResultadoImportacaoJornada = {
   atualizados: number
   naoEncontrados: number[]
   duplicados: number[]
+  /** Dias de importações anteriores que este arquivo não tem mais (ex: linha excluída na conferência) e foram apagados. */
+  diasRemovidos: number
+}
+
+/**
+ * O que o arquivo cobre: o período (primeiro e último dia com jornada no
+ * arquivo) e as matrículas que aparecem nele — inclusive as de linhas
+ * excluídas na conferência. Um dia dentro do período, de uma dessas
+ * matrículas, que veio de importação anterior e não está mais no lote é
+ * apagado. Sem cobertura, vale o período e as matrículas do próprio lote.
+ */
+export type CoberturaImportacaoJornada = {
+  de: string
+  ate: string
+  matriculas: number[]
 }
 
 /** Códigos de status especial (Férias/Exames/Interno) que o import não deve sobrescrever — só edição manual muda isso. */
 const CODIGO_STATUS_ESPECIAL_MIN = 8
 const CODIGO_STATUS_ESPECIAL_MAX = 10
 
-function motoristaEmStatusEspecial(diasTrabalhados: number) {
-  return diasTrabalhados >= CODIGO_STATUS_ESPECIAL_MIN && diasTrabalhados <= CODIGO_STATUS_ESPECIAL_MAX
+function ehStatusEspecial(codigo: number) {
+  return codigo >= CODIGO_STATUS_ESPECIAL_MIN && codigo <= CODIGO_STATUS_ESPECIAL_MAX
+}
+
+/** Dia do relatório no formato da coluna `RegistroJornada.data` — mesma conversão de registrarJornadaNoDia. */
+function diaColuna(dia: string | Date) {
+  return dataParaColunaDate(inicioDoDia(new Date(dia)))
 }
 
 /**
@@ -47,10 +67,15 @@ function jornadaMaisRecente(registros: RegistroJornadaRelatorio[]): RegistroJorn
  * calendário (`RegistroJornada`) — o relatório traz vários turnos por
  * motorista, um por dia trabalhado, não só o mais recente. Essa é a fonte
  * principal do controle de dias trabalhados; o preenchimento manual no
- * calendário fica só pra emergência. Motoristas manualmente marcados como
- * Férias/Exames/Interno (código 8-10) não têm nenhum dia do lote sobrescrito
- * no calendário, só o registro de horário mais recente — evita tirar alguém
- * de licença sozinho.
+ * calendário fica só pra emergência. Dia marcado à mão como
+ * Férias/Exames/Interno (código 8-10) não é sobrescrito nem apagado — evita
+ * tirar alguém de licença sozinho. Vale por dia (antes valia pro motorista
+ * inteiro e o mês todo dele deixava de atualizar).
+ *
+ * Re-importar regrava os dias do arquivo e apaga, dentro do período do
+ * arquivo, os dias de importação anterior que não estão mais nele (ver
+ * CoberturaImportacaoJornada) — senão uma linha excluída na conferência
+ * continuava valendo nos relatórios.
  *
  * Matrículas sem motorista correspondente, ou com mais de um (seva
  * duplicado), são reportadas uma única vez cada (não por linha) e não
@@ -68,12 +93,18 @@ function jornadaMaisRecente(registros: RegistroJornadaRelatorio[]): RegistroJorn
 export async function atualizarJornadaRelatorioDosMotoristas(
   filialId: number,
   registros: RegistroJornadaRelatorio[],
+  cobertura?: CoberturaImportacaoJornada,
 ): Promise<ResultadoImportacaoJornada> {
-  if (registros.length === 0) {
-    return { atualizados: 0, naoEncontrados: [], duplicados: [] }
+  const matriculas = [...new Set([...registros.map((registro) => registro.matricula), ...(cobertura?.matriculas ?? [])])]
+  if (matriculas.length === 0) {
+    return { atualizados: 0, naoEncontrados: [], duplicados: [], diasRemovidos: 0 }
   }
 
-  const matriculas = [...new Set(registros.map((registro) => registro.matricula))]
+  const diasDoLote = registros.map((registro) => diaColuna(registro.dia).getTime())
+  const periodo = {
+    de: cobertura ? diaColuna(cobertura.de) : new Date(Math.min(...diasDoLote)),
+    ate: cobertura ? diaColuna(cobertura.ate) : new Date(Math.max(...diasDoLote)),
+  }
   const motoristasEncontrados = await prisma.motorista.findMany({
     where: { seva: { in: matriculas }, filialId, deletadoEm: null },
     select: { id: true, seva: true, diasTrabalhados: true },
@@ -120,17 +151,13 @@ export async function atualizarJornadaRelatorioDosMotoristas(
   }
 
   if (paraAtualizar.length === 0) {
-    return { atualizados: 0, naoEncontrados, duplicados }
+    return { atualizados: 0, naoEncontrados, duplicados, diasRemovidos: 0 }
   }
 
   // Até que dia o relatório cobre — antes do recálculo dos avisos abaixo,
   // que já precisa disso (viagemDesmentidaPeloRelatorio). Só avança: importar
   // um relatório antigo depois não "encolhe" a cobertura.
-  const ultimoDiaDoLote = registros.reduce(
-    (maisRecente, registro) => (new Date(registro.dia) > maisRecente ? new Date(registro.dia) : maisRecente),
-    new Date(registros[0].dia),
-  )
-  const coberturaDoLote = dataParaColunaDate(inicioDoDia(ultimoDiaDoLote))
+  const coberturaDoLote = periodo.ate
   await prisma.filial.updateMany({
     where: {
       id: filialId,
@@ -145,28 +172,54 @@ export async function atualizarJornadaRelatorioDosMotoristas(
   // timeout padrão do Prisma (5s) bem antes de terminar. Isolar por motorista
   // também limita o "prejuízo" de uma falha no meio do lote: quem já foi
   // processado continua salvo.
+  let diasRemovidos = 0
+  const hoje = diaColuna(new Date()).getTime()
+
   for (const { registrosDoMotorista, motorista } of paraAtualizar) {
     await prisma.$transaction(async (tx) => {
-      const registroMaisRecente = jornadaMaisRecente(registrosDoMotorista)
+      if (registrosDoMotorista.length > 0) {
+        const registroMaisRecente = jornadaMaisRecente(registrosDoMotorista)
+        await tx.motorista.update({
+          where: { id: motorista.id },
+          data: {
+            jornadaRelatorioInicio: new Date(registroMaisRecente.inicioJornada),
+            jornadaRelatorioFim: new Date(registroMaisRecente.fimJornada),
+            jornadaRelatorioDia: new Date(registroMaisRecente.dia),
+          },
+        })
+      }
 
-      await tx.motorista.update({
-        where: { id: motorista.id },
-        data: {
-          jornadaRelatorioInicio: new Date(registroMaisRecente.inicioJornada),
-          jornadaRelatorioFim: new Date(registroMaisRecente.fimJornada),
-          jornadaRelatorioDia: new Date(registroMaisRecente.dia),
-        },
+      const existentes = await tx.registroJornada.findMany({
+        where: { motoristaId: motorista.id, data: { gte: periodo.de, lte: periodo.ate } },
+        select: { id: true, data: true, codigo: true, inicioJornada: true },
       })
+      // Férias/Exames/Interno marcados à mão naquele dia não são sobrescritos
+      // nem apagados — só aquele dia, não o mês inteiro do motorista.
+      const diasEspeciais = new Set(existentes.filter((registro) => ehStatusEspecial(registro.codigo)).map((registro) => registro.data.getTime()))
+      const diasDoMotorista = new Set(registrosDoMotorista.map((registro) => diaColuna(registro.dia).getTime()))
 
-      if (!motoristaEmStatusEspecial(motorista.diasTrabalhados)) {
-        for (const registro of registrosDoMotorista) {
-          const codigo = calcularCodigoDoDiasSemFolga(registro.diasSemFolga)
-          await registrarJornadaNoDia(tx, motorista.id, new Date(registro.dia), codigo, {
-            inicioJornada: new Date(registro.inicioJornada),
-            fimJornada: new Date(registro.fimJornada),
-            diasSemFolga: registro.diasSemFolga,
-          })
-        }
+      // Dia que veio de importação anterior (tem horário) e não está mais no
+      // arquivo — ex: a linha foi excluída na conferência. Lançamento manual
+      // do calendário (sem horário) fica.
+      const remover = existentes.filter(
+        (registro) => registro.inicioJornada !== null && !diasDoMotorista.has(registro.data.getTime()) && !ehStatusEspecial(registro.codigo),
+      )
+      if (remover.length > 0) {
+        await tx.registroJornada.deleteMany({ where: { id: { in: remover.map((registro) => registro.id) } } })
+        diasRemovidos += remover.length
+      }
+
+      for (const registro of registrosDoMotorista) {
+        const dia = diaColuna(registro.dia).getTime()
+        if (diasEspeciais.has(dia)) continue
+        // Hoje sem registro, mas o motorista está em status especial no cadastro: também não mexe.
+        if (dia === hoje && ehStatusEspecial(motorista.diasTrabalhados)) continue
+        const codigo = calcularCodigoDoDiasSemFolga(registro.diasSemFolga)
+        await registrarJornadaNoDia(tx, motorista.id, new Date(registro.dia), codigo, {
+          inicioJornada: new Date(registro.inicioJornada),
+          fimJornada: new Date(registro.fimJornada),
+          diasSemFolga: registro.diasSemFolga,
+        })
       }
 
       // O fim de jornada real acabou de mudar — o aviso de descanso das
@@ -175,7 +228,7 @@ export async function atualizarJornadaRelatorioDosMotoristas(
     })
   }
 
-  return { atualizados: paraAtualizar.length, naoEncontrados, duplicados }
+  return { atualizados: paraAtualizar.length, naoEncontrados, duplicados, diasRemovidos }
 }
 
 /**

@@ -14,6 +14,7 @@ import {
 } from "@/lib/parsers/jornada-relatorio-parser"
 import { atualizarJornadaRelatorio, type RespostaImportacaoJornada } from "@/lib/actions/motoristas"
 import type { AjusteJornada } from "@/lib/validation/ajuste-jornada"
+import type { CoberturaImportacaoJornada } from "@/lib/services/jornada-relatorio.service"
 import { ConferenciaJornada } from "./conferencia-jornada"
 
 export default function ImportarJornadaClient({ matriculasCadastradas }: { matriculasCadastradas: number[] }) {
@@ -45,12 +46,16 @@ export default function ImportarJornadaClient({ matriculasCadastradas }: { matri
     }
   }
 
-  const confirmarImportacao = async (registros: RegistroJornadaRelatorio[], ajustes: AjusteJornada[]) => {
+  const confirmarImportacao = async (
+    registros: RegistroJornadaRelatorio[],
+    ajustes: AjusteJornada[],
+    cobertura: CoberturaImportacaoJornada,
+  ) => {
     setImportando(true)
     setErro("")
 
     try {
-      const resposta = await atualizarJornadaRelatorio(registros, ajustes)
+      const resposta = await atualizarJornadaRelatorio(registros, ajustes, cobertura)
 
       if (!resposta.sucesso) {
         setErro(resposta.erro)
@@ -139,6 +144,11 @@ export default function ImportarJornadaClient({ matriculasCadastradas }: { matri
             <Alert variant="success">
               <div>
                 <p className="font-medium">{resultado.atualizados} motorista(s) atualizado(s).</p>
+                {resultado.diasRemovidos > 0 && (
+                  <p className="mt-1 text-muted-foreground">
+                    {resultado.diasRemovidos} dia(s) de importações anteriores que não estão mais no arquivo foram apagados.
+                  </p>
+                )}
                 {resultado.naoEncontrados.length > 0 && (
                   <p className="mt-1 text-warning">
                     Matrícula(s) sem motorista cadastrado: {resultado.naoEncontrados.join(", ")}

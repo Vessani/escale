@@ -17,6 +17,7 @@ import {
   type RegistroJornadaRelatorio,
 } from "@/lib/parsers/jornada-relatorio-parser"
 import type { AjusteJornada } from "@/lib/validation/ajuste-jornada"
+import type { CoberturaImportacaoJornada } from "@/lib/services/jornada-relatorio.service"
 import { MAX_DIAS_SEM_FOLGA, folgaEstourada } from "@/lib/services/dias-sem-folga"
 import { formatarDataHoraPtBr, formatarHoraLocal, formatDateTimeForInput, parseDateTimeFromInput } from "@/lib/utils/date-format"
 import { cn } from "@/lib/utils"
@@ -114,7 +115,7 @@ export function ConferenciaJornada({
   /** Matrículas dos motoristas cadastrados na filial — por padrão só eles aparecem (os outros nem são importados). */
   matriculasCadastradas: number[]
   importando: boolean
-  onConfirmar: (registros: RegistroJornadaRelatorio[], ajustes: AjusteJornada[]) => void
+  onConfirmar: (registros: RegistroJornadaRelatorio[], ajustes: AjusteJornada[], cobertura: CoberturaImportacaoJornada) => void
 }) {
   const [edicoes, setEdicoes] = useState<EdicoesJornada>(SEM_EDICOES)
   const [soCorrigir, setSoCorrigir] = useState(false)
@@ -138,6 +139,15 @@ export function ConferenciaJornada({
   const semEdicao = useMemo(() => new Map(JornadaRelatorioParser.processar(consideradas).map((linha) => [linha.id, linha])), [consideradas])
   const linhas = useMemo(() => JornadaRelatorioParser.processar(consideradas, edicoes), [consideradas, edicoes])
   const registros = useMemo(() => registrosParaImportar(linhas), [linhas])
+  /** Período do arquivo inteiro e matrículas mostradas — re-importar apaga, nesse período, dias antigos que saíram do lote. */
+  const cobertura = useMemo((): CoberturaImportacaoJornada => {
+    const inicios = brutas.map((bruta) => bruta.inicio).sort()
+    return {
+      de: inicios[0] ?? new Date().toISOString(),
+      ate: inicios[inicios.length - 1] ?? new Date().toISOString(),
+      matriculas: [...new Set(consideradas.map((bruta) => bruta.matricula))],
+    }
+  }, [brutas, consideradas])
   const ordenadas = useMemo(
     () =>
       linhas
@@ -258,7 +268,7 @@ export function ConferenciaJornada({
           type="button"
           disabled={importando || rascunho !== null}
           title={rascunho ? "Salve ou cancele a linha em edição antes de confirmar." : undefined}
-          onClick={() => onConfirmar(registros, ajustesParaAuditoria())}
+          onClick={() => onConfirmar(registros, ajustesParaAuditoria(), cobertura)}
         >
           {importando ? "Importando..." : "Confirmar importação"}
         </Button>

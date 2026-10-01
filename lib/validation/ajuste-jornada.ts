@@ -19,3 +19,10 @@ export const ajusteJornadaSchema = z.object({
 export const ajustesJornadaSchema = z.array(ajusteJornadaSchema).max(2000)
 
 export type AjusteJornada = z.infer<typeof ajusteJornadaSchema>
+
+/** Período e matrículas que o arquivo importado cobre (ver CoberturaImportacaoJornada). */
+export const coberturaJornadaSchema = z.object({
+  de: z.string().max(40),
+  ate: z.string().max(40),
+  matriculas: z.array(z.number().int().nonnegative()).max(2000),
+})

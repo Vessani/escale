@@ -15,9 +15,10 @@ import {
 import {
   atualizarJornadaRelatorioDosMotoristas,
   registrarAjustesJornada,
+  type CoberturaImportacaoJornada,
   type ResultadoImportacaoJornada,
 } from "@/lib/services/jornada-relatorio.service";
-import { ajustesJornadaSchema, type AjusteJornada } from "@/lib/validation/ajuste-jornada";
+import { ajustesJornadaSchema, coberturaJornadaSchema, type AjusteJornada } from "@/lib/validation/ajuste-jornada";
 import type { RegistroJornadaRelatorio } from "@/lib/parsers/jornada-relatorio-parser";
 
 export async function criarMotorista(dados: NovoMotoristaInput): Promise<RespostaAcao> {
@@ -103,14 +104,16 @@ export type RespostaImportacaoJornada =
 export async function atualizarJornadaRelatorio(
   registros: RegistroJornadaRelatorio[],
   ajustes: AjusteJornada[] = [],
+  cobertura?: CoberturaImportacaoJornada,
 ): Promise<RespostaImportacaoJornada> {
   try {
     const { session, filialId } = await requireSessionComFilial();
     const validacaoAjustes = ajustesJornadaSchema.safeParse(ajustes);
-    if (!validacaoAjustes.success) {
-      return { sucesso: false, erro: "Ajustes da conferência inválidos." };
+    const validacaoCobertura = cobertura === undefined ? null : coberturaJornadaSchema.safeParse(cobertura);
+    if (!validacaoAjustes.success || (validacaoCobertura && !validacaoCobertura.success)) {
+      return { sucesso: false, erro: "Dados da conferência inválidos." };
     }
-    const resultado = await atualizarJornadaRelatorioDosMotoristas(filialId, registros);
+    const resultado = await atualizarJornadaRelatorioDosMotoristas(filialId, registros, validacaoCobertura?.data);
     await registrarAjustesJornada(filialId, validacaoAjustes.data, atorDaSessao(session));
 
     revalidatePath("/motorista");
