@@ -6,7 +6,7 @@ import { viagemDaJornada } from "@/lib/services/circadiano.service"
 
 const UM_DIA_MS = 24 * 60 * 60 * 1000
 
-export type FolgaEstourada = {
+type FolgaEstourada = {
   motoristaId: number
   motorista: string
   turno: Turno

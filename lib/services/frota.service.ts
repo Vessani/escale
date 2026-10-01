@@ -7,9 +7,9 @@ import { avisoManutencaoNaViagem, type ManutencaoBase } from "./manutencao-regra
 import { registrarAuditoria, type Ator } from "./auditoria.service"
 import { FrotaDuplicadaError } from "@/lib/errors"
 
-export { frotaEhValida } from "./frota-regras"
 
-export type FrotaInput = {
+
+type FrotaInput = {
   cavalo: string
   carreta: string
   disponivelEm?: string | Date | null
@@ -59,7 +59,7 @@ const SELECT_VIAGEM_ATIVA_DA_CARRETA = {
  * 3. `disponivelEm` só vale quando não é o fim de nenhuma viagem ativa —
  *    ou seja, foi preenchido à mão no cadastro (ex: liberação prevista).
  */
-export function avaliarAvisoFrotaIndisponivel(
+function avaliarAvisoFrotaIndisponivel(
   frota: FrotaParaAviso | null,
   viagensAtivas: ViagemAtivaDaCarreta[],
   avaliada: ViagemAvaliada,
@@ -144,7 +144,7 @@ export async function calcularAvisoFrotaIndisponivel(
 }
 
 /** Manutenções não excluídas dos cavalos/carretas informados (as concluídas também — o período pode cruzar o da viagem). */
-export async function buscarManutencoesDosVeiculos(
+async function buscarManutencoesDosVeiculos(
   cliente: Pick<Prisma.TransactionClient, "manutencao">,
   filialId: number,
   cavalos: string[],

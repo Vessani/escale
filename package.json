@@ -10,12 +10,12 @@
     "lint": "eslint",
     "test": "cross-env TZ=UTC vitest run",
     "test:br": "cross-env TZ=America/Sao_Paulo vitest run",
-    "postinstall": "prisma generate"
+    "postinstall": "prisma generate",
+    "knip": "knip"
   },
   "dependencies": {
     "@auth/prisma-adapter": "^2.11.3",
     "@hookform/resolvers": "^5.4.0",
-    "@phosphor-icons/react": "^2.1.10",
     "@prisma/adapter-pg": "^7.8.0",
     "@prisma/client": "^7.8.0",
     "@radix-ui/react-select": "^2.3.1",
@@ -49,7 +49,8 @@
     "cross-env": "^10.1.0",
     "eslint": "^9",
     "eslint-config-next": "16.3.7",
-    "playwright": "^1.61.1",
+    "knip": "^5.88.1",
+    "postcss": "^8.5.28",
     "prisma": "^7.8.0",
     "tailwindcss": "^4",
     "typescript": "^5",

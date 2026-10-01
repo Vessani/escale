@@ -21,7 +21,6 @@ import {
   editarViagemService,
   deletarViagemService,
   atualizarStatusViagemService,
-  atualizarAlocacaoViagemService,
   atualizarSaidaRealService,
 } from "@/lib/services/viagem.service";
 import { buscarMotoristasParaSelect } from "@/lib/queries/motoristas";
@@ -80,6 +79,9 @@ export async function sugerirAlocacaoParaViagens(
     ...prepararJornadaDoMotorista(motorista),
   }));
   const hoje = inicioDoDia(new Date());
+  // Viagem do import ainda sem produto: usa o da carreta cadastrada, então a
+  // primeira sugestão já sai filtrada pelo produto certo.
+  const produtoEfetivo = (viagem: NovaViagemFormValues) => viagem.produto || produtoPorCarreta.get(viagem.carreta) || null;
 
   const viagensParaSugestao = viagens.map((viagem, indice) => ({
     id: indice,
@@ -88,7 +90,7 @@ export async function sugerirAlocacaoParaViagens(
     inicioPrevisto: new Date(viagem.inicioPrevisto),
     fimPrevisto: new Date(viagem.fimPrevisto),
     integracaoExigida: calcularIntegracaoExigida(viagem.entregas, numerosSapQueExigemIntegracao),
-    produtoExigido: viagem.produto,
+    produtoExigido: produtoEfetivo(viagem),
   }));
 
   const sugestoes = sugerirAlocacoesEmLote(viagensParaSugestao, motoristas, hoje);
@@ -106,7 +108,7 @@ export async function sugerirAlocacaoParaViagens(
       filialId,
       viagens[indice].cavalo,
       viagens[indice].carreta,
-      viagens[indice].produto,
+      produtoEfetivo(viagens[indice]),
     );
 
     return {
@@ -254,27 +256,6 @@ export async function atualizarStatusViagem(
   } catch (erro) {
     console.error("[atualizarStatusViagem] Erro ao atualizar status:", erro);
     const mensagem = errorToMessage(erro, "Não foi possível atualizar o status da viagem.")
-    return { sucesso: false, erro: mensagem }
-  }
-}
-
-/** Alocação rápida direto do Dashboard (principal + acompanhante) — ver atualizarAlocacaoViagemService. */
-export async function atualizarAlocacaoViagem(
-  idViagem: number,
-  dados: { motoristaId: number | null; motoristaAcompanhanteId: number | null },
-): Promise<RespostaAcao> {
-  try {
-    const { session, filialId } = await requireSessionComFilial();
-    await atualizarAlocacaoViagemService(filialId, idViagem, dados, atorDaSessao(session))
-
-    revalidatePath("/")
-    revalidatePath("/viagens")
-    revalidatePath("/viagens/alocacao")
-    revalidatePath("/motorista")
-    return { sucesso: true }
-  } catch (erro) {
-    console.error("[atualizarAlocacaoViagem] Erro ao atualizar alocação:", erro);
-    const mensagem = errorToMessage(erro, "Não foi possível atualizar a alocação.")
     return { sucesso: false, erro: mensagem }
   }
 }

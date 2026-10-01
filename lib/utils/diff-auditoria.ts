@@ -9,7 +9,7 @@
 
 const CAMPOS_IGNORADOS = new Set(["id", "criadoEm", "atualizadoEm"])
 
-export type CampoAlterado = {
+type CampoAlterado = {
   campo: string
   valorAntigo: unknown
   valorNovo: unknown

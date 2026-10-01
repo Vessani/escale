@@ -7,7 +7,7 @@ const UM_DIA_MS = 24 * 60 * 60 * 1000
 /** Dias antes do período carregados a mais: o descanso da 1ª jornada do período depende da última antes dele. */
 const DIAS_ANTES_PARA_DESCANSO = 3
 
-export type DadosJornada = {
+type DadosJornada = {
   motoristas: MotoristaJornada[]
   jornadas: JornadaReal[]
   viagens: ViagemCircadiano[]

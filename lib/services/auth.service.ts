@@ -15,7 +15,7 @@ export const DURACAO_SESSAO_SEGUNDOS = 12 * 60 * 60
 export const MENSAGEM_CREDENCIAIS_INVALIDAS = "Credenciais inválidas."
 export const MENSAGEM_USUARIO_DESATIVADO = "Usuário desativado. Fale com o administrador."
 
-export class SessaoInvalidaError extends Error {
+class SessaoInvalidaError extends Error {
   constructor(motivo: string) {
     super(motivo)
     this.name = "SessaoInvalidaError"

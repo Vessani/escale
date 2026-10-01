@@ -73,7 +73,7 @@ function diaDoCiclo(jornada: JornadaReal): number {
 // 1. Interjornada realizada
 // ---------------------------------------------------------------------------
 
-export type DescansoDescumprido = {
+type DescansoDescumprido = {
   motoristaId: number
   motorista: string
   turno: Turno
@@ -145,7 +145,7 @@ export function descansosDescumpridos(
 // 2. Jornadas longas
 // ---------------------------------------------------------------------------
 
-export type JornadaLonga = {
+type JornadaLonga = {
   motoristaId: number
   motorista: string
   turno: Turno
@@ -192,7 +192,7 @@ export function jornadasLongas(
 // 3. Painel por motorista
 // ---------------------------------------------------------------------------
 
-export type LinhaPainelMotorista = {
+type LinhaPainelMotorista = {
   motoristaId: number
   motorista: string
   turno: Turno

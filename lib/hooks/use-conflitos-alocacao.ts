@@ -3,7 +3,7 @@
 import { useMemo } from "react"
 import { periodosConflitamComDescanso } from "@/lib/services/alocacao.service"
 
-export type ItemParaConflitoAlocacao = {
+type ItemParaConflitoAlocacao = {
   /** Identificador único do item na lista em revisão — id da viagem (já existente) ou numViagem (ainda não criada). */
   chave: string
   /** Número da viagem exibido nas mensagens de conflito — pode ser igual a `chave`. */

@@ -10,7 +10,7 @@ import {
   CLASSE_JORNADA_MANUTENCAO,
 } from "./jornada-status"
 
-export type OpcaoCodigoJornada = {
+type OpcaoCodigoJornada = {
   valor: number
   label: string
 }

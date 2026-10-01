@@ -5,7 +5,7 @@ import type { IntegracaoBase, ViagemParaDisponibilidade } from "./alocacao/tipos
 import { prepararJornadaDoMotorista } from "./jornada.service"
 
 /** O que o seletor de motorista precisa pra cada opção — nada além disso vai pro navegador. */
-export type OpcaoMotoristaServidor = {
+type OpcaoMotoristaServidor = {
   id: number
   nome: string
   tipo: TipoMotorista

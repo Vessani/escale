@@ -28,10 +28,6 @@ const ESTILO: Record<SituacaoMotorista, { classe: string; texto: string }> = {
   },
 }
 
-export function textoSituacaoMotorista(situacao: SituacaoMotorista): string {
-  return ESTILO[situacao].texto
-}
-
 /**
  * Ponto colorido antes do nome do motorista, no lugar de "(Compatível)",
  * "(Emergência)" etc. O significado vai no tooltip e num texto pra leitor de

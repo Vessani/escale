@@ -26,7 +26,7 @@ export type IntegracaoParaRelatorio = {
   dataValidade: Date
 }
 
-export type IntegracaoVencendo = IntegracaoParaRelatorio & {
+type IntegracaoVencendo = IntegracaoParaRelatorio & {
   situacao: SituacaoIntegracao
   /** Negativo = venceu há N dias. */
   diasParaVencer: number
@@ -82,7 +82,7 @@ export type ViagemPontualidade = {
   clientes: string[]
 }
 
-export type SaidaAtrasada = {
+type SaidaAtrasada = {
   id: number
   numViagem: string
   motorista: string
@@ -101,7 +101,7 @@ export type GrupoPontualidade = {
   atrasoMedioMinutos: number
 }
 
-export type ResultadoPontualidade = {
+type ResultadoPontualidade = {
   saidasRegistradas: number
   /** Viagens já iniciadas/finalizadas sem horário de saída — o número acima não conta com elas. */
   semRegistro: number
@@ -200,14 +200,14 @@ export function analisarPontualidade(
 // 6. Viagens que saíram com aviso
 // ---------------------------------------------------------------------------
 
-export type AvisosDaViagem = {
+type AvisosDaViagem = {
   avisoInterjornada: string | null
   avisoFrotaIndisponivel: string | null
   avisoFrotaProdutoIncompativel: string | null
   avisoRelatorioJornada: string | null
 }
 
-export type AvisoListado = { rotulo: string; detalhe: string }
+type AvisoListado = { rotulo: string; detalhe: string }
 
 /** Os avisos gravados na viagem, com o rótulo curto que aparece na tela. */
 export function listarAvisos(viagem: AvisosDaViagem): AvisoListado[] {

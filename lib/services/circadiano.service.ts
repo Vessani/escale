@@ -11,7 +11,7 @@ import { fimEfetivoViagem } from "./alocacao/disponibilidade"
  * tem limite às 22:00 do mesmo dia; o da noite que começa às 18:00, às 05:00
  * do dia seguinte).
  */
-export const HORA_LIMITE_POR_TURNO: Record<Turno, number> = {
+const HORA_LIMITE_POR_TURNO: Record<Turno, number> = {
   MANHA: 22,
   NOITE: 5,
 }
@@ -22,13 +22,13 @@ export const HORA_LIMITE_POR_TURNO: Record<Turno, number> = {
  * viagem, se ela acabar antes). Ex: viagem às 11:00 → jornada até 23:00.
  * Em viagem de vários dias só o primeiro dia é previsível assim.
  */
-export const HORAS_JORNADA_PREVISTA = 12
+const HORAS_JORNADA_PREVISTA = 12
 
 const UMA_HORA_MS = 60 * 60 * 1000
 
-export type MotoristaCircadiano = { id: number; nome: string; turno: Turno }
+type MotoristaCircadiano = { id: number; nome: string; turno: Turno }
 
-export type JornadaRealizada = {
+type JornadaRealizada = {
   motoristaId: number
   inicioJornada: Date
   fimJornada: Date

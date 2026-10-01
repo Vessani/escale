@@ -13,7 +13,7 @@ const cpfSchema = z
   .refine((valor) => valor.length === 11, "CPF deve ter 11 dígitos")
   .refine(validarCpf, "CPF inválido")
 
-export const motoristaBaseSchema = z.object({
+const motoristaBaseSchema = z.object({
   nome: z.string().min(2, "O nome deve ter pelo menos 2 caracteres"),
   cpf: cpfSchema,
   seva: z.coerce.number().int().min(1, "O número SEVA deve ser maior que 0"),
@@ -28,7 +28,7 @@ export const motoristaBaseSchema = z.object({
   produtosAutorizados: z.array(produtoSchema).default([]),
 })
 
-export const integracaoMotoristaSchema = z.object({
+const integracaoMotoristaSchema = z.object({
   id: z.number().optional(),
   cliente: z.string().min(2, "Cliente obrigatório"),
   dataValidade: z.string().min(1, "Data de validade obrigatória"),

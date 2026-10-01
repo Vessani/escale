@@ -13,7 +13,7 @@ export const CLASSE_JORNADA_FERIAS = "bg-indigo-500/10 text-indigo-600 border bo
 export const CLASSE_JORNADA_EXAMES = "bg-rose-500/10 text-rose-600 border border-rose-500/30"
 export const CLASSE_JORNADA_INTERNO = "bg-muted text-muted-foreground border border-border"
 export const CLASSE_JORNADA_MANUTENCAO = "bg-orange-500/10 text-orange-600 border border-orange-500/30"
-export const CLASSE_JORNADA_PADRAO = "bg-muted text-muted-foreground border border-border"
+const CLASSE_JORNADA_PADRAO = "bg-muted text-muted-foreground border border-border"
 
 export function classeBadgeJornada(diasTrabalhados: number): string {
   if (diasTrabalhados >= 1 && diasTrabalhados <= 3) {

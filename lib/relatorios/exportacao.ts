@@ -24,14 +24,12 @@ import {
 import { formatarCodigoFrota } from "@/lib/services/frota-regras"
 import type { OcorrenciaCircadiano } from "@/lib/services/circadiano.service"
 import { ROTULO_RESPONSAVEL, ROTULO_SITUACAO, ROTULO_VEICULO, descreverTipo, situacaoManutencao } from "@/lib/services/manutencao-regras"
-import { aba, type Aba, type Coluna } from "@/lib/excel/planilha"
+import { aba, type AbaPronta, type Coluna } from "@/lib/excel/planilha"
 import { PERIODO_PADRAO, parseDiasIntegracao, parseHorasJornadaLonga } from "./catalogo"
 import { formatarDiaCompleto, formatarDuracao, rotuloTurno } from "./formato"
 import { resolverPeriodo, type Periodo, type PeriodoPadrao } from "./periodo"
 
-// Cada aba tem seu próprio tipo de linha — `any` só junta abas diferentes num array.
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-export type ResultadoExportacao = { arquivo: string; abas: Array<Aba<any>> }
+type ResultadoExportacao = { arquivo: string; abas: AbaPronta[] }
 type Exportador = (filialId: number, params: URLSearchParams) => Promise<ResultadoExportacao | null>
 
 const nome = (texto: string | null | undefined) => (texto ? formatarNomeProprio(texto) : "")

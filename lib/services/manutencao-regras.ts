@@ -25,7 +25,7 @@ export type SituacaoManutencao = "AGENDADA" | "EM_ANDAMENTO" | "ATRASADA" | "CON
 
 export const ROTULO_VEICULO: Record<VeiculoManutencao, string> = { CAVALO: "Cavalo", CARRETA: "Carreta" }
 export const ROTULO_RESPONSAVEL: Record<ResponsavelManutencao, string> = { WHITE_MARTINS: "White Martins", RITMO: "Ritmo" }
-export const ROTULO_TIPO: Record<TipoManutencao, string> = { PREVENTIVA: "Preventiva", CORRETIVA: "Corretiva" }
+const ROTULO_TIPO: Record<TipoManutencao, string> = { PREVENTIVA: "Preventiva", CORRETIVA: "Corretiva" }
 export const ROTULO_SITUACAO: Record<SituacaoManutencao, string> = {
   AGENDADA: "Agendada",
   EM_ANDAMENTO: "Em andamento",

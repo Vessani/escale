@@ -9,7 +9,7 @@ import {
 
 const UM_DIA_MS = 24 * 60 * 60 * 1000
 
-export type RelatorioCircadiano = {
+type RelatorioCircadiano = {
   previstas: OcorrenciaCircadiano[]
   realizadas: OcorrenciaCircadiano[]
   /** Último dia coberto pelo Relatório de Jornada importado (null = nunca importado). */
