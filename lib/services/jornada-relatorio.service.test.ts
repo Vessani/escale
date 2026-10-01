@@ -35,7 +35,7 @@ function criarRegistro(parcial: Partial<RegistroJornadaRelatorio> = {}): Registr
 function criarTx() {
   return {
     motorista: { update: vi.fn() },
-    registroJornada: { upsert: vi.fn() },
+    registroJornada: { upsert: vi.fn(), findMany: vi.fn().mockResolvedValue([]), deleteMany: vi.fn() },
   }
 }
 
@@ -60,7 +60,7 @@ describe("atualizarJornadaRelatorioDosMotoristas", () => {
 
     const resultado = await atualizarJornadaRelatorioDosMotoristas(FILIAL_ID, [criarRegistro({ diasSemFolga: 4 })])
 
-    expect(resultado).toEqual({ atualizados: 1, naoEncontrados: [], duplicados: [] })
+    expect(resultado).toEqual({ atualizados: 1, naoEncontrados: [], duplicados: [], diasRemovidos: 0 })
     expect(tx.motorista.update).toHaveBeenCalledWith({
       where: { id: 42 },
       data: {
@@ -107,13 +107,20 @@ describe("atualizarJornadaRelatorioDosMotoristas", () => {
     expect(upsertArgs.update.diasSemFolga).toBe(9)
   })
 
-  it("não sobrescreve o código de quem está em Férias/Exames/Interno (8-10), só o registro de horário", async () => {
-    vi.mocked(prisma.motorista.findMany).mockResolvedValue([{ id: 42, seva: 815, diasTrabalhados: 8 }] as never)
+  it("não sobrescreve o dia marcado à mão como Férias/Exames/Interno (8-10) — só aquele dia", async () => {
+    vi.mocked(prisma.motorista.findMany).mockResolvedValue([{ id: 42, seva: 815, diasTrabalhados: 2 }] as never)
+    vi.mocked(tx.registroJornada.findMany).mockResolvedValue([
+      { id: 7, data: new Date("2026-07-09T00:00:00.000Z"), codigo: 8, inicioJornada: null },
+    ] as never)
 
-    await atualizarJornadaRelatorioDosMotoristas(FILIAL_ID, [criarRegistro({ diasSemFolga: 2 })])
+    await atualizarJornadaRelatorioDosMotoristas(FILIAL_ID, [
+      criarRegistro({ dia: "2026-07-08T03:00:00.000Z" }),
+      criarRegistro({ dia: "2026-07-09T03:00:00.000Z" }),
+    ])
 
     expect(tx.motorista.update).toHaveBeenCalledTimes(1)
-    expect(tx.registroJornada.upsert).not.toHaveBeenCalled()
+    expect(tx.registroJornada.upsert).toHaveBeenCalledTimes(1)
+    expect(tx.registroJornada.deleteMany).not.toHaveBeenCalled()
   })
 
   it("reporta matrícula sem motorista correspondente, sem abrir transação", async () => {
@@ -121,7 +128,7 @@ describe("atualizarJornadaRelatorioDosMotoristas", () => {
 
     const resultado = await atualizarJornadaRelatorioDosMotoristas(FILIAL_ID, [criarRegistro({ matricula: 999 })])
 
-    expect(resultado).toEqual({ atualizados: 0, naoEncontrados: [999], duplicados: [] })
+    expect(resultado).toEqual({ atualizados: 0, naoEncontrados: [999], duplicados: [], diasRemovidos: 0 })
     expect(prisma.$transaction).not.toHaveBeenCalled()
   })
 
@@ -133,14 +140,14 @@ describe("atualizarJornadaRelatorioDosMotoristas", () => {
 
     const resultado = await atualizarJornadaRelatorioDosMotoristas(FILIAL_ID, [criarRegistro({ matricula: 815 })])
 
-    expect(resultado).toEqual({ atualizados: 0, naoEncontrados: [], duplicados: [815] })
+    expect(resultado).toEqual({ atualizados: 0, naoEncontrados: [], duplicados: [815], diasRemovidos: 0 })
     expect(prisma.$transaction).not.toHaveBeenCalled()
   })
 
   it("não consulta o banco quando a lista de registros está vazia", async () => {
     const resultado = await atualizarJornadaRelatorioDosMotoristas(FILIAL_ID, [])
 
-    expect(resultado).toEqual({ atualizados: 0, naoEncontrados: [], duplicados: [] })
+    expect(resultado).toEqual({ atualizados: 0, naoEncontrados: [], duplicados: [], diasRemovidos: 0 })
     expect(prisma.motorista.findMany).not.toHaveBeenCalled()
   })
 
@@ -156,7 +163,7 @@ describe("atualizarJornadaRelatorioDosMotoristas", () => {
       criarRegistro({ matricula: 999 }),
     ])
 
-    expect(resultado).toEqual({ atualizados: 2, naoEncontrados: [999], duplicados: [] })
+    expect(resultado).toEqual({ atualizados: 2, naoEncontrados: [999], duplicados: [], diasRemovidos: 0 })
     expect(prisma.motorista.findMany).toHaveBeenCalledTimes(1)
     expect(prisma.$transaction).toHaveBeenCalledTimes(2)
     expect(tx.motorista.update).toHaveBeenCalledTimes(2)
@@ -204,20 +211,59 @@ describe("atualizarJornadaRelatorioDosMotoristas", () => {
       criarRegistro({ matricula: 999, dia: "2026-07-09T00:00:00.000Z" }),
     ])
 
-    expect(resultado).toEqual({ atualizados: 0, naoEncontrados: [999], duplicados: [] })
+    expect(resultado).toEqual({ atualizados: 0, naoEncontrados: [999], duplicados: [], diasRemovidos: 0 })
   })
 
-  it("guard de status especial suprime o calendário em TODOS os dias do lote pra esse motorista, não só o primeiro", async () => {
+  it("motorista em Férias/Exames/Interno hoje ainda tem os dias passados do relatório atualizados (antes o mês todo dele era pulado)", async () => {
     vi.mocked(prisma.motorista.findMany).mockResolvedValue([{ id: 42, seva: 815, diasTrabalhados: 8 }] as never)
 
     await atualizarJornadaRelatorioDosMotoristas(FILIAL_ID, [
-      criarRegistro({ dia: "2026-07-08T00:00:00.000Z" }),
-      criarRegistro({ dia: "2026-07-09T00:00:00.000Z" }),
-      criarRegistro({ dia: "2026-07-10T00:00:00.000Z" }),
+      criarRegistro({ dia: "2026-07-08T03:00:00.000Z" }),
+      criarRegistro({ dia: "2026-07-09T03:00:00.000Z" }),
+      criarRegistro({ dia: "2026-07-10T03:00:00.000Z" }),
     ])
 
-    expect(tx.motorista.update).toHaveBeenCalledTimes(1)
-    expect(tx.registroJornada.upsert).not.toHaveBeenCalled()
+    expect(tx.registroJornada.upsert).toHaveBeenCalledTimes(3)
+  })
+
+  it("re-importar apaga, no período do arquivo, o dia de importação anterior que saiu do lote — e mantém lançamento manual e status especial", async () => {
+    vi.mocked(prisma.motorista.findMany).mockResolvedValue([{ id: 42, seva: 815, diasTrabalhados: 2 }] as never)
+    vi.mocked(tx.registroJornada.findMany).mockResolvedValue([
+      { id: 1, data: new Date("2026-07-08T00:00:00.000Z"), codigo: 3, inicioJornada: new Date() }, // no lote: regravado
+      { id: 2, data: new Date("2026-07-09T00:00:00.000Z"), codigo: 4, inicioJornada: new Date() }, // saiu do lote: apaga
+      { id: 3, data: new Date("2026-07-10T00:00:00.000Z"), codigo: 7, inicioJornada: null }, // folga lançada à mão: fica
+      { id: 4, data: new Date("2026-07-11T00:00:00.000Z"), codigo: 9, inicioJornada: new Date() }, // exames: fica
+    ] as never)
+
+    const resultado = await atualizarJornadaRelatorioDosMotoristas(FILIAL_ID, [criarRegistro({ dia: "2026-07-08T03:00:00.000Z" })], {
+      de: "2026-07-01T10:00:00.000Z",
+      ate: "2026-07-31T10:00:00.000Z",
+      matriculas: [815],
+    })
+
+    expect(tx.registroJornada.findMany).toHaveBeenCalledWith({
+      where: { motoristaId: 42, data: { gte: new Date("2026-07-01T00:00:00.000Z"), lte: new Date("2026-07-31T00:00:00.000Z") } },
+      select: { id: true, data: true, codigo: true, inicioJornada: true },
+    })
+    expect(tx.registroJornada.deleteMany).toHaveBeenCalledWith({ where: { id: { in: [2] } } })
+    expect(resultado.diasRemovidos).toBe(1)
+  })
+
+  it("motorista do arquivo com todas as linhas excluídas na conferência também tem os dias antigos apagados", async () => {
+    vi.mocked(prisma.motorista.findMany).mockResolvedValue([{ id: 42, seva: 815, diasTrabalhados: 2 }] as never)
+    vi.mocked(tx.registroJornada.findMany).mockResolvedValue([
+      { id: 9, data: new Date("2026-07-09T00:00:00.000Z"), codigo: 4, inicioJornada: new Date() },
+    ] as never)
+
+    const resultado = await atualizarJornadaRelatorioDosMotoristas(FILIAL_ID, [], {
+      de: "2026-07-01T10:00:00.000Z",
+      ate: "2026-07-31T10:00:00.000Z",
+      matriculas: [815],
+    })
+
+    expect(tx.motorista.update).not.toHaveBeenCalled()
+    expect(tx.registroJornada.deleteMany).toHaveBeenCalledWith({ where: { id: { in: [9] } } })
+    expect(resultado).toMatchObject({ atualizados: 1, diasRemovidos: 1 })
   })
 
   it("passa o horário daquele dia específico (não o do motorista como um todo) pra registrarJornadaNoDia", async () => {

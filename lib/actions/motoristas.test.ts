@@ -151,7 +151,7 @@ describe("lib/actions/motoristas — controle de acesso", () => {
     })
 
     it("atualizarJornadaRelatorio segue em frente, chama o service e devolve o resultado", async () => {
-      const resultado = { atualizados: 3, naoEncontrados: [999], duplicados: [] }
+      const resultado = { atualizados: 3, naoEncontrados: [999], duplicados: [], diasRemovidos: 0 }
       vi.mocked(jornadaRelatorioService.atualizarJornadaRelatorioDosMotoristas).mockResolvedValue(resultado)
 
       const resposta = await atualizarJornadaRelatorio([])
@@ -161,7 +161,7 @@ describe("lib/actions/motoristas — controle de acesso", () => {
     })
 
     it("atualizarJornadaRelatorio grava no histórico os ajustes feitos na conferência", async () => {
-      vi.mocked(jornadaRelatorioService.atualizarJornadaRelatorioDosMotoristas).mockResolvedValue({ atualizados: 1, naoEncontrados: [], duplicados: [] })
+      vi.mocked(jornadaRelatorioService.atualizarJornadaRelatorioDosMotoristas).mockResolvedValue({ atualizados: 1, naoEncontrados: [], duplicados: [], diasRemovidos: 0 })
       const ajuste = { matricula: 101, dia: "2026-09-17T03:00:00.000Z", contexto: "Importação do relatório · MOTORISTA (101)", antes: { "Dias sem folga": 5 }, depois: { "Dias sem folga": 4 } }
 
       await atualizarJornadaRelatorio([], [ajuste])
