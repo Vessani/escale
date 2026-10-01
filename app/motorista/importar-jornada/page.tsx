@@ -5,21 +5,23 @@ import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { ArrowLeft, Loader, Upload } from "lucide-react"
 import { Alert } from "@/components/ui/alert"
-import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
-import { JornadaRelatorioParser, type RegistroJornadaRelatorio } from "@/lib/parsers/jornada-relatorio-parser"
+import {
+  JornadaRelatorioParser,
+  type LinhaJornadaBruta,
+  type RegistroJornadaRelatorio,
+} from "@/lib/parsers/jornada-relatorio-parser"
 import { atualizarJornadaRelatorio, type RespostaImportacaoJornada } from "@/lib/actions/motoristas"
-import { formatarDataHoraPtBr } from "@/lib/utils/date-format"
-import { MAX_DIAS_SEM_FOLGA, folgaEstourada } from "@/lib/services/dias-sem-folga"
+import type { AjusteJornada } from "@/lib/validation/ajuste-jornada"
+import { ConferenciaJornada } from "./conferencia-jornada"
 
 export default function ImportarJornadaPage() {
   const router = useRouter()
   const [carregando, setCarregando] = useState(false)
   const [importando, setImportando] = useState(false)
   const [erro, setErro] = useState("")
-  const [registros, setRegistros] = useState<RegistroJornadaRelatorio[] | null>(null)
+  const [brutas, setBrutas] = useState<LinhaJornadaBruta[] | null>(null)
   const [resultado, setResultado] = useState<Extract<RespostaImportacaoJornada, { sucesso: true }>["resultado"] | null>(
     null,
   )
@@ -30,12 +32,11 @@ export default function ImportarJornadaPage() {
 
     setErro("")
     setResultado(null)
-    setRegistros(null)
+    setBrutas(null)
     setCarregando(true)
 
     try {
-      const dados = await JornadaRelatorioParser.parseFromFile(file)
-      setRegistros(dados)
+      setBrutas(await JornadaRelatorioParser.lerArquivo(file))
     } catch (erroParse) {
       setErro(erroParse instanceof Error ? erroParse.message : "Erro desconhecido ao processar arquivo.")
     } finally {
@@ -44,14 +45,12 @@ export default function ImportarJornadaPage() {
     }
   }
 
-  const confirmarImportacao = async () => {
-    if (!registros) return
-
+  const confirmarImportacao = async (registros: RegistroJornadaRelatorio[], ajustes: AjusteJornada[]) => {
     setImportando(true)
     setErro("")
 
     try {
-      const resposta = await atualizarJornadaRelatorio(registros)
+      const resposta = await atualizarJornadaRelatorio(registros, ajustes)
 
       if (!resposta.sucesso) {
         setErro(resposta.erro)
@@ -59,7 +58,7 @@ export default function ImportarJornadaPage() {
       }
 
       setResultado(resposta.resultado)
-      setRegistros(null)
+      setBrutas(null)
       router.refresh()
     } catch {
       setErro("Ocorreu um erro inesperado ao importar o relatório.")
@@ -69,7 +68,7 @@ export default function ImportarJornadaPage() {
   }
 
   return (
-    <div className="max-w-4xl mx-auto space-y-6 pb-20">
+    <div className="max-w-6xl mx-auto space-y-6 pb-20">
       <div className="flex items-center space-x-3">
         <Button
           variant="ghost"
@@ -112,7 +111,9 @@ export default function ImportarJornadaPage() {
             />
             <label
               htmlFor="jornada-upload"
-              className={`flex flex-col items-center justify-center p-8 border-2 border-dashed rounded-lg cursor-pointer transition-colors ${
+              className={`flex items-center justify-center border-2 border-dashed rounded-lg cursor-pointer transition-colors ${
+                brutas ? "flex-row gap-2 p-3 [&>span]:mt-0" : "flex-col p-8"
+              } ${
                 carregando ? "bg-muted border-border" : "hover:border-primary hover:bg-primary/10 border-border"
               }`}
             >
@@ -123,8 +124,10 @@ export default function ImportarJornadaPage() {
                 </>
               ) : (
                 <>
-                  <Upload className="w-8 h-8 text-muted-foreground" />
-                  <span className="mt-2 text-sm font-medium text-foreground/80">Clique para selecionar o arquivo</span>
+                  <Upload className={brutas ? "w-5 h-5 text-muted-foreground" : "w-8 h-8 text-muted-foreground"} />
+                  <span className="mt-2 text-sm font-medium text-foreground/80">
+                    {brutas ? "Trocar arquivo (as correções feitas aqui se perdem)" : "Clique para selecionar o arquivo"}
+                  </span>
                 </>
               )}
             </label>
@@ -152,96 +155,7 @@ export default function ImportarJornadaPage() {
         </CardContent>
       </Card>
 
-      {registros && (
-        <Card className="shadow-sm border-border">
-          <CardHeader className="bg-muted border-b flex flex-row items-center justify-between">
-            <div>
-              <CardTitle className="text-lg">
-                {new Set(registros.map((r) => r.matricula)).size} motorista(s) — {registros.length} jornada(s) encontrada(s)
-              </CardTitle>
-              <CardDescription>Confira antes de confirmar — a importação atualiza o cadastro dos motoristas e o histórico do calendário.</CardDescription>
-            </div>
-            <Button
-              type="button"
-              disabled={importando}
-              onClick={confirmarImportacao}
-            >
-              {importando ? "Importando..." : `Confirmar importação`}
-            </Button>
-          </CardHeader>
-          <CardContent className="pt-6 space-y-4">
-            {registros.some((registro) => folgaEstourada(registro.diasSemFolga)) && (
-              <Alert variant="error">
-                {registros.filter((registro) => folgaEstourada(registro.diasSemFolga)).length} jornada(s) passaram de{" "}
-                {MAX_DIAS_SEM_FOLGA} dias seguidos sem folga (em vermelho). Elas ficam registradas em Relatórios → Estouro de 7º dia.
-              </Alert>
-            )}
-            <div className="overflow-hidden rounded-md border">
-              <Table containerClassName="max-h-96 overflow-auto">
-                <TableHeader className="sticky top-0 z-10 bg-muted">
-                  <TableRow>
-                    <TableHead>Matrícula</TableHead>
-                    <TableHead>Motorista</TableHead>
-                    <TableHead>Início de Jornada</TableHead>
-                    <TableHead>Fim de Jornada</TableHead>
-                    <TableHead>Dias Sem Folga</TableHead>
-                    <TableHead>Correção</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {registros.map((registro) => (
-                    <TableRow
-                      key={`${registro.matricula}-${registro.dia}`}
-                      className={
-                        folgaEstourada(registro.diasSemFolga)
-                          ? "bg-destructive/10 text-destructive hover:bg-destructive/15 font-medium"
-                          : undefined
-                      }
-                    >
-                      <TableCell className="font-mono tabular-nums">{registro.matricula}</TableCell>
-                      <TableCell>{registro.nome}</TableCell>
-                      <TableCell className="font-mono tabular-nums">{formatarDataHoraPtBr(registro.inicioJornada)}</TableCell>
-                      <TableCell className="font-mono tabular-nums">{formatarDataHoraPtBr(registro.fimJornada)}</TableCell>
-                      <TableCell className="tabular-nums">
-                        {folgaEstourada(registro.diasSemFolga) ? (
-                          <span title={`Trabalhou ${registro.diasSemFolga} dias seguidos sem folga — o limite é ${MAX_DIAS_SEM_FOLGA}. No calendário do Escale o dia fica como ${MAX_DIAS_SEM_FOLGA}º (o código 7 é Folga).`}>
-                            {registro.diasSemFolga}º dia sem folga
-                          </span>
-                        ) : (
-                          registro.diasSemFolga
-                        )}
-                        {registro.diasSemFolga !== registro.diasSemFolgaRelatorio && (
-                          <span className="ml-1 text-xs text-muted-foreground">
-                            (relatório: {registro.diasSemFolgaRelatorio})
-                          </span>
-                        )}
-                      </TableCell>
-                      <TableCell>
-                        {registro.correcao === "BATIDAS_UNIDAS" && (
-                          <Badge
-                            variant="warning"
-                            title="Entrada e saída vieram em linhas separadas no relatório e foram juntadas numa jornada só."
-                          >
-                            Batidas unidas
-                          </Badge>
-                        )}
-                        {registro.correcao === "BATIDA_SEM_PAR" && (
-                          <Badge
-                            variant="outline"
-                            title="Só uma batida (entrada ou saída). Conta como dia trabalhado, mas o horário de fim pode não ser o real."
-                          >
-                            Batida sem par
-                          </Badge>
-                        )}
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </div>
-          </CardContent>
-        </Card>
-      )}
+      {brutas && <ConferenciaJornada key={brutas.length + (brutas[0]?.inicio ?? "")} brutas={brutas} importando={importando} onConfirmar={confirmarImportacao} />}
 
       <Link href="/motorista">
         <Button variant="outline">Voltar pra Motoristas</Button>

@@ -1,3 +1,13 @@
+/** Texto opcional em `depois` que identifica o registro (ex: motorista e dia de um ajuste de jornada) — mostrado à parte, fora do diff. */
+export const CAMPO_CONTEXTO_AUDITORIA = "_contexto"
+
+/** O `_contexto` de um snapshot, se houver. */
+export function contextoAuditoria(depois: unknown): string | null {
+  if (!depois || typeof depois !== "object") return null
+  const valor = (depois as Record<string, unknown>)[CAMPO_CONTEXTO_AUDITORIA]
+  return typeof valor === "string" ? valor : null
+}
+
 /**
  * Diff genérico e raso entre dois snapshots JSON (antes/depois de um
  * RegistroAuditoria) — um só algoritmo pra qualquer entidade, sem lógica
@@ -7,7 +17,7 @@
  * quanto no feed /historico.
  */
 
-const CAMPOS_IGNORADOS = new Set(["id", "criadoEm", "atualizadoEm"])
+const CAMPOS_IGNORADOS = new Set(["id", "criadoEm", "atualizadoEm", CAMPO_CONTEXTO_AUDITORIA])
 
 type CampoAlterado = {
   campo: string

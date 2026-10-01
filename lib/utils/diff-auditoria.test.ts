@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest"
-import { diffAuditoria, formatarCampoAlterado } from "@/lib/utils/diff-auditoria"
+import { contextoAuditoria, diffAuditoria, formatarCampoAlterado } from "@/lib/utils/diff-auditoria"
 
 describe("diffAuditoria", () => {
   it("reporta só os campos que mudaram", () => {
@@ -43,3 +43,14 @@ describe("formatarCampoAlterado", () => {
     expect(formatarCampoAlterado({ campo: "motoristaId", valorAntigo: null, valorNovo: 5 })).toBe("motoristaId: — → 5")
   })
 })
+
+describe("contexto do registro", () => {
+  it("_contexto não aparece como campo alterado e é lido à parte", () => {
+    const depois = { "Dias sem folga": 6, _contexto: "Importação do relatório · MOTORISTA (102)" }
+    expect(diffAuditoria({ "Dias sem folga": 7 }, depois).map((a) => a.campo)).toEqual(["Dias sem folga"])
+    expect(contextoAuditoria(depois)).toBe("Importação do relatório · MOTORISTA (102)")
+    expect(contextoAuditoria({ nome: "x" })).toBeNull()
+    expect(contextoAuditoria(null)).toBeNull()
+  })
+})
+
