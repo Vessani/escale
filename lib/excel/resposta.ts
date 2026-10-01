@@ -1,4 +1,4 @@
-export const CONTENT_TYPE_EXCEL = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+const CONTENT_TYPE_EXCEL = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
 
 /** Resposta de download de .xlsx (nome já sanitizado, sem a extensão). */
 export function respostaExcel(buffer: Buffer, nomeArquivo: string): Response {

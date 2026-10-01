@@ -1,7 +1,7 @@
 import { fimDoDia, formatDateForDateInput, inicioDoDia, parseDataLocal } from "@/lib/utils/date-format"
 
 /** Máximo de um período, pra ninguém puxar anos de dados de uma vez. */
-export const DIAS_MAXIMOS_PERIODO = 92
+const DIAS_MAXIMOS_PERIODO = 92
 
 const UM_DIA_MS = 24 * 60 * 60 * 1000
 

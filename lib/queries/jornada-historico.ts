@@ -15,7 +15,7 @@ import { formatDateForDateInput, inicioDoDia } from "@/lib/utils/date-format"
  * recente antes da janela, que vem junto mesmo fora dela. Relatórios que
  * precisam de mais histórico (ex: ciclo circadiano) consultam por período.
  */
-export const DIAS_HISTORICO_JORNADA = 7
+const DIAS_HISTORICO_JORNADA = 7
 
 const UM_DIA_MS = 24 * 60 * 60 * 1000
 

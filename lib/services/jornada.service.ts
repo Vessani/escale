@@ -7,7 +7,7 @@ const DIAS_EXAMES = 1
 const DIAS_INTERNO = 1
 const DIAS_FERIAS = 30
 
-export type StatusJornada = {
+type StatusJornada = {
   texto: string
 }
 

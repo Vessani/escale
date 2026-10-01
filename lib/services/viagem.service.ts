@@ -50,7 +50,7 @@ function statusPermiteAutoAjuste(statusAtual: string) {
  * viagem mandava CRIADA mesmo com motorista escolhido. Os demais status
  * (EM_ANDAMENTO, CANCELADA...) passam intactos.
  */
-export function normalizarStatusPorAlocacao<S extends string>(status: S, motoristaId: number | null): S | "CRIADA" | "ALOCADA" {
+function normalizarStatusPorAlocacao<S extends string>(status: S, motoristaId: number | null): S | "CRIADA" | "ALOCADA" {
   return statusPermiteAutoAjuste(status) ? resolverStatusPorAlocacao(motoristaId) : status
 }
 
@@ -458,7 +458,7 @@ export async function deletarViagemService(filialId: number, id: number, ator: A
 }
 
 /** Nova data de início/fim exigida só quando o status vai para POSTERGADA — ver atualizarStatusViagemService. */
-export type NovaDataViagem = { inicioPrevisto: Date; fimPrevisto: Date }
+type NovaDataViagem = { inicioPrevisto: Date; fimPrevisto: Date }
 
 export async function atualizarStatusViagemService(
   filialId: number,
@@ -543,81 +543,6 @@ export async function atualizarStatusViagemService(
       ator,
       filialId,
     })
-    return viagemAtualizada
-  })
-}
-
-/**
- * Alocação rápida feita direto pelo Dashboard: grava só motorista principal e
- * acompanhante (e ajusta o status por alocação, como editarViagemService já
- * faz) — sem mexer em entregas, frota ou datas, que continuam exclusivas da
- * tela de edição completa.
- */
-export async function atualizarAlocacaoViagemService(
-  filialId: number,
-  idViagem: number,
-  dados: { motoristaId: number | null; motoristaAcompanhanteId: number | null },
-  ator: Ator | null,
-) {
-  // Linha completa — vira o snapshot "antes" da auditoria.
-  const viagemAtual = await prisma.viagem.findUnique({
-    where: { id: idViagem, filialId },
-  })
-
-  if (!viagemAtual) {
-    throw new ViagemNaoEncontradaError()
-  }
-
-  await garantirMotoristasValidos(filialId, {
-    principalId: dados.motoristaId,
-    acompanhanteId: dados.motoristaAcompanhanteId,
-    produtoExigido: viagemAtual.produto,
-    atuais: { principalId: viagemAtual.motoristaId, acompanhanteId: viagemAtual.motoristaAcompanhanteId },
-  })
-
-  const statusFinal = statusPermiteAutoAjuste(viagemAtual.status)
-    ? resolverStatusPorAlocacao(dados.motoristaId)
-    : viagemAtual.status
-
-  return await prisma.$transaction(async (tx) => {
-    const viagemAtualizada = await tx.viagem.update({
-      where: { id: idViagem, filialId },
-      data: {
-        motoristaId: dados.motoristaId,
-        motoristaAcompanhanteId: dados.motoristaAcompanhanteId,
-        status: statusFinal,
-        // Sem motorista não há descanso a avisar — o recálculo abaixo só
-        // alcança viagens que têm motorista principal.
-        ...(dados.motoristaId === null ? { avisoInterjornada: null } : {}),
-      },
-    })
-
-    await reconciliarFolgaMotoristasNoDiaAtual(
-      tx,
-      [
-        viagemAtual.motoristaId,
-        viagemAtualizada.motoristaId,
-        viagemAtual.motoristaAcompanhanteId,
-        viagemAtualizada.motoristaAcompanhanteId,
-      ],
-      [{ inicioPrevisto: viagemAtual.inicioPrevisto, fimPrevisto: viagemAtual.fimPrevisto }],
-    )
-    await recalcularAvisosInterjornada(tx, filialId, [
-      viagemAtual.motoristaId,
-      viagemAtualizada.motoristaId,
-      viagemAtual.motoristaAcompanhanteId,
-      viagemAtualizada.motoristaAcompanhanteId,
-    ])
-    await registrarAuditoria(tx, {
-      entidade: "Viagem",
-      entidadeId: idViagem,
-      acao: "ATUALIZACAO",
-      antes: viagemAtual,
-      depois: viagemAtualizada,
-      ator,
-      filialId,
-    })
-
     return viagemAtualizada
   })
 }

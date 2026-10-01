@@ -30,11 +30,11 @@ const entregaBaseSchema = z.object({
   codewhite: z.string().max(12, "Máximo de 12 caracteres").optional().default(""),
 })
 
-export const novaEntregaSchema = entregaBaseSchema.extend({
+const novaEntregaSchema = entregaBaseSchema.extend({
   obs: z.string().min(2, "Observação muito curta").max(50, "Máximo de 50 caracteres"),
 })
 
-export const editarEntregaSchema = entregaBaseSchema.extend({
+const editarEntregaSchema = entregaBaseSchema.extend({
   id: z.number().optional(),
   obs: z.string().max(50, "Máximo de 50 caracteres").optional().default(""),
 })

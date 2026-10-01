@@ -15,7 +15,7 @@ export type MotoristaParaDescanso = Pick<MotoristaParaAlocacao, "registrosJornad
   viagens?: ViagemParaDisponibilidade[]
 }
 
-export type DescansoAntesDaViagem = {
+type DescansoAntesDaViagem = {
   /** Quando o motorista parou de trabalhar pela última vez antes da viagem (ver encontrarFimTrabalhoAnterior). */
   fimTrabalhoAnterior: Date
   /** 11h de interjornada, ou 35h de descanso semanal depois do 6º dia (ver descansoMinimoNecessarioApos). */
@@ -34,7 +34,7 @@ export type DescansoAntesDaViagem = {
  * desmente (dias cobertos por ele sem o motorista trabalhar) não conta — o
  * relatório prevalece, ver viagemDesmentidaPeloRelatorio.
  */
-export function encontrarFimTrabalhoAnterior(
+function encontrarFimTrabalhoAnterior(
   motorista: MotoristaParaDescanso,
   inicioViagem: Date,
   viagemId?: number,

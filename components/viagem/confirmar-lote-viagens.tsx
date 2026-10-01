@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useMemo, useRef, useState, useTransition } from "react"
+import { useMemo, useState, useTransition } from "react"
 import type { TipoProduto } from "@prisma/client"
 import type { SugestaoAlocacaoPendente } from "@/lib/types/alocacao"
 import type { NovaViagemFormValues } from "@/lib/validation/viagens"
@@ -86,18 +86,6 @@ export default function ConfirmarLoteViagens({ viagens, onConcluido, onCancelar 
       })
     }
   }
-
-  // Produto já veio do cadastro da carreta: a sugestão inicial (feita sem
-  // produto) precisa ser refeita com ele.
-  const recalculouInicial = useRef(false)
-  useEffect(() => {
-    if (recalculouInicial.current) return
-    recalculouInicial.current = true
-    const comProduto = viagens.filter((viagem) => viagem.sugestao.produtoDaFrota).map((viagem) => viagem.dados.numViagem)
-    void recalcular(produtos, comProduto)
-    // Só na montagem.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [])
 
   const mudarProduto = (numeros: string[], produto: TipoProduto) => {
     const proximos = { ...produtos, ...Object.fromEntries(numeros.map((numero) => [numero, produto])) }

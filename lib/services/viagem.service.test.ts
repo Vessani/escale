@@ -50,7 +50,6 @@ import {
   editarViagemService,
   deletarViagemService,
   atualizarStatusViagemService,
-  atualizarAlocacaoViagemService,
   atualizarSaidaRealService,
 } from "@/lib/services/viagem.service"
 import type { Ator } from "@/lib/services/auditoria.service"
@@ -666,14 +665,14 @@ describe("viagem.service", () => {
 
         vi.mocked(prisma.motorista.findFirst).mockResolvedValue({ produtosAutorizados: ["CO2"], tipo: "ENCHEDOR" } as never)
         await expect(
-          atualizarAlocacaoViagemService(FILIAL_ID, 1, { motoristaId: 20, motoristaAcompanhanteId: null }, ATOR),
+          editarViagemService(FILIAL_ID, 1, criarEdicaoInput({ motoristaId: 20, motoristaAcompanhanteId: null }), ATOR),
         ).rejects.toThrow("Enchedor não faz viagem.")
 
         vi.mocked(prisma.motorista.findFirst)
           .mockResolvedValueOnce({ produtosAutorizados: ["CO2"], tipo: "MOTORISTA" } as never)
           .mockResolvedValueOnce({ produtosAutorizados: [], tipo: "ENCHEDOR" } as never)
         await expect(
-          atualizarAlocacaoViagemService(FILIAL_ID, 1, { motoristaId: 5, motoristaAcompanhanteId: 20 }, ATOR),
+          editarViagemService(FILIAL_ID, 1, criarEdicaoInput({ motoristaId: 5, motoristaAcompanhanteId: 20 }), ATOR),
         ).rejects.toThrow("Enchedor não faz viagem.")
       })
 
@@ -684,7 +683,7 @@ describe("viagem.service", () => {
         vi.mocked(prisma.viagem.findUnique).mockResolvedValue({ status: "CRIADA", motoristaId: null, motoristaAcompanhanteId: null, produto: "CO2" } as never)
         vi.mocked(prisma.motorista.findFirst).mockResolvedValue({ produtosAutorizados: ["CO2"], tipo } as never)
 
-        await atualizarAlocacaoViagemService(FILIAL_ID, 1, { motoristaId: 30, motoristaAcompanhanteId: null }, ATOR)
+        await editarViagemService(FILIAL_ID, 1, criarEdicaoInput({ motoristaId: 30, motoristaAcompanhanteId: null }), ATOR)
 
         expect(tx.viagem.update).toHaveBeenCalled()
       })
@@ -696,7 +695,7 @@ describe("viagem.service", () => {
           .mockResolvedValueOnce(null)
 
         await expect(
-          atualizarAlocacaoViagemService(FILIAL_ID, 1, { motoristaId: 5, motoristaAcompanhanteId: 77 }, ATOR),
+          editarViagemService(FILIAL_ID, 1, criarEdicaoInput({ motoristaId: 5, motoristaAcompanhanteId: 77 }), ATOR),
         ).rejects.toThrow("Motorista não encontrado nesta filial.")
         expect(prisma.motorista.findFirst).toHaveBeenLastCalledWith({
           where: { id: 77, filialId: FILIAL_ID, deletadoEm: null },
@@ -887,87 +886,6 @@ describe("viagem.service", () => {
       const dados = vi.mocked(tx.viagem.update).mock.calls[0][0].data
       expect(dados.avisoFrotaIndisponivel).toBeUndefined()
       expect(dados.avisoFrotaProdutoIncompativel).toBeUndefined()
-    })
-  })
-
-  describe("atualizarAlocacaoViagemService (alocação rápida do Dashboard)", () => {
-    it("lança 'Viagem não encontrada.' quando o id não existe", async () => {
-      vi.mocked(prisma.viagem.findUnique).mockResolvedValue(null)
-
-      await expect(atualizarAlocacaoViagemService(FILIAL_ID, 999, { motoristaId: 5, motoristaAcompanhanteId: null }, ATOR)).rejects.toThrow(
-        "Viagem não encontrada.",
-      )
-    })
-
-    it("aloca o motorista compatível e promove o status pra ALOCADA", async () => {
-      vi.mocked(prisma.viagem.findUnique).mockResolvedValue({
-        status: "CRIADA",
-        motoristaId: null,
-        motoristaAcompanhanteId: null,
-        inicioPrevisto: new Date(),
-        produto: "CO2",
-      } as never)
-      vi.mocked(prisma.motorista.findFirst).mockResolvedValue({ produtosAutorizados: ["CO2"], tipo: "MOTORISTA" } as never)
-      const tx = criarTx()
-      vi.mocked(tx.viagem.update).mockResolvedValue({ id: 1, motoristaId: 5, motoristaAcompanhanteId: null })
-      usarTransacaoCom(tx)
-
-      await atualizarAlocacaoViagemService(FILIAL_ID, 1, { motoristaId: 5, motoristaAcompanhanteId: null }, ATOR)
-
-      const dados = vi.mocked(tx.viagem.update).mock.calls[0][0].data
-      expect(dados.motoristaId).toBe(5)
-      expect(dados.status).toBe("ALOCADA")
-    })
-
-    it("recusa alocar pelo dashboard um motorista que não está autorizado pro produto da viagem — mesmo bloqueio da tela de edição completa", async () => {
-      vi.mocked(prisma.viagem.findUnique).mockResolvedValue({
-        status: "CRIADA",
-        motoristaId: null,
-        motoristaAcompanhanteId: null,
-        inicioPrevisto: new Date(),
-        produto: "NITROGENIO",
-      } as never)
-      vi.mocked(prisma.motorista.findFirst).mockResolvedValue({ produtosAutorizados: ["CO2"], tipo: "MOTORISTA" } as never)
-
-      await expect(atualizarAlocacaoViagemService(FILIAL_ID, 1, { motoristaId: 5, motoristaAcompanhanteId: null }, ATOR)).rejects.toThrow(
-        "Motorista não autorizado a carregar o produto desta viagem.",
-      )
-    })
-
-    it("desalocar (motoristaId: null) nunca consulta compatibilidade de produto", async () => {
-      vi.mocked(prisma.viagem.findUnique).mockResolvedValue({
-        status: "ALOCADA",
-        motoristaId: 5,
-        motoristaAcompanhanteId: null,
-        inicioPrevisto: new Date(),
-        produto: "NITROGENIO",
-      } as never)
-      const tx = criarTx()
-      vi.mocked(tx.viagem.update).mockResolvedValue({ id: 1, motoristaId: null, motoristaAcompanhanteId: null })
-      usarTransacaoCom(tx)
-
-      await atualizarAlocacaoViagemService(FILIAL_ID, 1, { motoristaId: null, motoristaAcompanhanteId: null }, ATOR)
-
-      expect(prisma.motorista.findFirst).not.toHaveBeenCalled()
-    })
-
-    it("desalocar limpa o aviso de descanso da viagem e recalcula o do motorista que saiu", async () => {
-      vi.mocked(prisma.viagem.findUnique).mockResolvedValue({
-        status: "ALOCADA",
-        motoristaId: 5,
-        motoristaAcompanhanteId: null,
-        inicioPrevisto: new Date(),
-        produto: "CO2",
-      } as never)
-      const tx = criarTx()
-      vi.mocked(tx.viagem.update).mockResolvedValue({ id: 1, motoristaId: null, motoristaAcompanhanteId: null })
-      usarTransacaoCom(tx)
-
-      await atualizarAlocacaoViagemService(FILIAL_ID, 1, { motoristaId: null, motoristaAcompanhanteId: null }, ATOR)
-
-      const dados = vi.mocked(tx.viagem.update).mock.calls[0][0].data
-      expect(dados.avisoInterjornada).toBeNull()
-      expect(vi.mocked(recalcularAvisosInterjornada).mock.calls[0][2]).toContain(5)
     })
   })
 

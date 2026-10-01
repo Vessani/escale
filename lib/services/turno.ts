@@ -5,7 +5,7 @@ import type { Turno } from "@prisma/client"
  * da noite, antes disso é do dia — mesma regra do import da planilha. Sem
  * dependências, usado também nos formulários (navegador).
  */
-export const HORA_CORTE_TURNO_NOITE = 16
+const HORA_CORTE_TURNO_NOITE = 16
 
 const OFFSET_BRASILIA_MS = 3 * 60 * 60 * 1000
 

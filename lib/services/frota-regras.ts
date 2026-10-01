@@ -27,7 +27,7 @@ export function viagensCompartilhamFrota(carretaA: string, carretaB: string): bo
   return frotaEhValida(carretaA) && frotaEhValida(carretaB) && carretaA === carretaB
 }
 
-export type StatusFrota = "DISPONIVEL" | "EM_VIAGEM" | "MANUTENCAO"
+type StatusFrota = "DISPONIVEL" | "EM_VIAGEM" | "MANUTENCAO"
 
 /**
  * Situação do conjunto: manutenção do cavalo ou da carreta em andamento

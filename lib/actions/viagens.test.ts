@@ -30,8 +30,20 @@ vi.mock("@/lib/queries/clientes", () => ({
   buscarNumerosSapQueExigemIntegracao: vi.fn(),
 }))
 
+vi.mock("@/lib/queries/frotas", () => ({
+  buscarProdutoPorCarreta: vi.fn(),
+}))
+
+vi.mock("@/lib/services/frota.service", () => ({
+  calcularAvisoFrotaIndisponivel: vi.fn(),
+  calcularAvisoFrotaProduto: vi.fn(),
+}))
+
 import * as viagemService from "@/lib/services/viagem.service"
 import * as motoristasQueries from "@/lib/queries/motoristas"
+import * as clientesQueries from "@/lib/queries/clientes"
+import * as frotasQueries from "@/lib/queries/frotas"
+import * as frotaService from "@/lib/services/frota.service"
 import {
   criarViagemAvulsa,
   sugerirAlocacaoParaViagens,
@@ -237,5 +249,30 @@ describe("lib/actions/viagens — controle de acesso", () => {
       expect(resposta).toEqual({ sucesso: true })
       expect(viagemService.deletarViagemService).toHaveBeenCalledTimes(1)
     })
+  })
+})
+
+describe("sugerirAlocacaoParaViagens — produto da carreta", () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+    vi.mocked(getServerSession).mockResolvedValue({ user: { id: "1", role: "DESPACHANTE", filialId: 1 } } as never)
+    vi.mocked(motoristasQueries.buscarMotoristasParaSelect).mockResolvedValue([])
+    vi.mocked(clientesQueries.buscarNumerosSapQueExigemIntegracao).mockResolvedValue(new Set() as never)
+    vi.mocked(frotasQueries.buscarProdutoPorCarreta).mockResolvedValue(new Map([["ABC123", "NITROGENIO"]]) as never)
+    vi.mocked(frotaService.calcularAvisoFrotaIndisponivel).mockResolvedValue(undefined as never)
+    vi.mocked(frotaService.calcularAvisoFrotaProduto).mockResolvedValue(undefined as never)
+  })
+
+  it("viagem do import sem produto usa o da carreta cadastrada — já na primeira sugestão", async () => {
+    const [sugestao] = await sugerirAlocacaoParaViagens([{ ...viagemValida, produto: "" } as never])
+
+    expect(sugestao.produtoDaFrota).toBe("NITROGENIO")
+    expect(frotaService.calcularAvisoFrotaProduto).toHaveBeenCalledWith(1, "XYZ456", "ABC123", "NITROGENIO")
+  })
+
+  it("produto escolhido na tela vale mais que o da carreta", async () => {
+    await sugerirAlocacaoParaViagens([viagemValida as never])
+
+    expect(frotaService.calcularAvisoFrotaProduto).toHaveBeenCalledWith(1, "XYZ456", "ABC123", "CO2")
   })
 })

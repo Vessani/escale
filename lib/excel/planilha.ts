@@ -39,7 +39,7 @@ export function paraHorarioDeParede(data: Date): Date {
 
 export type TipoColuna = "texto" | "codigo" | "numero" | "decimal" | "data" | "dataHora" | "hora" | "percentual"
 export type Valor = string | number | Date | null | undefined
-export type Destaque = "perigo" | "alerta" | "apagado" | null
+type Destaque = "perigo" | "alerta" | "apagado" | null
 
 export type Coluna<T> = {
   titulo: string
@@ -51,7 +51,7 @@ export type Coluna<T> = {
   somar?: boolean
 }
 
-export type Aba<T> = {
+type Aba<T> = {
   /** Nome da aba (até 31 caracteres). */
   nome: string
   titulo: string
@@ -287,18 +287,26 @@ function adicionarAba<T>(workbook: ExcelJS.Workbook, aba: Aba<T>, meta: Metadado
 }
 
 /** Gera o .xlsx com uma aba por item, no estilo do Escale. */
-// Cada aba tem seu próprio tipo de linha — `any` aqui só junta abas diferentes num array.
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-export async function gerarExcel(abas: Array<Aba<any>>, meta: Metadados = {}): Promise<Buffer> {
+export async function gerarExcel(abas: AbaPronta[], meta: Metadados = {}): Promise<Buffer> {
   const workbook = new ExcelJS.Workbook()
   workbook.creator = "Escale"
   workbook.created = meta.geradoEm ?? new Date()
   const usados = new Set<string>()
-  for (const aba of abas) adicionarAba(workbook, aba as Aba<unknown>, meta, usados)
+  for (const aba of abas) aba.escrever(workbook, meta, usados)
   return Buffer.from(await workbook.xlsx.writeBuffer())
 }
 
-/** Ajuda a tipar uma aba sem perder o tipo da linha no array de abas. */
-export function aba<T>(definicao: Aba<T>): Aba<T> {
-  return definicao
+/**
+ * Aba pronta pra entrar no arquivo. Cada aba tem seu próprio tipo de linha;
+ * aqui ele fica "escondido" dentro de `escrever`, então abas diferentes cabem
+ * no mesmo array sem `any` e sem cast.
+ */
+export type AbaPronta = {
+  readonly nome: string
+  escrever: (workbook: ExcelJS.Workbook, meta: Metadados, usados: Set<string>) => void
+}
+
+/** Define uma aba com o tipo da linha checado (colunas, destaque, grupo). */
+export function aba<T>(definicao: Aba<T>): AbaPronta {
+  return { nome: definicao.nome, escrever: (workbook, meta, usados) => adicionarAba(workbook, definicao, meta, usados) }
 }

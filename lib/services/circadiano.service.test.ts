@@ -7,7 +7,10 @@ import {
   ordenarOcorrencias,
   type ViagemCircadiano,
 } from "./circadiano.service"
-import { periodoCircadiano } from "./circadiano-periodo"
+import { PERIODO_PADRAO } from "@/lib/relatorios/catalogo"
+import { resolverPeriodo } from "@/lib/relatorios/periodo"
+
+const periodoCircadiano = (de?: string, ate?: string, agora?: Date) => resolverPeriodo(de, ate, PERIODO_PADRAO.circadiano, agora)
 
 const h = (iso: string) => new Date(`${iso}-03:00`)
 

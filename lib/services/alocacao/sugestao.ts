@@ -35,7 +35,7 @@ type AtribuicaoTentativa = {
   fim: Date
 }
 
-export type SugestaoAlocacaoLote = {
+type SugestaoAlocacaoLote = {
   viagemId: number
   motoristasCompativeis: MotoristaComAgenda[]
   motoristaSugerido: MotoristaComAgenda | null

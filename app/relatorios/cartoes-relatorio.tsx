@@ -3,7 +3,7 @@ import type { LucideIcon } from "lucide-react"
 import { ChevronRight } from "lucide-react"
 import { cn } from "@/lib/utils"
 
-export type CartaoRelatorio = {
+type CartaoRelatorio = {
   href: string
   titulo: string
   descricao: string
