@@ -390,6 +390,20 @@ describe("viagem.service", () => {
       await expect(editarViagemService(FILIAL_ID, 999, criarEdicaoInput(), ATOR)).rejects.toThrow("Viagem não encontrada.")
     })
 
+    it("editar o início sem mexer no turno faz o turno acompanhar; turno trocado à mão vale", async () => {
+      const tx = criarTx()
+      vi.mocked(tx.viagem.update).mockResolvedValue({ id: 1, motoristaId: null })
+      usarTransacaoCom(tx)
+      const antes = { status: "CRIADA", turno: "NOITE", inicioPrevisto: new Date("2026-10-01T20:00:00-03:00"), motoristaId: null, motoristaAcompanhanteId: null }
+
+      vi.mocked(prisma.viagem.findUnique).mockResolvedValue(antes as never)
+      await editarViagemService(FILIAL_ID, 1, criarEdicaoInput({ turno: "NOITE", inicioPrevisto: "2026-10-02T09:00" }), ATOR)
+      expect(vi.mocked(tx.viagem.update).mock.calls[0][0].data.turno).toBe("MANHA")
+
+      await editarViagemService(FILIAL_ID, 1, criarEdicaoInput({ turno: "MANHA", inicioPrevisto: "2026-10-02T20:00" }), ATOR)
+      expect(vi.mocked(tx.viagem.update).mock.calls[1][0].data.turno).toBe("MANHA")
+    })
+
     it("lança erro amigável quando o número editado já pertence a OUTRA viagem ativa", async () => {
       vi.mocked(prisma.viagem.findUnique).mockResolvedValue({ status: "CRIADA", motoristaId: null, motoristaAcompanhanteId: null } as never)
       vi.mocked(prisma.viagem.findFirst).mockResolvedValue({ id: 2 } as never)
@@ -844,6 +858,20 @@ describe("viagem.service", () => {
       const dados = vi.mocked(tx.viagem.update).mock.calls[0][0].data
       expect(dados.avisoFrotaIndisponivel).toBe("Frota 2064/908 só estará disponível a partir de 22/07/2026, 12:00.")
       expect(dados.avisoFrotaProdutoIncompativel).toBe("Frota 2064/908 está cadastrada para Nitrogênio, não CO2.")
+    })
+
+    it("postergar da noite pro dia troca o turno pelo novo horário de início", async () => {
+      vi.mocked(prisma.viagem.findUnique).mockResolvedValue({ status: "ALOCADA", turno: "NOITE", cavalo: "2064", carreta: "908", produto: "CO2", motoristaId: 3 } as never)
+      const tx = criarTx()
+      vi.mocked(tx.viagem.update).mockResolvedValue({ id: 1, motoristaId: 3, motoristaAcompanhanteId: null, cavalo: "2064", carreta: "908" })
+      usarTransacaoCom(tx)
+
+      await atualizarStatusViagemService(FILIAL_ID, 1, "POSTERGADA", ATOR, {
+        inicioPrevisto: new Date("2026-10-02T08:00:00-03:00"),
+        fimPrevisto: new Date("2026-10-02T18:00:00-03:00"),
+      })
+
+      expect(vi.mocked(tx.viagem.update).mock.calls[0][0].data.turno).toBe("MANHA")
     })
 
     it("sem novaData (cancelar/finalizar/iniciar), não recalcula os avisos de frota — mantém o que já estava gravado", async () => {

@@ -1,6 +1,7 @@
 "use client"
 
 import type { StatusViagem, TipoProduto } from "@prisma/client"
+import { useTurnoAutomatico } from "@/lib/hooks/use-turno-automatico"
 import { useState } from "react"
 import { useRouter } from "next/navigation"
 import { zodResolver } from "@hookform/resolvers/zod"
@@ -103,6 +104,7 @@ export default function FormEditarViagem({ viagem, opcoesMotorista }: FormEditar
   })
 
   const statusSelecionado = useWatch({ control: form.control, name: "status" })
+  useTurnoAutomatico(form.control, form.setValue)
 
   const onSubmit: SubmitHandler<EditarViagemFormValues> = async (dados) => {
     setErroGlobal("")
@@ -159,7 +161,7 @@ export default function FormEditarViagem({ viagem, opcoesMotorista }: FormEditar
               name="motoristaId"
               render={({ field }) => (
                 <FormItem className="max-w-md">
-                  <FormLabel>Condutor Responsável (Turno preferencial: {viagem.turno})</FormLabel>
+                  <FormLabel>Condutor Responsável (turno da viagem: {viagem.turno === "NOITE" ? "noite" : "dia"})</FormLabel>
                   <Select
                     value={field.value === null || field.value === undefined ? "" : String(field.value)}
                     onValueChange={(value) => field.onChange(value ? Number(value) : null)}

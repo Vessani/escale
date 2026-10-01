@@ -110,7 +110,7 @@ function ViagensTabela({ viagens, podeExcluir }: { viagens: Viagem[]; podeExclui
               <TableCell className="font-mono tabular-nums">{formatarDataHoraPtBr(viagem.fimPrevisto)}</TableCell>
               <TableCell>
                 <Badge variant="outline" className={classeBadgeTurno(viagem.turno)}>
-                  {viagem.turno}
+                  {viagem.turno === "NOITE" ? "Noite" : "Dia"}
                 </Badge>
               </TableCell>
               <TableCell>
@@ -154,7 +154,7 @@ function ViagensCards({ viagens, podeExcluir }: { viagens: Viagem[]; podeExcluir
               </p>
             </div>
             <Badge variant="outline" className={classeBadgeTurno(viagem.turno)}>
-              {viagem.turno}
+              {viagem.turno === "NOITE" ? "Noite" : "Dia"}
             </Badge>
           </div>
 

@@ -91,8 +91,11 @@ export function statusJornadaCorrespondeAoFiltro(
   return diasTrabalhados === 11
 }
 
-/** Quantidade de dias exibidos de cada vez no calendário (uma "página" de navegação). */
-export const TAMANHO_JANELA_CALENDARIO = 30
+/** Quantidade de dias exibidos de cada vez no calendário (uma "página" de navegação): 3 antes, hoje e 3 depois. */
+export const TAMANHO_JANELA_CALENDARIO = 7
+
+/** Dias antes de hoje na janela padrão (sem ?inicio na URL). */
+export const DIAS_ANTES_DE_HOJE = 3
 
 /** Lê o parâmetro `inicio` da URL (YYYY-MM-DD); retorna null se ausente/inválido. */
 export function parseDataInicioParam(valor?: string) {

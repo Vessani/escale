@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/prisma";
+import { turnoPorHorario } from "./turno";
 import { NovaViagemInput, EditarViagemInput } from "@/lib/types/types";
 import { buscarMotoristasParaSelect } from "@/lib/queries/motoristas";
 import { buscarNumerosSapQueExigemIntegracao } from "@/lib/queries/clientes";
@@ -7,7 +8,7 @@ import {
   motoristaAutorizadoParaProduto,
   sugerirMotoristaAutomatico,
 } from "./alocacao.service";
-import type { TipoProduto } from "@prisma/client";
+import type { TipoProduto, Turno } from "@prisma/client";
 import { reconciliarFolgaMotoristasNoDiaAtual } from "./folga.service";
 import { registrarAuditoria, type Ator } from "./auditoria.service";
 import { MotoristaProdutoNaoAutorizadoError, MotoristaNaoEncontradoError, MotoristaEmTreinamentoError, MotoristaNaoViajaError, ViagemNaoEncontradaError, StatusViagemObrigatorioError, NumViagemDuplicadaError } from "@/lib/errors";
@@ -20,6 +21,22 @@ import { calcularDiasEntre, inicioDoDia } from "@/lib/utils/date-format";
 
 function resolverStatusPorAlocacao(motoristaId: number | null) {
   return motoristaId === null ? "CRIADA" : "ALOCADA";
+}
+
+/**
+ * Turno ao editar: se o início mudou e quem editou não mexeu no turno, ele
+ * acompanha o novo horário (ver turnoPorHorario). Se o turno foi trocado à
+ * mão na edição, vale o escolhido.
+ */
+function turnoAposMudarHorario(
+  viagemAtual: { inicioPrevisto: Date; turno: Turno },
+  novoInicio: Date,
+  turnoEnviado: Turno,
+): Turno {
+  const inicioAnterior = viagemAtual.inicioPrevisto ? new Date(viagemAtual.inicioPrevisto).getTime() : null
+  const inicioMudou = inicioAnterior !== null && novoInicio.getTime() !== inicioAnterior
+  if (!inicioMudou || turnoEnviado !== viagemAtual.turno) return turnoEnviado
+  return turnoPorHorario(novoInicio) ?? turnoEnviado
 }
 
 function statusPermiteAutoAjuste(statusAtual: string) {
@@ -291,6 +308,7 @@ export async function editarViagemService(filialId: number, idViagem: number, da
 
   const motoristaIdFinal = dados.motoristaId !== undefined ? dados.motoristaId : viagemAtual.motoristaId
   const statusFinal = normalizarStatusPorAlocacao(dados.status ?? viagemAtual.status, motoristaIdFinal ?? null)
+  const turnoFinal = turnoAposMudarHorario(viagemAtual, dados.inicioPrevisto as Date, dados.turno)
   const acompanhanteIdFinal =
     dados.motoristaAcompanhanteId !== undefined ? dados.motoristaAcompanhanteId : viagemAtual.motoristaAcompanhanteId
   await garantirMotoristasValidos(filialId, {
@@ -320,7 +338,7 @@ export async function editarViagemService(filialId: number, idViagem: number, da
         diasViagem: dados.diasViagem,
         inicioPrevisto: dados.inicioPrevisto as Date,
         fimPrevisto: dados.fimPrevisto as Date,
-        turno: dados.turno,
+        turno: turnoFinal,
         produto: dados.produto,
         integracaoExigida: integracaoNecessaria,
         status: statusFinal,
@@ -494,6 +512,9 @@ export async function atualizarStatusViagemService(
           inicioPrevisto: novaData.inicioPrevisto,
           fimPrevisto: novaData.fimPrevisto,
           diasViagem: calcularDiasEntre(novaData.inicioPrevisto, novaData.fimPrevisto),
+          // Postergar da noite pro dia (ou o contrário) troca o turno — senão a
+          // alocação procura motorista do turno errado.
+          turno: turnoPorHorario(novaData.inicioPrevisto) ?? viagemAtual.turno,
         } : {}),
         ...avisosRecalculados,
       },

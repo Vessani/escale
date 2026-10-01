@@ -18,6 +18,7 @@ import type { ResultadoImportacaoLote } from "@/lib/types/types"
 import UploadXLSXViagem from "@/components/viagem/upload-xlsx-viagem"
 import RotaFields from "@/components/viagem/rota-fields"
 import EntregasFieldArray from "@/components/viagem/entregas-field-array"
+import { useTurnoAutomatico } from "@/lib/hooks/use-turno-automatico"
 import ConfirmarLoteViagens, { type ViagemParaConfirmar } from "@/components/viagem/confirmar-lote-viagens"
 
 export default function NovaViagemPage() {
@@ -47,6 +48,8 @@ export default function NovaViagemPage() {
     },
   })
 
+  useTurnoAutomatico(form.control, form.setValue)
+
   const handleDataLoaded = (dados: NovaViagemFormValues) => {
     setResumoLote(null)
     setMostrarFormularioAvulso(true)
@@ -62,10 +65,15 @@ export default function NovaViagemPage() {
       const sugestoes = await sugerirAlocacaoParaViagens(viagens)
       const paraConfirmar: ViagemParaConfirmar[] = viagens.map((dados, indice) => ({
         dados,
-        motoristaSugerido: sugestoes[indice]?.motoristaSugerido ?? null,
-        motoristasCompativeis: sugestoes[indice]?.motoristasCompativeis ?? [],
-        avisoInterjornada: sugestoes[indice]?.avisoInterjornada ?? null,
-        avisoFrotaIndisponivel: sugestoes[indice]?.avisoFrotaIndisponivel ?? null,
+        sugestao: sugestoes[indice] ?? {
+          numViagem: dados.numViagem,
+          produtoDaFrota: null,
+          motoristaSugerido: null,
+          motoristasCompativeis: [],
+          avisoInterjornada: null,
+          avisoFrotaIndisponivel: null,
+          avisoFrotaProdutoIncompativel: null,
+        },
       }))
       setRevisandoLote(paraConfirmar)
     } catch {

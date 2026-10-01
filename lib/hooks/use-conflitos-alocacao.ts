@@ -43,7 +43,8 @@ export function useConflitosAlocacao(
 
     for (const itemA of itens) {
       const motoristaA = selecaoEfetivaPorViagem[itemA.chave]
-      if (!motoristaA) continue
+      // "0" = escolheram deixar sem motorista (ver SEM_MOTORISTA).
+      if (!motoristaA || motoristaA === "0") continue
 
       const numerosConflitantes = itens
         .filter((itemB) => {
