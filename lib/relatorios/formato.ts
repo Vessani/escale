@@ -34,3 +34,12 @@ export function formatarPercentual(valor: number): string {
 export function rotuloTurno(turno: string): string {
   return turno === "NOITE" ? "Noite" : "Dia"
 }
+
+/** Durações longas em dias: 4130 min → "2d 20h50"; abaixo de 1 dia, igual a formatarDuracao. */
+export function formatarDuracaoLonga(minutos: number): string {
+  const total = Math.round(minutos)
+  if (total < 24 * 60) return formatarDuracao(total)
+  const dias = Math.floor(total / (24 * 60))
+  const resto = total - dias * 24 * 60
+  return resto === 0 ? `${dias}d` : `${dias}d ${formatarDuracao(resto)}`
+}

@@ -121,8 +121,8 @@ export default async function RelatoriosPage({
           },
           {
             href: "/relatorios/frota",
-            titulo: "Uso da frota",
-            descricao: "Dias em viagem e ocupação de cada conjunto; os parados primeiro.",
+            titulo: "Disponibilidade da frota",
+            descricao: "Horas em rota, paradas em manutenção (White Martins / Ritmo) e disponíveis, por carreta e cavalo.",
             icone: Truck,
           },
           {

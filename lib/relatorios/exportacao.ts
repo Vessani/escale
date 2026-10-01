@@ -1,11 +1,10 @@
 import { formatarNomeProprio } from "@/lib/utils/texto"
-import { formatarProduto } from "@/lib/services/produto.service"
 import { formatarStatusViagem } from "@/lib/services/viagem-status.service"
 import { buscarRelatorioCircadiano } from "@/lib/queries/circadiano"
 import { buscarFolgasEstouradas } from "@/lib/queries/sem-folga"
 import { carregarDadosJornada } from "@/lib/queries/relatorios/jornada"
 import {
-  buscarDadosUsoFrota,
+  buscarDadosDisponibilidade,
   buscarIntegracoesParaRelatorio,
   buscarViagensComAviso,
   buscarViagensNaoConstam,
@@ -18,11 +17,13 @@ import {
   integracoesVencendo,
   listarAvisos,
   textoVencimento,
-  usoDaFrota,
+  disponibilidadeDaFrota,
+  type DisponibilidadeVeiculo,
   type GrupoPontualidade,
 } from "@/lib/services/relatorios/operacao"
 import { formatarCodigoFrota } from "@/lib/services/frota-regras"
 import type { OcorrenciaCircadiano } from "@/lib/services/circadiano.service"
+import { ROTULO_RESPONSAVEL, ROTULO_SITUACAO, ROTULO_VEICULO, descreverTipo, situacaoManutencao } from "@/lib/services/manutencao-regras"
 import { aba, type Aba, type Coluna } from "@/lib/excel/planilha"
 import { PERIODO_PADRAO, parseDiasIntegracao, parseHorasJornadaLonga } from "./catalogo"
 import { formatarDiaCompleto, formatarDuracao, rotuloTurno } from "./formato"
@@ -335,34 +336,76 @@ export const EXPORTADORES_RELATORIO: Record<string, Exportador> = {
     ]
   }),
 
-  frota: comPeriodo(PERIODO_PADRAO.frota, "uso-da-frota", async (filialId, periodo) => {
-    const dados = await buscarDadosUsoFrota(filialId, periodo.de, periodo.ate)
-    const frotas = usoDaFrota(dados.frotas, dados.viagens, periodo.de, periodo.ate, dados.ultimaViagemPorCarreta)
-    type Uso = (typeof frotas)[number]
-    return [
-      aba<Uso>({
-        nome: "Uso da frota",
-        titulo: "Uso da frota",
-        subtitulo: textoPeriodo(periodo),
+  frota: comPeriodo(PERIODO_PADRAO.frota, "disponibilidade-da-frota", async (filialId, periodo) => {
+    const dados = await buscarDadosDisponibilidade(filialId, periodo.de, periodo.ate)
+    const itens = disponibilidadeDaFrota(dados.veiculos, dados.viagens, dados.manutencoes, periodo.de, periodo.ate, new Date(), dados.ultimaViagemPorVeiculo)
+    const horas = (minutos: number) => Math.round((minutos / 60) * 10) / 10
+    const abaDe = (veiculo: "CARRETA" | "CAVALO", nomeAba: string) => {
+      const lista = itens.filter((item) => item.veiculo === veiculo)
+      const mediaDisponibilidade = lista.length ? lista.reduce((soma, item) => soma + item.disponibilidade, 0) / lista.length : 0
+      return aba<DisponibilidadeVeiculo>({
+        nome: nomeAba,
+        titulo: `Disponibilidade da frota · ${nomeAba.toLowerCase()}`,
+        subtitulo: `${textoPeriodo(periodo)} · horas contadas até o momento da geração`,
         resumo: [
-          { rotulo: "Conjuntos", valor: frotas.length },
-          { rotulo: "Parados", valor: frotas.filter((f) => f.viagens === 0 && f.diasOcupados === 0).length },
-          {
-            rotulo: "Ocupação média",
-            valor: `${Math.round((frotas.reduce((soma, f) => soma + f.ocupacao, 0) / Math.max(frotas.length, 1)) * 100)}%`,
-          },
+          { rotulo: "Veículos", valor: lista.length },
+          { rotulo: "Disponibilidade média", valor: `${Math.round(mediaDisponibilidade * 100)}%` },
+          { rotulo: "Horas paradas White Martins", valor: horas(lista.reduce((soma, i) => soma + i.minutosManutencaoWhiteMartins, 0)) },
+          { rotulo: "Horas paradas Ritmo", valor: horas(lista.reduce((soma, i) => soma + i.minutosManutencaoRitmo, 0)) },
         ],
-        linhas: frotas,
-        destaque: (f) => (f.viagens === 0 && f.diasOcupados === 0 ? "alerta" : null),
+        linhas: lista,
+        destaque: (item) => (item.disponibilidade < 0.8 ? "perigo" : item.disponibilidade < 0.95 ? "alerta" : null),
         colunas: [
-          { titulo: "Cavalo", valor: (f) => frota(f.cavalo), tipo: "codigo" },
-          { titulo: "Carreta", valor: (f) => frota(f.carreta), tipo: "codigo" },
-          { titulo: "Produto", valor: (f) => (f.tipoProduto ? formatarProduto(f.tipoProduto) : "") },
-          { titulo: "Viagens", valor: (f) => f.viagens, tipo: "numero", somar: true },
-          { titulo: "Dias em viagem", valor: (f) => f.diasOcupados, tipo: "numero" },
-          { titulo: "Ocupação", valor: (f) => f.ocupacao, tipo: "percentual" },
-          { titulo: "Última viagem", valor: (f) => f.ultimaViagem, tipo: "data" },
-          { titulo: "Manutenção", valor: (f) => (f.emManutencao ? "Sim" : "") },
+          { titulo: veiculo === "CARRETA" ? "Carreta" : "Cavalo", valor: (i) => i.codigo, tipo: "codigo" },
+          { titulo: "Conjunto", valor: (i) => i.conjunto ?? "", tipo: "codigo" },
+          { titulo: "Horas no período", valor: (i) => horas(i.minutosPeriodo), tipo: "decimal" },
+          { titulo: "Horas em rota", valor: (i) => horas(i.minutosEmRota), tipo: "decimal", somar: true },
+          { titulo: "Horas manut. White Martins", valor: (i) => horas(i.minutosManutencaoWhiteMartins), tipo: "decimal", somar: true },
+          { titulo: "Horas manut. Ritmo", valor: (i) => horas(i.minutosManutencaoRitmo), tipo: "decimal", somar: true },
+          { titulo: "Horas disponível sem uso", valor: (i) => horas(i.minutosDisponivelParado), tipo: "decimal", somar: true },
+          { titulo: "Disponibilidade", valor: (i) => i.disponibilidade, tipo: "percentual" },
+          { titulo: "Utilização", valor: (i) => i.utilizacao, tipo: "percentual" },
+          { titulo: "Manutenções", valor: (i) => i.manutencoes, tipo: "numero", somar: true },
+          { titulo: "Viagens", valor: (i) => i.viagens, tipo: "numero", somar: true },
+          { titulo: "Última viagem", valor: (i) => i.ultimaViagem, tipo: "data" },
+        ],
+      })
+    }
+    const manutencoes = dados.manutencoes
+    type Manut = (typeof manutencoes)[number]
+    const agora = new Date()
+    return [
+      abaDe("CARRETA", "Carretas"),
+      abaDe("CAVALO", "Cavalos"),
+      aba<Manut>({
+        nome: "Manutenções",
+        titulo: "Manutenções no período",
+        subtitulo: textoPeriodo(periodo),
+        resumo: [{ rotulo: "Manutenções", valor: manutencoes.length }],
+        linhas: [...manutencoes].sort((a, b) => a.inicioPrevisto.getTime() - b.inicioPrevisto.getTime()),
+        grupo: (m) => ROTULO_RESPONSAVEL[m.responsavel],
+        destaque: (m) => (situacaoManutencao(m, agora) === "ATRASADA" ? "perigo" : null),
+        vazio: "Nenhuma manutenção no período.",
+        colunas: [
+          { titulo: "Veículo", valor: (m) => ROTULO_VEICULO[m.veiculo] },
+          { titulo: "Código", valor: (m) => m.codigo, tipo: "codigo" },
+          { titulo: "Tipo", valor: (m) => descreverTipo(m) },
+          { titulo: "Situação", valor: (m) => ROTULO_SITUACAO[situacaoManutencao(m, agora)] },
+          { titulo: "Início previsto", valor: (m) => m.inicioPrevisto, tipo: "dataHora" },
+          { titulo: "Fim previsto", valor: (m) => m.fimPrevisto, tipo: "dataHora" },
+          { titulo: "Início real", valor: (m) => m.inicioReal, tipo: "dataHora" },
+          { titulo: "Fim real", valor: (m) => m.fimReal, tipo: "dataHora" },
+          {
+            titulo: "Horas parado",
+            valor: (m) => {
+              const fim = m.fimReal ?? agora
+              const inicio = m.inicioReal ?? m.inicioPrevisto
+              return fim > inicio ? horas((fim.getTime() - inicio.getTime()) / 60_000) : 0
+            },
+            tipo: "decimal",
+            somar: true,
+          },
+          { titulo: "Descrição", valor: (m) => m.descricao ?? "", largura: 50 },
         ],
       }),
     ]

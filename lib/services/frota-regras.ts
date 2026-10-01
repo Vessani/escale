@@ -30,13 +30,13 @@ export function viagensCompartilhamFrota(carretaA: string, carretaB: string): bo
 export type StatusFrota = "DISPONIVEL" | "EM_VIAGEM" | "MANUTENCAO"
 
 /**
- * `emManutencao` é manual e sempre vence — só muda por ação explícita no
- * cadastro (ver components/frota/frota-form.tsx). Sem isso, `disponivelEm`
- * no futuro decide: reservada por uma viagem (o sistema grava isso sozinho,
- * ver registrarOuAtualizarDisponibilidadeFrota) ou já disponível.
+ * Situação do conjunto: manutenção do cavalo ou da carreta em andamento
+ * agora sempre vence (ver manutencaoAtualOuProxima); sem isso,
+ * `disponivelEm` no futuro decide — reservada por uma viagem (o sistema
+ * grava isso sozinho, ver sincronizarDisponibilidadeFrota) ou disponível.
  */
-export function calcularStatusFrota(emManutencao: boolean, disponivelEm: Date | string | null, agora: Date): StatusFrota {
-  if (emManutencao) {
+export function calcularStatusFrota(emManutencaoAgora: boolean, disponivelEm: Date | string | null, agora: Date): StatusFrota {
+  if (emManutencaoAgora) {
     return "MANUTENCAO"
   }
 

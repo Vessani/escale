@@ -29,6 +29,14 @@ type SearchParamsInput = {
   ate?: string
 }
 
+/** Nome legível das entidades auditadas (o resto aparece como gravado). */
+const ROTULO_ENTIDADE: Record<string, string> = {
+  Manutencao: "Manutenção",
+  QuadroObservacao: "Quadro de observações",
+  RegistroJornada: "Jornada",
+  Usuario: "Usuário",
+}
+
 /** YYYY-MM-DD local (sem componente de hora) — mesmo formato de <input type="date">. */
 function dataLocalParaInput(data: Date): string {
   // Dia em Brasília, não no fuso do servidor (UTC na Vercel).
@@ -115,7 +123,7 @@ export default async function HistoricoPage({
                       <Badge variant="outline" className={CLASSE_BADGE_ACAO[registro.acao]}>
                         {LABEL_ACAO[registro.acao]}
                       </Badge>
-                      <span className="font-medium text-foreground">{registro.entidade}</span>
+                      <span className="font-medium text-foreground">{ROTULO_ENTIDADE[registro.entidade] ?? registro.entidade}</span>
                       <span className="text-muted-foreground">·</span>
                       <span className="text-foreground/80">{registro.usuarioNome ?? "Sistema"}</span>
                     </div>

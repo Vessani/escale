@@ -88,3 +88,17 @@ export class NumViagemDuplicadaError extends ErroDeDominio {
     super("NUM_VIAGEM_DUPLICADA", "Já existe uma viagem com este número.")
   }
 }
+
+/** Id de manutenção que não existe (ou é de outra filial / já excluída). */
+export class ManutencaoNaoEncontradaError extends ErroDeDominio {
+  constructor() {
+    super("MANUTENCAO_NAO_ENCONTRADA", "Manutenção não encontrada.")
+  }
+}
+
+/** Fim real antes do início, ou concluir/iniciar fora de ordem. */
+export class ManutencaoPeriodoInvalidoError extends ErroDeDominio {
+  constructor(mensagem: string) {
+    super("MANUTENCAO_PERIODO_INVALIDO", mensagem)
+  }
+}

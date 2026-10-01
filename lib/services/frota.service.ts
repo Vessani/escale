@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma"
 import { converterEntradaDeDataHora, formatarDataHoraPtBr } from "@/lib/utils/date-format"
 import { formatarProduto } from "./produto.service"
 import { frotaEhValida } from "./frota-regras"
+import { avisoManutencaoNaViagem, type ManutencaoBase } from "./manutencao-regras"
 import { registrarAuditoria, type Ator } from "./auditoria.service"
 import { FrotaDuplicadaError } from "@/lib/errors"
 
@@ -12,11 +13,10 @@ export type FrotaInput = {
   cavalo: string
   carreta: string
   disponivelEm?: string | Date | null
-  emManutencao?: boolean
   tipoProduto?: TipoProduto | null
 }
 
-type FrotaParaAviso = { emManutencao: boolean; disponivelEm: Date | null }
+type FrotaParaAviso = { disponivelEm: Date | null }
 
 type ViagemAtivaDaCarreta = {
   id: number
@@ -46,8 +46,10 @@ const SELECT_VIAGEM_ATIVA_DA_CARRETA = {
 
 /**
  * Regra pura do aviso de frota indisponível pra uma viagem, a partir do
- * conjunto cadastrado e das viagens ativas da mesma carreta:
- * 1. Em manutenção (manual) sempre avisa.
+ * conjunto cadastrado, das manutenções do cavalo e da carreta e das viagens
+ * ativas da mesma carreta:
+ * 1. Cavalo ou carreta em manutenção no período da viagem avisa (ver
+ *    avisoManutencaoNaViagem). Vale mesmo sem conjunto cadastrado.
  * 2. Outra viagem ativa da carreta com período sobreposto avisa, citando
  *    ela. A própria viagem (`avaliada.id`) é ignorada — antes o aviso vinha
  *    de `disponivelEm`, que é o MAIOR fim previsto entre as viagens ativas
@@ -58,14 +60,22 @@ const SELECT_VIAGEM_ATIVA_DA_CARRETA = {
  *    ou seja, foi preenchido à mão no cadastro (ex: liberação prevista).
  */
 export function avaliarAvisoFrotaIndisponivel(
-  frota: FrotaParaAviso,
+  frota: FrotaParaAviso | null,
   viagensAtivas: ViagemAtivaDaCarreta[],
   avaliada: ViagemAvaliada,
   cavalo: string,
   carreta: string,
+  manutencoes: ManutencaoBase[] = [],
+  agora: Date = new Date(),
 ): string | null {
-  if (frota.emManutencao) {
-    return `Frota ${cavalo}/${carreta} está marcada como em manutenção.`
+  const avisoManutencao = avisoManutencaoNaViagem(manutencoes, cavalo, carreta, avaliada.inicio, avaliada.fim, agora)
+  if (avisoManutencao) {
+    return avisoManutencao
+  }
+
+  // Conjunto não cadastrado: só a manutenção vale (ver calcularAvisoFrotaIndisponivel).
+  if (!frota) {
+    return null
   }
 
   const conflito = viagensAtivas
@@ -109,25 +119,51 @@ export async function calcularAvisoFrotaIndisponivel(
   fim: Date,
   viagemId?: number,
 ): Promise<string | null> {
-  if (!frotaEhValida(cavalo) || !frotaEhValida(carreta)) {
+  if (!frotaEhValida(carreta)) {
     return null
   }
 
-  const frota = await prisma.frota.findFirst({
-    where: { carreta, filialId, deletadoEm: null },
-    orderBy: { atualizadoEm: "desc" },
+  const [frota, manutencoes] = await Promise.all([
+    prisma.frota.findFirst({
+      where: { carreta, filialId, deletadoEm: null },
+      orderBy: { atualizadoEm: "desc" },
+    }),
+    buscarManutencoesDosVeiculos(prisma, filialId, [cavalo], [carreta]),
+  ])
+
+  // Sem conjunto cadastrado, o aviso de viagem sobreposta não vale (a viagem
+  // é texto livre) — mas a manutenção do veículo vale.
+  const viagensAtivas = frota
+    ? await prisma.viagem.findMany({
+        where: filtroViagensAtivasDaCarreta(filialId, carreta),
+        select: SELECT_VIAGEM_ATIVA_DA_CARRETA,
+      })
+    : []
+
+  return avaliarAvisoFrotaIndisponivel(frota, viagensAtivas, { id: viagemId, inicio, fim }, cavalo, carreta, manutencoes)
+}
+
+/** Manutenções não excluídas dos cavalos/carretas informados (as concluídas também — o período pode cruzar o da viagem). */
+export async function buscarManutencoesDosVeiculos(
+  cliente: Pick<Prisma.TransactionClient, "manutencao">,
+  filialId: number,
+  cavalos: string[],
+  carretas: string[],
+): Promise<ManutencaoBase[]> {
+  const codigosCavalo = [...new Set(cavalos.filter(frotaEhValida))]
+  const codigosCarreta = [...new Set(carretas.filter(frotaEhValida))]
+  if (codigosCavalo.length === 0 && codigosCarreta.length === 0) return []
+
+  return cliente.manutencao.findMany({
+    where: {
+      filialId,
+      deletadoEm: null,
+      OR: [
+        ...(codigosCavalo.length ? [{ veiculo: "CAVALO" as const, codigo: { in: codigosCavalo } }] : []),
+        ...(codigosCarreta.length ? [{ veiculo: "CARRETA" as const, codigo: { in: codigosCarreta } }] : []),
+      ],
+    },
   })
-
-  if (!frota) {
-    return null
-  }
-
-  const viagensAtivas = await prisma.viagem.findMany({
-    where: filtroViagensAtivasDaCarreta(filialId, carreta),
-    select: SELECT_VIAGEM_ATIVA_DA_CARRETA,
-  })
-
-  return avaliarAvisoFrotaIndisponivel(frota, viagensAtivas, { id: viagemId, inicio, fim }, cavalo, carreta)
 }
 
 /**
@@ -194,7 +230,7 @@ export async function sincronizarDisponibilidadeFrota(
   cavalo: string,
   carreta: string,
 ): Promise<void> {
-  if (!frotaEhValida(cavalo) || !frotaEhValida(carreta)) {
+  if (!frotaEhValida(carreta)) {
     return
   }
 
@@ -202,11 +238,6 @@ export async function sincronizarDisponibilidadeFrota(
     where: { carreta, filialId, deletadoEm: null },
     orderBy: { atualizadoEm: "desc" },
   })
-
-  // Conjunto não cadastrado: nada a sincronizar (ver comentário acima).
-  if (!existente) {
-    return
-  }
 
   const viagensAtivas = await tx.viagem.findMany({
     where: filtroViagensAtivasDaCarreta(filialId, carreta),
@@ -218,11 +249,21 @@ export async function sincronizarDisponibilidadeFrota(
     null,
   )
 
-  await tx.frota.update({
-    where: { id: existente.id, filialId },
-    data: { disponivelEm: maiorFim },
-  })
-  const frotaAtualizada = { emManutencao: existente.emManutencao, disponivelEm: maiorFim }
+  // Conjunto não cadastrado: não há disponivelEm pra atualizar, mas o aviso
+  // de manutenção das viagens ainda precisa ser recalculado.
+  if (existente) {
+    await tx.frota.update({
+      where: { id: existente.id, filialId },
+      data: { disponivelEm: maiorFim },
+    })
+  }
+  const frotaAtualizada = existente ? { disponivelEm: maiorFim } : null
+  const manutencoes = await buscarManutencoesDosVeiculos(
+    tx,
+    filialId,
+    [cavalo, ...viagensAtivas.map((viagem) => viagem.cavalo)],
+    [carreta],
+  )
 
   // Uma viagem cancelada/finalizada/movida libera (ou ocupa) a carreta pras
   // outras: recalcula o aviso gravado em todas as viagens ativas dela, senão
@@ -234,6 +275,7 @@ export async function sincronizarDisponibilidadeFrota(
       { id: viagem.id, inicio: viagem.inicioPrevisto, fim: viagem.fimPrevisto },
       viagem.cavalo,
       carreta,
+      manutencoes,
     )
 
     if (aviso !== viagem.avisoFrotaIndisponivel) {
@@ -258,7 +300,6 @@ export async function criarFrotaService(filialId: number, dados: FrotaInput, ato
         cavalo: dados.cavalo,
         carreta: dados.carreta,
         disponivelEm: dados.disponivelEm ? converterEntradaDeDataHora(dados.disponivelEm) : null,
-        emManutencao: dados.emManutencao ?? false,
         tipoProduto: dados.tipoProduto ?? null,
         filialId,
       },
@@ -295,7 +336,6 @@ export async function editarFrotaService(filialId: number, id: number, dados: Fr
         cavalo: dados.cavalo,
         carreta: dados.carreta,
         disponivelEm: dados.disponivelEm ? converterEntradaDeDataHora(dados.disponivelEm) : null,
-        emManutencao: dados.emManutencao ?? false,
         tipoProduto: dados.tipoProduto ?? null,
       },
     })

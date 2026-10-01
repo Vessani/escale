@@ -1,6 +1,13 @@
 import { prisma } from "@/lib/prisma"
 import { colunaDateParaLocal, inicioDoDia } from "@/lib/utils/date-format"
-import type { IntegracaoParaRelatorio, ViagemPontualidade, FrotaParaUso, ViagemParaUso } from "@/lib/services/relatorios/operacao"
+import type { VeiculoManutencao } from "@prisma/client"
+import type {
+  IntegracaoParaRelatorio,
+  VeiculoDisponibilidade,
+  ViagemDisponibilidade,
+  ViagemPontualidade,
+} from "@/lib/services/relatorios/operacao"
+import { frotaEhValida } from "@/lib/services/frota-regras"
 
 const UM_DIA_MS = 24 * 60 * 60 * 1000
 
@@ -99,30 +106,52 @@ export async function buscarViagensComAviso(filialId: number, de: Date, ate: Dat
   })
 }
 
-/** 7. Conjuntos ativos, viagens que tocam o período e a última viagem de cada carreta. */
-export async function buscarDadosUsoFrota(filialId: number, de: Date, ate: Date) {
-  const [frotas, viagens, ultimas] = await Promise.all([
-    prisma.frota.findMany({
-      where: { filialId, deletadoEm: null },
-      select: { id: true, cavalo: true, carreta: true, emManutencao: true, tipoProduto: true },
-    }),
+/**
+ * 7. Cavalos e carretas (dos conjuntos cadastrados e de quem teve
+ * manutenção no período), viagens e manutenções que tocam o período e a
+ * última viagem de cada veículo.
+ */
+export async function buscarDadosDisponibilidade(filialId: number, de: Date, ate: Date) {
+  const [frotas, viagens, manutencoes, ultimasCarreta, ultimasCavalo] = await Promise.all([
+    prisma.frota.findMany({ where: { filialId, deletadoEm: null }, select: { cavalo: true, carreta: true } }),
     prisma.viagem.findMany({
       where: { filialId, deletadoEm: null, status: { not: "CANCELADA" }, inicioPrevisto: { lte: ate }, fimPrevisto: { gte: de } },
-      select: { id: true, carreta: true, status: true, inicioPrevisto: true, fimPrevisto: true, finalizadoEm: true },
+      select: { id: true, cavalo: true, carreta: true, status: true, inicioPrevisto: true, fimPrevisto: true, finalizadoEm: true, horarioRealSaida: true },
+    }),
+    prisma.manutencao.findMany({
+      where: { filialId, deletadoEm: null, inicioPrevisto: { lte: ate }, OR: [{ fimReal: null }, { fimReal: { gte: de } }] },
     }),
     prisma.viagem.groupBy({
       by: ["carreta"],
       where: { filialId, deletadoEm: null, status: { not: "CANCELADA" }, inicioPrevisto: { lte: ate } },
       _max: { inicioPrevisto: true },
     }),
+    prisma.viagem.groupBy({
+      by: ["cavalo"],
+      where: { filialId, deletadoEm: null, status: { not: "CANCELADA" }, inicioPrevisto: { lte: ate } },
+      _max: { inicioPrevisto: true },
+    }),
   ])
 
-  const ultimaViagemPorCarreta = new Map<string, Date>()
-  for (const ultima of ultimas) {
-    if (ultima._max.inicioPrevisto) ultimaViagemPorCarreta.set(ultima.carreta, ultima._max.inicioPrevisto)
+  const veiculos = new Map<string, VeiculoDisponibilidade>()
+  const adicionar = (veiculo: VeiculoManutencao, codigo: string, conjunto: string | null) => {
+    if (!frotaEhValida(codigo)) return
+    const chave = `${veiculo}:${codigo}`
+    if (!veiculos.has(chave)) veiculos.set(chave, { veiculo, codigo, conjunto })
   }
+  for (const frota of frotas) {
+    const conjunto = `${frota.cavalo} / ${frota.carreta}`
+    adicionar("CARRETA", frota.carreta, conjunto)
+    // Truck: cavalo e carreta com o mesmo número — conta uma vez só, como carreta.
+    if (frota.cavalo !== frota.carreta) adicionar("CAVALO", frota.cavalo, conjunto)
+  }
+  for (const manutencao of manutencoes) adicionar(manutencao.veiculo, manutencao.codigo, null)
 
-  return { frotas: frotas as FrotaParaUso[], viagens: viagens as ViagemParaUso[], ultimaViagemPorCarreta }
+  const ultimaViagemPorVeiculo = new Map<string, Date>()
+  for (const u of ultimasCarreta) if (u._max.inicioPrevisto) ultimaViagemPorVeiculo.set(`CARRETA:${u.carreta}`, u._max.inicioPrevisto)
+  for (const u of ultimasCavalo) if (u._max.inicioPrevisto) ultimaViagemPorVeiculo.set(`CAVALO:${u.cavalo}`, u._max.inicioPrevisto)
+
+  return { veiculos: [...veiculos.values()], viagens: viagens as ViagemDisponibilidade[], manutencoes, ultimaViagemPorVeiculo }
 }
 
 /** 8. Viagens que o relatório de jornada desmente (ver viagemDesmentidaPeloRelatorio) e ainda não foram resolvidas. */

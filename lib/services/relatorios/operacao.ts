@@ -1,7 +1,7 @@
-import type { StatusIntegracao, StatusViagem, TipoProduto } from "@prisma/client"
+import type { StatusIntegracao, StatusViagem, VeiculoManutencao } from "@prisma/client"
 import { inicioDoDia } from "@/lib/utils/date-format"
 import { fimEfetivoViagem } from "@/lib/services/alocacao/disponibilidade"
-import { viagensCompartilhamFrota } from "@/lib/services/frota-regras"
+import { fimEfetivo, inicioEfetivo, type ManutencaoBase } from "@/lib/services/manutencao-regras"
 import { TOLERANCIA_SAIDA_MINUTOS, minutosDeAtraso } from "@/lib/services/pontualidade"
 
 const UM_DIA_MS = 24 * 60 * 60 * 1000
@@ -220,74 +220,152 @@ export function listarAvisos(viagem: AvisosDaViagem): AvisoListado[] {
 }
 
 // ---------------------------------------------------------------------------
-// 7. Uso da frota
+// 7. Disponibilidade da frota (por cavalo e por carreta)
 // ---------------------------------------------------------------------------
 
-export type FrotaParaUso = {
-  id: number
-  cavalo: string
-  carreta: string
-  emManutencao: boolean
-  tipoProduto: TipoProduto | null
+type Intervalo = [number, number]
+
+/** Junta intervalos sobrepostos. */
+function unir(intervalos: Intervalo[]): Intervalo[] {
+  const ordenados = intervalos.filter(([a, b]) => b > a).sort((x, y) => x[0] - y[0])
+  const unidos: Intervalo[] = []
+  for (const [inicio, fim] of ordenados) {
+    const ultimo = unidos[unidos.length - 1]
+    if (ultimo && inicio <= ultimo[1]) ultimo[1] = Math.max(ultimo[1], fim)
+    else unidos.push([inicio, fim])
+  }
+  return unidos
 }
 
-export type ViagemParaUso = {
+function total(intervalos: Intervalo[]): number {
+  return intervalos.reduce((soma, [inicio, fim]) => soma + (fim - inicio), 0)
+}
+
+/** a − b (partes de `a` que não estão em `b`); ambos já unidos. */
+function subtrair(a: Intervalo[], b: Intervalo[]): Intervalo[] {
+  const resultado: Intervalo[] = []
+  for (const [inicio, fim] of a) {
+    let cursor = inicio
+    for (const [bi, bf] of b) {
+      if (bf <= cursor || bi >= fim) continue
+      if (bi > cursor) resultado.push([cursor, bi])
+      cursor = Math.max(cursor, bf)
+    }
+    if (cursor < fim) resultado.push([cursor, fim])
+  }
+  return resultado
+}
+
+function recortar(inicio: number, fim: number, de: number, ate: number): Intervalo {
+  return [Math.max(inicio, de), Math.min(fim, ate)]
+}
+
+export type VeiculoDisponibilidade = { veiculo: VeiculoManutencao; codigo: string; conjunto: string | null }
+
+export type ViagemDisponibilidade = {
   id: number
+  cavalo: string
   carreta: string
   status: StatusViagem
   inicioPrevisto: Date
   fimPrevisto: Date
   finalizadoEm: Date | null
+  horarioRealSaida: Date | null
 }
 
-export type UsoFrota = FrotaParaUso & {
+export type DisponibilidadeVeiculo = VeiculoDisponibilidade & {
   viagens: number
-  diasOcupados: number
-  ocupacao: number
+  minutosPeriodo: number
+  minutosEmRota: number
+  minutosManutencaoWhiteMartins: number
+  minutosManutencaoRitmo: number
+  minutosDisponivelParado: number
+  /** Fora de manutenção / período. */
+  disponibilidade: number
+  /** Em rota / período. */
+  utilizacao: number
+  manutencoes: number
   ultimaViagem: Date | null
 }
 
+const MINUTO_MS = 60_000
+
 /**
- * Por conjunto: quantas viagens fez no período e quantos dias de calendário
- * ficou em viagem (do início ao fim efetivo, recortado ao período). A
- * carreta identifica o conjunto, mesmo critério do aviso de frota
- * indisponível. Parados primeiro — é o que a operação quer achar.
+ * Pra cada cavalo e carreta, como o tempo do período se dividiu: em rota
+ * (viagens não canceladas, da saída real — ou do início previsto — até o fim
+ * efetivo), parado em manutenção (separado por responsável) e disponível
+ * sem uso. Manutenção vence rota se os dois se sobrepõem. Só conta até
+ * `agora`: o futuro ainda não aconteceu.
  */
-export function usoDaFrota(
-  frotas: FrotaParaUso[],
-  viagens: ViagemParaUso[],
+export function disponibilidadeDaFrota(
+  veiculos: VeiculoDisponibilidade[],
+  viagens: ViagemDisponibilidade[],
+  manutencoes: ManutencaoBase[],
   de: Date,
   ate: Date,
-  /** Última viagem de cada carreta em qualquer data (até o fim do período) — pra conjunto parado dizer desde quando. */
-  ultimaViagemPorCarreta: Map<string, Date> = new Map(),
-): UsoFrota[] {
-  const inicioPeriodo = inicioDoDia(de).getTime()
-  const fimPeriodo = inicioDoDia(ate).getTime()
-  const diasPeriodo = Math.round((fimPeriodo - inicioPeriodo) / UM_DIA_MS) + 1
+  agora: Date,
+  ultimaViagemPorVeiculo: Map<string, Date> = new Map(),
+): DisponibilidadeVeiculo[] {
+  const inicioPeriodo = de.getTime()
+  const fimPeriodo = Math.min(ate.getTime(), agora.getTime())
+  const minutosPeriodo = Math.max(0, Math.round((fimPeriodo - inicioPeriodo) / MINUTO_MS))
 
-  return frotas
-    .map((frota) => {
-      const daFrota = viagens.filter(
-        (viagem) => viagem.status !== "CANCELADA" && viagensCompartilhamFrota(viagem.carreta, frota.carreta),
+  return veiculos
+    .map((veiculo) => {
+      const usaVeiculo = (viagem: ViagemDisponibilidade) =>
+        viagem.status !== "CANCELADA" &&
+        (veiculo.veiculo === "CAVALO" ? viagem.cavalo === veiculo.codigo : viagem.carreta === veiculo.codigo)
+      const daFrota = viagens.filter(usaVeiculo)
+
+      const manutencoesDoVeiculo = manutencoes.filter((m) => m.veiculo === veiculo.veiculo && m.codigo === veiculo.codigo)
+      const intervaloManutencao = (m: ManutencaoBase) =>
+        recortar(inicioEfetivo(m).getTime(), (fimEfetivo(m, agora) ?? agora).getTime(), inicioPeriodo, fimPeriodo)
+      const manutencaoWM = unir(manutencoesDoVeiculo.filter((m) => m.responsavel === "WHITE_MARTINS").map(intervaloManutencao))
+      const manutencaoRitmo = subtrair(
+        unir(manutencoesDoVeiculo.filter((m) => m.responsavel === "RITMO").map(intervaloManutencao)),
+        manutencaoWM,
       )
-      const dias = new Set<number>()
-      for (const viagem of daFrota) {
-        const inicio = Math.max(inicioDoDia(viagem.inicioPrevisto).getTime(), inicioPeriodo)
-        const fim = Math.min(inicioDoDia(fimEfetivoViagem(viagem)).getTime(), fimPeriodo)
-        for (let dia = inicio; dia <= fim; dia += UM_DIA_MS) dias.add(inicioDoDia(new Date(dia)).getTime())
-      }
-      const noPeriodo = daFrota.filter((viagem) => viagem.inicioPrevisto >= de && viagem.inicioPrevisto <= ate)
+      const parado = unir([...manutencaoWM, ...manutencaoRitmo])
+
+      const rota = subtrair(
+        unir(
+          daFrota.map((viagem) =>
+            recortar(
+              (viagem.horarioRealSaida ?? viagem.inicioPrevisto).getTime(),
+              fimEfetivoViagem(viagem).getTime(),
+              inicioPeriodo,
+              fimPeriodo,
+            ),
+          ),
+        ),
+        parado,
+      )
+
+      const minutosEmRota = Math.round(total(rota) / MINUTO_MS)
+      const minutosManutencaoWhiteMartins = Math.round(total(manutencaoWM) / MINUTO_MS)
+      const minutosManutencaoRitmo = Math.round(total(manutencaoRitmo) / MINUTO_MS)
+      const minutosParados = minutosManutencaoWhiteMartins + minutosManutencaoRitmo
       const ultima = daFrota.reduce<Date | null>(
         (maisRecente, viagem) => (!maisRecente || viagem.inicioPrevisto > maisRecente ? viagem.inicioPrevisto : maisRecente),
         null,
       )
+
       return {
-        ...frota,
-        viagens: noPeriodo.length,
-        diasOcupados: dias.size,
-        ocupacao: diasPeriodo > 0 ? dias.size / diasPeriodo : 0,
-        ultimaViagem: ultimaViagemPorCarreta.get(frota.carreta) ?? ultima,
+        ...veiculo,
+        viagens: daFrota.filter((v) => v.inicioPrevisto >= de && v.inicioPrevisto <= ate).length,
+        minutosPeriodo,
+        minutosEmRota,
+        minutosManutencaoWhiteMartins,
+        minutosManutencaoRitmo,
+        minutosDisponivelParado: Math.max(0, minutosPeriodo - minutosEmRota - minutosParados),
+        disponibilidade: minutosPeriodo > 0 ? (minutosPeriodo - minutosParados) / minutosPeriodo : 1,
+        utilizacao: minutosPeriodo > 0 ? minutosEmRota / minutosPeriodo : 0,
+        manutencoes: manutencoesDoVeiculo.filter((m) => {
+          const [a, b] = intervaloManutencao(m)
+          return b > a
+        }).length,
+        ultimaViagem: ultimaViagemPorVeiculo.get(`${veiculo.veiculo}:${veiculo.codigo}`) ?? ultima,
       }
     })
-    .sort((a, b) => a.ocupacao - b.ocupacao || a.carreta.localeCompare(b.carreta, "pt-BR"))
+    .sort((a, b) => a.disponibilidade - b.disponibilidade || a.utilizacao - b.utilizacao || a.codigo.localeCompare(b.codigo, "pt-BR"))
 }

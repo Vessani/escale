@@ -57,6 +57,31 @@
   // motorista pode ser alocado a qual viagem (ver motoristaEhCompativel em
   // alocacao.service.ts) e pra sinalizar quando a frota escolhida não é a
   // dedicada a esse produto (ver calcularAvisoFrotaProduto).
+  // Manutenção de frota (ver model Manutencao).
+  enum VeiculoManutencao {
+    CAVALO
+    CARRETA
+  }
+
+  enum TipoManutencao {
+    PREVENTIVA
+    CORRETIVA
+  }
+
+  // Plano da preventiva, do mais simples (A) ao mais completo (D).
+  enum NivelPreventiva {
+    A
+    B
+    C
+    D
+  }
+
+  // Quem responde pelo tempo parado — separa o relatório de disponibilidade.
+  enum ResponsavelManutencao {
+    WHITE_MARTINS
+    RITMO
+  }
+
   enum TipoProduto {
     CO2
     NITROGENIO
@@ -113,6 +138,7 @@
     motoristas       Motorista[]
     viagens          Viagem[]
     frotas           Frota[]
+    manutencoes      Manutencao[]
     quadroObservacao QuadroObservacao?
   }
 
@@ -227,11 +253,10 @@
     cavalo       String    @db.VarChar(7)
     carreta      String    @db.VarChar(7)
     disponivelEm DateTime? @db.Timestamp(6)
-    // Manual — só muda por ação explícita no cadastro. Independente de
-    // disponivelEm, que o sistema também escreve sozinho ao alocar a frota
-    // numa viagem (ver registrarOuAtualizarDisponibilidadeFrota); sem esse
-    // campo não dava pra diferenciar "em manutenção de verdade" de
-    // "reservada porque está numa viagem" (ver calcularStatusFrota).
+    // DESCONTINUADO — substituído pelas manutenções agendadas (model
+    // Manutencao). A migration 20261001010000 converteu quem estava marcado
+    // numa manutenção em aberto. Mantido só pra não quebrar a versão anterior
+    // durante o deploy; remover numa migration futura. Nenhum código lê.
     emManutencao Boolean   @default(false)
 
     // Produto que esse conjunto é dedicado a transportar — um só por
@@ -498,4 +523,40 @@
     @@index([entidade, entidadeId, criadoEm])
     // Feed do dia por filial (tela /historico).
     @@index([filialId, criadoEm])
+  }
+  // Manutenção de um veículo — o cavalo OU a carreta, não o conjunto: o
+  // cavalo pode parar sozinho enquanto a carreta segue com outro. Identifica
+  // o veículo pelo código (mesmo texto de Viagem.cavalo/carreta), porque a
+  // viagem não tem FK pra frota. O conjunto fica indisponível se qualquer um
+  // dos dois estiver em manutenção.
+  //
+  // Período efetivo: começa no início real (ou no previsto, se ninguém
+  // registrou) e só termina no fim real — passou da previsão sem concluir,
+  // continua parado (ver lib/services/manutencao-regras.ts).
+  model Manutencao {
+    id             Int                   @id @default(autoincrement())
+    filialId       Int
+    filial         Filial                @relation(fields: [filialId], references: [id])
+
+    veiculo        VeiculoManutencao
+    codigo         String                @db.VarChar(7)
+
+    tipo           TipoManutencao
+    // Só pra preventiva.
+    nivel          NivelPreventiva?
+    responsavel    ResponsavelManutencao
+    descricao      String?               @db.VarChar(500)
+
+    inicioPrevisto DateTime              @db.Timestamp(6)
+    // Nulo = sem previsão de término (fica parado até concluir).
+    fimPrevisto    DateTime?             @db.Timestamp(6)
+    inicioReal     DateTime?             @db.Timestamp(6)
+    fimReal        DateTime?             @db.Timestamp(6)
+
+    criadoEm       DateTime              @default(now())
+    atualizadoEm   DateTime              @updatedAt
+    deletadoEm     DateTime?
+
+    @@index([filialId, veiculo, codigo])
+    @@index([filialId, inicioPrevisto])
   }

@@ -5,11 +5,11 @@ import {
   integracoesVencendo,
   listarAvisos,
   textoVencimento,
-  usoDaFrota,
+  disponibilidadeDaFrota,
   type ViagemPontualidade,
 } from "./operacao"
 import { periodoOuPadrao, resolverPeriodo, diasNoPeriodo } from "@/lib/relatorios/periodo"
-import { formatarDuracao } from "@/lib/relatorios/formato"
+import { formatarDuracao, formatarDuracaoLonga } from "@/lib/relatorios/formato"
 import { parseDiasIntegracao, parseHorasJornadaLonga } from "@/lib/relatorios/catalogo"
 
 const h = (iso: string) => new Date(`${iso}-03:00`)
@@ -107,35 +107,73 @@ describe("listarAvisos", () => {
   })
 })
 
-describe("usoDaFrota", () => {
-  const frota = (id: number, carreta: string) => ({ id, cavalo: `C${id}`, carreta, emManutencao: false, tipoProduto: null })
-  const viagem = (carreta: string, inicio: string, fim: string, status: "FINALIZADA" | "CANCELADA" = "FINALIZADA") => ({
+describe("disponibilidadeDaFrota", () => {
+  const de = dia("2026-09-01")
+  const ate = h("2026-09-10T23:59:59")
+  const agora = h("2026-10-01T00:00:00")
+  const carreta = { veiculo: "CARRETA" as const, codigo: "908", conjunto: "75 / 908" }
+  const cavalo = { veiculo: "CAVALO" as const, codigo: "75", conjunto: "75 / 908" }
+  const viagem = (inicio: string, fim: string, parcial: Record<string, unknown> = {}) => ({
     id: Math.random(),
-    carreta,
-    status,
+    cavalo: "75",
+    carreta: "908",
+    status: "FINALIZADA" as const,
     inicioPrevisto: h(inicio),
     fimPrevisto: h(fim),
     finalizadoEm: null,
+    horarioRealSaida: null,
+    ...parcial,
+  })
+  const manutencao = (parcial: Record<string, unknown>) => ({
+    id: 1,
+    veiculo: "CARRETA" as const,
+    codigo: "908",
+    tipo: "PREVENTIVA" as const,
+    nivel: "A" as const,
+    responsavel: "WHITE_MARTINS" as const,
+    inicioPrevisto: h("2026-09-05T08:00:00"),
+    fimPrevisto: h("2026-09-05T18:00:00"),
+    inicioReal: null,
+    fimReal: h("2026-09-05T20:00:00"),
+    ...parcial,
   })
 
-  it("conta dias de calendário recortados ao período; parados primeiro", () => {
-    const de = dia("2026-09-01")
-    const ate = h("2026-09-10T23:59:59")
-    const uso = usoDaFrota(
-      [frota(1, "908"), frota(2, "777")],
+  it("divide o período em rota, manutenção por responsável e disponível; manutenção vence rota", () => {
+    const [item] = disponibilidadeDaFrota(
+      [carreta],
       [
-        viagem("908", "2026-08-31T20:00:00", "2026-09-02T10:00:00"),
-        viagem("908", "2026-09-05T08:00:00", "2026-09-05T18:00:00"),
-        viagem("908", "2026-09-07T08:00:00", "2026-09-08T18:00:00", "CANCELADA"),
+        viagem("2026-09-02T08:00:00", "2026-09-02T18:00:00", { horarioRealSaida: h("2026-09-02T09:00:00") }),
+        viagem("2026-09-05T16:00:00", "2026-09-05T22:00:00"),
+        viagem("2026-09-07T08:00:00", "2026-09-07T18:00:00", { status: "CANCELADA" }),
       ],
+      [manutencao({}), manutencao({ id: 2, responsavel: "RITMO", inicioPrevisto: h("2026-09-08T00:00:00"), fimPrevisto: null, fimReal: h("2026-09-08T06:00:00") })],
       de,
       ate,
-      new Map([["777", dia("2026-07-15")]]),
+      agora,
     )
 
-    expect(uso[0]).toMatchObject({ carreta: "777", viagens: 0, diasOcupados: 0, ocupacao: 0, ultimaViagem: dia("2026-07-15") })
-    expect(uso[1]).toMatchObject({ carreta: "908", viagens: 1, diasOcupados: 3 })
-    expect(uso[1].ocupacao).toBeCloseTo(0.3)
+    expect(item.minutosPeriodo).toBe(10 * 24 * 60)
+    // 9h (saída real 09:00 → 18:00) + 2h (20:00 → 22:00, o resto da viagem caiu na manutenção).
+    expect(item.minutosEmRota).toBe(11 * 60)
+    expect(item.minutosManutencaoWhiteMartins).toBe(12 * 60)
+    expect(item.minutosManutencaoRitmo).toBe(6 * 60)
+    expect(item.minutosDisponivelParado).toBe(10 * 24 * 60 - 29 * 60)
+    expect(item.disponibilidade).toBeCloseTo(1 - (18 * 60) / (10 * 24 * 60))
+    expect(item.viagens).toBe(2)
+    expect(item.manutencoes).toBe(2)
+  })
+
+  it("só conta até agora, e manutenção em aberto vai até agora", () => {
+    const [item] = disponibilidadeDaFrota(
+      [cavalo],
+      [],
+      [manutencao({ veiculo: "CAVALO", codigo: "75", fimReal: null, fimPrevisto: null, inicioPrevisto: h("2026-09-09T00:00:00") })],
+      de,
+      ate,
+      h("2026-09-10T00:00:00"),
+    )
+    expect(item.minutosPeriodo).toBe(9 * 24 * 60)
+    expect(item.minutosManutencaoWhiteMartins).toBe(24 * 60)
   })
 })
 
@@ -152,6 +190,9 @@ describe("período, formato e parâmetros", () => {
   it("formata duração e só aceita as opções da tela", () => {
     expect(formatarDuracao(680)).toBe("11h20")
     expect(formatarDuracao(45)).toBe("45 min")
+    expect(formatarDuracaoLonga(4130)).toBe("2d 20h50")
+    expect(formatarDuracaoLonga(2880)).toBe("2d")
+    expect(formatarDuracaoLonga(90)).toBe("1h30")
     expect(parseHorasJornadaLonga("13")).toBe(13)
     expect(parseHorasJornadaLonga("99")).toBe(12)
     expect(parseDiasIntegracao("60")).toBe(60)

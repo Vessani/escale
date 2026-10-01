@@ -84,27 +84,6 @@ export default function FrotaForm({ defaultValues, onSubmit, submitLabel, submit
               )} />
             </div>
 
-            <FormField control={form.control} name="emManutencao" render={({ field }) => (
-              <FormItem>
-                <FormLabel>Situação</FormLabel>
-                <Select value={field.value ? "true" : "false"} onValueChange={(value) => field.onChange(value === "true")}>
-                  <FormControl>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Selecione a situação" />
-                    </SelectTrigger>
-                  </FormControl>
-                  <SelectContent>
-                    <SelectItem value="false">Disponível</SelectItem>
-                    <SelectItem value="true">Em manutenção</SelectItem>
-                  </SelectContent>
-                </Select>
-                <FormDescription>
-                  Marcação manual — não muda sozinha quando a frota é alocada numa viagem.
-                </FormDescription>
-                <FormMessage />
-              </FormItem>
-            )} />
-
             <FormField control={form.control} name="tipoProduto" render={({ field }) => (
               <FormItem>
                 <FormLabel>Produto</FormLabel>
