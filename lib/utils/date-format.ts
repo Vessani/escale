@@ -126,6 +126,23 @@ export function converterEntradaDeDataHora(valor: string | Date): Date {
 }
 
 /**
+ * Igual a `converterEntradaDeDataHora`, mas devolve null em vez de lançar —
+ * pra usar enquanto a pessoa ainda está digitando num <input
+ * type="datetime-local"> (no meio da digitação o valor passa por coisas como
+ * "0002-09-30T11:45", que não são datas válidas). Lançar durante a
+ * renderização derrubava a página inteira.
+ */
+export function tentarConverterEntradaDeDataHora(valor: string | Date | null | undefined): Date | null {
+  if (!valor) return null
+  try {
+    const data = converterEntradaDeDataHora(valor)
+    return Number.isNaN(data.getTime()) ? null : data
+  } catch {
+    return null
+  }
+}
+
+/**
  * Formata Date para string de input[type="date"] (YYYY-MM-DD). Usado só com
  * valores de colunas `@db.Date` (ex: validade de integração) — que o Prisma
  * sempre devolve à meia-noite UTC (ver `colunaDateParaLocal`) — por isso lê
