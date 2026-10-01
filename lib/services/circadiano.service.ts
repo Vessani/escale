@@ -85,7 +85,7 @@ function envolveMotorista(viagem: ViagemCircadiano, motoristaId: number) {
 }
 
 /** Viagem do motorista que mais se sobrepõe à jornada (null = estava interno). */
-function viagemDaJornada(
+export function viagemDaJornada(
   viagens: ViagemCircadiano[],
   motoristaId: number,
   inicio: Date,

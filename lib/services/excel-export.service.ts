@@ -217,3 +217,37 @@ export function gerarExcelCircadiano(dados: {
     { nome: "Previsto", linhas: linhasCircadiano(dados.previstas) },
   ])
 }
+
+/** Dias em que o motorista estava no 7º dia (ou mais) seguido sem folga. */
+export function gerarExcelSemFolga(
+  registros: Array<{
+    motorista: string
+    turno: string
+    dia: Date
+    diasSemFolga: number
+    inicio: Date | null
+    fim: Date | null
+    atividade: "VIAGEM" | "INTERNO"
+    numViagem: string | null
+    cavalo: string | null
+    carreta: string | null
+  }>,
+): Buffer {
+  return gerarBuffer([
+    {
+      nome: "Dias sem folga",
+      linhas: registros.map((registro) => ({
+        Dia: formatarDataHoraPtBr(registro.dia).slice(0, 10),
+        Motorista: formatarNomeProprio(registro.motorista),
+        Turno: registro.turno === "NOITE" ? "Noite" : "Dia",
+        "Dias sem folga": registro.diasSemFolga,
+        Início: registro.inicio ? formatarDataHoraPtBr(registro.inicio) : "",
+        Fim: registro.fim ? formatarDataHoraPtBr(registro.fim) : "",
+        Atividade: registro.atividade === "VIAGEM" ? "Viagem" : "Interno",
+        "Nº Viagem": registro.numViagem ?? "",
+        Cavalo: registro.cavalo ?? "",
+        Carreta: registro.carreta ?? "",
+      })),
+    },
+  ])
+}

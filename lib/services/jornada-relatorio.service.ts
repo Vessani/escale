@@ -161,6 +161,7 @@ export async function atualizarJornadaRelatorioDosMotoristas(
           await registrarJornadaNoDia(tx, motorista.id, new Date(registro.dia), codigo, {
             inicioJornada: new Date(registro.inicioJornada),
             fimJornada: new Date(registro.fimJornada),
+            diasSemFolga: registro.diasSemFolga,
           })
         }
       }

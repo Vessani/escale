@@ -12,6 +12,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { JornadaRelatorioParser, type RegistroJornadaRelatorio } from "@/lib/parsers/jornada-relatorio-parser"
 import { atualizarJornadaRelatorio, type RespostaImportacaoJornada } from "@/lib/actions/motoristas"
 import { formatarDataHoraPtBr } from "@/lib/utils/date-format"
+import { MAX_DIAS_SEM_FOLGA, folgaEstourada } from "@/lib/services/dias-sem-folga"
 
 export default function ImportarJornadaPage() {
   const router = useRouter()
@@ -168,7 +169,13 @@ export default function ImportarJornadaPage() {
               {importando ? "Importando..." : `Confirmar importação`}
             </Button>
           </CardHeader>
-          <CardContent className="pt-6">
+          <CardContent className="pt-6 space-y-4">
+            {registros.some((registro) => folgaEstourada(registro.diasSemFolga)) && (
+              <Alert variant="error">
+                {registros.filter((registro) => folgaEstourada(registro.diasSemFolga)).length} jornada(s) passaram de{" "}
+                {MAX_DIAS_SEM_FOLGA} dias seguidos sem folga (em vermelho). Elas ficam registradas em Relatórios → Dias sem folga.
+              </Alert>
+            )}
             <div className="overflow-hidden rounded-md border">
               <Table containerClassName="max-h-96 overflow-auto">
                 <TableHeader className="sticky top-0 z-10 bg-muted">
@@ -183,14 +190,26 @@ export default function ImportarJornadaPage() {
                 </TableHeader>
                 <TableBody>
                   {registros.map((registro) => (
-                    <TableRow key={`${registro.matricula}-${registro.dia}`}>
+                    <TableRow
+                      key={`${registro.matricula}-${registro.dia}`}
+                      className={
+                        folgaEstourada(registro.diasSemFolga)
+                          ? "bg-destructive/10 text-destructive hover:bg-destructive/15 font-medium"
+                          : undefined
+                      }
+                    >
                       <TableCell className="font-mono tabular-nums">{registro.matricula}</TableCell>
                       <TableCell>{registro.nome}</TableCell>
                       <TableCell className="font-mono tabular-nums">{formatarDataHoraPtBr(registro.inicioJornada)}</TableCell>
                       <TableCell className="font-mono tabular-nums">{formatarDataHoraPtBr(registro.fimJornada)}</TableCell>
                       <TableCell className="tabular-nums">
-                        {registro.diasSemFolga}
-                        {registro.diasSemFolga > 6 ? " (capado em 6)" : ""}
+                        {folgaEstourada(registro.diasSemFolga) ? (
+                          <span title={`Trabalhou ${registro.diasSemFolga} dias seguidos sem folga — o limite é ${MAX_DIAS_SEM_FOLGA}. No calendário do Escale o dia fica como ${MAX_DIAS_SEM_FOLGA}º (o código 7 é Folga).`}>
+                            {registro.diasSemFolga}º dia sem folga
+                          </span>
+                        ) : (
+                          registro.diasSemFolga
+                        )}
                         {registro.diasSemFolga !== registro.diasSemFolgaRelatorio && (
                           <span className="ml-1 text-xs text-muted-foreground">
                             (relatório: {registro.diasSemFolgaRelatorio})

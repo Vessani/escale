@@ -357,6 +357,12 @@
     inicioJornada DateTime? @db.Timestamp(6)
     fimJornada    DateTime? @db.Timestamp(6)
 
+    // "Dias Sem Folga" real do relatório (já corrigido das batidas unidas),
+    // sem o limite de 6 do `codigo` — 7 ou mais = folga estourada (ver
+    // lib/services/dias-sem-folga.ts e Relatórios → Dias sem folga). Nulo
+    // em linha que não veio do relatório.
+    diasSemFolga  Int?
+
     criadoEm     DateTime  @default(now())
     atualizadoEm DateTime  @updatedAt
 

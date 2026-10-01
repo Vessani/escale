@@ -5,11 +5,12 @@ import { inicioDoDia, fimDoDia, parseDataLocal } from "@/lib/utils/date-format"
 import RelatoriosClient from "./relatorios-client"
 import DashboardRelatorios from "./dashboard-relatorios"
 import Link from "next/link"
-import { MoonStar } from "lucide-react"
+import { CalendarX, MoonStar } from "lucide-react"
+import { buscarFolgasEstouradas } from "@/lib/queries/sem-folga"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { buscarRelatorioCircadiano } from "@/lib/queries/circadiano"
-import { periodoCircadiano } from "@/lib/services/circadiano-periodo"
+import { periodoCircadiano, periodoSemFolga } from "@/lib/services/circadiano-periodo"
 
 type SearchParamsInput = {
   de?: string
@@ -45,10 +46,12 @@ export default async function RelatoriosPage({
 
   const { filialId } = await requireSessaoPaginaComFilial()
   const periodoCircadianoPadrao = periodoCircadiano()!
-  const [motoristas, indicadores, circadiano] = await Promise.all([
+  const periodoSemFolgaPadrao = periodoSemFolga()!
+  const [motoristas, indicadores, circadiano, semFolga] = await Promise.all([
     buscarMotoristasParaSelect(filialId),
     buscarIndicadoresDashboard(filialId, de, ate),
     buscarRelatorioCircadiano(filialId, periodoCircadianoPadrao.de, periodoCircadianoPadrao.ate),
+    buscarFolgasEstouradas(filialId, periodoSemFolgaPadrao.de, periodoSemFolgaPadrao.ate),
   ])
 
   return (
@@ -83,6 +86,28 @@ export default async function RelatoriosPage({
           </div>
           <Button asChild>
             <Link href="/relatorios/circadiano">Abrir relatório</Link>
+          </Button>
+        </CardContent>
+      </Card>
+
+      <Card className="shadow-sm border-border">
+        <CardHeader className="bg-muted border-b">
+          <CardTitle className="text-lg flex items-center gap-2">
+            <CalendarX className="size-5 text-destructive" aria-hidden /> Dias sem folga
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="pt-6 flex flex-wrap items-center justify-between gap-4">
+          <div className="space-y-1 text-sm">
+            <p className="text-muted-foreground">
+              Motoristas que trabalharam o 7º dia seguido (ou mais) sem folga, segundo o relatório de jornada.
+            </p>
+            <p>
+              <strong className={semFolga.length > 0 ? "text-destructive" : undefined}>{semFolga.length}</strong>{" "}
+              {semFolga.length === 1 ? "dia" : "dias"} nos últimos 30 dias
+            </p>
+          </div>
+          <Button asChild>
+            <Link href="/relatorios/sem-folga">Abrir relatório</Link>
           </Button>
         </CardContent>
       </Card>

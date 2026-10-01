@@ -3,9 +3,10 @@ import { colunaDateParaLocal, fimDoDia } from "@/lib/utils/date-format"
 import { projetarCodigoNoDia } from "../jornada.service"
 import type { ContextoCompatibilidade, MotoristaParaAlocacao } from "./tipos"
 import { podeSerPrincipal } from "../tipo-motorista"
+import { MAX_DIAS_SEM_FOLGA } from "../dias-sem-folga"
 
 /** Máximo de dias consecutivos de trabalho antes da folga obrigatória — mesmo limite usado pra capar o "Dias Sem Folga" importado do relatório (ver jornada-relatorio.service.ts). */
-export const MAX_DIAS_CONSECUTIVOS = 6
+export const MAX_DIAS_CONSECUTIVOS = MAX_DIAS_SEM_FOLGA
 
 function normalizarCliente(cliente: string) {
   return cliente.trim().toUpperCase()

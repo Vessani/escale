@@ -19,10 +19,15 @@ function diaParaTexto(data: Date): string {
  * Período do relatório a partir do ?de/?ate (YYYY-MM-DD). null = data
  * inválida, fim antes do início ou período longo demais.
  */
-export function periodoCircadiano(deTexto?: string, ateTexto?: string, agora = new Date()): PeriodoCircadiano | null {
+export function periodoCircadiano(
+  deTexto?: string,
+  ateTexto?: string,
+  agora = new Date(),
+  padrao: { diasAntes: number; diasDepois: number } = { diasAntes: DIAS_PADRAO_CIRCADIANO, diasDepois: DIAS_PADRAO_CIRCADIANO },
+): PeriodoCircadiano | null {
   try {
-    const de = deTexto ? parseDataLocal(deTexto) : new Date(inicioDoDia(agora).getTime() - DIAS_PADRAO_CIRCADIANO * UM_DIA_MS)
-    const ate = ateTexto ? parseDataLocal(ateTexto) : new Date(inicioDoDia(agora).getTime() + DIAS_PADRAO_CIRCADIANO * UM_DIA_MS)
+    const de = deTexto ? parseDataLocal(deTexto) : new Date(inicioDoDia(agora).getTime() - padrao.diasAntes * UM_DIA_MS)
+    const ate = ateTexto ? parseDataLocal(ateTexto) : new Date(inicioDoDia(agora).getTime() + padrao.diasDepois * UM_DIA_MS)
     const inicio = inicioDoDia(de)
     const fim = fimDoDia(ate)
 
@@ -32,4 +37,9 @@ export function periodoCircadiano(deTexto?: string, ateTexto?: string, agora = n
   } catch {
     return null
   }
+}
+
+/** Dias sem folga: sem filtro, os últimos 30 dias até hoje. */
+export function periodoSemFolga(deTexto?: string, ateTexto?: string, agora = new Date()) {
+  return periodoCircadiano(deTexto, ateTexto, agora, { diasAntes: 30, diasDepois: 0 })
 }

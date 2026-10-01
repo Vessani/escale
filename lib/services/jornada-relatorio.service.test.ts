@@ -97,8 +97,14 @@ describe("atualizarJornadaRelatorioDosMotoristas", () => {
 
     await atualizarJornadaRelatorioDosMotoristas(FILIAL_ID, [criarRegistro({ diasSemFolga: 9 })])
 
-    const upsertArgs = vi.mocked(tx.registroJornada.upsert).mock.calls[0][0] as { create: { codigo: number } }
+    const upsertArgs = vi.mocked(tx.registroJornada.upsert).mock.calls[0][0] as {
+      create: { codigo: number; diasSemFolga: number }
+      update: { diasSemFolga: number }
+    }
     expect(upsertArgs.create.codigo).toBe(6)
+    // ...mas o número real fica guardado pro relatório de dias sem folga.
+    expect(upsertArgs.create.diasSemFolga).toBe(9)
+    expect(upsertArgs.update.diasSemFolga).toBe(9)
   })
 
   it("não sobrescreve o código de quem está em Férias/Exames/Interno (8-10), só o registro de horário", async () => {

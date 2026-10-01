@@ -151,7 +151,7 @@ export async function registrarJornadaNoDia(
   idMotorista: number,
   data: Date,
   codigo: number,
-  horas?: { inicioJornada: Date; fimJornada: Date },
+  horas?: { inicioJornada: Date; fimJornada: Date; diasSemFolga?: number },
 ) {
   const diaRegistro = inicioDoDia(data);
   const hoje = inicioDoDia(new Date());
@@ -167,10 +167,13 @@ export async function registrarJornadaNoDia(
       codigo,
       inicioJornada: horas?.inicioJornada ?? null,
       fimJornada: horas?.fimJornada ?? null,
+      diasSemFolga: horas?.diasSemFolga ?? null,
     },
     update: {
       codigo,
-      ...(horas ? { inicioJornada: horas.inicioJornada, fimJornada: horas.fimJornada } : {}),
+      ...(horas
+        ? { inicioJornada: horas.inicioJornada, fimJornada: horas.fimJornada, diasSemFolga: horas.diasSemFolga ?? null }
+        : {}),
     },
   });
 
