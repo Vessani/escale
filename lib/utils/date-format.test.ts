@@ -11,6 +11,7 @@ import {
   parseDataHoraBr,
   parseDataLocal,
   parseDateTimeFromInput,
+  tentarConverterEntradaDeDataHora,
 } from "./date-format"
 
 describe("inicioDoDia / fimDoDia", () => {
@@ -245,3 +246,14 @@ describe("formatarDataHoraPtBr", () => {
     expect(formatarDataHoraPtBr("2026-08-19T01:00:00.000Z")).toBe("18/08/2026, 22:00")
   })
 })
+
+describe("tentarConverterEntradaDeDataHora", () => {
+  it("converte o valor completo do campo e devolve null (sem lançar) no meio da digitação", () => {
+    expect(tentarConverterEntradaDeDataHora("2026-09-30T11:45")?.toISOString()).toBe("2026-09-30T14:45:00.000Z")
+    for (const parcial of ["", "0002-09-30T11:45", "0020-09-30T11:45", "20260-09-30T11:45", "2026-02-30T10:00"]) {
+      expect(tentarConverterEntradaDeDataHora(parcial)).toBeNull()
+    }
+    expect(tentarConverterEntradaDeDataHora(null)).toBeNull()
+  })
+})
+

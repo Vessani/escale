@@ -7,7 +7,7 @@ import { Clock, MessageSquare } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { atualizarSaidaReal } from "@/lib/actions/viagens"
-import { converterEntradaDeDataHora, formatDateTimeForInput, formatarHoraLocal } from "@/lib/utils/date-format"
+import { formatDateTimeForInput, formatarHoraLocal, tentarConverterEntradaDeDataHora } from "@/lib/utils/date-format"
 import { cn } from "@/lib/utils"
 import { TOLERANCIA_SAIDA_MINUTOS, minutosDeAtraso, saidaAtrasada } from "@/lib/services/pontualidade"
 
@@ -62,6 +62,10 @@ export default function AtualizarSaidaReal({
 
   const salvar = (proximoHorario: string, proximoMotivo: string) => {
     setErro("")
+    if (proximoHorario && !tentarConverterEntradaDeDataHora(proximoHorario)) {
+      setErro("Data/hora incompleta ou inválida. Confira dia, mês, ano e hora.")
+      return
+    }
     startTransition(async () => {
       const resposta = await atualizarSaidaReal(viagemId, {
         horarioRealSaida: proximoHorario || null,
@@ -76,8 +80,9 @@ export default function AtualizarSaidaReal({
     })
   }
 
-  const atrasadoNoRascunho =
-    Boolean(horario) && saidaAtrasada(minutosDeAtraso(inicioPrevisto, converterEntradaDeDataHora(horario)))
+  // Calculado a cada tecla: no meio da digitação a data pode estar incompleta — aí só não mostra o atraso ainda.
+  const horarioDigitado = tentarConverterEntradaDeDataHora(horario)
+  const atrasadoNoRascunho = horarioDigitado !== null && saidaAtrasada(minutosDeAtraso(inicioPrevisto, horarioDigitado))
 
   return (
     <Popover.Root open={aberto} onOpenChange={abrirOuFechar}>
