@@ -1,4 +1,4 @@
-import * as XLSX from 'xlsx'
+import { lerPlanilhaDoArquivo } from "@/lib/excel/ler-arquivo-planilha"
 import { turnoPorHora } from "@/lib/services/turno"
 import { calcularDiasEntre, formatarDataExcel, formatarDateTimeLocal, normalizarHora, validarNumeroPositivo } from '@/lib/utils/date-format'
 
@@ -262,80 +262,16 @@ class XLSXToFormDataConverter {
 }
 
 /**
- * Leitor de arquivo XLSX
- * Responsabilidade única: ler arquivo binário e converter para JSON
- */
-class XLSXFileReader {
-  static readFile(file: File): Promise<LinhaPlanilha[]> {
-    return new Promise((resolve, reject) => {
-      this.validateFile(file)
-
-      const reader = new FileReader()
-
-      reader.onload = (event) => {
-        try {
-          const data = new Uint8Array(event.target?.result as ArrayBuffer)
-          const workbook = XLSX.read(data, { type: 'array' })
-          const sheetName = workbook.SheetNames[0]
-
-          if (!sheetName) {
-            reject(new Error('Planilha vazia ou inválida'))
-            return
-          }
-
-          const worksheet = workbook.Sheets[sheetName]
-          const jsonData = XLSX.utils.sheet_to_json<LinhaPlanilha>(worksheet, { header: 'A' })
-
-          resolve(jsonData)
-        } catch (error) {
-          reject(new Error(
-            `Erro ao processar arquivo XLSX: ${error instanceof Error ? error.message : 'Erro desconhecido'}`
-          ))
-        }
-      }
-
-      reader.onerror = () => {
-        reject(new Error('Erro ao ler arquivo. Verifique se o arquivo não está corrompido.'))
-      }
-
-      reader.readAsArrayBuffer(file)
-    })
-  }
-
-  private static validateFile(file: File): void {
-    if (!file) {
-      throw new Error('Arquivo não fornecido')
-    }
-
-    const validMimeTypes = [
-      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', // .xlsx
-      'application/vnd.ms-excel' // .xls
-    ]
-
-    const validExtensions = /\.(xlsx|xls)$/i
-
-    if (file.type && !validMimeTypes.includes(file.type)) {
-      throw new Error(`Tipo de arquivo inválido. Tipo detectado: ${file.type}`)
-    }
-
-    if (!validExtensions.test(file.name)) {
-      throw new Error('Nome de arquivo inválido. Use arquivo .xlsx ou .xls')
-    }
-
-    const maxSizeBytes = 10 * 1024 * 1024 // 10MB
-    if (file.size > maxSizeBytes) {
-      throw new Error(`Arquivo muito grande. Máximo: 10MB, fornecido: ${(file.size / 1024 / 1024).toFixed(2)}MB`)
-    }
-  }
-}
-
-/**
  * Parser Principal - Orquestra os componentes
  * Responsabilidade: coordenar leitura, extração e conversão
  */
 export class XLSXParserViagem {
   static async parseFromFile(file: File): Promise<DadosViagemPlanilha[]> {
-    const jsonData = await XLSXFileReader.readFile(file)
+    return XLSXDataExtractor.extract(await lerPlanilhaDoArquivo(file))
+  }
+
+  /** Extração a partir das linhas já lidas ({ A, B, ... }) — sem I/O, usada nos testes. */
+  static extrairDeLinhas(jsonData: LinhaPlanilha[]): DadosViagemPlanilha[] {
     return XLSXDataExtractor.extract(jsonData)
   }
 

@@ -107,7 +107,7 @@ export default function ImportarJornadaClient({ matriculasCadastradas }: { matri
           <div className="relative">
             <input
               type="file"
-              accept=".xlsx,.xls"
+              accept=".xlsx"
               onChange={handleFileChange}
               disabled={carregando || importando}
               className="sr-only"

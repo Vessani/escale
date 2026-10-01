@@ -127,7 +127,7 @@ export default function UploadXLSXViagem({ onDataLoaded, onError, onImportarLote
           <div className="relative">
             <input
               type="file"
-              accept=".xlsx,.xls"
+              accept=".xlsx"
               onChange={handleFileChange}
               disabled={carregando}
               className="sr-only"
