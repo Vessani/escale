@@ -2,6 +2,7 @@ import * as XLSX from "xlsx"
 import type { Prisma, TipoProduto } from "@prisma/client"
 import { formatarDataHoraPtBr } from "@/lib/utils/date-format"
 import { formatarProduto } from "@/lib/services/produto.service"
+import { formatarNomeProprio } from "@/lib/utils/texto"
 
 export function sanitizarNomeArquivo(nome: string) {
   return nome.replace(/[\\/:*?"<>|]/g, "-")
@@ -173,5 +174,46 @@ export function gerarExcelViagensCriadasHoje(viagens: ViagemParaRelatorioDiario[
   return gerarBuffer([
     { nome: "Resumo", linhas: resumo },
     { nome: "Viagens", linhas: viagens.map(linhaRelatorio) },
+  ])
+}
+
+type OcorrenciaCircadianoExcel = {
+  motorista: string
+  turno: string
+  dia: Date
+  inicio: Date
+  fim: Date
+  limite: Date
+  minutosExcedidos: number
+  atividade: "VIAGEM" | "INTERNO"
+  numViagem: string | null
+  cavalo: string | null
+  carreta: string | null
+}
+
+function linhasCircadiano(ocorrencias: OcorrenciaCircadianoExcel[]) {
+  return ocorrencias.map((ocorrencia) => ({
+    Dia: formatarDataHoraPtBr(ocorrencia.dia).slice(0, 10),
+    Motorista: formatarNomeProprio(ocorrencia.motorista),
+    Turno: ocorrencia.turno === "NOITE" ? "Noite" : "Dia",
+    Início: formatarDataHoraPtBr(ocorrencia.inicio),
+    Fim: formatarDataHoraPtBr(ocorrencia.fim),
+    Limite: formatarDataHoraPtBr(ocorrencia.limite),
+    "Passou (min)": ocorrencia.minutosExcedidos,
+    Atividade: ocorrencia.atividade === "VIAGEM" ? "Viagem" : "Interno",
+    "Nº Viagem": ocorrencia.numViagem ?? "",
+    Cavalo: ocorrencia.cavalo ?? "",
+    Carreta: ocorrencia.carreta ?? "",
+  }))
+}
+
+/** Ciclo circadiano — aba "Realizado" (relatório de jornada) e "Previsto" (viagens agendadas). */
+export function gerarExcelCircadiano(dados: {
+  realizadas: OcorrenciaCircadianoExcel[]
+  previstas: OcorrenciaCircadianoExcel[]
+}): Buffer {
+  return gerarBuffer([
+    { nome: "Realizado", linhas: linhasCircadiano(dados.realizadas) },
+    { nome: "Previsto", linhas: linhasCircadiano(dados.previstas) },
   ])
 }

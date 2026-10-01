@@ -9,8 +9,13 @@ import { formatDateForDateInput, inicioDoDia } from "@/lib/utils/date-format"
  * da viagem/do calendário: a projeção do código de jornada precisa do
  * registro mais recente antes do dia (a "âncora"), e o descanso, do último
  * fim de jornada antes da viagem.
+ *
+ * 7 dias bastam: o descanso só precisa da última jornada antes da viagem, e
+ * o ciclo de folga (7 dias) projeta a partir da âncora — o registro mais
+ * recente antes da janela, que vem junto mesmo fora dela. Relatórios que
+ * precisam de mais histórico (ex: ciclo circadiano) consultam por período.
  */
-export const DIAS_HISTORICO_JORNADA = 60
+export const DIAS_HISTORICO_JORNADA = 7
 
 const UM_DIA_MS = 24 * 60 * 60 * 1000
 
