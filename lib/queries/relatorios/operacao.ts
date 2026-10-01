@@ -154,32 +154,11 @@ export async function buscarDadosDisponibilidade(filialId: number, de: Date, ate
   return { veiculos: [...veiculos.values()], viagens: viagens as ViagemDisponibilidade[], manutencoes, ultimaViagemPorVeiculo }
 }
 
-/** 8. Viagens que o relatório de jornada desmente (ver viagemDesmentidaPeloRelatorio) e ainda não foram resolvidas. */
-export async function buscarViagensNaoConstam(filialId: number) {
-  return prisma.viagem.findMany({
-    where: { filialId, deletadoEm: null, status: { not: "CANCELADA" }, avisoRelatorioJornada: { not: null } },
-    orderBy: { inicioPrevisto: "desc" },
-    select: {
-      id: true,
-      numViagem: true,
-      status: true,
-      inicioPrevisto: true,
-      fimPrevisto: true,
-      cavalo: true,
-      carreta: true,
-      motorista: { select: { nome: true } },
-    },
-  })
-}
-
 /** Contagens pros cards da tela de Relatórios (uma consulta leve cada). */
 export async function contarAlertasOperacao(filialId: number, diasIntegracao: number, hoje = new Date()) {
   const limite = new Date(inicioDoDia(hoje).getTime() + (diasIntegracao + 1) * UM_DIA_MS)
-  const [integracoes, naoConstam] = await Promise.all([
-    prisma.integracao.count({ where: { motorista: { filialId, deletadoEm: null }, dataValidade: { lt: limite } } }),
-    prisma.viagem.count({
-      where: { filialId, deletadoEm: null, status: { not: "CANCELADA" }, avisoRelatorioJornada: { not: null } },
-    }),
-  ])
-  return { integracoes, naoConstam }
+  const integracoes = await prisma.integracao.count({
+    where: { motorista: { filialId, deletadoEm: null }, dataValidade: { lt: limite } },
+  })
+  return { integracoes }
 }

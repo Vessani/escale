@@ -1,9 +1,11 @@
 import { describe, expect, it } from "vitest"
 import type { ViagemCircadiano } from "@/lib/services/circadiano.service"
 import {
-  descansosDescumpridos,
-  jornadasLongas,
+  estourosDeJornada,
+  folgasSemanaisCurtas,
+  juntarEstourosSetimoDia,
   painelPorMotorista,
+  quebrasDeIntersticio,
   type JornadaReal,
   type MotoristaJornada,
 } from "./jornada-analise"
@@ -32,9 +34,9 @@ const viagem: ViagemCircadiano = {
   motoristaAcompanhanteId: null,
 }
 
-describe("descansosDescumpridos", () => {
+describe("quebrasDeIntersticio", () => {
   it("pega descanso menor que 11h, com a viagem da jornada seguinte", () => {
-    const [ocorrencia, ...resto] = descansosDescumpridos(
+    const [ocorrencia, ...resto] = quebrasDeIntersticio(
       [jose],
       [jornada(1, "2026-09-10T08:00:00", "2026-09-10T22:00:00"), jornada(1, "2026-09-11T05:00:00", "2026-09-11T15:00:00")],
       [viagem],
@@ -44,37 +46,20 @@ describe("descansosDescumpridos", () => {
 
     expect(resto).toHaveLength(0)
     expect(ocorrencia).toMatchObject({
-      tipo: "INTERJORNADA",
       descansoMinutos: 7 * 60,
-      minimoHoras: 11,
       faltaramMinutos: 4 * 60,
       atividade: "VIAGEM",
       numViagem: "922100",
     })
   })
 
-  it("depois do 6º dia exige 35h", () => {
-    const ocorrencias = descansosDescumpridos(
-      [jose],
-      [
-        jornada(1, "2026-09-10T06:00:00", "2026-09-10T16:00:00", { diasSemFolga: 6, codigo: 6 }),
-        jornada(1, "2026-09-11T20:00:00", "2026-09-12T06:00:00", { diasSemFolga: 1 }),
-      ],
-      [],
-      de,
-      ate,
-    )
-    expect(ocorrencias).toHaveLength(1)
-    expect(ocorrencias[0]).toMatchObject({ tipo: "SEMANAL", minimoHoras: 35, descansoMinutos: 28 * 60, atividade: "INTERNO" })
-  })
-
-  it("7º dia seguido não vira também 'descanso semanal' — fica só em dias sem folga", () => {
+  it("só olha as 11h — folga de 28h depois do 6º dia não é quebra de interstício (vai pro estouro de 7º dia)", () => {
     expect(
-      descansosDescumpridos(
+      quebrasDeIntersticio(
         [jose],
         [
           jornada(1, "2026-09-10T06:00:00", "2026-09-10T16:00:00", { diasSemFolga: 6, codigo: 6 }),
-          jornada(1, "2026-09-11T06:00:00", "2026-09-11T16:00:00", { diasSemFolga: 7, codigo: 6 }),
+          jornada(1, "2026-09-11T20:00:00", "2026-09-12T06:00:00", { diasSemFolga: 1 }),
         ],
         [],
         de,
@@ -85,7 +70,7 @@ describe("descansosDescumpridos", () => {
 
   it("não acusa descanso suficiente, motoristas diferentes nem jornada seguinte fora do período", () => {
     expect(
-      descansosDescumpridos(
+      quebrasDeIntersticio(
         [jose, ana],
         [
           jornada(1, "2026-09-10T06:00:00", "2026-09-10T16:00:00"),
@@ -102,14 +87,95 @@ describe("descansosDescumpridos", () => {
   })
 })
 
-describe("jornadasLongas", () => {
+describe("estouro de 7º dia", () => {
+  it("folga menor que 35h depois do 6º dia", () => {
+    const curtas = folgasSemanaisCurtas(
+      [jose],
+      [
+        jornada(1, "2026-09-10T06:00:00", "2026-09-10T16:00:00", { diasSemFolga: 6, codigo: 6 }),
+        jornada(1, "2026-09-11T20:00:00", "2026-09-12T06:00:00", { diasSemFolga: 1 }),
+      ],
+      [],
+      de,
+      ate,
+    )
+    expect(curtas).toHaveLength(1)
+    expect(curtas[0]).toMatchObject({ folgaMinutos: 28 * 60, faltaramMinutos: 7 * 60, atividade: "INTERNO" })
+  })
+
+  it("se seguiu pro 7º dia, não repete como folga curta — entra só como 7º dia trabalhado", () => {
+    expect(
+      folgasSemanaisCurtas(
+        [jose],
+        [
+          jornada(1, "2026-09-10T06:00:00", "2026-09-10T16:00:00", { diasSemFolga: 6, codigo: 6 }),
+          jornada(1, "2026-09-11T06:00:00", "2026-09-11T16:00:00", { diasSemFolga: 7, codigo: 6 }),
+        ],
+        [],
+        de,
+        ate,
+      ),
+    ).toHaveLength(0)
+  })
+
+  it("folga de 35h ou mais está ok", () => {
+    expect(
+      folgasSemanaisCurtas(
+        [jose],
+        [
+          jornada(1, "2026-09-10T06:00:00", "2026-09-10T16:00:00", { diasSemFolga: 6, codigo: 6 }),
+          jornada(1, "2026-09-12T03:00:00", "2026-09-12T13:00:00", { diasSemFolga: 1 }),
+        ],
+        [],
+        de,
+        ate,
+      ),
+    ).toHaveLength(0)
+  })
+
+  it("junta 7º dia trabalhado e folga curta numa lista, mais recentes primeiro", () => {
+    const setimo = {
+      motoristaId: 2,
+      motorista: "ANA",
+      turno: "NOITE" as const,
+      dia: h("2026-09-05T00:00:00"),
+      diasSemFolga: 7,
+      inicio: h("2026-09-05T19:00:00"),
+      fim: h("2026-09-06T05:00:00"),
+      atividade: "INTERNO" as const,
+      numViagem: null,
+      cavalo: null,
+      carreta: null,
+    }
+    const curtas = folgasSemanaisCurtas(
+      [jose],
+      [
+        jornada(1, "2026-09-10T06:00:00", "2026-09-10T16:00:00", { diasSemFolga: 6, codigo: 6 }),
+        jornada(1, "2026-09-11T20:00:00", "2026-09-12T06:00:00", { diasSemFolga: 1 }),
+      ],
+      [],
+      de,
+      ate,
+    )
+
+    const estouros = juntarEstourosSetimoDia([setimo], curtas)
+    expect(estouros.map((e) => [e.motorista, e.tipo])).toEqual([
+      ["JOSE", "FOLGA_CURTA"],
+      ["ANA", "SETIMO_DIA"],
+    ])
+    expect(estouros[0]).toMatchObject({ dia: h("2026-09-11T00:00:00"), fimAnterior: h("2026-09-10T16:00:00"), diasSemFolga: null })
+    expect(estouros[1]).toMatchObject({ diasSemFolga: 7, folgaMinutos: null })
+  })
+})
+
+describe("estourosDeJornada", () => {
   it("passa do limite escolhido", () => {
     const jornadas = [jornada(1, "2026-09-10T06:00:00", "2026-09-10T19:30:00"), jornada(1, "2026-09-11T06:00:00", "2026-09-11T17:00:00")]
 
-    expect(jornadasLongas([jose], jornadas, [], de, ate)).toEqual([
+    expect(estourosDeJornada([jose], jornadas, [], de, ate)).toEqual([
       expect.objectContaining({ duracaoMinutos: 13 * 60 + 30, excedenteMinutos: 90 }),
     ])
-    expect(jornadasLongas([jose], jornadas, [], de, ate, 10)).toHaveLength(2)
+    expect(estourosDeJornada([jose], jornadas, [], de, ate, 10)).toHaveLength(2)
   })
 })
 
@@ -134,11 +200,25 @@ describe("painelPorMotorista", () => {
       maiorJornadaMinutos: 15 * 60,
       viagens: 2,
       circadiano: 1,
-      diasSemFolgaEstourados: 1,
-      descansosDescumpridos: 1,
-      jornadasLongas: 1,
+      estourosSetimoDia: 1,
+      quebrasIntersticio: 1,
+      estourosJornada: 1,
       totalAlertas: 4,
     })
     expect(linhas[1]).toMatchObject({ motorista: "ANA", diasTrabalhados: 1, viagens: 1, totalAlertas: 0 })
+  })
+
+  it("folga menor que 35h conta como estouro de 7º dia, não como quebra de interstício", () => {
+    const [linha] = painelPorMotorista(
+      [jose],
+      [
+        jornada(1, "2026-09-10T06:00:00", "2026-09-10T16:00:00", { diasSemFolga: 6, codigo: 6 }),
+        jornada(1, "2026-09-11T20:00:00", "2026-09-12T06:00:00", { diasSemFolga: 1 }),
+      ],
+      [],
+      de,
+      ate,
+    )
+    expect(linha).toMatchObject({ estourosSetimoDia: 1, quebrasIntersticio: 0 })
   })
 })

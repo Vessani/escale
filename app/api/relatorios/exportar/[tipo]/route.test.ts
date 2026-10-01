@@ -6,7 +6,6 @@ vi.mock("@/lib/queries/filiais", () => ({ buscarNomeFilial: vi.fn().mockResolved
 
 vi.mock("@/lib/auth", () => ({ authOptions: {} }))
 vi.mock("@/lib/queries/relatorios/operacao", () => ({
-  buscarViagensNaoConstam: vi.fn().mockResolvedValue([]),
   buscarIntegracoesParaRelatorio: vi.fn().mockResolvedValue([]),
   buscarViagensPontualidade: vi.fn(),
   buscarViagensComAviso: vi.fn(),
@@ -14,9 +13,9 @@ vi.mock("@/lib/queries/relatorios/operacao", () => ({
 }))
 vi.mock("@/lib/queries/relatorios/jornada", () => ({ carregarDadosJornada: vi.fn() }))
 vi.mock("@/lib/queries/circadiano", () => ({ buscarRelatorioCircadiano: vi.fn() }))
-vi.mock("@/lib/queries/sem-folga", () => ({ buscarFolgasEstouradas: vi.fn() }))
+vi.mock("@/lib/queries/estouro-setimo-dia", () => ({ buscarEstourosSetimoDia: vi.fn() }))
 
-import { buscarIntegracoesParaRelatorio, buscarViagensNaoConstam } from "@/lib/queries/relatorios/operacao"
+import { buscarIntegracoesParaRelatorio } from "@/lib/queries/relatorios/operacao"
 import { GET } from "./route"
 
 const chamar = (tipo: string, query = "") =>
@@ -30,8 +29,8 @@ describe("GET /api/relatorios/exportar/[tipo]", () => {
 
   it("401 sem sessão", async () => {
     vi.mocked(getServerSession).mockResolvedValue(null)
-    expect((await chamar("nao-consta")).status).toBe(401)
-    expect(buscarViagensNaoConstam).not.toHaveBeenCalled()
+    expect((await chamar("integracoes")).status).toBe(401)
+    expect(buscarIntegracoesParaRelatorio).not.toHaveBeenCalled()
   })
 
   it("404 pra relatório que não existe (nem herdado do Object)", async () => {

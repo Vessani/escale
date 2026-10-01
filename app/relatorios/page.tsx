@@ -2,7 +2,6 @@ import {
   BedDouble,
   CalendarX,
   Clock,
-  FileQuestion,
   MoonStar,
   ShieldCheck,
   Timer,
@@ -14,7 +13,7 @@ import { requireSessaoPaginaComFilial } from "@/lib/auth-guard"
 import { buscarNomesMotoristas } from "@/lib/queries/motoristas"
 import { buscarIndicadoresDashboard } from "@/lib/queries/dashboard"
 import { buscarRelatorioCircadiano } from "@/lib/queries/circadiano"
-import { buscarFolgasEstouradas } from "@/lib/queries/sem-folga"
+import { buscarEstourosSetimoDia } from "@/lib/queries/estouro-setimo-dia"
 import { contarAlertasOperacao } from "@/lib/queries/relatorios/operacao"
 import { PERIODO_PADRAO } from "@/lib/relatorios/catalogo"
 import { periodoOuPadrao } from "@/lib/relatorios/periodo"
@@ -36,14 +35,14 @@ export default async function RelatoriosPage({
   const parametros = (await searchParams) ?? {}
   const periodoIndicadores = periodoOuPadrao(parametros.de, parametros.ate, { diasAntes: 30, diasDepois: 0 })
   const periodoCircadiano = periodoOuPadrao(undefined, undefined, PERIODO_PADRAO.circadiano)
-  const periodoSemFolga = periodoOuPadrao(undefined, undefined, PERIODO_PADRAO.semFolga)
+  const periodoSetimoDia = periodoOuPadrao(undefined, undefined, PERIODO_PADRAO.estouroSetimoDia)
 
   const { filialId } = await requireSessaoPaginaComFilial()
-  const [motoristas, indicadores, circadiano, semFolga, alertas] = await Promise.all([
+  const [motoristas, indicadores, circadiano, estourosSetimoDia, alertas] = await Promise.all([
     buscarNomesMotoristas(filialId),
     buscarIndicadoresDashboard(filialId, periodoIndicadores.de, periodoIndicadores.ate),
     buscarRelatorioCircadiano(filialId, periodoCircadiano.de, periodoCircadiano.ate),
-    buscarFolgasEstouradas(filialId, periodoSemFolga.de, periodoSemFolga.ate),
+    buscarEstourosSetimoDia(filialId, periodoSetimoDia.de, periodoSetimoDia.ate),
     contarAlertasOperacao(filialId, DIAS_INTEGRACAO_PADRAO),
   ])
 
@@ -68,22 +67,22 @@ export default async function RelatoriosPage({
             contagemTexto: circadiano.previstas.length === 1 ? "viagem agendada vai passar" : "viagens agendadas vão passar",
           },
           {
-            href: "/relatorios/sem-folga",
-            titulo: "Dias sem folga",
-            descricao: "Quem trabalhou o 7º dia seguido (ou mais) sem folga.",
+            href: "/relatorios/estouro-7-dia",
+            titulo: "Estouro de 7º dia",
+            descricao: "Quem trabalhou o 7º dia seguido, ou folgou menos de 35h depois do 6º dia.",
             icone: CalendarX,
-            contagem: semFolga.length,
+            contagem: estourosSetimoDia.length,
             contagemTexto: "nos últimos 30 dias",
           },
           {
-            href: "/relatorios/interjornada",
-            titulo: "Descanso não cumprido",
-            descricao: "Quem voltou antes de 11h de descanso (ou 35h depois do 6º dia), pelo relatório de jornada.",
+            href: "/relatorios/quebra-intersticio",
+            titulo: "Quebra de interstício",
+            descricao: "Quem voltou a trabalhar antes de 11h de descanso, pelo relatório de jornada.",
             icone: BedDouble,
           },
           {
-            href: "/relatorios/jornadas-longas",
-            titulo: "Jornadas longas",
+            href: "/relatorios/estouro-jornada",
+            titulo: "Estouro de jornada",
             descricao: "Jornadas reais acima de um limite de horas, com a viagem que o motorista fazia.",
             icone: Timer,
           },
@@ -124,14 +123,6 @@ export default async function RelatoriosPage({
             titulo: "Disponibilidade da frota",
             descricao: "Horas em rota, paradas em manutenção (White Martins / Ritmo) e disponíveis, por carreta e cavalo.",
             icone: Truck,
-          },
-          {
-            href: "/relatorios/nao-consta",
-            titulo: "Não consta no relatório",
-            descricao: "Viagens que o relatório de jornada desmente — pra cancelar ou corrigir.",
-            icone: FileQuestion,
-            contagem: alertas.naoConstam,
-            contagemTexto: alertas.naoConstam === 1 ? "viagem pendente" : "viagens pendentes",
           },
         ]}
       />

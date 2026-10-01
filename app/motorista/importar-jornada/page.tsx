@@ -173,7 +173,7 @@ export default function ImportarJornadaPage() {
             {registros.some((registro) => folgaEstourada(registro.diasSemFolga)) && (
               <Alert variant="error">
                 {registros.filter((registro) => folgaEstourada(registro.diasSemFolga)).length} jornada(s) passaram de{" "}
-                {MAX_DIAS_SEM_FOLGA} dias seguidos sem folga (em vermelho). Elas ficam registradas em Relatórios → Dias sem folga.
+                {MAX_DIAS_SEM_FOLGA} dias seguidos sem folga (em vermelho). Elas ficam registradas em Relatórios → Estouro de 7º dia.
               </Alert>
             )}
             <div className="overflow-hidden rounded-md border">

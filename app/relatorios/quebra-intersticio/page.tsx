@@ -1,6 +1,6 @@
+import Link from "next/link"
 import { BedDouble } from "lucide-react"
 import { requireSessaoPaginaComFilial } from "@/lib/auth-guard"
-import { Badge } from "@/components/ui/badge"
 import { EmptyState } from "@/components/ui/empty-state"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import {
@@ -15,35 +15,39 @@ import { carregarDadosJornada } from "@/lib/queries/relatorios/jornada"
 import { PERIODO_PADRAO } from "@/lib/relatorios/catalogo"
 import { periodoOuPadrao } from "@/lib/relatorios/periodo"
 import { formatarDiaCurto, formatarDuracao, formatarHorarioRelativo } from "@/lib/relatorios/formato"
-import { descansosDescumpridos } from "@/lib/services/relatorios/jornada-analise"
+import { quebrasDeIntersticio } from "@/lib/services/relatorios/jornada-analise"
+import { MINIMO_HORAS_ENTRE_JORNADAS } from "@/lib/services/alocacao/disponibilidade"
 import { formatarNomeProprio } from "@/lib/utils/texto"
 
 type SearchParamsInput = { de?: string; ate?: string }
 
-export default async function InterjornadaPage({ searchParams }: { searchParams?: Promise<SearchParamsInput> }) {
+export default async function QuebraIntersticioPage({ searchParams }: { searchParams?: Promise<SearchParamsInput> }) {
   const parametros = (await searchParams) ?? {}
   const { filialId } = await requireSessaoPaginaComFilial()
-  const periodo = periodoOuPadrao(parametros.de, parametros.ate, PERIODO_PADRAO.interjornada)
+  const periodo = periodoOuPadrao(parametros.de, parametros.ate, PERIODO_PADRAO.quebraIntersticio)
   const dados = await carregarDadosJornada(filialId, periodo.de, periodo.ate)
-  const ocorrencias = descansosDescumpridos(dados.motoristas, dados.jornadas, dados.viagens, periodo.de, periodo.ate)
+  const ocorrencias = quebrasDeIntersticio(dados.motoristas, dados.jornadas, dados.viagens, periodo.de, periodo.ate)
 
   return (
     <div className="space-y-6">
-      <CabecalhoRelatorio titulo="Descanso não cumprido">
+      <CabecalhoRelatorio titulo="Quebra de interstício">
         O que aconteceu de verdade, pelo relatório de jornada: motoristas que voltaram a trabalhar antes de{" "}
-        <strong>11h</strong> de descanso, ou antes de <strong>35h</strong> depois do 6º dia seguido. O aviso da alocação é a
-        previsão; aqui é o realizado.
+        <strong>{MINIMO_HORAS_ENTRE_JORNADAS}h</strong> de descanso. A folga de 35h depois do 6º dia fica no{" "}
+        <Link href="/relatorios/estouro-7-dia" className="font-medium text-primary underline-offset-4 hover:underline">
+          Estouro de 7º dia
+        </Link>
+        . O aviso da alocação é a previsão; aqui é o realizado.
       </CabecalhoRelatorio>
 
       <FiltroRelatorio
-        action="/relatorios/interjornada"
+        action="/relatorios/quebra-intersticio"
         periodo={periodo}
-        exportarTipo="interjornada"
+        exportarTipo="quebra-intersticio"
         exportarQuery={{ de: periodo.deTexto, ate: periodo.ateTexto }}
       />
 
       {ocorrencias.length === 0 ? (
-        <EmptyState icone={BedDouble} titulo="Todos descansaram o mínimo" descricao="Nenhuma jornada do período começou antes do descanso mínimo." />
+        <EmptyState icone={BedDouble} titulo={`Todos descansaram as ${MINIMO_HORAS_ENTRE_JORNADAS}h`} descricao="Nenhuma jornada do período começou antes do descanso mínimo." />
       ) : (
         <MolduraTabela>
           <Table>
@@ -52,7 +56,6 @@ export default async function InterjornadaPage({ searchParams }: { searchParams?
                 <TableHead>Dia</TableHead>
                 <TableHead>Motorista</TableHead>
                 <TableHead>Turno</TableHead>
-                <TableHead>Tipo</TableHead>
                 <TableHead>Parou</TableHead>
                 <TableHead>Voltou</TableHead>
                 <TableHead>Descansou</TableHead>
@@ -68,13 +71,6 @@ export default async function InterjornadaPage({ searchParams }: { searchParams?
                   <TableCell className="tabular-nums">{formatarDiaCurto(item.inicioSeguinte)}</TableCell>
                   <TableCell className="font-medium">{formatarNomeProprio(item.motorista)}</TableCell>
                   <TableCell><BadgeTurno turno={item.turno} /></TableCell>
-                  <TableCell>
-                    {item.tipo === "SEMANAL" ? (
-                      <Badge variant="outline" className="border-destructive/30 bg-destructive/10 text-destructive">Semanal (35h)</Badge>
-                    ) : (
-                      <Badge variant="outline" className="border-warning/30 bg-warning/10 text-warning">Interjornada (11h)</Badge>
-                    )}
-                  </TableCell>
                   <TableCell className="font-mono tabular-nums">{formatarHorarioRelativo(item.fimAnterior, item.inicioSeguinte)}</TableCell>
                   <TableCell className="font-mono tabular-nums">{formatarHorarioRelativo(item.inicioSeguinte, item.inicioSeguinte)}</TableCell>
                   <TableCell className="tabular-nums">{formatarDuracao(item.descansoMinutos)}</TableCell>
