@@ -1,8 +1,11 @@
 import { getServerSession } from "next-auth"
 import { authOptions } from "@/lib/auth"
 import { buscarViagemPorId } from "@/lib/queries/viagens"
+import { buscarNomeFilial } from "@/lib/queries/filiais"
 import { gerarExcelViagem, sanitizarNomeArquivo } from "@/lib/services/excel-export.service"
+import { respostaExcel } from "@/lib/excel/resposta"
 
+/** Ordem de viagem em Excel — uma viagem, pra imprimir ou mandar pro motorista. */
 export async function GET(
   _request: Request,
   { params }: { params: Promise<{ id: string }> },
@@ -18,23 +21,14 @@ export async function GET(
     return new Response("ID de viagem inválido.", { status: 400 })
   }
 
-  const viagem = await buscarViagemPorId(session.user.filialId, viagemId)
+  const [viagem, filial] = await Promise.all([
+    buscarViagemPorId(session.user.filialId, viagemId),
+    buscarNomeFilial(session.user.filialId),
+  ])
   if (!viagem) {
     return new Response("Viagem não encontrada.", { status: 404 })
   }
 
-  const buffer = gerarExcelViagem(viagem)
-  const excelBlob = new Blob([new Uint8Array(buffer)], {
-    type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-  })
-  const nomeArquivo = sanitizarNomeArquivo(`viagem-${viagem.numViagem}.xlsx`)
-
-  return new Response(excelBlob, {
-    status: 200,
-    headers: {
-      "Content-Type": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-      "Content-Disposition": `attachment; filename="${nomeArquivo}"`,
-      "Cache-Control": "no-store",
-    },
-  })
+  const buffer = await gerarExcelViagem(viagem, { filial })
+  return respostaExcel(buffer, sanitizarNomeArquivo(`viagem-${viagem.numViagem}`))
 }

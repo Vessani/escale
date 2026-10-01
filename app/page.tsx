@@ -3,7 +3,7 @@ import { requireSessaoPaginaComFilial } from "@/lib/auth-guard"
 import { Button } from "@/components/ui/button"
 import { EmptyState } from "@/components/ui/empty-state"
 import { Input } from "@/components/ui/input"
-import { CalendarDays, CheckCircle2, Info, PlayCircle, PlusCircle, Route, UserX } from "lucide-react"
+import { AlarmClock, CalendarDays, CheckCircle2, Download, Info, PlayCircle, PlusCircle, Route, UserX } from "lucide-react"
 import { Alert } from "@/components/ui/alert"
 import { Badge } from "@/components/ui/badge"
 import { StatCard } from "@/components/ui/stat-card"
@@ -23,6 +23,9 @@ import QuadroDeObservacoes from "./quadro-de-observacoes"
 import { buscarQuadroObservacoes } from "@/lib/queries/quadro"
 import { formatarCodigoFrota } from "@/lib/services/frota-regras"
 import { LegendaMotoristas } from "@/components/motorista/legenda-motoristas"
+import { BotaoIcone } from "@/components/ui/botao-icone"
+import { diaParaTexto } from "@/lib/relatorios/periodo"
+import { TOLERANCIA_SAIDA_MINUTOS, minutosDeAtraso, saidaAtrasada } from "@/lib/services/pontualidade"
 
 async function buscarDadosDashboard(filialId: number, hoje: Date) {
   const viagens = await buscarViagensDoDashboard(filialId, hoje)
@@ -130,6 +133,12 @@ function StatusCelula({ item }: { item: ItemDashboard }) {
   )
 }
 
+/** Excel de uma viagem (ordem de viagem) — pra mandar pro motorista. */
+function BaixarOrdemDeViagem({ viagemId }: { viagemId: number }) {
+  // prefetch desligado: é um download de arquivo, não uma página.
+  return <BotaoIcone href={`/api/viagens/${viagemId}/excel`} prefetch={false} rotulo="Baixar ordem de viagem (Excel)" icone={Download} />
+}
+
 /** Tabela para telas a partir de md; em telas menores vira lista de cards (ver ViagensEmAndamentoCards). */
 function ViagensEmAndamentoTabela({ itens, diaMostrado }: { itens: ItemDashboard[]; diaMostrado: string }) {
   // table-fixed + larguras por coluna: a tabela sempre cabe na largura da
@@ -145,6 +154,7 @@ function ViagensEmAndamentoTabela({ itens, diaMostrado }: { itens: ItemDashboard
           <col className="w-[9%]" />
           <col className="w-[17%]" />
           <col />
+          <col className="w-11" />
         </colgroup>
         <TableHeader className="sticky top-0 z-10 bg-muted">
           <TableRow>
@@ -154,6 +164,7 @@ function ViagensEmAndamentoTabela({ itens, diaMostrado }: { itens: ItemDashboard
             <TableHead>Início</TableHead>
             <TableHead>Saída real</TableHead>
             <TableHead>Destinos</TableHead>
+            <TableHead><span className="sr-only">Ordem de viagem</span></TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
@@ -176,6 +187,9 @@ function ViagensEmAndamentoTabela({ itens, diaMostrado }: { itens: ItemDashboard
               </TableCell>
               <TableCell className="overflow-hidden">
                 <RotaDestinos entregas={entregasDaViagem(item)} />
+              </TableCell>
+              <TableCell className="px-1">
+                <BaixarOrdemDeViagem viagemId={item.viagem.id} />
               </TableCell>
             </TableRow>
           ))}
@@ -210,6 +224,7 @@ function ViagensEmAndamentoCards({ itens }: { itens: ItemDashboard[] }) {
                 </Alert>
               )}
             </div>
+            <BaixarOrdemDeViagem viagemId={item.viagem.id} />
           </div>
 
           <MotoristaCelula item={item} />
@@ -248,10 +263,9 @@ type SearchParamsInput = {
 
 /** YYYY-MM-DD local (sem componente de hora) — mesmo formato de <input type="date">. */
 function dataLocalParaInput(data: Date): string {
-  const ano = data.getFullYear()
-  const mes = String(data.getMonth() + 1).padStart(2, "0")
-  const dia = String(data.getDate()).padStart(2, "0")
-  return `${ano}-${mes}-${dia}`
+  // Dia em Brasília, não no fuso do servidor (na Vercel, UTC: depois das
+  // 21h já seria "amanhã").
+  return diaParaTexto(data)
 }
 
 /** Preserva o filtro de status/data ao trocar um dos dois — omite o parâmetro quando está no padrão, pra manter a URL limpa em "hoje". */
@@ -295,6 +309,11 @@ export default async function DashboardPage({
   const semMotorista = todosDoDia.filter(
     (item) => item.viagem.motoristaId === null && !viagemEncerrada(item.viagem.status),
   ).length
+  const saidas = todosDoDia.filter((item) => item.viagem.horarioRealSaida)
+  const saidasAtrasadas = saidas.filter((item) =>
+    saidaAtrasada(minutosDeAtraso(item.viagem.inicioPrevisto, item.viagem.horarioRealSaida!)),
+  ).length
+  const dataTexto = dataLocalParaInput(dataSelecionada)
 
   return (
     <div className="space-y-6">
@@ -326,7 +345,7 @@ export default async function DashboardPage({
         </div>
       </div>
 
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 lg:grid-cols-5 gap-4">
         <StatCard rotulo="Viagens" valor={todosDoDia.length} icone={Route} />
         <StatCard
           rotulo="Sem motorista"
@@ -336,6 +355,18 @@ export default async function DashboardPage({
         />
         <StatCard rotulo="Em andamento" valor={contarStatus("INICIADA", "RETORNANDO")} icone={PlayCircle} />
         <StatCard rotulo="Finalizadas" valor={contarStatus("FINALIZADA")} icone={CheckCircle2} />
+        <Link
+          href={`/relatorios/pontualidade?de=${dataTexto}&ate=${dataTexto}`}
+          title={`Saídas registradas até ${TOLERANCIA_SAIDA_MINUTOS} min depois do previsto contam como no horário. Clique pra ver o relatório.`}
+          className="col-span-2 rounded-lg transition-opacity hover:opacity-90 lg:col-span-1"
+        >
+          <StatCard
+            rotulo={saidas.length ? `Saíram no horário · ${saidas.length - saidasAtrasadas} de ${saidas.length}` : "Saíram no horário"}
+            valor={saidas.length ? `${Math.round(((saidas.length - saidasAtrasadas) / saidas.length) * 100)}%` : "—"}
+            icone={AlarmClock}
+            classeValor={saidasAtrasadas > 0 ? "text-warning" : undefined}
+          />
+        </Link>
       </div>
 
       <form method="get" className="flex flex-wrap items-center gap-2">
@@ -344,6 +375,12 @@ export default async function DashboardPage({
         <Button type="submit" variant="outline" size="sm">
           <CalendarDays className="w-4 h-4 mr-2" />
           Ver dia
+        </Button>
+        <Button asChild variant="outline" size="sm" className="ml-auto">
+          <a href={`/api/relatorios/programacao?data=${dataTexto}`} title="Excel com todas as viagens do dia: horários, motorista, acompanhante, frota e entregas.">
+            <Download className="w-4 h-4 mr-2" aria-hidden />
+            Programação do dia
+          </a>
         </Button>
         {vendoOutroDia && (
           <Link href={construirHref(filtroStatus)}>

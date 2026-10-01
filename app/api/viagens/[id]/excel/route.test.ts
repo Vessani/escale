@@ -1,10 +1,12 @@
 import { describe, expect, it, vi, beforeEach } from "vitest"
 import { getServerSession } from "next-auth"
-import * as XLSX from "xlsx"
+import { nomesDasAbas, textoDaAba } from "@/lib/excel/ler-planilha"
 
 vi.mock("next-auth", () => ({
   getServerSession: vi.fn(),
 }))
+
+vi.mock("@/lib/queries/filiais", () => ({ buscarNomeFilial: vi.fn().mockResolvedValue("Joinville") }))
 
 vi.mock("@/lib/auth", () => ({
   authOptions: {},
@@ -105,10 +107,8 @@ describe("GET /api/viagens/[id]/excel — isolamento por filial", () => {
     const buffer = Buffer.from(await resposta.arrayBuffer())
     expect(buffer.length).toBeGreaterThan(0)
 
-    const workbook = XLSX.read(buffer, { type: "buffer" })
-    expect(workbook.SheetNames).toEqual(["Viagem", "Entregas"])
-    const linhas = XLSX.utils.sheet_to_json<Record<string, unknown>>(workbook.Sheets["Viagem"])
-    expect(linhas[0]["Nº Viagem"]).toBe("904527")
+    expect(nomesDasAbas(buffer)).toEqual(["Ordem de viagem"])
+    expect(textoDaAba(buffer, "Ordem de viagem")).toContain("Nº 904527")
   })
 
   it("sanitiza caracteres inválidos de nome de arquivo vindos do número da viagem", async () => {

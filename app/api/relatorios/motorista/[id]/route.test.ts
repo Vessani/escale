@@ -1,10 +1,12 @@
 import { describe, expect, it, vi, beforeEach } from "vitest"
 import { getServerSession } from "next-auth"
-import * as XLSX from "xlsx"
+import { lerAba } from "@/lib/excel/ler-planilha"
 
 vi.mock("next-auth", () => ({
   getServerSession: vi.fn(),
 }))
+
+vi.mock("@/lib/queries/filiais", () => ({ buscarNomeFilial: vi.fn().mockResolvedValue("Joinville") }))
 
 vi.mock("@/lib/auth", () => ({
   authOptions: {},
@@ -111,9 +113,8 @@ describe("GET /api/relatorios/motorista/[id] — controle de acesso", () => {
     expect(resposta.headers.get("Content-Disposition")).toContain("viagens-Luciano Machado.xlsx")
 
     const buffer = Buffer.from(await resposta.arrayBuffer())
-    const workbook = XLSX.read(buffer, { type: "buffer" })
-    const linhas = XLSX.utils.sheet_to_json<Record<string, unknown>>(workbook.Sheets["Viagens"])
+    const linhas = lerAba(buffer, "Viagens")
     expect(linhas).toHaveLength(1)
-    expect(linhas[0]["Status"]).toBe("ALOCADA")
+    expect(linhas[0]["Status"]).toBe("Alocada")
   })
 })

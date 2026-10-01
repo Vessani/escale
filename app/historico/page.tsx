@@ -1,4 +1,5 @@
 import { requireSessaoPaginaComFilial } from "@/lib/auth-guard"
+import { diaParaTexto } from "@/lib/relatorios/periodo"
 import { buscarHistoricoDoDia } from "@/lib/queries/auditoria"
 import { inicioDoDia, fimDoDia, parseDataLocal, formatarDataHoraPtBr } from "@/lib/utils/date-format"
 import { serializeData } from "@/lib/serialization"
@@ -30,10 +31,8 @@ type SearchParamsInput = {
 
 /** YYYY-MM-DD local (sem componente de hora) — mesmo formato de <input type="date">. */
 function dataLocalParaInput(data: Date): string {
-  const ano = data.getFullYear()
-  const mes = String(data.getMonth() + 1).padStart(2, "0")
-  const dia = String(data.getDate()).padStart(2, "0")
-  return `${ano}-${mes}-${dia}`
+  // Dia em Brasília, não no fuso do servidor (UTC na Vercel).
+  return diaParaTexto(data)
 }
 
 /** Padrão = ontem, não hoje — o pedido era especificamente "consultar um dia passado", e um instalação nova não teria nada em "hoje" ainda. */

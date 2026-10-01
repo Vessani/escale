@@ -2,7 +2,10 @@ import { getServerSession } from "next-auth"
 import { authOptions } from "@/lib/auth"
 import { buscarViagensParaRelatorioGeral } from "@/lib/queries/viagens"
 import { gerarExcelRelatorioGeral } from "@/lib/services/excel-export.service"
-import { parseStatusFiltro } from "@/lib/services/viagem-status.service"
+import { formatarStatusViagem, parseStatusFiltro } from "@/lib/services/viagem-status.service"
+import { buscarNomeFilial } from "@/lib/queries/filiais"
+import { respostaExcel } from "@/lib/excel/resposta"
+import { formatarDiaCompleto } from "@/lib/relatorios/formato"
 import { parseDataLocal } from "@/lib/utils/date-format"
 
 export async function GET(request: Request) {
@@ -25,18 +28,13 @@ export async function GET(request: Request) {
     return new Response("Período inválido.", { status: 400 })
   }
 
-  const viagens = await buscarViagensParaRelatorioGeral(session.user.filialId, { status, de, ate })
-  const buffer = gerarExcelRelatorioGeral(viagens)
-  const excelBlob = new Blob([new Uint8Array(buffer)], {
-    type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-  })
-
-  return new Response(excelBlob, {
-    status: 200,
-    headers: {
-      "Content-Type": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-      "Content-Disposition": 'attachment; filename="relatorio-geral-viagens.xlsx"',
-      "Cache-Control": "no-store",
-    },
-  })
+  const [viagens, filial] = await Promise.all([
+    buscarViagensParaRelatorioGeral(session.user.filialId, { status, de, ate }),
+    buscarNomeFilial(session.user.filialId),
+  ])
+  const periodo =
+    de || ate ? `Período ${de ? formatarDiaCompleto(de) : "início"} a ${ate ? formatarDiaCompleto(ate) : "hoje"}` : "Todo o histórico"
+  const filtroStatus = status === "TODOS" ? "todos os status" : `status ${formatarStatusViagem(status)}`
+  const buffer = await gerarExcelRelatorioGeral(viagens, { filial, subtitulo: `${periodo} · ${filtroStatus}` })
+  return respostaExcel(buffer, "relatorio-geral-viagens")
 }

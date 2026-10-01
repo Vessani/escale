@@ -2,6 +2,8 @@ import { describe, expect, it, vi, beforeEach } from "vitest"
 import { getServerSession } from "next-auth"
 
 vi.mock("next-auth", () => ({ getServerSession: vi.fn() }))
+vi.mock("@/lib/queries/filiais", () => ({ buscarNomeFilial: vi.fn().mockResolvedValue("Joinville") }))
+
 vi.mock("@/lib/auth", () => ({ authOptions: {} }))
 vi.mock("@/lib/queries/relatorios/operacao", () => ({
   buscarViagensNaoConstam: vi.fn().mockResolvedValue([]),

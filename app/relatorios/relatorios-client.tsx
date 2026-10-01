@@ -18,6 +18,36 @@ function hojeParaInput() {
   return `${ano}-${mes}-${dia}`
 }
 
+function ProgramacaoDoDiaCard() {
+  const [data, setData] = useState(hojeParaInput())
+  const href = `/api/relatorios/programacao${data ? `?data=${data}` : ""}`
+
+  return (
+    <Card className="shadow-sm border-border">
+      <CardHeader className="bg-muted border-b">
+        <CardTitle className="text-lg">Programação do dia</CardTitle>
+      </CardHeader>
+      <CardContent className="pt-6 space-y-4">
+        <p className="text-sm text-muted-foreground">
+          Todas as viagens do dia, separadas por turno: horários, motorista e acompanhante, frota, rota, clientes e
+          saída real — e uma aba com cada entrega. Pra mandar pra operação ou pros motoristas. Pra uma viagem só, use o
+          ícone de download na linha da viagem (Dashboard ou Gestão de Viagens).
+        </p>
+        <div className="space-y-1.5 max-w-xs">
+          <label className="text-xs font-medium text-foreground/80">Dia</label>
+          <Input type="date" value={data} onChange={(e) => setData(e.target.value)} />
+        </div>
+        <a href={href}>
+          <Button type="button">
+            <Download className="w-4 h-4 mr-2" />
+            Baixar Excel
+          </Button>
+        </a>
+      </CardContent>
+    </Card>
+  )
+}
+
 function RelatorioGeralCard() {
   const [status, setStatus] = useState("TODOS")
   const [de, setDe] = useState("")
@@ -137,6 +167,7 @@ function RelatorioDiarioCard() {
 export default function RelatoriosClient({ motoristas }: { motoristas: MotoristaParaSelect[] }) {
   return (
     <div className="space-y-6">
+      <ProgramacaoDoDiaCard />
       <RelatorioGeralCard />
       <RelatorioPorMotoristaCard motoristas={motoristas} />
       <RelatorioDiarioCard />

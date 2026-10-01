@@ -1,7 +1,9 @@
 import { requireSessaoApi } from "@/lib/api-auth"
 import { respostaErro } from "@/lib/api-response"
 import { EXPORTADORES_RELATORIO } from "@/lib/relatorios/exportacao"
-import { gerarPlanilhaExcel } from "@/lib/services/excel-export.service"
+import { gerarExcel } from "@/lib/excel/planilha"
+import { respostaExcel } from "@/lib/excel/resposta"
+import { buscarNomeFilial } from "@/lib/queries/filiais"
 
 /** Excel de qualquer relatório de /relatorios/* — os mesmos filtros da tela vêm na URL. */
 export async function GET(request: Request, { params }: { params: Promise<{ tipo: string }> }) {
@@ -18,15 +20,8 @@ export async function GET(request: Request, { params }: { params: Promise<{ tipo
       return new Response("Filtro inválido.", { status: 400 })
     }
 
-    const buffer = gerarPlanilhaExcel(resultado.planilhas)
-    return new Response(new Blob([new Uint8Array(buffer)]), {
-      status: 200,
-      headers: {
-        "Content-Type": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-        "Content-Disposition": `attachment; filename="${resultado.arquivo}.xlsx"`,
-        "Cache-Control": "no-store",
-      },
-    })
+    const buffer = await gerarExcel(resultado.abas, { filial: await buscarNomeFilial(filialId) })
+    return respostaExcel(buffer, resultado.arquivo)
   } catch (erro) {
     return respostaErro(erro)
   }

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest"
-import * as XLSX from "xlsx"
+import ExcelJS from "exceljs"
 import {
   sanitizarNomeArquivo,
   gerarExcelViagem,
@@ -7,12 +7,8 @@ import {
   gerarExcelViagensMotorista,
   gerarExcelViagensCriadasHoje,
 } from "@/lib/services/excel-export.service"
-
-function lerPrimeiraAba(buffer: Buffer) {
-  const workbook = XLSX.read(buffer, { type: "buffer" })
-  const nomeAba = workbook.SheetNames[0]
-  return { nomeAba, linhas: XLSX.utils.sheet_to_json<Record<string, unknown>>(workbook.Sheets[nomeAba]) }
-}
+import { excelProgramacaoDoDia } from "@/lib/excel/viagens"
+import { lerAba, nomesDasAbas, textoDaAba } from "@/lib/excel/ler-planilha"
 
 describe("sanitizarNomeArquivo", () => {
   it("troca caracteres inválidos de nome de arquivo por hífen", () => {
@@ -24,189 +20,141 @@ describe("sanitizarNomeArquivo", () => {
   })
 })
 
+const entrega = {
+  dataEntrega: new Date("2026-08-12T13:00:00Z"),
+  cliente: "CLIENTE TESTE",
+  cidade: "JOINVILLE",
+  uf: "SC",
+  kg: 100,
+  m3: 10,
+  sapcode: "SAP1",
+  codewhite: "CW1",
+  obs: "Observação",
+}
+
 const viagemBase = {
   numViagem: "123",
-  status: "ALOCADA",
+  status: "ALOCADA" as const,
   turno: "MANHA",
   produto: "CO2" as const,
-  inicioPrevisto: new Date("2026-08-12T08:00:00Z"),
+  inicioPrevisto: new Date("2026-08-12T11:00:00Z"),
   fimPrevisto: new Date("2026-08-13T08:00:00Z"),
   diasViagem: 1,
   cavalo: "ABC1234",
   carreta: "XYZ5678",
   tanque: "TANQUE1",
-  motorista: { nome: "João da Silva", cpf: "11144477735" },
+  motorista: { nome: "JOÃO DA SILVA", cpf: "11144477735" },
   motoristaAcompanhante: null,
   integracaoExigida: null,
   viagemExtra: false,
-  entregas: [
-    {
-      dataEntrega: new Date("2026-08-12T10:00:00Z"),
-      cliente: "Cliente Teste",
-      cidade: "Cidade Teste",
-      uf: "SC",
-      kg: 100,
-      m3: 10,
-      sapcode: "SAP1",
-      codewhite: "CW1",
-      obs: "Observação",
-    },
-  ],
+  entregas: [entrega, { ...entrega, cidade: "BLUMENAU", kg: 50, sapcode: "SAP2" }],
 }
 
-describe("gerarExcelViagem", () => {
-  it("gera workbook com abas Viagem e Entregas, com os dados da viagem", () => {
-    const buffer = gerarExcelViagem(viagemBase)
-    const workbook = XLSX.read(buffer, { type: "buffer" })
+describe("gerarExcelViagem (ordem de viagem)", () => {
+  it("uma aba com equipe, frota, horários, entregas com total e espaço pra assinatura", async () => {
+    const buffer = await gerarExcelViagem(viagemBase, { filial: "Joinville" })
 
-    expect(workbook.SheetNames).toEqual(["Viagem", "Entregas"])
-
-    const linhasViagem = XLSX.utils.sheet_to_json<Record<string, unknown>>(workbook.Sheets["Viagem"])
-    expect(linhasViagem).toHaveLength(1)
-    expect(linhasViagem[0]["Nº Viagem"]).toBe("123")
-    expect(linhasViagem[0]["Produto"]).toBe("Carbono")
-    expect(linhasViagem[0]["Motorista"]).toBe("João da Silva")
-
-    const linhasEntregas = XLSX.utils.sheet_to_json<Record<string, unknown>>(workbook.Sheets["Entregas"])
-    expect(linhasEntregas).toHaveLength(1)
-    expect(linhasEntregas[0]["Cliente"]).toBe("Cliente Teste")
-    expect(linhasEntregas[0]["Peso (kg)"]).toBe(100)
+    expect(nomesDasAbas(buffer)).toEqual(["Ordem de viagem"])
+    const texto = textoDaAba(buffer, "Ordem de viagem")
+    expect(texto).toContain("Ordem de viagem · Nº 123")
+    expect(texto).toContain("João da Silva")
+    expect(texto).toContain("Carbono")
+    expect(texto).toContain("Filial Joinville")
+    expect(texto).toContain("Joinville › Blumenau")
+    expect(texto).toContain("Entregas (2)")
+    expect(texto).toContain("150")
+    expect(texto).toContain("Assinatura do motorista")
   })
 
-  it("mostra Não alocado quando não há motorista, e uma linha de placeholder sem entregas", () => {
-    const buffer = gerarExcelViagem({ ...viagemBase, motorista: null, entregas: [] })
-    const workbook = XLSX.read(buffer, { type: "buffer" })
-
-    const linhasViagem = XLSX.utils.sheet_to_json<Record<string, unknown>>(workbook.Sheets["Viagem"])
-    expect(linhasViagem[0]["Motorista"]).toBe("Não alocado")
-
-    const linhasEntregas = XLSX.utils.sheet_to_json<Record<string, unknown>>(workbook.Sheets["Entregas"])
-    expect(linhasEntregas).toHaveLength(1)
-    expect(linhasEntregas[0]["Cliente"]).toBe("Nenhuma entrega cadastrada")
+  it("grava data de verdade, no horário de Brasília", async () => {
+    const buffer = await gerarExcelViagem(viagemBase)
+    const workbook = new ExcelJS.Workbook()
+    await workbook.xlsx.load(buffer as unknown as ArrayBuffer)
+    const datas: Date[] = []
+    workbook.getWorksheet("Ordem de viagem")!.eachRow((linha) =>
+      linha.eachCell((celula) => {
+        if (celula.value instanceof Date) datas.push(celula.value)
+      }),
+    )
+    // 11:00Z = 08:00 em Brasília; o Excel não tem fuso, então a célula guarda 08:00.
+    expect(datas[0].toISOString()).toBe("2026-08-12T08:00:00.000Z")
   })
 
-  it("mostra Não informado quando a viagem não tem produto definido", () => {
-    const buffer = gerarExcelViagem({ ...viagemBase, produto: null })
-    const workbook = XLSX.read(buffer, { type: "buffer" })
-    const linhasViagem = XLSX.utils.sheet_to_json<Record<string, unknown>>(workbook.Sheets["Viagem"])
-    expect(linhasViagem[0]["Produto"]).toBe("Não informado")
+  it("sem motorista e sem entrega", async () => {
+    const texto = textoDaAba(await gerarExcelViagem({ ...viagemBase, motorista: null, entregas: [] }), "Ordem de viagem")
+    expect(texto).toContain("Não alocado")
+    expect(texto).toContain("Nenhuma entrega cadastrada.")
   })
 })
 
-const relatorioBase = {
-  numViagem: "456",
-  status: "INICIADA",
-  turno: "TARDE",
-  produto: "NITROGENIO" as const,
-  inicioPrevisto: new Date("2026-08-12T08:00:00Z"),
-  fimPrevisto: new Date("2026-08-13T08:00:00Z"),
-  cavalo: "AAA1111",
-  carreta: "BBB2222",
-  tanque: "TANQUE2",
-  motorista: { nome: "Maria Souza", cpf: "52998224725" },
-  motoristaAcompanhante: null,
-  integracaoExigida: "Cliente X",
-  viagemExtra: false,
-}
+describe("listas de viagens", () => {
+  it("relatório geral: uma linha por viagem, com CPF, rota e extra", async () => {
+    const buffer = await gerarExcelRelatorioGeral([{ ...viagemBase, viagemExtra: true, integracaoExigida: "Cliente X" }])
+    const [linha] = lerAba(buffer, "Viagens")
 
-describe("gerarExcelRelatorioGeral", () => {
-  it("gera uma aba Viagens com uma linha por viagem, colunas de motorista/frota cruzadas", () => {
-    const buffer = gerarExcelRelatorioGeral([relatorioBase])
-    const { nomeAba, linhas } = lerPrimeiraAba(buffer)
-
-    expect(nomeAba).toBe("Viagens")
-    expect(linhas).toHaveLength(1)
-    expect(linhas[0]["Nº Viagem"]).toBe("456")
-    expect(linhas[0]["Produto"]).toBe("Nitrogênio")
-    expect(linhas[0]["CPF Motorista"]).toBe("52998224725")
-    expect(linhas[0]["Cavalo"]).toBe("AAA1111")
-    expect(linhas[0]["Integração Exigida"]).toBe("Cliente X")
-    expect(linhas[0]["Extra"]).toBe("Não")
+    expect(linha["Nº Viagem"]).toBe("123")
+    expect(linha["Status"]).toBe("Alocada")
+    expect(linha["Produto"]).toBe("Carbono")
+    expect(linha["Motorista"]).toBe("João da Silva")
+    expect(linha["CPF"]).toBe("11144477735")
+    expect(linha["Rota"]).toBe("Joinville › Blumenau")
+    expect(linha["Integração"]).toBe("Cliente X")
+    expect(linha["Extra"]).toBe("Sim")
   })
 
-  it("marca Extra como Sim pra viagem fora da programação", () => {
-    const buffer = gerarExcelRelatorioGeral([{ ...relatorioBase, viagemExtra: true }])
-    const { linhas } = lerPrimeiraAba(buffer)
-    expect(linhas[0]["Extra"]).toBe("Sim")
+  it("viagens do motorista: sem CPF, título com o nome", async () => {
+    const buffer = await gerarExcelViagensMotorista([viagemBase], "João da Silva")
+    expect(lerAba(buffer, "Viagens")[0]).not.toHaveProperty("CPF")
+    expect(textoDaAba(buffer, "Viagens")).toContain("Viagens de João da Silva")
   })
-})
 
-describe("gerarExcelViagensMotorista", () => {
-  it("gera uma aba Viagens com as viagens do motorista informado", () => {
-    const buffer = gerarExcelViagensMotorista([relatorioBase])
-    const { nomeAba, linhas } = lerPrimeiraAba(buffer)
+  it("criadas no dia: resumo conta viagens e entregas por turno (só entrega com SAP Code)", async () => {
+    const buffer = await gerarExcelViagensCriadasHoje(
+      [
+        { ...viagemBase, numViagem: "D1", entregas: [{ ...entrega }, { ...entrega, sapcode: "" }, { ...entrega, sapcode: "S2" }] },
+        { ...viagemBase, numViagem: "D2", entregas: [{ ...entrega }] },
+        { ...viagemBase, numViagem: "N1", turno: "NOITE", entregas: [{ ...entrega }, { ...entrega, sapcode: "  " }] },
+      ],
+      "15/08/2026",
+    )
 
-    expect(nomeAba).toBe("Viagens")
-    expect(linhas).toHaveLength(1)
-    expect(linhas[0]["Motorista"]).toBe("Maria Souza")
+    const texto = textoDaAba(buffer, "Viagens")
+    expect(texto).toContain("Viagens criadas em 15/08/2026")
+    expect(texto).toContain("Viagens: 3")
+    expect(texto).toContain("Dia: 2")
+    expect(texto).toContain("Noite: 1")
+    expect(texto).toContain("Entregas (dia): 3")
+    expect(texto).toContain("Entregas (noite): 1")
+    expect(lerAba(buffer, "Viagens")).toHaveLength(3)
   })
 })
 
-describe("gerarExcelViagensCriadasHoje", () => {
-  function viagemDiaria(overrides: Partial<Parameters<typeof gerarExcelViagensCriadasHoje>[0][number]> = {}) {
-    return {
-      ...relatorioBase,
-      turno: "MANHA",
-      entregas: [],
-      ...overrides,
-    }
-  }
+describe("excelProgramacaoDoDia", () => {
+  it("separa por turno, mostra motorista/frota e lista as entregas por viagem", async () => {
+    const buffer = await excelProgramacaoDoDia({
+      dia: new Date("2026-08-12T15:00:00Z"),
+      viagens: [
+        { ...viagemBase, numViagem: "N1", turno: "NOITE", inicioPrevisto: new Date("2026-08-12T22:00:00Z") },
+        { ...viagemBase, numViagem: "D1" },
+        { ...viagemBase, numViagem: "D2", motorista: null, entregas: [] },
+        { ...viagemBase, numViagem: "X1", status: "CANCELADA" as const },
+      ],
+    })
 
-  it("primeira aba é o Resumo, segunda é Viagens", () => {
-    const buffer = gerarExcelViagensCriadasHoje([viagemDiaria()])
-    const workbook = XLSX.read(buffer, { type: "buffer" })
-    expect(workbook.SheetNames).toEqual(["Resumo", "Viagens"])
-  })
+    expect(nomesDasAbas(buffer)).toEqual(["Programação", "Entregas"])
+    const texto = textoDaAba(buffer, "Programação")
+    expect(texto).toContain("Programação de viagens · quarta-feira, 12/08/2026")
+    expect(texto).toMatch(/Turno dia[\s\S]*D1[\s\S]*D2[\s\S]*X1[\s\S]*Turno noite[\s\S]*N1/)
+    expect(texto).toContain("Sem motorista: 1")
+    expect(texto).toContain("Canceladas: 1")
 
-  it("a aba Viagens continua com uma linha por viagem", () => {
-    const buffer = gerarExcelViagensCriadasHoje([viagemDiaria({ status: "INICIADA" })])
-    const linhas = XLSX.utils.sheet_to_json<Record<string, unknown>>(XLSX.read(buffer, { type: "buffer" }).Sheets["Viagens"])
+    const linhas = lerAba(buffer, "Programação")
+    const d1 = linhas.find((linha) => linha["Nº Viagem"] === "D1")!
+    expect(d1["Motorista"]).toBe("João da Silva")
+    expect(d1["Cavalo"]).toBe("ABC1234")
+    expect(d1["Entregas"]).toBe(2)
+    expect(d1["Peso (kg)"]).toBe(150)
 
-    expect(linhas).toHaveLength(1)
-    expect(linhas[0]["Status"]).toBe("INICIADA")
-  })
-
-  it("o Resumo totaliza viagens e entregas separadas por turno, contando só entrega com SAP Code", () => {
-    const viagens = [
-      viagemDiaria({
-        numViagem: "D1",
-        turno: "MANHA",
-        entregas: [{ sapcode: "SAP1" }, { sapcode: "" }, { sapcode: "SAP2" }],
-      }),
-      viagemDiaria({
-        numViagem: "D2",
-        turno: "MANHA",
-        entregas: [{ sapcode: "SAP3" }],
-      }),
-      viagemDiaria({
-        numViagem: "N1",
-        turno: "NOITE",
-        entregas: [{ sapcode: "SAP4" }, { sapcode: "  " }],
-      }),
-    ]
-
-    const buffer = gerarExcelViagensCriadasHoje(viagens)
-    const resumo = XLSX.utils.sheet_to_json<Record<string, unknown>>(XLSX.read(buffer, { type: "buffer" }).Sheets["Resumo"])
-    const valorDe = (metrica: string) => resumo.find((linha) => linha["Métrica"] === metrica)?.["Quantidade"]
-
-    expect(valorDe("Total de viagens")).toBe(3)
-    expect(valorDe("Total de viagens (dia)")).toBe(2)
-    expect(valorDe("Total de viagens (noite)")).toBe(1)
-    // D1 tem 2 entregas com SAP Code (a com sapcode "" não conta) + D2 tem 1 = 3.
-    expect(valorDe("Total de entregas (dia)")).toBe(3)
-    // N1 tem 1 entrega com SAP Code (a só com espaços em branco não conta).
-    expect(valorDe("Total de entregas (noite)")).toBe(1)
-  })
-
-  it("o Resumo conta viagens extras (fora da programação)", () => {
-    const viagens = [
-      viagemDiaria({ numViagem: "D1", viagemExtra: true }),
-      viagemDiaria({ numViagem: "D2", viagemExtra: false }),
-    ]
-    const buffer = gerarExcelViagensCriadasHoje(viagens)
-    const resumo = XLSX.utils.sheet_to_json<Record<string, unknown>>(XLSX.read(buffer, { type: "buffer" }).Sheets["Resumo"])
-    const valorDe = (metrica: string) => resumo.find((linha) => linha["Métrica"] === metrica)?.["Quantidade"]
-
-    expect(valorDe("Total de viagens extras (fora da programação)")).toBe(1)
+    expect(textoDaAba(buffer, "Entregas")).toContain("Viagem D1 · João da Silva · ABC1234 / XYZ5678")
   })
 })

@@ -78,7 +78,7 @@ function AcoesViagem({ viagem, podeExcluir }: { viagem: Viagem; podeExcluir: boo
   return (
     <AcoesLinha>
       {/* prefetch desligado: é um download de arquivo, não uma página. */}
-      <BotaoIcone href={`/api/viagens/${viagem.id}/excel`} prefetch={false} rotulo="Baixar Excel da viagem" icone={Download} />
+      <BotaoIcone href={`/api/viagens/${viagem.id}/excel`} prefetch={false} rotulo="Baixar ordem de viagem (Excel)" icone={Download} />
       <BotaoIcone href={`/viagens/editar/${viagem.id}`} rotulo="Editar viagem" icone={Pencil} />
       {podeExcluir && <ExcluirViagemButton viagemId={viagem.id} numeroViagem={viagem.numViagem} />}
     </AcoesLinha>

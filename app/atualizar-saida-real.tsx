@@ -9,6 +9,7 @@ import { Input } from "@/components/ui/input"
 import { atualizarSaidaReal } from "@/lib/actions/viagens"
 import { converterEntradaDeDataHora, formatDateTimeForInput, formatarHoraLocal } from "@/lib/utils/date-format"
 import { cn } from "@/lib/utils"
+import { TOLERANCIA_SAIDA_MINUTOS, minutosDeAtraso, saidaAtrasada } from "@/lib/services/pontualidade"
 
 type Props = {
   viagemId: number
@@ -47,9 +48,7 @@ export default function AtualizarSaidaReal({
   const [horario, setHorario] = useState(salvoHorario)
   const [motivo, setMotivo] = useState(salvoMotivo)
 
-  const minutosAtraso = horarioRealSaidaInicial
-    ? Math.round((new Date(horarioRealSaidaInicial).getTime() - new Date(inicioPrevisto).getTime()) / 60_000)
-    : 0
+  const minutosAtraso = horarioRealSaidaInicial ? minutosDeAtraso(inicioPrevisto, horarioRealSaidaInicial) : 0
 
   const abrirOuFechar = (proximo: boolean) => {
     // Reabrir sempre parte do que está salvo, não de um rascunho abandonado.
@@ -77,7 +76,8 @@ export default function AtualizarSaidaReal({
     })
   }
 
-  const atrasadoNoRascunho = Boolean(horario) && converterEntradaDeDataHora(horario) > new Date(inicioPrevisto)
+  const atrasadoNoRascunho =
+    Boolean(horario) && saidaAtrasada(minutosDeAtraso(inicioPrevisto, converterEntradaDeDataHora(horario)))
 
   return (
     <Popover.Root open={aberto} onOpenChange={abrirOuFechar}>
@@ -92,10 +92,19 @@ export default function AtualizarSaidaReal({
               <span className="font-mono text-xs font-medium tabular-nums text-foreground">
                 {formatarHoraLocal(horarioRealSaidaInicial)}
               </span>
-              {minutosAtraso > 0 && (
+              {saidaAtrasada(minutosAtraso) ? (
                 <span className="rounded-full bg-warning/10 px-1.5 py-0.5 text-[10px] font-medium tabular-nums text-warning">
                   {formatarAtraso(minutosAtraso)}
                 </span>
+              ) : (
+                minutosAtraso > 0 && (
+                  <span
+                    className="text-[10px] tabular-nums text-muted-foreground"
+                    title={`No horário — até ${TOLERANCIA_SAIDA_MINUTOS} min de tolerância`}
+                  >
+                    {formatarAtraso(minutosAtraso)}
+                  </span>
+                )
               )}
             </span>
             {motivoAtrasoInicial && (

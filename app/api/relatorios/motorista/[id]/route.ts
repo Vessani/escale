@@ -2,7 +2,10 @@ import { getServerSession } from "next-auth"
 import { authOptions } from "@/lib/auth"
 import { buscarMotoristaPorId } from "@/lib/queries/motoristas"
 import { buscarViagensPorMotorista } from "@/lib/queries/viagens"
+import { buscarNomeFilial } from "@/lib/queries/filiais"
 import { gerarExcelViagensMotorista, sanitizarNomeArquivo } from "@/lib/services/excel-export.service"
+import { respostaExcel } from "@/lib/excel/resposta"
+import { formatarNomeProprio } from "@/lib/utils/texto"
 
 export async function GET(
   _request: Request,
@@ -24,19 +27,10 @@ export async function GET(
     return new Response("Motorista não encontrado.", { status: 404 })
   }
 
-  const viagens = await buscarViagensPorMotorista(session.user.filialId, motoristaId)
-  const buffer = gerarExcelViagensMotorista(viagens)
-  const excelBlob = new Blob([new Uint8Array(buffer)], {
-    type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-  })
-  const nomeArquivo = sanitizarNomeArquivo(`viagens-${motorista.nome}.xlsx`)
-
-  return new Response(excelBlob, {
-    status: 200,
-    headers: {
-      "Content-Type": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-      "Content-Disposition": `attachment; filename="${nomeArquivo}"`,
-      "Cache-Control": "no-store",
-    },
-  })
+  const [viagens, filial] = await Promise.all([
+    buscarViagensPorMotorista(session.user.filialId, motoristaId),
+    buscarNomeFilial(session.user.filialId),
+  ])
+  const buffer = await gerarExcelViagensMotorista(viagens, formatarNomeProprio(motorista.nome), { filial })
+  return respostaExcel(buffer, sanitizarNomeArquivo(`viagens-${motorista.nome}`))
 }

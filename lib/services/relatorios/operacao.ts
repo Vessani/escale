@@ -2,9 +2,9 @@ import type { StatusIntegracao, StatusViagem, TipoProduto } from "@prisma/client
 import { inicioDoDia } from "@/lib/utils/date-format"
 import { fimEfetivoViagem } from "@/lib/services/alocacao/disponibilidade"
 import { viagensCompartilhamFrota } from "@/lib/services/frota-regras"
+import { TOLERANCIA_SAIDA_MINUTOS, minutosDeAtraso } from "@/lib/services/pontualidade"
 
 const UM_DIA_MS = 24 * 60 * 60 * 1000
-const UM_MINUTO_MS = 60_000
 
 // ---------------------------------------------------------------------------
 // 4. Integrações vencendo
@@ -66,8 +66,7 @@ export function textoVencimento(diasParaVencer: number): string {
 // 5. Pontualidade de saída
 // ---------------------------------------------------------------------------
 
-/** Saída até 15 min depois do previsto conta como no horário. */
-export const TOLERANCIA_SAIDA_MINUTOS = 15
+export { TOLERANCIA_SAIDA_MINUTOS } from "@/lib/services/pontualidade"
 
 /** Status em que a viagem já devia ter saída registrada. */
 const STATUS_JA_SAIU: StatusViagem[] = ["INICIADA", "RETORNANDO", "FINALIZADA"]
@@ -137,7 +136,7 @@ export function analisarPontualidade(
   const semRegistro = viagens.filter((viagem) => viagem.horarioRealSaida === null && STATUS_JA_SAIU.includes(viagem.status)).length
 
   const avaliadas = comSaida.map((viagem) => {
-    const atrasoMinutos = Math.round((viagem.horarioRealSaida!.getTime() - viagem.inicioPrevisto.getTime()) / UM_MINUTO_MS)
+    const atrasoMinutos = minutosDeAtraso(viagem.inicioPrevisto, viagem.horarioRealSaida!)
     return { viagem, atrasoMinutos, atrasada: atrasoMinutos > toleranciaMinutos }
   })
   const atrasadas = avaliadas.filter((item) => item.atrasada)

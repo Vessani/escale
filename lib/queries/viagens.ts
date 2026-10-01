@@ -150,6 +150,7 @@ export async function buscarViagensParaRelatorioGeral(
     include: {
       motorista: true,
       motoristaAcompanhante: true,
+      entregas: { select: { cidade: true, cliente: true, sapcode: true, kg: true }, orderBy: { id: "asc" } },
     },
   });
 }
@@ -171,6 +172,7 @@ export async function buscarViagensPorMotorista(filialId: number, motoristaId: n
     include: {
       motorista: true,
       motoristaAcompanhante: true,
+      entregas: { select: { cidade: true, cliente: true, sapcode: true, kg: true }, orderBy: { id: "asc" } },
     },
   });
 }
@@ -190,9 +192,29 @@ export async function buscarViagensCriadasEm(filialId: number, data: Date) {
     include: {
       motorista: true,
       motoristaAcompanhante: true,
-      // Só sapcode — é o que decide se uma entrega conta no resumo do
-      // relatório (ver gerarExcelViagensCriadasHoje).
-      entregas: { select: { sapcode: true } },
+      // sapcode decide se a entrega conta no resumo (ver
+      // gerarExcelViagensCriadasHoje); cidade/cliente montam a rota.
+      entregas: { select: { cidade: true, cliente: true, sapcode: true, kg: true }, orderBy: { id: "asc" } },
+    },
+  });
+}
+/**
+ * Programação do dia: viagens previstas pra começar no dia (horário de
+ * Brasília), em qualquer status, com motorista, acompanhante e entregas
+ * completas — base do Excel "Programação do dia".
+ */
+export async function buscarProgramacaoDoDia(filialId: number, dia: Date) {
+  return await prisma.viagem.findMany({
+    where: {
+      deletadoEm: null,
+      filialId,
+      inicioPrevisto: { gte: inicioDoDia(dia), lte: fimDoDia(dia) },
+    },
+    orderBy: { inicioPrevisto: "asc" },
+    include: {
+      motorista: { select: { nome: true } },
+      motoristaAcompanhante: { select: { nome: true } },
+      entregas: { orderBy: { id: "asc" } },
     },
   });
 }
