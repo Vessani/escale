@@ -1,4 +1,4 @@
-import type { StatusViagem, TipoDespesaViagem } from "@prisma/client"
+import type { StatusViagem, TipoDespesaViagem, TipoProduto } from "@prisma/client"
 import { formatarNomeProprio } from "@/lib/utils/texto"
 import { totaisDespesas } from "@/lib/services/despesas-viagem"
 
@@ -22,6 +22,7 @@ export type ViagemKmCustos = {
   kmFinal: number | null
   cavalo: string | null
   carreta: string | null
+  produto: TipoProduto | null
   motorista: { id: number; nome: string } | null
   despesas: { tipo: TipoDespesaViagem; valorCentavos: number }[]
   /** Na ordem da rota. */

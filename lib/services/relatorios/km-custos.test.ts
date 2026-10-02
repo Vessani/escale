@@ -16,6 +16,7 @@ function viagem(parcial: Partial<ViagemKmCustos> = {}): ViagemKmCustos {
     kmFinal: 152780,
     cavalo: "2025",
     carreta: "795",
+    produto: "OXIGENIO",
     motorista: { id: 7, nome: "LUCIANO MACHADO" },
     despesas: [
       { tipo: "PEDAGIO", valorCentavos: 1250 },

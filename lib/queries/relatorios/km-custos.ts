@@ -1,13 +1,24 @@
 import { prisma } from "@/lib/prisma"
+import type { StatusViagem } from "@prisma/client"
 import { STATUS_KM_CUSTOS, type ViagemKmCustos } from "@/lib/services/relatorios/km-custos"
 
-/** Viagens que saíram no período (pelo início previsto), com km, despesas e entregas. */
-export async function buscarViagensKmCustos(filialId: number, de: Date, ate: Date, motoristaId?: number): Promise<ViagemKmCustos[]> {
+/**
+ * Viagens do período (pelo início previsto), com km, despesas e entregas.
+ * Por padrão só as que saíram (Km e custos); o relatório de Viagens passa
+ * todos os status menos cancelada.
+ */
+export async function buscarViagensKmCustos(
+  filialId: number,
+  de: Date,
+  ate: Date,
+  motoristaId?: number,
+  status: StatusViagem[] = STATUS_KM_CUSTOS,
+): Promise<ViagemKmCustos[]> {
   return prisma.viagem.findMany({
     where: {
       filialId,
       deletadoEm: null,
-      status: { in: STATUS_KM_CUSTOS },
+      status: { in: status },
       inicioPrevisto: { gte: de, lte: ate },
       // Com troca de motorista, a viagem aparece pra quem esteve nela em
       // qualquer trecho — não só pra quem estava com ela no fim.
@@ -26,6 +37,7 @@ export async function buscarViagensKmCustos(filialId: number, de: Date, ate: Dat
       kmFinal: true,
       cavalo: true,
       carreta: true,
+      produto: true,
       motorista: { select: { id: true, nome: true } },
       _count: { select: { trocas: true } },
       despesas: { where: { deletadoEm: null }, select: { tipo: true, valorCentavos: true } },
