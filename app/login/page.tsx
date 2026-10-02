@@ -11,6 +11,7 @@ import { LogoEscalador } from "@/components/layout/logo-escalador"
 import { Rodape } from "@/components/layout/rodape"
 import { AREA_MOTORISTA } from "@/lib/papeis"
 import { cn } from "@/lib/utils"
+import { MENSAGEM_SEM_CONEXAO } from "@/lib/chamar-acao"
 
 type Modo = "despacho" | "motorista"
 
@@ -31,6 +32,16 @@ function normalizarErroLogin(erro: string) {
   return erro
 }
 
+async function servidorAlcancavel(): Promise<boolean> {
+  if (typeof navigator !== "undefined" && !navigator.onLine) return false
+  try {
+    const resposta = await fetch("/api/auth/providers", { cache: "no-store" })
+    return resposta.ok
+  } catch {
+    return false
+  }
+}
+
 export default function LoginPage() {
   const router = useRouter()
   const [modo, setModo] = useState<Modo>("despacho")
@@ -47,10 +58,27 @@ export default function LoginPage() {
     setCarregando(true)
 
 
-    const resultado =
-      modo === "motorista"
-        ? await signIn("motorista", { seva, pin, redirect: false })
-        : await signIn("credentials", { email, senha, redirect: false })
+    // Sem conexão, o signIn do next-auth não lança: ele mesmo redireciona pra
+    // uma página de erro (no celular vira a tela "sem internet" do navegador).
+    // Então testa a conexão antes, e avisa aqui mesmo.
+    if (!(await servidorAlcancavel())) {
+      setErro(MENSAGEM_SEM_CONEXAO)
+      setCarregando(false)
+      return
+    }
+
+    let resultado: Awaited<ReturnType<typeof signIn>>
+    try {
+      resultado =
+        modo === "motorista"
+          ? await signIn("motorista", { seva, pin, redirect: false })
+          : await signIn("credentials", { email, senha, redirect: false })
+    } catch {
+      // Sem internet: avisa em vez de deixar o botão em "Autenticando..." pra sempre.
+      setErro(MENSAGEM_SEM_CONEXAO)
+      setCarregando(false)
+      return
+    }
 
     if (resultado?.error) {
       setErro(normalizarErroLogin(resultado.error))

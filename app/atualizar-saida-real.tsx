@@ -11,6 +11,7 @@ import { formatDateTimeForInput, formatarHoraLocal, tentarConverterEntradaDeData
 import { cn } from "@/lib/utils"
 import { TOLERANCIA_SAIDA_MINUTOS, minutosDeAtraso, saidaAtrasada } from "@/lib/services/pontualidade"
 import { MOTIVOS_ATRASO } from "@/lib/services/motivos-atraso"
+import { chamarAcao } from "@/lib/chamar-acao"
 
 type Props = {
   viagemId: number
@@ -68,10 +69,12 @@ export default function AtualizarSaidaReal({
       return
     }
     startTransition(async () => {
-      const resposta = await atualizarSaidaReal(viagemId, {
-        horarioRealSaida: proximoHorario || null,
-        motivoAtraso: proximoMotivo.trim() || null,
-      })
+      const resposta = await chamarAcao(() =>
+        atualizarSaidaReal(viagemId, {
+          horarioRealSaida: proximoHorario || null,
+          motivoAtraso: proximoMotivo.trim() || null,
+        }),
+      )
       if (!resposta.sucesso) {
         setErro(resposta.erro ?? "Não foi possível salvar a saída real.")
         return

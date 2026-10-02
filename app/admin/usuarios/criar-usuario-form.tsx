@@ -13,6 +13,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { PlusCircle } from "lucide-react"
 import { criarUsuario } from "@/lib/actions/usuarios"
 import { usuarioSchema, type UsuarioFormValues } from "@/lib/validation/usuarios"
+import { chamarAcao } from "@/lib/chamar-acao"
 
 type Props = {
   filiais: Array<{ id: number; nome: string }>
@@ -32,7 +33,7 @@ export default function CriarUsuarioForm({ filiais }: Props) {
 
   const handleSubmit: SubmitHandler<UsuarioFormValues> = async (dados) => {
     setErro(null)
-    const resposta = await criarUsuario(dados)
+    const resposta = await chamarAcao(() => criarUsuario(dados))
 
     if (!resposta.sucesso) {
       setErro(resposta.erro ?? "Não foi possível criar o usuário.")

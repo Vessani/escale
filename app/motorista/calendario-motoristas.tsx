@@ -22,6 +22,7 @@ import type { TipoMotorista } from "@prisma/client"
 import { NomeMotorista } from "@/components/motorista/icone-tipo-motorista"
 import { AcoesLinha, BotaoIcone } from "@/components/ui/botao-icone"
 import { Pencil, Trash2 } from "lucide-react"
+import { chamarAcao } from "@/lib/chamar-acao"
 
 type Viagem = {
   id: number
@@ -122,7 +123,7 @@ export default function CalendarioMotoristas({ inicioParam, hojeIso, dias, motor
     setMensagemErro("")
 
     startTransition(async () => {
-      const resposta = await atualizarJornadaMotoristaNoCalendario(motoristaId, diaIso, codigoNoDia)
+      const resposta = await chamarAcao(() => atualizarJornadaMotoristaNoCalendario(motoristaId, diaIso, codigoNoDia))
       setCelulaSalvando(null)
       setCelulaEmEdicao(null)
 
@@ -144,7 +145,7 @@ export default function CalendarioMotoristas({ inicioParam, hojeIso, dias, motor
     setMotoristaExcluindoId(motoristaId)
 
     startTransition(async () => {
-      const resposta = await deletarMotorista(motoristaId)
+      const resposta = await chamarAcao(() => deletarMotorista(motoristaId))
       setMotoristaExcluindoId(null)
 
       if (!resposta.sucesso) {

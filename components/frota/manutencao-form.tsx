@@ -12,6 +12,7 @@ import { Textarea } from "@/components/ui/textarea"
 import { criarManutencao, editarManutencao } from "@/lib/actions/manutencoes"
 import type { ManutencaoFormValues } from "@/lib/validation/manutencoes"
 import { cn } from "@/lib/utils"
+import { chamarAcao } from "@/lib/chamar-acao"
 
 type Opcao<T extends string> = { valor: T; rotulo: string }
 
@@ -82,7 +83,7 @@ export default function ManutencaoForm({ manutencaoId, valoresIniciais, conjunto
     evento.preventDefault()
     setErro("")
     iniciarTransicao(async () => {
-      const resposta = manutencaoId ? await editarManutencao(manutencaoId, dados) : await criarManutencao(dados)
+      const resposta = await chamarAcao(() => (manutencaoId ? editarManutencao(manutencaoId, dados) : criarManutencao(dados)))
       if (!resposta.sucesso) {
         setErro(resposta.erro)
         return

@@ -10,6 +10,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { ConfirmDialog } from "@/components/ui/confirm-dialog"
 import { desativarAcesso, gerarAcessoMotorista } from "@/lib/actions/acesso-motorista"
 import type { SituacaoAcesso } from "@/lib/services/acesso-motorista.service"
+import { chamarAcao } from "@/lib/chamar-acao"
 
 const ROTULO: Record<SituacaoAcesso, { texto: string; classe: string }> = {
   SEM_ACESSO: { texto: "Sem acesso", classe: "text-muted-foreground" },
@@ -31,7 +32,7 @@ export function AcessoMotoristaCard({ motoristaId, seva, situacao }: { motorista
   const gerar = () => {
     setErro("")
     iniciarTransicao(async () => {
-      const resposta = await gerarAcessoMotorista(motoristaId)
+      const resposta = await chamarAcao(() => gerarAcessoMotorista(motoristaId))
       if (!resposta.sucesso) return setErro(resposta.erro)
       setPin(resposta.pin)
       router.refresh()
@@ -41,7 +42,7 @@ export function AcessoMotoristaCard({ motoristaId, seva, situacao }: { motorista
   const desativar = () => {
     setErro("")
     iniciarTransicao(async () => {
-      const resposta = await desativarAcesso(motoristaId)
+      const resposta = await chamarAcao(() => desativarAcesso(motoristaId))
       if (!resposta.sucesso) return setErro(resposta.erro)
       setPin(null)
       setConfirmarDesativar(false)

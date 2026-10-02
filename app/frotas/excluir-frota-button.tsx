@@ -6,6 +6,7 @@ import { Trash2 } from "lucide-react"
 import { BotaoIcone } from "@/components/ui/botao-icone"
 import { ConfirmDialog } from "@/components/ui/confirm-dialog"
 import { deletarFrota } from "@/lib/actions/frotas"
+import { chamarAcao } from "@/lib/chamar-acao"
 
 type Props = {
   frotaId: number
@@ -23,7 +24,7 @@ export default function ExcluirFrotaButton({ frotaId, cavalo, carreta }: Props) 
     setErro(null)
 
     startTransition(async () => {
-      const resposta = await deletarFrota(frotaId)
+      const resposta = await chamarAcao(() => deletarFrota(frotaId))
       if (!resposta.sucesso) {
         setErro(resposta.erro ?? "Não foi possível excluir o conjunto.")
         return
