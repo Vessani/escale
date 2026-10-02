@@ -15,6 +15,7 @@ import { formatarReais, parseReaisParaCentavos } from "@/lib/utils/dinheiro"
 import { formatarHoraLocal } from "@/lib/utils/date-format"
 import { cn } from "@/lib/utils"
 import { chamarAcao } from "@/lib/chamar-acao"
+import { totaisDespesas } from "@/lib/services/despesas-viagem"
 import { STATUS_A_INICIAR, STATUS_EM_ANDAMENTO } from "@/lib/services/viagem-status.service"
 import { ChegadasClientes, type EntregaDoPainel } from "./chegadas-clientes"
 import { ProblemaMecanico } from "./problema-mecanico"
@@ -57,7 +58,8 @@ function Cartao({ titulo, icone: Icone, children }: { titulo: string; icone: typ
 }
 
 function Totais({ despesas }: { despesas: ViagemDoPainel["despesas"] }) {
-  const soma = (tipo: TipoDespesa) => despesas.filter((d) => d.tipo === tipo).reduce((total, d) => total + d.valorCentavos, 0)
+  const totais = totaisDespesas(despesas)
+  const soma = (tipo: TipoDespesa) => (tipo === "PEDAGIO" ? totais.pedagioCentavos : totais.pernoiteCentavos)
   return (
     <dl className="grid grid-cols-2 gap-2 text-sm">
       {(["PEDAGIO", "PERNOITE"] as const).map((tipo) => (

@@ -1,5 +1,6 @@
 import type { StatusViagem, TipoDespesaViagem } from "@prisma/client"
 import { formatarNomeProprio } from "@/lib/utils/texto"
+import { totaisDespesas } from "@/lib/services/despesas-viagem"
 
 /**
  * Relatório de km e custos por viagem: o que o motorista registrou no
@@ -73,10 +74,7 @@ type LinhaKmCustos = {
 }
 
 export function linhaKmCustos(viagem: ViagemKmCustos): LinhaKmCustos {
-  const soma = (tipo: TipoDespesaViagem) =>
-    viagem.despesas.filter((despesa) => despesa.tipo === tipo).reduce((total, despesa) => total + despesa.valorCentavos, 0)
-  const pedagioCentavos = soma("PEDAGIO")
-  const pernoiteCentavos = soma("PERNOITE")
+  const { pedagioCentavos, pernoiteCentavos } = totaisDespesas(viagem.despesas)
   const kmRodado =
     viagem.kmInicial !== null && viagem.kmFinal !== null && viagem.kmFinal >= viagem.kmInicial ? viagem.kmFinal - viagem.kmInicial : null
 

@@ -13,9 +13,6 @@ vi.mock("@/lib/prisma", () => ({
     motorista: {
       findFirst: vi.fn(),
     },
-    entrega: {
-      findMany: vi.fn().mockResolvedValue([]),
-    },
   },
 }))
 
@@ -69,6 +66,8 @@ function criarTx() {
       findUnique: vi.fn(),
       findUniqueOrThrow: vi.fn(),
     },
+    entrega: { findMany: vi.fn().mockResolvedValue([]) },
+    $queryRaw: vi.fn().mockResolvedValue([{ id: 1 }]),
     registroAuditoria: { create: vi.fn() },
   }
 }
@@ -415,9 +414,12 @@ describe("viagem.service", () => {
       await expect(editarViagemService(FILIAL_ID, 1, criarEdicaoInput({ motoristaId: 9, produto: undefined }), ATOR)).rejects.toThrow("Trocar motorista")
 
       vi.mocked(prisma.viagem.findUnique).mockResolvedValue({ status: "CRIADA", motoristaId: null, motoristaAcompanhanteId: null } as never)
-      vi.mocked(prisma.entrega.findMany).mockResolvedValueOnce([{ cliente: "HOSPITAL SANTA ISABEL" }] as never)
+      const tx = criarTx()
+      tx.entrega.findMany.mockResolvedValueOnce([{ cliente: "HOSPITAL SANTA ISABEL" }])
+      usarTransacaoCom(tx)
       await expect(editarViagemService(FILIAL_ID, 1, criarEdicaoInput(), ATOR)).rejects.toThrow("HOSPITAL SANTA ISABEL")
-      expect(prisma.entrega.findMany).toHaveBeenLastCalledWith({
+      expect(tx.viagem.update).not.toHaveBeenCalled()
+      expect(tx.entrega.findMany).toHaveBeenLastCalledWith({
         where: { viagemId: 1, id: { notIn: expect.any(Array) }, chegada: { isNot: null } },
         select: { cliente: true },
       })

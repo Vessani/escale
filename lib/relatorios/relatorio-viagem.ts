@@ -7,6 +7,7 @@ import { formatarProduto } from "@/lib/services/produto.service"
 import { minutosDeAtraso } from "@/lib/services/pontualidade"
 import { formatarReais } from "@/lib/utils/dinheiro"
 import { formatarNomeProprio } from "@/lib/utils/texto"
+import { totaisDespesas } from "@/lib/services/despesas-viagem"
 
 /**
  * Tudo do "Relatório da viagem" já calculado — a tela e o Excel usam o mesmo
@@ -47,8 +48,7 @@ export async function carregarRelatorioViagem(filialId: number, viagemId: number
   }
 
   const despesas = viagem.despesas.map((d) => ({ id: d.id, tipo: rotuloDespesa(d.tipo), quando: d.registradoEm, centavos: d.valorCentavos }))
-  const pedagioCentavos = viagem.despesas.filter((d) => d.tipo === "PEDAGIO").reduce((t, d) => t + d.valorCentavos, 0)
-  const pernoiteCentavos = viagem.despesas.filter((d) => d.tipo === "PERNOITE").reduce((t, d) => t + d.valorCentavos, 0)
+  const { pedagioCentavos, pernoiteCentavos } = totaisDespesas(viagem.despesas)
 
   const trocas = viagem.trocas.map((t) => ({
     id: t.id,

@@ -140,10 +140,10 @@ describe("despesas", () => {
       expect.objectContaining({ where: { id: 9, deletadoEm: null, usuarioId: "m1", viagem: { filialId: FILIAL, motoristaId: ZE, deletadoEm: null } } }),
     )
 
-    vi.mocked(prisma.despesaViagem.findFirst).mockResolvedValue({ id: 9, viagem: { status: "FINALIZADA" } } as never)
+    vi.mocked(prisma.despesaViagem.findFirst).mockResolvedValue({ id: 9, viagemId: 1, viagem: { status: "FINALIZADA" } } as never)
     await expect(removerMinhaDespesa(FILIAL, ZE, 9, ator)).rejects.toThrow("já foi encerrada")
 
-    vi.mocked(prisma.despesaViagem.findFirst).mockResolvedValue({ id: 9, viagem: { status: "INICIADA" } } as never)
+    vi.mocked(prisma.despesaViagem.findFirst).mockResolvedValue({ id: 9, viagemId: 1, viagem: { status: "INICIADA" } } as never)
     await removerMinhaDespesa(FILIAL, ZE, 9, ator)
     expect(tx.despesaViagem.update).toHaveBeenCalledWith({ where: { id: 9 }, data: { deletadoEm: expect.any(Date) } })
   })

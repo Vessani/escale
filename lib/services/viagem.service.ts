@@ -334,18 +334,21 @@ export async function editarViagemService(filialId: number, idViagem: number, da
   if (emAndamento && viagemAtual.motoristaId !== null && motoristaIdFinal !== viagemAtual.motoristaId) {
     throw new ErroDeDominio("USAR_TROCA_DE_MOTORISTA", "A viagem já saiu: pra trocar o motorista, use \"Trocar motorista\" no fim desta tela.")
   }
-  // Entrega com chegada registrada pelo motorista (medição do descarregado)
-  // não pode sumir numa edição — levaria a medição junto, sem histórico.
-  const removidasComChegada = await prisma.entrega.findMany({
-    where: { viagemId: idViagem, id: { notIn: manterEntregas }, chegada: { isNot: null } },
-    select: { cliente: true },
-  })
-  if (removidasComChegada.length > 0) {
-    const clientes = removidasComChegada.map((entrega) => entrega.cliente).join(", ")
-    throw new ErroDeDominio("ENTREGA_COM_CHEGADA", `Não dá pra remover ${clientes}: o motorista já registrou a chegada e a medição nessa entrega.`)
-  }
-
   return await prisma.$transaction(async (tx) => {
+    // Entrega com chegada registrada pelo motorista (medição do descarregado)
+    // não pode sumir numa edição — levaria a medição junto, sem histórico.
+    // Dentro da transação, com a viagem travada: a chegada gravada pelo
+    // motorista também trava a viagem, então não escapa entre conferir e apagar.
+    await tx.$queryRaw`SELECT id FROM "Viagem" WHERE id = ${idViagem} AND "filialId" = ${filialId} FOR UPDATE`
+    const removidasComChegada = await tx.entrega.findMany({
+      where: { viagemId: idViagem, id: { notIn: manterEntregas }, chegada: { isNot: null } },
+      select: { cliente: true },
+    })
+    if (removidasComChegada.length > 0) {
+      const clientes = removidasComChegada.map((entrega) => entrega.cliente).join(", ")
+      throw new ErroDeDominio("ENTREGA_COM_CHEGADA", `Não dá pra remover ${clientes}: o motorista já registrou a chegada e a medição nessa entrega.`)
+    }
+
     const viagemAtualizada = await tx.viagem.update({
       where: { id: idViagem, filialId },
       data: {

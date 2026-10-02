@@ -3,6 +3,7 @@ import { Alert } from "@/components/ui/alert"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { formatarNumero, textoLeituras, textoMedicao, unidadeDescarga } from "@/lib/services/descarga"
 import { formatarNomeProprio } from "@/lib/utils/texto"
+import { totaisDespesas } from "@/lib/services/despesas-viagem"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { formatarReais } from "@/lib/utils/dinheiro"
 import { formatarDataHoraPtBr } from "@/lib/utils/date-format"
@@ -50,7 +51,8 @@ export function RegistroMotoristaCard({
   problemaMecanicoEm: Date | null
 }) {
   if (kmInicial === null && kmFinal === null && despesas.length === 0 && chegadas.length === 0 && !problemaMecanico) return null
-  const soma = (tipo: Despesa["tipo"]) => despesas.filter((d) => d.tipo === tipo).reduce((total, d) => total + d.valorCentavos, 0)
+  const totais = totaisDespesas(despesas)
+  const soma = (tipo: Despesa["tipo"]) => (tipo === "PEDAGIO" ? totais.pedagioCentavos : totais.pernoiteCentavos)
 
   return (
     <Card className="shadow-sm border-border">

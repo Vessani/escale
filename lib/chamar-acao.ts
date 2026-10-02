@@ -22,8 +22,9 @@ export function mensagemDaFalha(erro: unknown): string {
   const texto = erro instanceof Error ? erro.message : String(erro)
   if (/server action|older or newer deployment/i.test(texto)) return MENSAGEM_SISTEMA_ATUALIZADO
   const offline = typeof navigator !== "undefined" && navigator.onLine === false
-  // fetch sem rede: TypeError "Failed to fetch" (Chrome), "NetworkError…" (Firefox), "Load failed" (Safari).
-  if (offline || erro instanceof TypeError || /failed to fetch|networkerror|load failed|network/i.test(texto)) return MENSAGEM_SEM_CONEXAO
+  // fetch sem rede: "Failed to fetch" (Chrome), "NetworkError…" (Firefox), "Load failed" (Safari).
+  // Pelo texto, não por ser TypeError: bug comum ("Cannot read properties of undefined") também é TypeError.
+  if (offline || /failed to fetch|networkerror|load failed|network request failed/i.test(texto)) return MENSAGEM_SEM_CONEXAO
   return MENSAGEM_ERRO_INESPERADO
 }
 

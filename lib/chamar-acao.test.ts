@@ -26,7 +26,8 @@ describe("mensagemDaFalha", () => {
     )
   })
 
-  it("qualquer outra falha → recarregar", () => {
+  it("qualquer outra falha (inclusive bug que também é TypeError) → recarregar", () => {
     expect(mensagemDaFalha(new Error("Unexpected token < in JSON"))).toBe(MENSAGEM_ERRO_INESPERADO)
+    expect(mensagemDaFalha(new TypeError("Cannot read properties of undefined (reading 'id')"))).toBe(MENSAGEM_ERRO_INESPERADO)
   })
 })

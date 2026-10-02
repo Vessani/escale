@@ -267,12 +267,18 @@ export async function removerMinhaDespesa(filialId: number, motoristaId: number,
     throw new ErroDeDominio("VIAGEM_ENCERRADA", "A viagem já foi encerrada — se o lançamento está errado, avise o escalador.")
   }
 
-  await prisma.$transaction(async (tx) => {
+  const removida = await prisma.$transaction(async (tx) => {
+    // Viagem travada: se o escalador encerrou/trocou o motorista no meio-tempo, não remove.
+    if (!(await travarViagemDoMotorista(tx, filialId, motoristaId, despesa.viagemId, STATUS_EM_ANDAMENTO))) return false
     const { viagem, ...antes } = despesa
     void viagem
     const depois = await tx.despesaViagem.update({ where: { id: despesaId }, data: { deletadoEm: new Date() } })
     await registrarAuditoria(tx, { entidade: "DespesaViagem", entidadeId: despesaId, acao: "EXCLUSAO", antes, depois, ator, filialId })
+    return true
   })
+  if (!removida) {
+    throw await explicarSituacao(filialId, motoristaId, despesa.viagemId, new ErroDeDominio("VIAGEM_ENCERRADA", "A viagem já foi encerrada — se o lançamento está errado, avise o escalador."))
+  }
 }
 
 /** Encerra: grava o km final e finaliza a viagem (o descanso dele passa a contar daqui). */
