@@ -104,7 +104,7 @@ function abaGrupoPontualidade(nomeAba: string, rotulo: string, grupos: GrupoPont
 export const EXPORTADORES_RELATORIO: Record<string, Exportador> = {
   circadiano: comPeriodo(PERIODO_PADRAO.circadiano, "ciclo-circadiano", async (filialId, periodo) => {
     const relatorio = await buscarRelatorioCircadiano(filialId, periodo.de, periodo.ate)
-    const regra = "Dia passa das 22:00 · Noite passa das 05:00"
+    const regra = "Dia (início 04:00–15:59) passa das 22:00 · Noite (início 16:00–03:59) passa das 05:00"
     return [
       abaCircadiano("Previsto", "Ciclo circadiano · previsto (viagens agendadas)", `${textoPeriodo(periodo)} · ${regra} · jornada estimada em até 12h`, relatorio.previstas),
       abaCircadiano("Realizado", "Ciclo circadiano · realizado (relatório de jornada)", `${textoPeriodo(periodo)} · ${regra}`, relatorio.realizadas),

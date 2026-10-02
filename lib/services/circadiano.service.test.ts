@@ -14,8 +14,8 @@ const periodoCircadiano = (de?: string, ate?: string, agora?: Date) => resolverP
 
 const h = (iso: string) => new Date(`${iso}-03:00`)
 
-const jose = { id: 1, nome: "JOSE", turno: "MANHA" as const }
-const ana = { id: 2, nome: "ANA", turno: "NOITE" as const }
+const jose = { id: 1, nome: "JOSE" }
+const ana = { id: 2, nome: "ANA" }
 
 function viagem(parcial: Partial<ViagemCircadiano>): ViagemCircadiano {
   return {
@@ -100,15 +100,40 @@ describe("ocorrenciasPrevistas", () => {
     expect(ocorrenciasPrevistas([ana], [viagem({})], null)).toHaveLength(0)
   })
 
-  it("avisa também pelo acompanhante, cada um pelo seu turno", () => {
+  it("o turno vem do início da viagem, não do cadastro: principal e acompanhante numa viagem às 20:00 são cobrados pelo limite da noite", () => {
     const ocorrencias = ocorrenciasPrevistas(
       [jose, ana],
       [viagem({ motoristaAcompanhanteId: 2, inicioPrevisto: h("2026-10-02T20:00:00"), fimPrevisto: h("2026-10-03T09:00:00") })],
       null,
     )
-    expect(ocorrencias.map((o) => [o.motorista, o.minutosExcedidos])).toEqual([
-      ["JOSE", 10 * 60],
-      ["ANA", 3 * 60],
+    // Jornada prevista até 08:00 (12h) → 3h depois das 05:00, pros dois.
+    expect(ocorrencias.map((o) => [o.motorista, o.turno, o.minutosExcedidos])).toEqual([
+      ["JOSE", "NOITE", 3 * 60],
+      ["ANA", "NOITE", 3 * 60],
+    ])
+  })
+})
+
+describe("turno pela hora de início da jornada", () => {
+  it("dia de 04:00 a 15:59; noite de 16:00 a 03:59 (madrugada é continuação da noite)", () => {
+    const realizadas = ocorrenciasRealizadas(
+      [jose],
+      [
+        // Começou às 02:00 → noite → limite 05:00 → passou 1h.
+        { motoristaId: 1, inicioJornada: h("2026-09-10T02:00:00"), fimJornada: h("2026-09-10T06:00:00") },
+        // Começou às 04:30 → dia → limite 22:00 → não passou.
+        { motoristaId: 1, inicioJornada: h("2026-09-11T04:30:00"), fimJornada: h("2026-09-11T15:00:00") },
+        // Começou às 15:30 → dia → passou das 22:00 em 30 min.
+        { motoristaId: 1, inicioJornada: h("2026-09-12T15:30:00"), fimJornada: h("2026-09-12T22:30:00") },
+        // Começou às 16:00 → noite → limite 05:00 do dia seguinte → não passou.
+        { motoristaId: 1, inicioJornada: h("2026-09-13T16:00:00"), fimJornada: h("2026-09-13T23:30:00") },
+      ],
+      [],
+    )
+
+    expect(realizadas.map((o) => [o.turno, o.minutosExcedidos])).toEqual([
+      ["NOITE", 60],
+      ["MANHA", 30],
     ])
   })
 })
