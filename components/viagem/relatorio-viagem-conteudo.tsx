@@ -188,25 +188,27 @@ export function RelatorioViagemConteudo({ r }: { r: RelatorioViagem }) {
           </div>
         </div>
 
-        <Secao titulo="Linha do tempo" icone={Clock}>
-          {r.linhaDoTempo.length === 0 ? (
-            <p className="text-sm text-muted-foreground">Nada registrado ainda.</p>
-          ) : (
-            <ol className="relative space-y-3 border-l pl-5">
-              {r.linhaDoTempo.map((evento, indice) => (
-                <li key={indice} className="relative">
-                  <span aria-hidden className={cn("absolute -left-[25px] top-1.5 size-2.5 rounded-full ring-4 ring-card", COR_EVENTO[evento.tipo])} />
-                  <p className="text-xs tabular-nums text-muted-foreground">
-                    {quando(evento.quando)}
-                    {evento.quem && ` · ${evento.quem}`}
-                  </p>
-                  <p className="text-sm font-medium">{evento.titulo}</p>
-                  {evento.detalhe && <p className="text-sm text-muted-foreground">{evento.detalhe}</p>}
-                </li>
-              ))}
-            </ol>
-          )}
-        </Secao>
+        {r.linhaDoTempo && (
+          <Secao titulo="Linha do tempo" icone={Clock}>
+            {r.linhaDoTempo.length === 0 ? (
+              <p className="text-sm text-muted-foreground">Nada registrado ainda.</p>
+            ) : (
+              <ol className="relative space-y-3 border-l pl-5">
+                {r.linhaDoTempo.map((evento, indice) => (
+                  <li key={indice} className="relative">
+                    <span aria-hidden className={cn("absolute -left-[25px] top-1.5 size-2.5 rounded-full ring-4 ring-card", COR_EVENTO[evento.tipo])} />
+                    <p className="text-xs tabular-nums text-muted-foreground">
+                      {quando(evento.quando)}
+                      {evento.quem && ` · ${evento.quem}`}
+                    </p>
+                    <p className="text-sm font-medium">{evento.titulo}</p>
+                    {evento.detalhe && <p className="text-sm text-muted-foreground">{evento.detalhe}</p>}
+                  </li>
+                ))}
+              </ol>
+            )}
+          </Secao>
+        )}
     </>
   )
 }

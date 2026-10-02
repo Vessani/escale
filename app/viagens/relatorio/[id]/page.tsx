@@ -5,14 +5,15 @@ import { requireSessaoPaginaComFilial } from "@/lib/auth-guard"
 import { Button } from "@/components/ui/button"
 import { RelatorioViagemConteudo } from "@/components/viagem/relatorio-viagem-conteudo"
 import { carregarRelatorioViagem } from "@/lib/relatorios/relatorio-viagem"
+import { ehGerencia } from "@/lib/papeis"
 
 export const metadata = { title: "Relatório da viagem" }
 
 /** Escalador: relatório da viagem com "Baixar Excel". */
 export default async function RelatorioViagemPage({ params }: { params: Promise<{ id: string }> }) {
-  const { filialId } = await requireSessaoPaginaComFilial()
+  const { filialId, session } = await requireSessaoPaginaComFilial()
   const id = Number((await params).id)
-  const r = Number.isInteger(id) && id > 0 ? await carregarRelatorioViagem(filialId, id) : null
+  const r = Number.isInteger(id) && id > 0 ? await carregarRelatorioViagem(filialId, id, { comLinhaDoTempo: ehGerencia(session.user.role) }) : null
   if (!r) notFound()
 
   return (
