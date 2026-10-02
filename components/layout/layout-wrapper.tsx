@@ -206,7 +206,7 @@ export function LayoutWrapper({
 
       {/* Sidebar fixa, visível a partir do breakpoint md */}
       <aside
-        className={`hidden print:hidden md:flex relative flex-col bg-sidebar text-white/80 shadow-xl ${
+        className={`hidden md:flex relative flex-col bg-sidebar text-white/80 shadow-xl ${
           animarColapso ? "transition-[width] duration-200" : ""
         } ${colapsada ? "w-16" : "w-64"}`}
       >
@@ -253,7 +253,7 @@ export function LayoutWrapper({
 
       <main className="flex-1 flex flex-col h-full overflow-hidden">
         {/* Cabeçalho só em telas abaixo de md, com botão para abrir o menu */}
-        <div className="flex h-14 shrink-0 items-center gap-3 border-b border-border bg-card px-4 md:hidden print:hidden">
+        <div className="flex h-14 shrink-0 items-center gap-3 border-b border-border bg-card px-4 md:hidden">
           <button
             type="button"
             onClick={() => setMenuAberto(true)}
@@ -270,7 +270,7 @@ export function LayoutWrapper({
         {/* flex-col + flex-1 no conteúdo: o rodapé fica no fim da tela mesmo em página curta */}
         <div id="conteudo-principal" className="flex flex-1 flex-col overflow-y-auto p-4 md:p-8">
           <div className="flex-1">{children}</div>
-          <Rodape className="mt-12 print:hidden" />
+          <Rodape className="mt-12" />
         </div>
       </main>
     </div>
