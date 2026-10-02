@@ -78,8 +78,9 @@ export default async function CircadianoPage({ searchParams }: { searchParams?: 
   return (
     <div className="space-y-6">
       <CabecalhoRelatorio titulo="Ciclo circadiano">
-        Motoristas do turno do dia que passam das <strong>22:00</strong> e do turno da noite que passam das{" "}
-        <strong>05:00</strong>. Só entra quem aparece no relatório de jornada.
+        Jornada do dia que passa das <strong>22:00</strong> e da noite que passa das <strong>05:00</strong>. O turno é o de
+        cada jornada, pelo horário de início: <strong>dia</strong> se começa entre 04:00 e 15:59, <strong>noite</strong> a partir
+        das 16:00. Só entram motoristas cadastrados que aparecem no relatório de jornada.
       </CabecalhoRelatorio>
 
       <FiltroRelatorio

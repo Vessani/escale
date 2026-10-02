@@ -61,7 +61,7 @@ export default async function RelatoriosPage({
           {
             href: "/relatorios/circadiano",
             titulo: "Ciclo circadiano",
-            descricao: "Turno do dia passando das 22:00 e da noite passando das 05:00 — previsto e realizado.",
+            descricao: "Jornada do dia passando das 22:00 e da noite passando das 05:00 (turno pelo início da jornada) — previsto e realizado.",
             icone: MoonStar,
             contagem: circadiano.previstas.length,
             contagemTexto: circadiano.previstas.length === 1 ? "viagem agendada vai passar" : "viagens agendadas vão passar",

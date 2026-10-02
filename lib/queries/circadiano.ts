@@ -26,7 +26,7 @@ export async function buscarRelatorioCircadiano(filialId: number, de: Date, ate:
   const [motoristas, jornadas, viagens, filial] = await Promise.all([
     prisma.motorista.findMany({
       where: { filialId, deletadoEm: null, registrosJornada: { some: { fimJornada: { not: null } } } },
-      select: { id: true, nome: true, turno: true },
+      select: { id: true, nome: true },
     }),
     prisma.registroJornada.findMany({
       where: {

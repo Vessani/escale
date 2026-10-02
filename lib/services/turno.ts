@@ -13,6 +13,20 @@ export function turnoPorHora(hora: number): Turno {
   return hora >= HORA_CORTE_TURNO_NOITE ? "NOITE" : "MANHA"
 }
 
+/** No ciclo circadiano, jornada que começa de madrugada (00:00–03:59) ainda é do turno da noite. */
+const HORA_INICIO_TURNO_DIA = 4
+
+/**
+ * Turno de uma jornada pro ciclo circadiano, pelo horário de início
+ * (Brasília): Dia de 04:00 a 15:59, Noite de 16:00 a 03:59. Vale pra cada
+ * jornada, não pro motorista — quem é cadastrado no dia e faz uma viagem à
+ * noite é cobrado pelo limite da noite, e vice-versa.
+ */
+export function turnoDaJornada(inicio: Date): Turno {
+  const hora = new Date(inicio.getTime() - OFFSET_BRASILIA_MS).getUTCHours()
+  return hora >= HORA_INICIO_TURNO_DIA && hora < HORA_CORTE_TURNO_NOITE ? "MANHA" : "NOITE"
+}
+
 /** Turno de um instante (Date, ISO ou "YYYY-MM-DDTHH:MM" do datetime-local, que já é horário de Brasília). */
 export function turnoPorHorario(inicio: Date | string): Turno | null {
   if (typeof inicio === "string") {

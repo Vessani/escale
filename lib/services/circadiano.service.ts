@@ -1,11 +1,15 @@
 import type { StatusViagem, Turno } from "@prisma/client"
 import { inicioDoDia } from "@/lib/utils/date-format"
 import { fimEfetivoViagem } from "./alocacao/disponibilidade"
+import { turnoDaJornada } from "./turno"
 
 /**
  * Ciclo circadiano: jornada que passa do horário de descanso do turno.
  * - Turno do dia (MANHA): não pode passar das 22:00.
  * - Turno da noite (NOITE): não pode passar das 05:00.
+ * O turno é o da JORNADA, pelo horário de início (ver turnoDaJornada: Dia
+ * de 04:00 a 15:59, Noite de 16:00 a 03:59) — não o do cadastro do
+ * motorista, que não acompanha quando ele troca de turno.
  * Conta só pelo FIM da jornada: o limite é a primeira vez que o relógio
  * marca esse horário depois do início (motorista do dia que começa às 06:00
  * tem limite às 22:00 do mesmo dia; o da noite que começa às 18:00, às 05:00
@@ -26,7 +30,7 @@ const HORAS_JORNADA_PREVISTA = 12
 
 const UMA_HORA_MS = 60 * 60 * 1000
 
-type MotoristaCircadiano = { id: number; nome: string; turno: Turno }
+type MotoristaCircadiano = { id: number; nome: string }
 
 type JornadaRealizada = {
   motoristaId: number
@@ -136,14 +140,15 @@ export function ocorrenciasRealizadas(
 
     const inicio = new Date(jornada.inicioJornada)
     const fim = new Date(jornada.fimJornada)
-    const limite = limiteCircadiano(inicio, motorista.turno)
+    const turno = turnoDaJornada(inicio)
+    const limite = limiteCircadiano(inicio, turno)
     if (fim <= limite) continue
 
     ocorrencias.push({
       tipo: "REALIZADO",
       motoristaId: motorista.id,
       motorista: motorista.nome,
-      turno: motorista.turno,
+      turno,
       dia: inicioDoDia(inicio),
       inicio,
       fim,
@@ -184,14 +189,15 @@ export function ocorrenciasPrevistas(
       const motorista = motoristaId !== null ? porId.get(motoristaId) : undefined
       if (!motorista) continue
 
-      const limite = limiteCircadiano(inicio, motorista.turno)
+      const turno = turnoDaJornada(inicio)
+      const limite = limiteCircadiano(inicio, turno)
       if (fimJornada <= limite) continue
 
       ocorrencias.push({
         tipo: "PREVISTO",
         motoristaId: motorista.id,
         motorista: motorista.nome,
-        turno: motorista.turno,
+        turno,
         dia: inicioDoDia(inicio),
         inicio,
         fim: fimJornada,
