@@ -12,7 +12,7 @@ import { HistoricoCard } from "@/components/auditoria/historico-card"
 import { serializeData } from "@/lib/serialization"
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
-import { Download } from "lucide-react"
+import { Download, FileText } from "lucide-react"
 import { RegistroMotoristaCard } from "@/components/viagem/registro-motorista-card"
 import { TrocaMotoristaCard } from "@/components/viagem/troca-motorista-card"
 import { buscarSubstitutosPossiveis, buscarTrocasDaViagem } from "@/lib/services/troca-motorista.service"
@@ -60,12 +60,20 @@ export default async function EditarViagemPage({ params }: { params: Promise<{ i
             Revise os dados da viagem Nº {viagem.numViagem} e confirme o motorista alocado.
           </p>
         </div>
+        <div className="flex flex-wrap gap-2">
+        <Link href={`/viagens/relatorio/${viagem.id}`}>
+          <Button variant="outline">
+            <FileText className="h-4 w-4 mr-2" />
+            Relatório da viagem
+          </Button>
+        </Link>
         <Link href={`/api/viagens/${viagem.id}/excel`}>
           <Button variant="outline">
             <Download className="h-4 w-4 mr-2" />
             Download Excel
           </Button>
         </Link>
+        </div>
       </div>
 
       <FormEditarViagem

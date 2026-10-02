@@ -97,3 +97,35 @@ export function parseNumeroDecimal(texto: string): number | null {
 export function formatarNumero(valor: number, casas = 3): string {
   return valor.toLocaleString("pt-BR", { maximumFractionDigits: casas })
 }
+
+/** O que já foi gravado de uma chegada, pra mostrar (card do escalador, relatório). */
+type ChegadaGravada = {
+  medicao: TipoMedicao | null
+  fator: number | null
+  nivelInicial: number
+  nivelFinal: number
+  polInicial: number | null
+  polFinal: number | null
+}
+
+/** "Manômetro × 12,5", "Balança × 0,754", "Balança (kg)", "Biometano". */
+export function textoMedicao(chegada: Pick<ChegadaGravada, "medicao" | "fator">): string {
+  if (chegada.medicao === "MANOMETRO") return `Manômetro × ${formatarNumero(chegada.fator ?? 0, 4)}`
+  if (chegada.medicao === "BALANCA") return chegada.fator === 1 ? "Balança (kg)" : `Balança × ${formatarNumero(chegada.fator ?? 0, 4)}`
+  return "Biometano"
+}
+
+/** Unidade do total: manômetro depende da conversão do cliente (sem unidade). */
+export function unidadeDescarga(chegada: Pick<ChegadaGravada, "medicao" | "fator">): string {
+  if (chegada.medicao === "MANOMETRO") return ""
+  return chegada.medicao === "BALANCA" && chegada.fator === 1 ? "kg" : "m³"
+}
+
+/** "1.000 → 400" (biometano: "950 → 200 m³ (80 → 15 pol)"). */
+export function textoLeituras(chegada: ChegadaGravada): string {
+  const base = `${formatarNumero(chegada.nivelInicial)} → ${formatarNumero(chegada.nivelFinal)}`
+  return chegada.polInicial !== null && chegada.polFinal !== null
+    ? `${base} m³ (${formatarNumero(chegada.polInicial, 2)} → ${formatarNumero(chegada.polFinal, 2)} pol)`
+    : base
+}
+

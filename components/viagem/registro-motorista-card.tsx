@@ -1,7 +1,7 @@
 import { BedDouble, Smartphone, Ticket, Wrench } from "lucide-react"
 import { Alert } from "@/components/ui/alert"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
-import { formatarNumero } from "@/lib/services/descarga"
+import { formatarNumero, textoLeituras, textoMedicao, unidadeDescarga } from "@/lib/services/descarga"
 import { formatarNomeProprio } from "@/lib/utils/texto"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { formatarReais } from "@/lib/utils/dinheiro"
@@ -22,24 +22,6 @@ type Chegada = {
   polFinal: number | null
   fator: number | null
   totalDescarregado: number
-}
-
-function textoMedicao(chegada: Chegada) {
-  if (chegada.medicao === "MANOMETRO") return `Manômetro × ${formatarNumero(chegada.fator ?? 0, 4)}`
-  if (chegada.medicao === "BALANCA") return chegada.fator === 1 ? "Balança (kg)" : `Balança × ${formatarNumero(chegada.fator ?? 0, 4)}`
-  return "Biometano"
-}
-
-function unidadeTotal(chegada: Chegada) {
-  if (chegada.medicao === "MANOMETRO") return ""
-  return chegada.medicao === "BALANCA" && chegada.fator === 1 ? " kg" : " m³"
-}
-
-function leituras(chegada: Chegada) {
-  const base = `${formatarNumero(chegada.nivelInicial)} → ${formatarNumero(chegada.nivelFinal)}`
-  return chegada.polInicial !== null && chegada.polFinal !== null
-    ? `${base} m³ (${formatarNumero(chegada.polInicial, 2)} → ${formatarNumero(chegada.polFinal, 2)} pol)`
-    : base
 }
 
 function Numero({ rotulo, valor }: { rotulo: string; valor: string }) {
@@ -116,9 +98,9 @@ export function RegistroMotoristaCard({
                     <TableCell className="whitespace-nowrap tabular-nums">{formatarDataHoraPtBr(chegada.chegadaEm)}</TableCell>
                     <TableCell className="text-right tabular-nums">{chegada.km.toLocaleString("pt-BR")}</TableCell>
                     <TableCell>{textoMedicao(chegada)}</TableCell>
-                    <TableCell className="text-right tabular-nums">{leituras(chegada)}</TableCell>
+                    <TableCell className="text-right tabular-nums">{textoLeituras(chegada)}</TableCell>
                     <TableCell className="text-right font-semibold tabular-nums">
-                      {formatarNumero(chegada.totalDescarregado)}{unidadeTotal(chegada)}
+                      {formatarNumero(chegada.totalDescarregado)} {unidadeDescarga(chegada)}
                     </TableCell>
                   </TableRow>
                 ))}

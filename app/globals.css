@@ -146,3 +146,23 @@
     @apply bg-background text-foreground;
   }
 }
+
+/* Impressão (ex.: Relatório da viagem → "Imprimir / PDF"): a página inteira,
+   não só o que cabe na tela, e sem os controles marcados com .nao-imprimir. */
+@media print {
+  html,
+  body,
+  main,
+  #conteudo-principal,
+  .h-screen {
+    height: auto !important;
+    overflow: visible !important;
+  }
+  #conteudo-principal {
+    padding: 0 !important;
+  }
+  .nao-imprimir {
+    display: none !important;
+  }
+}
+
