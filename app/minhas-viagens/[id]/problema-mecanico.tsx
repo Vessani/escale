@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation"
 import { Wrench } from "lucide-react"
 import { Alert } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
+import { Textarea } from "@/components/ui/textarea"
 import { informarProblema } from "@/lib/actions/minhas-viagens"
 import { chamarAcao } from "@/lib/chamar-acao"
 import { formatarHoraLocal } from "@/lib/utils/date-format"
@@ -61,14 +62,14 @@ export function ProblemaMecanico({ viagemId, problema, informadoEm }: { viagemId
             </Button>
           ) : (
             <>
-              <textarea
+              <Textarea
                 value={texto}
                 maxLength={TAMANHO_MAXIMO}
                 onChange={(e) => setTexto(e.target.value)}
                 placeholder="Ex: pneu furado na BR-101, aguardando socorro"
-                rows={3}
-                className="w-full rounded-md border border-input bg-background px-3 py-2 text-base"
+                className="min-h-24 resize-none text-base"
               />
+              <p className="text-right text-xs tabular-nums text-muted-foreground">{texto.length}/{TAMANHO_MAXIMO}</p>
               <div className="flex gap-2">
                 <Button type="button" variant="ghost" className="h-11" onClick={() => { setEditando(false); setTexto(problema ?? "") }} disabled={pendente}>
                   Cancelar

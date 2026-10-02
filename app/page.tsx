@@ -136,6 +136,10 @@ function StatusCelula({ item }: { item: ItemDashboard }) {
   return (
     <div className="space-y-1">
       <AtualizarStatusRapido
+        // A chave muda com o status: quando o motorista inicia/encerra pelo
+        // celular e o painel se atualiza sozinho, o seletor reflete na hora
+        // (sem a chave ele guardava o status de quando a tela abriu).
+        key={`${viagem.id}-${viagem.status}`}
         viagemId={viagem.id}
         statusAtual={viagem.status}
         inicioPrevisto={viagem.inicioPrevisto}
