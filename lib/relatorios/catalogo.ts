@@ -12,6 +12,7 @@ export const PERIODO_PADRAO = {
   pontualidade: { diasAntes: 30, diasDepois: 0 },
   avisos: { diasAntes: 30, diasDepois: 0 },
   frota: { diasAntes: 30, diasDepois: 0 },
+  kmCustos: { diasAntes: 30, diasDepois: 0 },
 } satisfies Record<string, PeriodoPadrao>
 
 export const OPCOES_HORAS_ESTOURO_JORNADA = [10, 11, 12, 13, 14] as const

@@ -8,6 +8,7 @@ import {
   TriangleAlert,
   Truck,
   Users,
+  Wallet,
 } from "lucide-react"
 import { requireSessaoPaginaComFilial } from "@/lib/auth-guard"
 import { buscarNomesMotoristas } from "@/lib/queries/motoristas"
@@ -117,6 +118,12 @@ export default async function RelatoriosPage({
             titulo: "Viagens com aviso",
             descricao: "Viagens que foram com aviso de descanso ou de frota, e quem alterou por último.",
             icone: TriangleAlert,
+          },
+          {
+            href: "/relatorios/km-custos",
+            titulo: "Km e custos por viagem",
+            descricao: "Km rodado, pedágio e pernoite que o motorista lançou, com início, fim e a região de cada viagem.",
+            icone: Wallet,
           },
           {
             href: "/relatorios/frota",

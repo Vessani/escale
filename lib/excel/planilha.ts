@@ -263,7 +263,8 @@ function adicionarAba<T>(workbook: ExcelJS.Workbook, aba: Aba<T>, meta: Metadado
           const valor = coluna.valor(item)
           return acumulado + (typeof valor === "number" ? valor : 0)
         }, 0)
-        celula.value = soma
+        // Soma de decimais em ponto flutuante (0,1 + 0,2…): arredonda pra não gravar 45,0999999.
+        celula.value = Math.round(soma * 100) / 100
         const formato = FORMATO[coluna.tipo ?? "numero"]
         if (formato) celula.numFmt = formato
         celula.alignment = { horizontal: "right" }
