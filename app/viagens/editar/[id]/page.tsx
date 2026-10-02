@@ -85,6 +85,7 @@ export default async function EditarViagemPage({ params }: { params: Promise<{ i
         key={viagem.id}
         viagem={viagemSerializada}
         opcoesMotorista={opcoesMotorista}
+        entregasComChegada={chegadas.map((chegada) => chegada.entregaId)}
       />
 
       <RegistroMotoristaCard

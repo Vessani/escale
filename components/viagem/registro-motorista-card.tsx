@@ -1,5 +1,6 @@
 import { BedDouble, Smartphone, Ticket, Wrench } from "lucide-react"
 import { Alert } from "@/components/ui/alert"
+import { ApagarChegadaBotao } from "@/components/viagem/apagar-chegada-botao"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { formatarNumero, textoLeituras, textoMedicao, unidadeDescarga } from "@/lib/services/descarga"
 import { formatarNomeProprio } from "@/lib/utils/texto"
@@ -88,6 +89,7 @@ export function RegistroMotoristaCard({
                   <TableHead>Medição</TableHead>
                   <TableHead className="text-right">Nível inicial → final</TableHead>
                   <TableHead className="text-right">Descarregado</TableHead>
+                  <TableHead className="w-10"><span className="sr-only">Apagar</span></TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -103,6 +105,9 @@ export function RegistroMotoristaCard({
                     <TableCell className="text-right tabular-nums">{textoLeituras(chegada)}</TableCell>
                     <TableCell className="text-right font-semibold tabular-nums">
                       {formatarNumero(chegada.totalDescarregado)} {unidadeDescarga(chegada)}
+                    </TableCell>
+                    <TableCell className="px-1">
+                      <ApagarChegadaBotao chegadaId={chegada.id} cliente={chegada.cliente} />
                     </TableCell>
                   </TableRow>
                 ))}

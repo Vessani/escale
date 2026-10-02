@@ -1,11 +1,11 @@
 "use client"
 
-import { useFieldArray, type ArrayPath, type Control, type FieldValues, type Path } from "react-hook-form"
+import { useFieldArray, useWatch, type ArrayPath, type Control, type FieldValues, type Path } from "react-hook-form"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form"
 import { Input } from "@/components/ui/input"
-import { PlusCircle, Trash2 } from "lucide-react"
+import { CircleCheck, PlusCircle, Trash2 } from "lucide-react"
 import { normalizeFormValue } from "@/lib/form-utils"
 
 const NOVA_ENTREGA_VAZIA = {
@@ -23,11 +23,16 @@ const NOVA_ENTREGA_VAZIA = {
 type EntregasFieldArrayProps<TFieldValues extends FieldValues> = {
   control: Control<TFieldValues>
   mostrarCamposComplementares?: boolean
+  /** Ids das entregas com chegada registrada pelo motorista: cliente/lugar travados e sem remover (ver trava-chegada.ts). */
+  entregasComChegada?: number[]
 }
+
+const TEXTO_TRAVADA = "O motorista já registrou a chegada aqui. Pra mudar cliente ou lugar, apague a chegada em \"Registro do motorista\" (mais abaixo)."
 
 export default function EntregasFieldArray<TFieldValues extends FieldValues>({
   control,
   mostrarCamposComplementares = false,
+  entregasComChegada = [],
 }: EntregasFieldArrayProps<TFieldValues>) {
   const { fields, append, remove } = useFieldArray({
     control,
@@ -35,6 +40,12 @@ export default function EntregasFieldArray<TFieldValues extends FieldValues>({
   })
 
   const nomeCampo = (index: number, campo: string) => `entregas.${index}.${campo}` as Path<TFieldValues>
+  // O `id` de `fields` é a chave do react-hook-form; o id da entrega vem dos valores.
+  const valores = (useWatch({ control, name: "entregas" as Path<TFieldValues> }) ?? []) as Array<{ id?: number } | undefined>
+  const travada = (index: number) => {
+    const id = valores[index]?.id
+    return id !== undefined && entregasComChegada.includes(id)
+  }
 
   return (
     <Card className="shadow-sm border-border">
@@ -60,23 +71,32 @@ export default function EntregasFieldArray<TFieldValues extends FieldValues>({
               Parada {index + 1}
             </div>
 
-            <Button
-              type="button"
-              variant="ghost"
-              size="icon"
-              onClick={() => remove(index)}
-              className="absolute top-2 right-2 text-red-400 hover:text-red-600 hover:bg-red-50"
-              aria-label="Remover entrega"
-            >
-              <Trash2 className="w-4 h-4" />
-            </Button>
+            {travada(index) ? (
+              <span
+                title={TEXTO_TRAVADA}
+                className="absolute top-3 right-3 inline-flex items-center gap-1 rounded-full bg-success/10 px-2 py-0.5 text-xs font-medium text-success"
+              >
+                <CircleCheck className="size-3.5" aria-hidden /> chegada registrada
+              </span>
+            ) : (
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon"
+                onClick={() => remove(index)}
+                className="absolute top-2 right-2 text-red-400 hover:text-red-600 hover:bg-red-50"
+                aria-label="Remover entrega"
+              >
+                <Trash2 className="w-4 h-4" />
+              </Button>
+            )}
 
             <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mt-2">
               <FormField control={control} name={nomeCampo(index, "cliente")} render={({ field }) => (
                 <FormItem className="col-span-2">
                   <FormLabel>Cliente</FormLabel>
                   <FormControl>
-                    <Input placeholder="Nome do cliente" {...field} value={normalizeFormValue(field.value)} />
+                    <Input placeholder="Nome do cliente" {...field} value={normalizeFormValue(field.value)} readOnly={travada(index)} title={travada(index) ? TEXTO_TRAVADA : undefined} className={travada(index) ? "bg-muted text-muted-foreground" : undefined} />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -86,7 +106,7 @@ export default function EntregasFieldArray<TFieldValues extends FieldValues>({
                 <FormItem>
                   <FormLabel>Cidade</FormLabel>
                   <FormControl>
-                    <Input placeholder="Cidade" {...field} value={normalizeFormValue(field.value)} />
+                    <Input placeholder="Cidade" {...field} value={normalizeFormValue(field.value)} readOnly={travada(index)} title={travada(index) ? TEXTO_TRAVADA : undefined} className={travada(index) ? "bg-muted text-muted-foreground" : undefined} />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -96,7 +116,7 @@ export default function EntregasFieldArray<TFieldValues extends FieldValues>({
                 <FormItem>
                   <FormLabel>UF</FormLabel>
                   <FormControl>
-                    <Input maxLength={2} placeholder="Ex: SC" {...field} value={normalizeFormValue(field.value)} />
+                    <Input maxLength={2} placeholder="Ex: SC" {...field} value={normalizeFormValue(field.value)} readOnly={travada(index)} title={travada(index) ? TEXTO_TRAVADA : undefined} className={travada(index) ? "bg-muted text-muted-foreground" : undefined} />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -138,7 +158,7 @@ export default function EntregasFieldArray<TFieldValues extends FieldValues>({
                     <FormItem>
                       <FormLabel>SAP Code</FormLabel>
                       <FormControl>
-                        <Input placeholder="Código SAP" {...field} value={normalizeFormValue(field.value)} />
+                        <Input placeholder="Código SAP" {...field} value={normalizeFormValue(field.value)} readOnly={travada(index)} />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -148,7 +168,7 @@ export default function EntregasFieldArray<TFieldValues extends FieldValues>({
                     <FormItem>
                       <FormLabel>Code White</FormLabel>
                       <FormControl>
-                        <Input placeholder="Código CW" {...field} value={normalizeFormValue(field.value)} />
+                        <Input placeholder="Código CW" {...field} value={normalizeFormValue(field.value)} readOnly={travada(index)} />
                       </FormControl>
                       <FormMessage />
                     </FormItem>

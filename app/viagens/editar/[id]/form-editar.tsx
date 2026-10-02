@@ -66,9 +66,11 @@ type FormEditarViagemProps = {
   viagem: ViagemComRelacionamentos
   /** Já com a situação de cada motorista calculada no servidor (ver montarOpcoesMotoristaPorViagem). */
   opcoesMotorista: OpcaoMotorista[]
+  /** Entregas com chegada registrada pelo motorista (cliente/lugar travados). */
+  entregasComChegada: number[]
 }
 
-export default function FormEditarViagem({ viagem, opcoesMotorista }: FormEditarViagemProps) {
+export default function FormEditarViagem({ viagem, opcoesMotorista, entregasComChegada }: FormEditarViagemProps) {
   const router = useRouter()
   const [erroGlobal, setErroGlobal] = useState("")
   const statusInicial = normalizarStatusViagem(viagem.status)
@@ -293,7 +295,7 @@ export default function FormEditarViagem({ viagem, opcoesMotorista }: FormEditar
           </CardContent>
         </Card>
 
-        <EntregasFieldArray control={form.control} />
+        <EntregasFieldArray control={form.control} entregasComChegada={entregasComChegada} />
 
         <div className="sticky bottom-0 -mx-4 -mb-4 mt-6 flex justify-end border-t border-border bg-card p-4 shadow-md md:-mx-8 md:-mb-8">
           <Button type="button" variant="outline" className="mr-3" onClick={() => router.back()}>
