@@ -17,7 +17,7 @@ import { formatarNomeProprio } from "@/lib/utils/texto"
 export function LayoutMotorista({ nome, children }: { nome: string | null | undefined; children: ReactNode }) {
   return (
     <div className="flex min-h-screen flex-col bg-muted/40">
-      <header className="sticky top-0 z-20 bg-sidebar text-white/80 shadow-md">
+      <header className="sticky top-0 z-20 bg-sidebar text-white/80 shadow-md print:hidden">
         <div className="mx-auto flex max-w-xl items-center justify-between gap-3 px-4 py-3">
           <Link href={AREA_MOTORISTA} className="flex min-w-0 items-center gap-3">
             <LogoEscalador compacto />
@@ -35,8 +35,8 @@ export function LayoutMotorista({ nome, children }: { nome: string | null | unde
           </Button>
         </div>
       </header>
-      <main className="mx-auto w-full max-w-xl flex-1 space-y-4 px-4 py-4">{children}</main>
-      <Rodape className="mx-auto mb-4 w-full max-w-xl px-4" />
+      <main className="mx-auto w-full max-w-xl flex-1 space-y-4 px-4 py-4 print:max-w-none print:p-0">{children}</main>
+      <Rodape className="mx-auto mb-4 w-full max-w-xl px-4 print:hidden" />
     </div>
   )
 }
