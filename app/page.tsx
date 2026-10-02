@@ -3,19 +3,24 @@ import { requireSessaoPaginaComFilial } from "@/lib/auth-guard"
 import { Button } from "@/components/ui/button"
 import { EmptyState } from "@/components/ui/empty-state"
 import { Input } from "@/components/ui/input"
-import { AlarmClock, CalendarDays, CheckCircle2, Download, Info, PlayCircle, PlusCircle, Route, UserX } from "lucide-react"
+import { AlarmClock, CalendarDays, Download, Info, Moon, PlusCircle, Route, Sun } from "lucide-react"
 import { Alert } from "@/components/ui/alert"
 import { Badge } from "@/components/ui/badge"
-import { StatCard } from "@/components/ui/stat-card"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { buscarViagensDoDashboard } from "@/lib/queries/viagens"
 import type { StatusViagem } from "@prisma/client"
 import { NomeMotorista } from "@/components/motorista/icone-tipo-motorista"
-import { STATUS_ALTERAVEIS_NO_DASHBOARD, organizarViagensDoDashboard, viagemEncerrada } from "@/lib/services/dashboard.service"
+import {
+  STATUS_ALTERAVEIS_NO_DASHBOARD,
+  STATUS_ATIVOS_DASHBOARD,
+  STATUS_ENCERRADOS_DASHBOARD,
+  organizarViagensDoDashboard,
+  resumoPorTurno,
+  viagemEncerrada,
+} from "@/lib/services/dashboard.service"
 import { cn } from "@/lib/utils"
 import { serializeData } from "@/lib/serialization"
-import { STATUS_VIAGEM_OPCOES, formatarStatusViagem, parseStatusFiltro, type FiltroStatusViagem } from "@/lib/services/viagem-status.service"
-import { formatDateForDateInput, formatarDataHoraPtBr, formatarHoraLocal, inicioDoDia, parseDataLocal } from "@/lib/utils/date-format"
+import { fimDoDia, formatDateForDateInput, formatarDataHoraPtBr, formatarHoraLocal, inicioDoDia, parseDataLocal } from "@/lib/utils/date-format"
 import { RotaDestinos } from "@/components/viagem/rota-destinos"
 import AtualizarSaidaReal from "./atualizar-saida-real"
 import AtualizarStatusRapido from "./viagens/atualizar-status-rapido"
@@ -25,6 +30,8 @@ import { formatarCodigoFrota } from "@/lib/services/frota-regras"
 import { LegendaMotoristas } from "@/components/motorista/legenda-motoristas"
 import { BotaoIcone } from "@/components/ui/botao-icone"
 import { AtualizacaoAutomatica } from "@/components/atualizacao-automatica"
+import { ModoTv } from "@/components/dashboard/modo-tv"
+import { classePontoStatusViagem } from "@/app/viagens/badge-styles"
 import { diaParaTexto } from "@/lib/relatorios/periodo"
 import { TOLERANCIA_SAIDA_MINUTOS, minutosDeAtraso, saidaAtrasada } from "@/lib/services/pontualidade"
 
@@ -155,7 +162,7 @@ function ViagensEmAndamentoTabela({ itens, diaMostrado }: { itens: ItemDashboard
           <col className="w-[9%]" />
           <col className="w-[17%]" />
           <col />
-          <col className="w-11" />
+          <col className="fora-do-modo-tv w-11" />
         </colgroup>
         <TableHeader className="sticky top-0 z-10 bg-muted">
           <TableRow>
@@ -165,12 +172,12 @@ function ViagensEmAndamentoTabela({ itens, diaMostrado }: { itens: ItemDashboard
             <TableHead>Início</TableHead>
             <TableHead>Saída real</TableHead>
             <TableHead>Destinos</TableHead>
-            <TableHead><span className="sr-only">Ordem de viagem</span></TableHead>
+            <TableHead className="fora-do-modo-tv"><span className="sr-only">Ordem de viagem</span></TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
           {itens.map((item) => (
-            <TableRow key={item.viagem.id} className={cn(viagemEncerrada(item.viagem.status) && "opacity-60")}>
+            <TableRow key={item.viagem.id}>
               <TableCell className="overflow-hidden">
                 <MotoristaCelula item={item} />
               </TableCell>
@@ -189,7 +196,7 @@ function ViagensEmAndamentoTabela({ itens, diaMostrado }: { itens: ItemDashboard
               <TableCell className="overflow-hidden">
                 <RotaDestinos entregas={entregasDaViagem(item)} />
               </TableCell>
-              <TableCell className="px-1">
+              <TableCell className="fora-do-modo-tv px-1">
                 <BaixarOrdemDeViagem viagemId={item.viagem.id} />
               </TableCell>
             </TableRow>
@@ -207,7 +214,7 @@ function ViagensEmAndamentoCards({ itens }: { itens: ItemDashboard[] }) {
       {itens.map((item) => (
         <div
           key={item.viagem.id}
-          className={cn("space-y-3 rounded-lg border bg-card shadow-sm p-4", viagemEncerrada(item.viagem.status) && "opacity-60")}
+          className="space-y-3 rounded-lg border bg-card shadow-sm p-4"
         >
           <div className="flex items-start justify-between gap-2">
             <div>
@@ -258,7 +265,6 @@ function ViagensEmAndamentoCards({ itens }: { itens: ItemDashboard[] }) {
 }
 
 type SearchParamsInput = {
-  status?: string
   data?: string
 }
 
@@ -269,13 +275,89 @@ function dataLocalParaInput(data: Date): string {
   return diaParaTexto(data)
 }
 
-/** Preserva o filtro de status/data ao trocar um dos dois — omite o parâmetro quando está no padrão, pra manter a URL limpa em "hoje". */
-function construirHref(status: FiltroStatusViagem, dataTexto?: string) {
-  const params = new URLSearchParams()
-  if (status !== "TODOS") params.set("status", status)
-  if (dataTexto) params.set("data", dataTexto)
-  const query = params.toString()
-  return `/${query ? `?${query}` : ""}`
+/** "hoje · quinta-feira, 01/10" — no fuso de Brasília. */
+function descreverDia(data: Date) {
+  const texto = new Intl.DateTimeFormat("pt-BR", { timeZone: "America/Sao_Paulo", weekday: "long", day: "2-digit", month: "2-digit" }).format(data)
+  const dia = texto.charAt(0).toUpperCase() + texto.slice(1)
+  return diaParaTexto(data) === diaParaTexto(new Date()) ? `Hoje · ${texto}` : dia
+}
+
+const ROTULO_CONTADOR: Record<StatusViagem, string> = {
+  CRIADA: "Criadas",
+  ALOCADA: "Alocadas",
+  INICIADA: "Iniciadas",
+  RETORNANDO: "Retornando",
+  POSTERGADA: "Postergadas",
+  FINALIZADA: "Finalizadas",
+  CANCELADA: "Canceladas",
+}
+
+const DICA_CONTADOR: Partial<Record<StatusViagem, string>> = {
+  CRIADA: "Viagens ainda sem motorista.",
+  RETORNANDO: "Inclui as que saíram em dias anteriores e ainda estão voltando.",
+  FINALIZADA: "Finalizadas no dia — saem da lista, fica só o número.",
+  CANCELADA: "Canceladas no dia — saem da lista, fica só o número.",
+}
+
+/** Contador de um status, com o ponto na cor do status (a mesma do seletor na lista). Encerradas ficam discretas. */
+function ContadorStatus({ status, valor }: { status: StatusViagem; valor: number }) {
+  const encerrado = viagemEncerrada(status)
+  const alerta = status === "CRIADA" && valor > 0
+  return (
+    <div
+      title={DICA_CONTADOR[status]}
+      className={cn("rounded-lg border p-3 shadow-sm", encerrado ? "bg-muted/50 shadow-none" : "bg-card")}
+    >
+      <p className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
+        <span aria-hidden className={cn("size-2 rounded-full", classePontoStatusViagem(status))} />
+        {ROTULO_CONTADOR[status]}
+      </p>
+      <p
+        className={cn(
+          "mt-1 text-3xl font-semibold tabular-nums",
+          encerrado && "text-muted-foreground",
+          alerta && "text-warning",
+          valor === 0 && !encerrado && "text-muted-foreground/50",
+        )}
+      >
+        {valor}
+      </p>
+    </div>
+  )
+}
+
+function plural(n: number, singular: string, pluralTexto: string) {
+  return `${n} ${n === 1 ? singular : pluralTexto}`
+}
+
+/** Programação do dia por turno: "Dia: 4 viagens · 7 entregas". */
+function ResumoTurnos({ resumo }: { resumo: ReturnType<typeof resumoPorTurno> }) {
+  const linhas = [
+    { rotulo: "Dia", icone: Sun, ...resumo.dia },
+    { rotulo: "Noite", icone: Moon, ...resumo.noite },
+  ]
+  return (
+    <div
+      className="flex flex-wrap items-center gap-x-5 gap-y-1 text-sm"
+      title="Viagens que começam no dia (sem as canceladas) e as entregas delas. Dia: início até 15:59; Noite: a partir das 16:00."
+    >
+      {linhas.map(({ rotulo, icone: Icone, viagens, entregas }) => (
+        <span key={rotulo} className="flex items-center gap-1.5 text-muted-foreground">
+          <Icone aria-hidden className="size-4" />
+          <span className="font-medium text-foreground">{rotulo}:</span>
+          <span className="tabular-nums">
+            {plural(viagens, "viagem", "viagens")} · {plural(entregas, "entrega", "entregas")}
+          </span>
+        </span>
+      ))}
+      <span className="flex items-center gap-1.5 rounded-md bg-muted px-2 py-0.5">
+        <span className="font-medium text-foreground">Total:</span>
+        <span className="tabular-nums text-foreground">
+          {plural(resumo.total.viagens, "viagem", "viagens")} · {plural(resumo.total.entregas, "entrega", "entregas")}
+        </span>
+      </span>
+    </div>
+  )
 }
 
 export default async function DashboardPage({
@@ -284,7 +366,6 @@ export default async function DashboardPage({
   searchParams?: Promise<SearchParamsInput>
 }) {
   const parametros = (await searchParams) ?? {}
-  const filtroStatus = parseStatusFiltro(parametros.status)
   const dataSelecionada = parametros.data ? parseDataLocal(parametros.data) : new Date()
   const dataTextoInput = parametros.data ?? dataLocalParaInput(new Date())
   const vendoOutroDia = Boolean(parametros.data)
@@ -294,137 +375,132 @@ export default async function DashboardPage({
     buscarDadosDashboard(filialId, dataSelecionada),
     buscarQuadroObservacoes(filialId),
   ])
-  const { visiveis: itensOrdenados, contagem } = organizarViagensDoDashboard(
+  const { ativas: itens, contagem } = organizarViagensDoDashboard(
     todosDoDia.map((item) => ({ ...item, status: item.viagem.status, inicioPrevisto: item.viagem.inicioPrevisto })),
-    filtroStatus,
   )
-  const itens = itensOrdenados
+  const resumo = resumoPorTurno(
+    todosDoDia.map((item) => item.viagem),
+    inicioDoDia(dataSelecionada),
+    fimDoDia(dataSelecionada),
+  )
 
   const explicacaoDashboard =
-    "Painel de acompanhamento: viagens do dia selecionado em qualquer status, mais Retornando de dias anteriores e Finalizadas/Canceladas no dia. Aqui só se registra a saída real e o status — editar, alocar e criar é na Gestão de Viagens." +
+    "Painel de acompanhamento: na lista, só o que ainda está ativo (criadas, alocadas, iniciadas, retornando — inclusive de dias anteriores — e postergadas). Finalizadas e canceladas no dia ficam só no contador. Aqui só se registra a saída real e o status — editar, alocar e criar é na Gestão de Viagens." +
     (vendoOutroDia ? " Status mostrado é o atual da viagem, não uma foto de como estava naquele dia — pra ver a mudança em si, use o Histórico." : "")
 
-  // Indicadores e contagens saem da lista do dia inteiro, já carregada — sem
-  // query extra, e os números não mudam ao filtrar.
-  const contarStatus = (...status: StatusViagem[]) => status.reduce((soma, atual) => soma + (contagem[atual] ?? 0), 0)
-  const semMotorista = todosDoDia.filter(
-    (item) => item.viagem.motoristaId === null && !viagemEncerrada(item.viagem.status),
-  ).length
   const saidas = todosDoDia.filter((item) => item.viagem.horarioRealSaida)
   const saidasAtrasadas = saidas.filter((item) =>
     saidaAtrasada(minutosDeAtraso(item.viagem.inicioPrevisto, item.viagem.horarioRealSaida!)),
   ).length
   const dataTexto = dataLocalParaInput(dataSelecionada)
+  const atualizadoEm = formatarHoraLocal(new Date())
 
   return (
-    <div className="space-y-6">
+    <div id="painel-dashboard" className="space-y-5">
       {/* O que o motorista registra no celular (saída, encerramento) aparece sozinho. */}
       <AtualizacaoAutomatica segundos={60} />
-      <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+      <div className="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
         <div>
           <div className="flex items-center gap-2">
             <h1 className="text-2xl font-semibold tracking-tight text-foreground">Dashboard</h1>
-            <span title={explicacaoDashboard} className="text-muted-foreground hover:text-foreground">
+            <span title={explicacaoDashboard} className="fora-do-modo-tv text-muted-foreground hover:text-foreground">
               <Info aria-hidden="true" className="size-4" />
               <span className="sr-only">{explicacaoDashboard}</span>
             </span>
           </div>
-          <p className="text-muted-foreground mt-1">Viagens do dia selecionado, incluindo retornos pendentes.</p>
+          <p className="mt-1 text-muted-foreground">
+            <span>{descreverDia(dataSelecionada)}</span>
+            <span className="tabular-nums"> · atualizado às {atualizadoEm}</span>
+          </p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
-          <Link href={construirHref("TODOS", parametros.data)}>
-            <Button variant={filtroStatus === "TODOS" ? "default" : "outline"}>
-              Todos<span className="tabular-nums opacity-70"> · {todosDoDia.length}</span>
+          <form method="get" className="fora-do-modo-tv flex items-center gap-2">
+            <Input type="date" name="data" defaultValue={dataTextoInput} className="w-40" aria-label="Dia" />
+            <Button type="submit" variant="outline" size="sm">
+              <CalendarDays className="mr-2 size-4" aria-hidden />
+              Ver dia
             </Button>
-          </Link>
-          {STATUS_VIAGEM_OPCOES.map((status) => (
-            <Link key={status.valor} href={construirHref(status.valor, parametros.data)}>
-              <Button variant={filtroStatus === status.valor ? "default" : "outline"}>
-                {status.label}
-                <span className="tabular-nums opacity-70"> · {contarStatus(status.valor)}</span>
-              </Button>
-            </Link>
-          ))}
+            {vendoOutroDia && (
+              <Link href="/">
+                <Button type="button" variant="ghost" size="sm">Voltar pra hoje</Button>
+              </Link>
+            )}
+          </form>
+          <Button asChild variant="outline" size="sm" className="fora-do-modo-tv">
+            <a href={`/api/relatorios/programacao?data=${dataTexto}`} title="Excel com todas as viagens do dia: horários, motorista, acompanhante, frota e entregas.">
+              <Download className="mr-2 size-4" aria-hidden />
+              Programação do dia
+            </a>
+          </Button>
+          <ModoTv alvoId="painel-dashboard" />
         </div>
       </div>
 
-      <div className="grid grid-cols-2 lg:grid-cols-5 gap-4">
-        <StatCard rotulo="Viagens" valor={todosDoDia.length} icone={Route} />
-        <StatCard
-          rotulo="Sem motorista"
-          valor={semMotorista}
-          icone={UserX}
-          classeValor={semMotorista > 0 ? "text-warning" : undefined}
-        />
-        <StatCard rotulo="Em andamento" valor={contarStatus("INICIADA", "RETORNANDO")} icone={PlayCircle} />
-        <StatCard rotulo="Finalizadas" valor={contarStatus("FINALIZADA")} icone={CheckCircle2} />
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-4 xl:grid-cols-8">
+        {STATUS_ATIVOS_DASHBOARD.map((status) => (
+          <ContadorStatus key={status} status={status} valor={contagem[status] ?? 0} />
+        ))}
+        {STATUS_ENCERRADOS_DASHBOARD.map((status) => (
+          <ContadorStatus key={status} status={status} valor={contagem[status] ?? 0} />
+        ))}
         <Link
           href={`/relatorios/pontualidade?de=${dataTexto}&ate=${dataTexto}`}
           title={`Saídas registradas até ${TOLERANCIA_SAIDA_MINUTOS} min depois do previsto contam como no horário. Clique pra ver o relatório.`}
-          className="col-span-2 rounded-lg transition-opacity hover:opacity-90 lg:col-span-1"
+          className="rounded-lg border bg-card p-3 shadow-sm transition-opacity hover:opacity-90"
         >
-          <StatCard
-            rotulo={saidas.length ? `Saíram no horário · ${saidas.length - saidasAtrasadas} de ${saidas.length}` : "Saíram no horário"}
-            valor={saidas.length ? `${Math.round(((saidas.length - saidasAtrasadas) / saidas.length) * 100)}%` : "—"}
-            icone={AlarmClock}
-            classeValor={saidasAtrasadas > 0 ? "text-warning" : undefined}
-          />
+          <p className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
+            <AlarmClock aria-hidden className="size-3.5" />
+            No horário
+          </p>
+          <p className="mt-1 flex flex-wrap items-baseline gap-x-1.5">
+            <span className={cn("text-3xl font-semibold tabular-nums", saidasAtrasadas > 0 && "text-warning")}>
+              {saidas.length ? `${Math.round(((saidas.length - saidasAtrasadas) / saidas.length) * 100)}%` : "—"}
+            </span>
+            {saidas.length > 0 && (
+              <span className="whitespace-nowrap text-xs tabular-nums text-muted-foreground">
+                {saidas.length - saidasAtrasadas} de {saidas.length}
+              </span>
+            )}
+          </p>
         </Link>
       </div>
 
-      <form method="get" className="flex flex-wrap items-center gap-2">
-        {filtroStatus !== "TODOS" && <input type="hidden" name="status" value={filtroStatus} />}
-        <Input type="date" name="data" defaultValue={dataTextoInput} className="w-40" />
-        <Button type="submit" variant="outline" size="sm">
-          <CalendarDays className="w-4 h-4 mr-2" />
-          Ver dia
-        </Button>
-        <Button asChild variant="outline" size="sm" className="ml-auto">
-          <a href={`/api/relatorios/programacao?data=${dataTexto}`} title="Excel com todas as viagens do dia: horários, motorista, acompanhante, frota e entregas.">
-            <Download className="w-4 h-4 mr-2" aria-hidden />
-            Programação do dia
-          </a>
-        </Button>
-        {vendoOutroDia && (
-          <Link href={construirHref(filtroStatus)}>
-            <Button type="button" variant="ghost" size="sm">Voltar pra hoje</Button>
-          </Link>
-        )}
-      </form>
-
-      {itens.length === 0 ? (
-        <EmptyState
-          icone={Route}
-          titulo="Nenhuma viagem"
-          descricao="Nenhuma viagem encontrada para este filtro."
-          acao={
-            <Link href="/viagens/nova">
-              <Button>
-                <PlusCircle className="w-4 h-4 mr-2" />
-                Nova viagem
-              </Button>
-            </Link>
-          }
-        />
-      ) : (
-        <section className="space-y-3">
-          <div className="flex items-center justify-between">
-            <h2 className="text-xl font-semibold text-foreground">
-              {vendoOutroDia
-                ? dataTextoInput.split("-").reverse().join("/")
-                : filtroStatus === "TODOS" ? "Hoje" : `Status: ${formatarStatusViagem(filtroStatus)}`}
-            </h2>
-            <div className="flex items-center gap-4">
+      <section className="space-y-3">
+        <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
+          <h2 className="text-xl font-semibold text-foreground">
+            Em aberto <span className="tabular-nums text-muted-foreground">· {itens.length}</span>
+          </h2>
+          <ResumoTurnos resumo={resumo} />
+        </div>
+        {itens.length === 0 ? (
+          <EmptyState
+            icone={Route}
+            titulo="Nenhuma viagem em aberto"
+            descricao="As viagens do dia já foram finalizadas ou canceladas — ou ainda não foram criadas."
+            acao={
+              <Link href="/viagens/nova" className="fora-do-modo-tv">
+                <Button>
+                  <PlusCircle className="mr-2 size-4" />
+                  Nova viagem
+                </Button>
+              </Link>
+            }
+          />
+        ) : (
+          <>
+            <ViagensEmAndamentoTabela itens={itens} diaMostrado={dataTextoInput} />
+            <ViagensEmAndamentoCards itens={itens} />
+            <div className="flex justify-end">
               <LegendaMotoristas mostrarSituacao={false} />
-              <Badge variant="outline">{itens.length}</Badge>
             </div>
-          </div>
-          <ViagensEmAndamentoTabela itens={itens} diaMostrado={dataTextoInput} />
-          <ViagensEmAndamentoCards itens={itens} />
-        </section>
-      )}
+          </>
+        )}
+      </section>
 
-      <QuadroDeObservacoes textoInicial={quadroObservacoes} />
+      {/* Na TV, o quadro só aparece se tiver recado. */}
+      <div className={cn(!quadroObservacoes.trim() && "fora-do-modo-tv")}>
+        <QuadroDeObservacoes textoInicial={quadroObservacoes} />
+      </div>
     </div>
   )
 }
