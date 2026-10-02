@@ -3,7 +3,7 @@ import CredentialsProvider from "next-auth/providers/credentials";
 import { PrismaAdapter } from "@auth/prisma-adapter";
 import { prisma } from "@/lib/prisma";
 import { Adapter } from "next-auth/adapters";
-import { autenticarUsuario, DURACAO_SESSAO_SEGUNDOS, revalidarToken } from "@/lib/services/auth.service";
+import { autenticarMotorista, autenticarUsuario, DURACAO_SESSAO_SEGUNDOS, revalidarToken } from "@/lib/services/auth.service";
 
 export const authOptions: NextAuthOptions = {
   adapter: PrismaAdapter(prisma) as Adapter,
@@ -16,6 +16,18 @@ export const authOptions: NextAuthOptions = {
       },
       async authorize(credentials, req) {
         return autenticarUsuario(credentials, req?.headers);
+      }
+    }),
+    // Acesso do motorista (área "Minhas viagens"): matrícula + PIN.
+    CredentialsProvider({
+      id: "motorista",
+      name: "Motorista",
+      credentials: {
+        seva: { label: "Matrícula (SEVA)", type: "text" },
+        pin: { label: "PIN", type: "password" }
+      },
+      async authorize(credentials, req) {
+        return autenticarMotorista(credentials, req?.headers);
       }
     })
   ],
@@ -46,6 +58,8 @@ export const authOptions: NextAuthOptions = {
         token.id = user.id;
         token.role = user.role;
         token.filialId = user.filialId;
+        token.motoristaId = user.motoristaId ?? null;
+        token.versaoSessao = user.versaoSessao ?? 0;
         token.loginEm = Date.now();
         return token;
       }
@@ -58,6 +72,7 @@ export const authOptions: NextAuthOptions = {
         session.user.id = token.id;
         session.user.role = token.role;
         session.user.filialId = token.filialId;
+        session.user.motoristaId = token.motoristaId ?? null;
       }
       return session;
     }

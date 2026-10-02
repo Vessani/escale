@@ -13,6 +13,7 @@ import { serializeData } from "@/lib/serialization"
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import { Download } from "lucide-react"
+import { RegistroMotoristaCard } from "@/components/viagem/registro-motorista-card"
 
 export default async function EditarViagemPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
@@ -70,6 +71,8 @@ export default async function EditarViagemPage({ params }: { params: Promise<{ i
         viagem={viagemSerializada}
         opcoesMotorista={opcoesMotorista}
       />
+
+      <RegistroMotoristaCard kmInicial={viagem.kmInicial} kmFinal={viagem.kmFinal} despesas={viagem.despesas} />
 
       <HistoricoCard registros={serializeData(historico)} />
     </div>

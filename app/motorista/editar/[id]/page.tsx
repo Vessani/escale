@@ -8,6 +8,8 @@ import { HistoricoCard } from "@/components/auditoria/historico-card"
 import { serializeData } from "@/lib/serialization"
 import { mapearRegistrosJornada, projetarCodigoNoDia } from "@/lib/services/jornada.service"
 import { inicioDoDia } from "@/lib/utils/date-format"
+import { AcessoMotoristaCard } from "@/components/motorista/acesso-motorista-card"
+import { situacaoAcessoMotorista } from "@/lib/services/acesso-motorista.service"
 
 export default async function EditarMotoristaPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
@@ -19,10 +21,11 @@ export default async function EditarMotoristaPage({ params }: { params: Promise<
 
   const { filialId } = await requireSessaoPaginaComFilial()
 
-  const [motorista, clientes, historico] = await Promise.all([
+  const [motorista, clientes, historico, acesso] = await Promise.all([
     buscarMotoristaPorId(filialId, motoristaId),
     buscarClientes(),
     buscarHistoricoDaEntidade("Motorista", motoristaId),
+    situacaoAcessoMotorista(motoristaId),
   ])
 
   if (!motorista) {
@@ -49,6 +52,8 @@ export default async function EditarMotoristaPage({ params }: { params: Promise<
         <p className="text-muted-foreground mt-1">Atualize os dados operacionais do condutor.</p>
       </div>
       <FormEditarMotorista key={motorista.id} motorista={motoristaSerializado} clientes={clientes} />
+
+      <AcessoMotoristaCard motoristaId={motorista.id} seva={motorista.seva} situacao={acesso} />
 
       <HistoricoCard registros={serializeData(historico)} />
     </div>

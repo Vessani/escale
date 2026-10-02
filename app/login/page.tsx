@@ -9,6 +9,10 @@ import { Label } from "@/components/ui/label"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { LogoEscale } from "@/components/layout/logo-escale"
 import { Rodape } from "@/components/layout/rodape"
+import { AREA_MOTORISTA } from "@/lib/papeis"
+import { cn } from "@/lib/utils"
+
+type Modo = "despacho" | "motorista"
 
 function normalizarErroLogin(erro: string) {
   if (erro === "CredentialsSignin") {
@@ -29,8 +33,11 @@ function normalizarErroLogin(erro: string) {
 
 export default function LoginPage() {
   const router = useRouter()
+  const [modo, setModo] = useState<Modo>("despacho")
   const [email, setEmail] = useState("")
   const [senha, setSenha] = useState("")
+  const [seva, setSeva] = useState("")
+  const [pin, setPin] = useState("")
   const [erro, setErro] = useState("")
   const [carregando, setCarregando] = useState(false)
 
@@ -40,17 +47,16 @@ export default function LoginPage() {
     setCarregando(true)
 
 
-    const resultado = await signIn("credentials", {
-      email,
-      senha,
-      redirect: false, 
-    })
+    const resultado =
+      modo === "motorista"
+        ? await signIn("motorista", { seva, pin, redirect: false })
+        : await signIn("credentials", { email, senha, redirect: false })
 
     if (resultado?.error) {
       setErro(normalizarErroLogin(resultado.error))
       setCarregando(false)
     } else {
-      router.push("/")
+      router.push(modo === "motorista" ? AREA_MOTORISTA : "/")
       router.refresh()
     }
   }
@@ -64,12 +70,63 @@ export default function LoginPage() {
           </div>
           <CardTitle className="text-2xl font-semibold tracking-tight">Entrar</CardTitle>
           <CardDescription>
-            Insira suas credenciais para acessar a operação
+            {modo === "motorista" ? "Use sua matrícula (SEVA) e o PIN que o despacho te passou" : "Insira suas credenciais para acessar a operação"}
           </CardDescription>
+          <div className="mx-auto mt-3 inline-flex rounded-lg border bg-muted/40 p-1" role="group" aria-label="Tipo de acesso">
+            {(["despacho", "motorista"] as const).map((opcao) => (
+              <button
+                key={opcao}
+                type="button"
+                aria-pressed={modo === opcao}
+                onClick={() => {
+                  setModo(opcao)
+                  setErro("")
+                }}
+                className={cn(
+                  "rounded-md px-4 py-1.5 text-sm transition-colors",
+                  modo === opcao
+                    ? "bg-background font-medium text-foreground shadow-sm ring-1 ring-border"
+                    : "text-muted-foreground hover:text-foreground",
+                )}
+              >
+                {opcao === "despacho" ? "Despacho" : "Motorista"}
+              </button>
+            ))}
+          </div>
         </CardHeader>
         
         <form onSubmit={handleLogin}>
           <CardContent className="space-y-4">
+            {modo === "motorista" ? (
+              <>
+                <div className="space-y-2">
+                  <Label htmlFor="seva">Matrícula (SEVA)</Label>
+                  <Input
+                    id="seva"
+                    inputMode="numeric"
+                    autoComplete="username"
+                    placeholder="Ex: 261"
+                    value={seva}
+                    onChange={(e) => setSeva(e.target.value.replace(/\D/g, ""))}
+                    required
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="pin">PIN</Label>
+                  <Input
+                    id="pin"
+                    type="password"
+                    inputMode="numeric"
+                    autoComplete="current-password"
+                    maxLength={6}
+                    value={pin}
+                    onChange={(e) => setPin(e.target.value.replace(/\D/g, ""))}
+                    required
+                  />
+                </div>
+              </>
+            ) : (
+            <>
             <div className="space-y-2">
               <Label htmlFor="email">E-mail</Label>
               <Input 
@@ -91,6 +148,8 @@ export default function LoginPage() {
                 required
               />
             </div>
+            </>
+            )}
 
             {}
             {erro && (

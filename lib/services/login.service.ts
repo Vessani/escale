@@ -62,3 +62,31 @@ export async function registrarFalhaLogin(email: string, ip: string | null, agor
 export async function limparFalhasLogin(email: string) {
   await prisma.tentativaLogin.deleteMany({ where: { email } })
 }
+
+/** Chave do limite de tentativas do login do motorista (mesma tabela do login por e-mail). */
+export function chaveLoginMotorista(seva: number) {
+  return `motorista:${seva}`
+}
+
+/**
+ * O PIN do motorista tem só 6 dígitos: além da janela de 15 min, no máximo
+ * 10 erros em 24h por matrícula. Passou disso, só um PIN novo gerado pelo
+ * despacho libera (ele zera as tentativas) — quem tenta adivinhar não ganha
+ * novas chances esperando.
+ */
+export const MAX_FALHAS_MOTORISTA_24H = 10
+
+export class PinBloqueadoError extends Error {
+  constructor() {
+    super("Acesso bloqueado por tentativas erradas. Peça um PIN novo ao despacho.")
+    this.name = "PinBloqueadoError"
+  }
+}
+
+export async function garantirPinNaoBloqueado(chave: string, agora = new Date()) {
+  const falhas = await prisma.tentativaLogin.count({
+    where: { email: chave, criadoEm: { gte: new Date(agora.getTime() - HORAS_RETENCAO * 60 * 60 * 1000) } },
+  })
+  if (falhas >= MAX_FALHAS_MOTORISTA_24H) throw new PinBloqueadoError()
+}
+

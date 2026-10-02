@@ -1,5 +1,6 @@
 import { getServerSession } from "next-auth"
 import { authOptions } from "@/lib/auth"
+import { ehMotorista } from "@/lib/papeis"
 import { buscarMotoristaPorId } from "@/lib/queries/motoristas"
 import { buscarViagensPorMotorista } from "@/lib/queries/viagens"
 import { buscarNomeFilial } from "@/lib/queries/filiais"
@@ -12,7 +13,7 @@ export async function GET(
   { params }: { params: Promise<{ id: string }> },
 ) {
   const session = await getServerSession(authOptions)
-  if (!session || session.user.filialId === null) {
+  if (!session || session.user.filialId === null || ehMotorista(session.user.role)) {
     return new Response("Não autorizado.", { status: 401 })
   }
 

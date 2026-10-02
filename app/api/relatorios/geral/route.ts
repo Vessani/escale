@@ -1,5 +1,6 @@
 import { getServerSession } from "next-auth"
 import { authOptions } from "@/lib/auth"
+import { ehMotorista } from "@/lib/papeis"
 import { buscarViagensParaRelatorioGeral } from "@/lib/queries/viagens"
 import { gerarExcelRelatorioGeral } from "@/lib/services/excel-export.service"
 import { formatarStatusViagem, parseStatusFiltro } from "@/lib/services/viagem-status.service"
@@ -10,7 +11,7 @@ import { parseDataLocal } from "@/lib/utils/date-format"
 
 export async function GET(request: Request) {
   const session = await getServerSession(authOptions)
-  if (!session || session.user.filialId === null) {
+  if (!session || session.user.filialId === null || ehMotorista(session.user.role)) {
     return new Response("Não autorizado.", { status: 401 })
   }
 
