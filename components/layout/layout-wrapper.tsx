@@ -23,6 +23,7 @@ import {
   History,
 } from "lucide-react"
 import { Session } from "next-auth"
+import { ehGerencia } from "@/lib/papeis"
 import { Dialog } from "radix-ui"
 import TrocarSenhaDialog from "@/components/usuario/trocar-senha-dialog"
 import { LogoEscalador } from "@/components/layout/logo-escalador"
@@ -65,7 +66,7 @@ const menuItemsOperacional = [
   { href: "/frotas", label: "Frotas", icon: Container },
   { href: "/clientes", label: "Clientes", icon: Building },
   { href: "/relatorios", label: "Relatórios", icon: FileSpreadsheet },
-  { href: "/historico", label: "Histórico", icon: History },
+  { href: "/historico", label: "Histórico", icon: History, soGerencia: true },
 ]
 
 // SUPERADMIN não pertence a nenhuma filial — só gerencia o cadastro de
@@ -86,7 +87,10 @@ function LinksDoMenu({
   colapsado?: boolean
   aoNavegar?: () => void
 }) {
-  const menuItems = role === "SUPERADMIN" ? menuItemsSuperAdmin : menuItemsOperacional
+  const menuItems =
+    role === "SUPERADMIN"
+      ? menuItemsSuperAdmin
+      : menuItemsOperacional.filter((item) => !("soGerencia" in item) || ehGerencia(role))
 
   return (
     <nav aria-label="Navegação principal" className="flex-1 px-3 py-3 space-y-1 overflow-y-auto">

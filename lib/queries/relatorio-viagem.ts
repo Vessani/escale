@@ -1,7 +1,8 @@
 import { prisma } from "@/lib/prisma"
 
 /** Tudo da viagem pro "Relatório da viagem" — null se não for da filial. */
-export async function buscarRelatorioViagem(filialId: number, viagemId: number) {
+/** comHistorico: só a gerência vê a linha do tempo, que sai do histórico de alterações. */
+export async function buscarRelatorioViagem(filialId: number, viagemId: number, comHistorico: boolean) {
   const viagem = await prisma.viagem.findFirst({
     where: { id: viagemId, filialId, deletadoEm: null },
     include: {
@@ -17,10 +18,12 @@ export async function buscarRelatorioViagem(filialId: number, viagemId: number) 
   })
   if (!viagem) return null
 
-  const historico = await prisma.registroAuditoria.findMany({
-    where: { entidade: "Viagem", entidadeId: String(viagemId) },
-    orderBy: { criadoEm: "asc" },
-    select: { criadoEm: true, antes: true, depois: true, usuarioNome: true },
-  })
+  const historico = comHistorico
+    ? await prisma.registroAuditoria.findMany({
+        where: { entidade: "Viagem", entidadeId: String(viagemId) },
+        orderBy: { criadoEm: "asc" },
+        select: { criadoEm: true, antes: true, depois: true, usuarioNome: true },
+      })
+    : null
   return { viagem, historico }
 }

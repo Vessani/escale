@@ -9,6 +9,7 @@ import { inicioDoDia } from "@/lib/utils/date-format"
 import { notFound } from "next/navigation"
 import FormEditarViagem from "./form-editar"
 import { HistoricoCard } from "@/components/auditoria/historico-card"
+import { ehGerencia } from "@/lib/papeis"
 import { serializeData } from "@/lib/serialization"
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
@@ -26,7 +27,8 @@ export default async function EditarViagemPage({ params }: { params: Promise<{ i
     notFound()
   }
 
-  const { filialId } = await requireSessaoPaginaComFilial()
+  const { filialId, session } = await requireSessaoPaginaComFilial()
+  const verHistorico = ehGerencia(session.user.role)
 
   const viagem = await buscarViagemPorId(filialId, viagemId)
 
@@ -37,7 +39,7 @@ export default async function EditarViagemPage({ params }: { params: Promise<{ i
   const [motoristas, numerosSapQueExigemIntegracao, historico, despesas, chegadas, trocas, substitutos] = await Promise.all([
     buscarMotoristasParaSelect(filialId),
     buscarNumerosSapQueExigemIntegracao(),
-    buscarHistoricoDaEntidade("Viagem", viagem.id),
+    verHistorico ? buscarHistoricoDaEntidade("Viagem", viagem.id) : null,
     buscarDespesasDaViagem(filialId, viagem.id),
     buscarChegadasDaViagem(filialId, viagem.id),
     buscarTrocasDaViagem(filialId, viagem.id),
@@ -114,7 +116,7 @@ export default async function EditarViagemPage({ params }: { params: Promise<{ i
         }))}
       />
 
-      <HistoricoCard registros={serializeData(historico)} />
+      {historico && <HistoricoCard registros={serializeData(historico)} />}
     </div>
   )
 }

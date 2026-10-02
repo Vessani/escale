@@ -5,6 +5,7 @@ import { buscarClientes } from "@/lib/queries/clientes"
 import { buscarHistoricoDaEntidade } from "@/lib/queries/auditoria"
 import FormEditarMotorista from "./form-editar"
 import { HistoricoCard } from "@/components/auditoria/historico-card"
+import { ehGerencia } from "@/lib/papeis"
 import { serializeData } from "@/lib/serialization"
 import { mapearRegistrosJornada, projetarCodigoNoDia } from "@/lib/services/jornada.service"
 import { inicioDoDia } from "@/lib/utils/date-format"
@@ -19,12 +20,13 @@ export default async function EditarMotoristaPage({ params }: { params: Promise<
     notFound()
   }
 
-  const { filialId } = await requireSessaoPaginaComFilial()
+  const { filialId, session } = await requireSessaoPaginaComFilial()
+  const verHistorico = ehGerencia(session.user.role)
 
   const [motorista, clientes, historico, acesso] = await Promise.all([
     buscarMotoristaPorId(filialId, motoristaId),
     buscarClientes(),
-    buscarHistoricoDaEntidade("Motorista", motoristaId),
+    verHistorico ? buscarHistoricoDaEntidade("Motorista", motoristaId) : null,
     situacaoAcessoMotorista(filialId, motoristaId),
   ])
 
@@ -55,7 +57,7 @@ export default async function EditarMotoristaPage({ params }: { params: Promise<
 
       <AcessoMotoristaCard motoristaId={motorista.id} seva={motorista.seva} situacao={acesso} />
 
-      <HistoricoCard registros={serializeData(historico)} />
+      {historico && <HistoricoCard registros={serializeData(historico)} />}
     </div>
   )
 }

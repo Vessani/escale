@@ -1,4 +1,5 @@
 import { requireSessaoPaginaComFilial } from "@/lib/auth-guard"
+import { PAPEIS_GERENCIA } from "@/lib/papeis"
 import { diaParaTexto } from "@/lib/relatorios/periodo"
 import { buscarHistoricoDoDia } from "@/lib/queries/auditoria"
 import { inicioDoDia, fimDoDia, parseDataLocal, formatarDataHoraPtBr } from "@/lib/utils/date-format"
@@ -62,7 +63,8 @@ export default async function HistoricoPage({
   const de = inicioDoDia(parseDataLocal(deTexto))
   const ate = fimDoDia(parseDataLocal(ateTexto))
 
-  const { filialId } = await requireSessaoPaginaComFilial()
+  // Só a gerência (Admin) — despachante cai na tela de sem permissão.
+  const { filialId } = await requireSessaoPaginaComFilial(PAPEIS_GERENCIA)
 
   const registros = serializeData(await buscarHistoricoDoDia(filialId, de, ate))
 

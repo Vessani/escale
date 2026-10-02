@@ -12,14 +12,15 @@ export const metadata = { title: "Relatório da viagem" }
 
 /**
  * Motorista: o relatório da viagem dele (principal ou acompanhante), pra
- * imprimir ou salvar em PDF pelo navegador. Mesmo conteúdo do escalador.
+ * imprimir ou salvar em PDF pelo navegador. Mesmo conteúdo do escalador,
+ * sem a linha do tempo (só a gerência vê).
  */
 export default async function MeuRelatorioViagemPage({ params }: { params: Promise<{ id: string }> }) {
   const { filialId, motoristaId } = await requireSessaoPaginaMotorista()
   const id = Number((await params).id)
   // Só a viagem dele: a mesma checagem da tela da viagem (não revela se outra existe).
   const minha = Number.isInteger(id) && id > 0 ? await buscarMinhaViagem(filialId, motoristaId, id) : null
-  const r = minha ? await carregarRelatorioViagem(filialId, id) : null
+  const r = minha ? await carregarRelatorioViagem(filialId, id, { comLinhaDoTempo: false }) : null
 
   const voltar = (
     <Link href={minha ? `${AREA_MOTORISTA}/${id}` : AREA_MOTORISTA} className="inline-flex items-center gap-1.5 text-sm text-muted-foreground print:hidden">

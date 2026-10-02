@@ -70,11 +70,11 @@ describe("GET /api/viagens/[id]/relatorio", () => {
     expect((await GET(new Request("http://x"), contexto("abc"))).status).toBe(400)
     vi.mocked(carregarRelatorioViagem).mockResolvedValue(null)
     expect((await GET(new Request("http://x"), contexto("5"))).status).toBe(404)
-    expect(carregarRelatorioViagem).toHaveBeenCalledWith(3, 5)
+    expect(carregarRelatorioViagem).toHaveBeenCalledWith(3, 5, { comLinhaDoTempo: false })
   })
 
-  it("Excel numa aba só, com as seções e os dados da viagem", async () => {
-    vi.mocked(getServerSession).mockResolvedValue(sessao("DESPACHANTE"))
+  it("Excel numa aba só, com as seções e os dados da viagem (Admin vê a linha do tempo)", async () => {
+    vi.mocked(getServerSession).mockResolvedValue(sessao("ADMIN"))
     vi.mocked(carregarRelatorioViagem).mockResolvedValue(relatorio as never)
 
     const resposta = await GET(new Request("http://x"), contexto("5"))
@@ -87,5 +87,16 @@ describe("GET /api/viagens/[id]/relatorio", () => {
     for (const trecho of ["Resumo", "Entregas e chegadas", "Despesas", "Trocas de motorista", "Linha do tempo", "HOSPITAL SANTA ISABEL", "Balança × 0,754", "Pedágio"]) {
       expect(texto).toContain(trecho)
     }
+    expect(carregarRelatorioViagem).toHaveBeenCalledWith(3, 5, { comLinhaDoTempo: true })
+  })
+
+  it("despachante: Excel sem a linha do tempo", async () => {
+    vi.mocked(getServerSession).mockResolvedValue(sessao("DESPACHANTE"))
+    vi.mocked(carregarRelatorioViagem).mockResolvedValue({ ...relatorio, linhaDoTempo: null } as never)
+
+    const texto = textoDaAba(Buffer.from(await (await GET(new Request("http://x"), contexto("5"))).arrayBuffer()), "Viagem 922087")
+    expect(texto).toContain("Entregas e chegadas")
+    expect(texto).not.toContain("Linha do tempo")
+    expect(carregarRelatorioViagem).toHaveBeenCalledWith(3, 5, { comLinhaDoTempo: false })
   })
 })

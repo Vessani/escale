@@ -75,7 +75,7 @@ export function abasRelatorioViagem(r: RelatorioViagem): AbaPronta[] {
       ? r.trocas.map((t) => linha(TROCAS, { quando: t.quando, item: `${t.de} → ${t.para}`, detalhe: `${t.local} · ${t.motivo}`, km: t.km }))
       : [linha(TROCAS, { item: "Sem troca de motorista" })]),
 
-    ...r.linhaDoTempo.map((e) =>
+    ...(r.linhaDoTempo ?? []).map((e) =>
       linha(TEMPO, { quando: e.quando, item: e.titulo, detalhe: [e.detalhe, e.quem && `por ${e.quem}`].filter(Boolean).join(" · ") }),
     ),
   ]

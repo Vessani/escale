@@ -17,8 +17,9 @@ import { totaisDespesas } from "@/lib/services/despesas-viagem"
 const nome = (texto: string | null | undefined) => (texto ? formatarNomeProprio(texto) : null)
 const rotuloDespesa = (tipo: "PEDAGIO" | "PERNOITE") => (tipo === "PEDAGIO" ? "Pedágio" : "Pernoite")
 
-export async function carregarRelatorioViagem(filialId: number, viagemId: number) {
-  const dados = await buscarRelatorioViagem(filialId, viagemId)
+/** comLinhaDoTempo: só pra gerência (ver ehGerencia) — sem ela, linhaDoTempo vem null. */
+export async function carregarRelatorioViagem(filialId: number, viagemId: number, { comLinhaDoTempo }: { comLinhaDoTempo: boolean }) {
+  const dados = await buscarRelatorioViagem(filialId, viagemId, comLinhaDoTempo)
   if (!dados) return null
   const { viagem, historico } = dados
 
@@ -61,7 +62,7 @@ export async function carregarRelatorioViagem(filialId: number, viagemId: number
   }))
 
   const cancelada = viagem.status === "CANCELADA"
-  const linhaDoTempo = montarLinhaDoTempo({
+  const linhaDoTempo = historico && montarLinhaDoTempo({
     rotuloStatus: (status: StatusViagem) => formatarStatusViagem(status),
     mudancasStatus: mudancasDeStatus(historico).map((mudanca) => ({ ...mudanca, quem: nome(mudanca.quem) })),
     saida: viagem.horarioRealSaida ? { quando: viagem.horarioRealSaida, km: viagem.kmInicial, motivoAtraso: viagem.motivoAtraso } : null,
