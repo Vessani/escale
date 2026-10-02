@@ -15,7 +15,11 @@ import {
   LoginBloqueadoError,
   MAX_FALHAS_POR_EMAIL,
   MAX_FALHAS_POR_IP,
+  MAX_FALHAS_MOTORISTA_24H,
+  chaveLoginMotorista,
+  garantirPinNaoBloqueado,
   normalizarEmail,
+  PinBloqueadoError,
 } from "./login.service"
 
 describe("login.service", () => {
@@ -52,5 +56,16 @@ describe("login.service", () => {
     await expect(garantirLoginNaoBloqueado("outro@ritmo.com", "1.1.1.1", agora)).rejects.toBeInstanceOf(
       LoginBloqueadoError,
     )
+  })
+
+  it("PIN do motorista: trava em 10 erros nas últimas 24h, contando pela matrícula", async () => {
+    vi.mocked(prisma.tentativaLogin.count).mockResolvedValueOnce(MAX_FALHAS_MOTORISTA_24H - 1)
+    await expect(garantirPinNaoBloqueado(chaveLoginMotorista(261), agora)).resolves.toBeUndefined()
+    expect(prisma.tentativaLogin.count).toHaveBeenCalledWith({
+      where: { email: "motorista:261", criadoEm: { gte: new Date(agora.getTime() - 24 * 60 * 60 * 1000) } },
+    })
+
+    vi.mocked(prisma.tentativaLogin.count).mockResolvedValueOnce(MAX_FALHAS_MOTORISTA_24H)
+    await expect(garantirPinNaoBloqueado(chaveLoginMotorista(261), agora)).rejects.toBeInstanceOf(PinBloqueadoError)
   })
 })

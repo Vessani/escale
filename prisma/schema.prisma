@@ -448,6 +448,10 @@
     motoristaId   Int?       @unique
     motorista     Motorista? @relation(fields: [motoristaId], references: [id])
 
+    // Sobe a cada PIN novo: sessão aberta com versão antiga cai na hora
+    // (celular perdido/trocado). Ver revalidarToken.
+    versaoSessao  Int        @default(0)
+
     accounts      Account[]
     sessions      Session[]
   }

@@ -59,6 +59,7 @@ export const authOptions: NextAuthOptions = {
         token.role = user.role;
         token.filialId = user.filialId;
         token.motoristaId = user.motoristaId ?? null;
+        token.versaoSessao = user.versaoSessao ?? 0;
         token.loginEm = Date.now();
         return token;
       }

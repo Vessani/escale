@@ -5,7 +5,8 @@
 CREATE TYPE "TipoDespesaViagem" AS ENUM ('PEDAGIO', 'PERNOITE');
 
 -- AlterTable
-ALTER TABLE "Usuario" ADD COLUMN "motoristaId" INTEGER;
+ALTER TABLE "Usuario" ADD COLUMN "motoristaId" INTEGER,
+ADD COLUMN "versaoSessao" INTEGER NOT NULL DEFAULT 0;
 
 -- AlterTable
 ALTER TABLE "Viagem" ADD COLUMN "kmInicial" INTEGER,

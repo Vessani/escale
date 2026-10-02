@@ -28,7 +28,7 @@ const h = (iso: string) => new Date(`${iso}-03:00`)
 
 function criarTx() {
   return {
-    viagem: { update: vi.fn().mockResolvedValue({}) },
+    viagem: { updateMany: vi.fn().mockResolvedValue({ count: 1 }), findUniqueOrThrow: vi.fn().mockResolvedValue({}) },
     despesaViagem: { create: vi.fn().mockResolvedValue({ id: 9 }), update: vi.fn().mockResolvedValue({}) },
   }
 }
@@ -52,8 +52,8 @@ describe("iniciarMinhaViagem", () => {
     await iniciarMinhaViagem(FILIAL, ZE, 1, { kmInicial: 152300, motivoAtraso: "ignorado" }, ator, agora)
 
     expect(prisma.viagem.findFirst).toHaveBeenCalledWith({ where: { id: 1, filialId: FILIAL, deletadoEm: null, motoristaId: ZE } })
-    expect(tx.viagem.update).toHaveBeenCalledWith({
-      where: { id: 1, filialId: FILIAL },
+    expect(tx.viagem.updateMany).toHaveBeenCalledWith({
+      where: { id: 1, filialId: FILIAL, motoristaId: ZE, deletadoEm: null, status: { in: ["CRIADA", "ALOCADA", "POSTERGADA"] } },
       data: { kmInicial: 152300, horarioRealSaida: agora, motivoAtraso: null },
     })
     expect(atualizarStatusViagemService).toHaveBeenCalledWith(FILIAL, 1, "INICIADA", ator)
@@ -67,7 +67,7 @@ describe("iniciarMinhaViagem", () => {
     expect(atualizarStatusViagemService).not.toHaveBeenCalled()
 
     await iniciarMinhaViagem(FILIAL, ZE, 1, { kmInicial: 10, motivoAtraso: "Troca de frota" }, ator, agora)
-    expect(tx.viagem.update.mock.calls[0][0].data.motivoAtraso).toBe("Troca de frota")
+    expect(tx.viagem.updateMany.mock.calls[0][0].data.motivoAtraso).toBe("Troca de frota")
   })
 
   it("viagem de outro motorista (ou só como acompanhante) não é encontrada; já iniciada não reinicia", async () => {
@@ -76,6 +76,15 @@ describe("iniciarMinhaViagem", () => {
 
     vi.mocked(prisma.viagem.findFirst).mockResolvedValue(viagem({ status: "INICIADA" }) as never)
     await expect(iniciarMinhaViagem(FILIAL, ZE, 1, { kmInicial: 10, motivoAtraso: null }, ator)).rejects.toThrow("já foi iniciada")
+  })
+
+  it("toque duplo: se outro pedido já iniciou entre a leitura e a gravação, o segundo recebe erro e não muda o status", async () => {
+    vi.mocked(prisma.viagem.findFirst).mockResolvedValue(viagem() as never)
+    tx.viagem.updateMany.mockResolvedValue({ count: 0 })
+    await expect(
+      iniciarMinhaViagem(FILIAL, ZE, 1, { kmInicial: 10, motivoAtraso: null }, ator, h("2026-10-02T07:00:00")),
+    ).rejects.toThrow("já foi iniciada")
+    expect(atualizarStatusViagemService).not.toHaveBeenCalled()
   })
 
   it("km inválido é recusado", async () => {
@@ -122,8 +131,18 @@ describe("encerrarMinhaViagem", () => {
     await expect(encerrarMinhaViagem(FILIAL, ZE, 1, { kmFinal: 20000 }, ator)).rejects.toThrow("confira o km final")
 
     await encerrarMinhaViagem(FILIAL, ZE, 1, { kmFinal: 1350 }, ator)
-    expect(tx.viagem.update).toHaveBeenCalledWith({ where: { id: 1, filialId: FILIAL }, data: { kmFinal: 1350 } })
+    expect(tx.viagem.updateMany).toHaveBeenCalledWith({
+      where: { id: 1, filialId: FILIAL, motoristaId: ZE, deletadoEm: null, status: { in: ["INICIADA", "RETORNANDO"] } },
+      data: { kmFinal: 1350 },
+    })
     expect(atualizarStatusViagemService).toHaveBeenCalledWith(FILIAL, 1, "FINALIZADA", ator)
+  })
+
+  it("toque duplo no encerrar: o segundo recebe erro", async () => {
+    vi.mocked(prisma.viagem.findFirst).mockResolvedValue(viagem({ status: "INICIADA", kmInicial: 1000 }) as never)
+    tx.viagem.updateMany.mockResolvedValue({ count: 0 })
+    await expect(encerrarMinhaViagem(FILIAL, ZE, 1, { kmFinal: 1350 }, ator)).rejects.toThrow("em andamento")
+    expect(atualizarStatusViagemService).not.toHaveBeenCalled()
   })
 
   it("não encerra viagem que nem começou", async () => {

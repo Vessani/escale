@@ -1,4 +1,4 @@
-import type { StatusViagem, TipoDespesaViagem } from "@prisma/client"
+import type { Prisma, StatusViagem, TipoDespesaViagem } from "@prisma/client"
 import { prisma } from "@/lib/prisma"
 import { ErroDeDominio, ViagemNaoEncontradaError } from "@/lib/errors"
 import { inicioDoDia } from "@/lib/utils/date-format"
@@ -108,6 +108,29 @@ async function viagemDoPrincipal(filialId: number, motoristaId: number, viagemId
   return viagem
 }
 
+type Transacao = Parameters<Parameters<typeof prisma.$transaction>[0]>[0]
+
+/**
+ * Grava só se a viagem ainda estiver num dos status esperados NO MOMENTO da
+ * escrita — toque duplo ou dois celulares ao mesmo tempo não iniciam/encerram
+ * duas vezes (o segundo recebe o erro).
+ */
+async function gravarSeStatus(
+  tx: Transacao,
+  alvo: { viagemId: number; filialId: number; motoristaId: number },
+  statusEsperados: StatusViagem[],
+  data: Prisma.ViagemUpdateManyMutationInput,
+  codigoErro: string,
+  mensagemErro: string,
+) {
+  const { count } = await tx.viagem.updateMany({
+    where: { id: alvo.viagemId, filialId: alvo.filialId, motoristaId: alvo.motoristaId, deletadoEm: null, status: { in: statusEsperados } },
+    data,
+  })
+  if (count === 0) throw new ErroDeDominio(codigoErro, mensagemErro)
+  return tx.viagem.findUniqueOrThrow({ where: { id: alvo.viagemId } })
+}
+
 function validarKm(km: number, campo: string) {
   if (!Number.isInteger(km) || km < 0 || km > KM_MAXIMO) {
     throw new ErroDeDominio("KM_INVALIDO", `${campo}: informe o número do hodômetro, só números.`)
@@ -140,10 +163,11 @@ export async function iniciarMinhaViagem(
   }
 
   await prisma.$transaction(async (tx) => {
-    const depois = await tx.viagem.update({
-      where: { id: viagemId, filialId },
-      data: { kmInicial: dados.kmInicial, horarioRealSaida: agora, motivoAtraso: atrasada ? motivo : null },
-    })
+    const depois = await gravarSeStatus(tx, { viagemId, filialId, motoristaId }, STATUS_A_INICIAR, {
+      kmInicial: dados.kmInicial,
+      horarioRealSaida: agora,
+      motivoAtraso: atrasada ? motivo : null,
+    }, "VIAGEM_JA_INICIADA", "Essa viagem já foi iniciada.")
     await registrarAuditoria(tx, { entidade: "Viagem", entidadeId: viagemId, acao: "ATUALIZACAO", antes: viagem, depois, ator, filialId })
   })
   await atualizarStatusViagemService(filialId, viagemId, "INICIADA", ator)
@@ -216,7 +240,8 @@ export async function encerrarMinhaViagem(
   }
 
   await prisma.$transaction(async (tx) => {
-    const depois = await tx.viagem.update({ where: { id: viagemId, filialId }, data: { kmFinal: dados.kmFinal } })
+    const depois = await gravarSeStatus(tx, { viagemId, filialId, motoristaId }, STATUS_EM_ANDAMENTO, { kmFinal: dados.kmFinal },
+      "VIAGEM_NAO_INICIADA", "Só dá pra encerrar uma viagem em andamento.")
     await registrarAuditoria(tx, { entidade: "Viagem", entidadeId: viagemId, acao: "ATUALIZACAO", antes: viagem, depois, ator, filialId })
   })
   await atualizarStatusViagemService(filialId, viagemId, "FINALIZADA", ator)

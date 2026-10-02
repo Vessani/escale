@@ -5,9 +5,14 @@ vi.mock("@/lib/prisma", () => ({
   prisma: { $transaction: vi.fn(), motorista: { findFirst: vi.fn() }, usuario: { findUnique: vi.fn() } },
 }))
 vi.mock("@/lib/services/auditoria.service", () => ({ registrarAuditoria: vi.fn() }))
+vi.mock("@/lib/services/login.service", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/lib/services/login.service")>()),
+  limparFalhasLogin: vi.fn(),
+}))
 
 import { prisma } from "@/lib/prisma"
 import { registrarAuditoria } from "@/lib/services/auditoria.service"
+import { limparFalhasLogin } from "@/lib/services/login.service"
 import { desativarAcessoMotorista, gerarPinMotorista, situacaoAcessoMotorista } from "./acesso-motorista.service"
 
 const ator = { usuarioId: "a1", usuarioNome: "Alan" }
@@ -37,6 +42,16 @@ describe("gerarPinMotorista", () => {
     expect(auditoria).not.toContain(pin)
     expect(auditoria).not.toContain(create.senha)
     expect(vi.mocked(registrarAuditoria).mock.calls[0][1]).toMatchObject({ entidade: "Usuario", acao: "CRIACAO" })
+  })
+
+  it("PIN gerado de novo: sobe a versão (derruba a sessão do celular antigo) e libera o bloqueio de tentativas", async () => {
+    tx.usuario.findUnique.mockResolvedValue({ id: "u9", nome: "JOSE SILVA", role: "MOTORISTA", ativo: true, motoristaId: 42 })
+    tx.usuario.upsert.mockImplementation(async ({ update }) => ({ id: "u9", motoristaId: 42, ...update }))
+
+    await gerarPinMotorista(3, 42, ator)
+
+    expect(tx.usuario.upsert.mock.calls[0][0].update).toMatchObject({ versaoSessao: { increment: 1 }, ativo: true })
+    expect(limparFalhasLogin).toHaveBeenCalledWith("motorista:261")
   })
 
   it("motorista de outra filial (ou excluído) não ganha acesso", async () => {

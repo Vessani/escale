@@ -3,7 +3,9 @@ import type { JWT } from "next-auth/jwt"
 import { prisma } from "@/lib/prisma"
 import { PAPEL_MOTORISTA, ehMotorista } from "@/lib/papeis"
 import {
+  chaveLoginMotorista,
   garantirLoginNaoBloqueado,
+  garantirPinNaoBloqueado,
   ipDaRequisicao,
   limparFalhasLogin,
   normalizarEmail,
@@ -42,6 +44,12 @@ export async function autenticarUsuario(credenciais: Credenciais, headers: Cabec
   const email = normalizarEmail(credenciais.email)
   const ip = ipDaRequisicao(headers)
 
+  // Sem "@" não é e-mail — e não pode virar a chave de tentativas do login
+  // do motorista ("motorista:123"), senão daria pra bloquear o PIN dele daqui.
+  if (!email.includes("@")) {
+    throw new Error(MENSAGEM_CREDENCIAIS_INVALIDAS)
+  }
+
   await garantirLoginNaoBloqueado(email, ip)
 
   const usuario = await prisma.usuario.findFirst({
@@ -68,6 +76,7 @@ export async function autenticarUsuario(credenciais: Credenciais, headers: Cabec
     email: usuario.email,
     role: usuario.role,
     filialId: usuario.filialId,
+    versaoSessao: usuario.versaoSessao,
   }
 }
 
@@ -87,13 +96,14 @@ export async function autenticarMotorista(credenciais: CredenciaisMotorista, hea
   }
 
   const seva = Number(sevaTexto)
-  const chave = `motorista:${seva}`
+  const chave = chaveLoginMotorista(seva)
   const ip = ipDaRequisicao(headers)
   await garantirLoginNaoBloqueado(chave, ip)
+  await garantirPinNaoBloqueado(chave)
 
   const acessos = await prisma.usuario.findMany({
     where: { role: PAPEL_MOTORISTA, motorista: { seva, deletadoEm: null } },
-    select: { id: true, senha: true, ativo: true, motorista: { select: { id: true, nome: true, filialId: true } } },
+    select: { id: true, senha: true, ativo: true, versaoSessao: true, motorista: { select: { id: true, nome: true, filialId: true } } },
   })
 
   let acesso: (typeof acessos)[number] | null = null
@@ -122,6 +132,7 @@ export async function autenticarMotorista(credenciais: CredenciaisMotorista, hea
     role: PAPEL_MOTORISTA,
     filialId: acesso.motorista.filialId,
     motoristaId: acesso.motorista.id,
+    versaoSessao: acesso.versaoSessao,
   }
 }
 
@@ -140,11 +151,15 @@ export async function revalidarToken(token: JWT, agora = Date.now()): Promise<JW
 
   const usuario = await prisma.usuario.findUnique({
     where: { id: token.id },
-    select: { ativo: true, role: true, filialId: true, motoristaId: true, motorista: { select: { deletadoEm: true } } },
+    select: { ativo: true, role: true, filialId: true, motoristaId: true, versaoSessao: true, motorista: { select: { deletadoEm: true } } },
   })
 
   if (!usuario) throw new SessaoInvalidaError("Usuário não existe mais.")
   if (!usuario.ativo) throw new SessaoInvalidaError("Usuário desativado.")
+  // Token de antes desta versão (sem o campo) conta como 0, o padrão do banco.
+  if ((token.versaoSessao ?? 0) !== usuario.versaoSessao) {
+    throw new SessaoInvalidaError("Acesso renovado (PIN novo).")
+  }
   if (ehMotorista(usuario.role) && (!usuario.motoristaId || !usuario.motorista || usuario.motorista.deletadoEm)) {
     throw new SessaoInvalidaError("Motorista excluído do cadastro.")
   }

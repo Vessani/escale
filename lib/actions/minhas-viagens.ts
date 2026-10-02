@@ -38,7 +38,7 @@ async function executar(acao: () => Promise<unknown>, viagemId: number | undefin
 export async function iniciarViagem(viagemId: number, dados: { kmInicial: number; motivoAtraso: string | null }): Promise<RespostaAcao> {
   return executar(async () => {
     const { session, filialId, motoristaId } = await requireSessaoMotorista()
-    const entrada = z.object({ viagemId: id, kmInicial: km, motivoAtraso: z.string().max(200).nullable() }).parse({ viagemId, ...dados })
+    const entrada = z.object({ viagemId: id, kmInicial: km, motivoAtraso: z.string().max(200).nullable() }).parse({ ...dados, viagemId })
     await iniciarMinhaViagem(filialId, motoristaId, entrada.viagemId, entrada, atorDaSessao(session))
   }, viagemId, "Não foi possível iniciar a viagem.")
 }
@@ -48,7 +48,7 @@ export async function lancarDespesa(viagemId: number, dados: { tipo: "PEDAGIO" |
     const { session, filialId, motoristaId } = await requireSessaoMotorista()
     const entrada = z
       .object({ viagemId: id, tipo: z.enum(["PEDAGIO", "PERNOITE"]), valorCentavos: z.number().int().positive() })
-      .parse({ viagemId, ...dados })
+      .parse({ ...dados, viagemId })
     await adicionarMinhaDespesa(filialId, motoristaId, entrada.viagemId, entrada, atorDaSessao(session))
   }, viagemId, "Não foi possível lançar.")
 }
@@ -56,6 +56,7 @@ export async function lancarDespesa(viagemId: number, dados: { tipo: "PEDAGIO" |
 export async function removerDespesa(viagemId: number, despesaId: number): Promise<RespostaAcao> {
   return executar(async () => {
     const { session, filialId, motoristaId } = await requireSessaoMotorista()
+    id.parse(viagemId)
     await removerMinhaDespesa(filialId, motoristaId, id.parse(despesaId), atorDaSessao(session))
   }, viagemId, "Não foi possível remover.")
 }
@@ -63,7 +64,7 @@ export async function removerDespesa(viagemId: number, despesaId: number): Promi
 export async function encerrarViagem(viagemId: number, dados: { kmFinal: number }): Promise<RespostaAcao> {
   return executar(async () => {
     const { session, filialId, motoristaId } = await requireSessaoMotorista()
-    const entrada = z.object({ viagemId: id, kmFinal: km }).parse({ viagemId, ...dados })
+    const entrada = z.object({ viagemId: id, kmFinal: km }).parse({ ...dados, viagemId })
     await encerrarMinhaViagem(filialId, motoristaId, entrada.viagemId, entrada, atorDaSessao(session))
   }, viagemId, "Não foi possível encerrar a viagem.")
 }

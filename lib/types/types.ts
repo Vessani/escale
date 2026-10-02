@@ -94,6 +94,7 @@ declare module "next-auth" {
     role: string;
     filialId: number | null;
     motoristaId?: number | null;
+    versaoSessao?: number;
   }
 }
 
@@ -103,6 +104,8 @@ declare module "next-auth/jwt" {
     role: string;
     filialId: number | null;
     motoristaId?: number | null;
+    /** Usuario.versaoSessao no login — se mudou (PIN novo), a sessão cai. */
+    versaoSessao?: number;
     /** Momento do login (ms) — a sessão vale 12h a partir daqui. */
     loginEm?: number;
   }

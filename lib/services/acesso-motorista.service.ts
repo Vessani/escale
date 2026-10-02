@@ -5,6 +5,7 @@ import { MotoristaNaoEncontradoError } from "@/lib/errors"
 import { PAPEL_MOTORISTA } from "@/lib/papeis"
 import { registrarAuditoria, type Ator } from "@/lib/services/auditoria.service"
 import { CAMPO_CONTEXTO_AUDITORIA } from "@/lib/utils/diff-auditoria"
+import { chaveLoginMotorista, limparFalhasLogin } from "@/lib/services/login.service"
 
 /**
  * Acesso do motorista à área "Minhas viagens": um usuário com papel
@@ -45,7 +46,7 @@ export async function gerarPinMotorista(filialId: number, motoristaId: number, a
     const depois = await tx.usuario.upsert({
       where: { motoristaId },
       create: { nome: motorista.nome, role: PAPEL_MOTORISTA, filialId, motoristaId, senha, ativo: true },
-      update: { nome: motorista.nome, role: PAPEL_MOTORISTA, filialId, senha, ativo: true },
+      update: { nome: motorista.nome, role: PAPEL_MOTORISTA, filialId, senha, ativo: true, versaoSessao: { increment: 1 } },
     })
     await registrarAuditoria(tx, {
       entidade: "Usuario",
@@ -61,6 +62,9 @@ export async function gerarPinMotorista(filialId: number, motoristaId: number, a
       filialId,
     })
   })
+
+  // PIN novo libera quem estava bloqueado por tentativas erradas.
+  await limparFalhasLogin(chaveLoginMotorista(motorista.seva))
 
   return { pin, seva: motorista.seva }
 }
