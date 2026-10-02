@@ -89,13 +89,9 @@ function MotoristaCelula({ item }: { item: ItemDashboard }) {
         </Alert>
       )}
       {viagem.problemaMecanico && (
-        <div title={viagem.problemaMecanico}>
-          <Alert variant="error" inline>
-            Problema mecânico
-          </Alert>
-          {/* Escrito, não só no balão: na TV ninguém passa o mouse. */}
-          <p className="line-clamp-2 whitespace-normal break-words text-[11px] text-destructive">{viagem.problemaMecanico}</p>
-        </div>
+        <Alert variant="error" inline title={viagem.problemaMecanico}>
+          Problema mecânico
+        </Alert>
       )}
     </div>
   )
