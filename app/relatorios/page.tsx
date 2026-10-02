@@ -2,6 +2,7 @@ import {
   BedDouble,
   CalendarX,
   Clock,
+  ListOrdered,
   MoonStar,
   ShieldCheck,
   Timer,
@@ -118,6 +119,12 @@ export default async function RelatoriosPage({
             titulo: "Viagens com aviso",
             descricao: "Viagens que foram com aviso de descanso ou de frota, e quem alterou por último.",
             icone: TriangleAlert,
+          },
+          {
+            href: "/relatorios/viagens",
+            titulo: "Viagens",
+            descricao: "Todas as viagens, uma por linha: motorista, produto, cidades, km e pedágio/pernoite.",
+            icone: ListOrdered,
           },
           {
             href: "/relatorios/km-custos",

@@ -23,6 +23,7 @@ import {
 import { formatarCodigoFrota } from "@/lib/services/frota-regras"
 import { buscarViagensKmCustos, parseMotoristaFiltro } from "@/lib/queries/relatorios/km-custos"
 import { parseFiltroRegistro, relatorioKmCustos } from "@/lib/services/relatorios/km-custos"
+import { relatorioViagens, STATUS_RELATORIO_VIAGENS } from "@/lib/services/relatorios/viagens"
 import { formatarReais } from "@/lib/utils/dinheiro"
 import type { OcorrenciaCircadiano } from "@/lib/services/circadiano.service"
 import { ROTULO_RESPONSAVEL, ROTULO_SITUACAO, ROTULO_VEICULO, descreverTipo, situacaoManutencao } from "@/lib/services/manutencao-regras"
@@ -107,6 +108,40 @@ function abaGrupoPontualidade(nomeAba: string, rotulo: string, grupos: GrupoPont
 const reaisExcel = (centavos: number) => (centavos ? centavos / 100 : null)
 
 export const EXPORTADORES_RELATORIO: Record<string, Exportador> = {
+  viagens: comPeriodo(PERIODO_PADRAO.viagens, "viagens", async (filialId, periodo, params) => {
+    const viagens = await buscarViagensKmCustos(filialId, periodo.de, periodo.ate, parseMotoristaFiltro(params.get("motorista")), STATUS_RELATORIO_VIAGENS)
+    const { linhas, totais } = relatorioViagens(viagens)
+    type Linha = (typeof linhas)[number]
+    return [
+      aba<Linha>({
+        nome: "Viagens",
+        titulo: "Viagens",
+        subtitulo: `${textoPeriodo(periodo)} · todas as viagens, menos canceladas · cidades = clientes com SAP code e número white`,
+        resumo: [
+          { rotulo: "Viagens", valor: totais.viagens },
+          { rotulo: "Km total", valor: totais.kmRodado.toLocaleString("pt-BR") },
+          { rotulo: "Pedágio", valor: formatarReais(totais.pedagioCentavos) },
+          { rotulo: "Pernoite", valor: formatarReais(totais.pernoiteCentavos) },
+        ],
+        linhas,
+        vazio: "Nenhuma viagem no período.",
+        colunas: [
+          { titulo: "Nº Viagem", valor: (l) => l.numViagem, tipo: "codigo" },
+          { titulo: "Data", valor: (l) => l.inicio, tipo: "dataHora" },
+          { titulo: "Status", valor: (l) => formatarStatusViagem(l.status) },
+          { titulo: "Motorista", valor: (l) => nome(l.motorista) },
+          { titulo: "Produto", valor: (l) => l.produto ?? "" },
+          { titulo: "Cidades", valor: (l) => l.regiao.join(" › "), tipo: "texto", largura: 40 },
+          { titulo: "Km inicial", valor: (l) => l.kmInicial },
+          { titulo: "Km final", valor: (l) => l.kmFinal },
+          { titulo: "Km total", valor: (l) => l.kmRodado, somar: true },
+          { titulo: "Pedágio (R$)", valor: (l) => reaisExcel(l.pedagioCentavos), tipo: "decimal", somar: true },
+          { titulo: "Pernoite (R$)", valor: (l) => reaisExcel(l.pernoiteCentavos), tipo: "decimal", somar: true },
+        ],
+      }),
+    ]
+  }),
+
   "km-custos": comPeriodo(PERIODO_PADRAO.kmCustos, "km-e-custos", async (filialId, periodo, params) => {
     const registro = parseFiltroRegistro(params.get("registro"))
     const viagens = await buscarViagensKmCustos(filialId, periodo.de, periodo.ate, parseMotoristaFiltro(params.get("motorista")))
