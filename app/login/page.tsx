@@ -96,7 +96,7 @@ export default function LoginPage() {
         </CardHeader>
         
         <form onSubmit={handleLogin}>
-          <CardContent className="space-y-4">
+          <CardContent className="space-y-4 pb-4">
             {modo === "motorista" ? (
               <>
                 <div className="space-y-2">
