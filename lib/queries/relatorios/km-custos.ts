@@ -9,7 +9,11 @@ export async function buscarViagensKmCustos(filialId: number, de: Date, ate: Dat
       deletadoEm: null,
       status: { in: STATUS_KM_CUSTOS },
       inicioPrevisto: { gte: de, lte: ate },
-      ...(motoristaId ? { motoristaId } : {}),
+      // Com troca de motorista, a viagem aparece pra quem esteve nela em
+      // qualquer trecho — não só pra quem estava com ela no fim.
+      ...(motoristaId
+        ? { OR: [{ motoristaId }, { trocas: { some: { OR: [{ motoristaAnteriorId: motoristaId }, { motoristaNovoId: motoristaId }] } } }] }
+        : {}),
     },
     select: {
       id: true,
@@ -23,6 +27,7 @@ export async function buscarViagensKmCustos(filialId: number, de: Date, ate: Dat
       cavalo: true,
       carreta: true,
       motorista: { select: { id: true, nome: true } },
+      _count: { select: { trocas: true } },
       despesas: { where: { deletadoEm: null }, select: { tipo: true, valorCentavos: true } },
       entregas: { orderBy: { id: "asc" }, select: { cidade: true, uf: true, sapcode: true, codewhite: true } },
     },

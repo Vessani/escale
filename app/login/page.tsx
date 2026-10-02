@@ -8,9 +8,9 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { LogoEscalador } from "@/components/layout/logo-escalador"
+import { ControleSegmentado } from "@/components/ui/controle-segmentado"
 import { Rodape } from "@/components/layout/rodape"
 import { AREA_MOTORISTA } from "@/lib/papeis"
-import { cn } from "@/lib/utils"
 import { MENSAGEM_SEM_CONEXAO } from "@/lib/chamar-acao"
 
 type Modo = "despacho" | "motorista"
@@ -100,27 +100,19 @@ export default function LoginPage() {
           <CardDescription>
             {modo === "motorista" ? "Use sua matrícula (SEVA) e o PIN que o escalador te passou" : "Insira suas credenciais para acessar a operação"}
           </CardDescription>
-          <div className="mx-auto mt-3 inline-flex rounded-lg border bg-muted/40 p-1" role="group" aria-label="Tipo de acesso">
-            {(["despacho", "motorista"] as const).map((opcao) => (
-              <button
-                key={opcao}
-                type="button"
-                aria-pressed={modo === opcao}
-                onClick={() => {
-                  setModo(opcao)
-                  setErro("")
-                }}
-                className={cn(
-                  "rounded-md px-4 py-1.5 text-sm transition-colors",
-                  modo === opcao
-                    ? "bg-background font-medium text-foreground shadow-sm ring-1 ring-border"
-                    : "text-muted-foreground hover:text-foreground",
-                )}
-              >
-                {opcao === "despacho" ? "Escalador" : "Motorista"}
-              </button>
-            ))}
-          </div>
+          <ControleSegmentado
+            rotulo="Tipo de acesso"
+            className="mx-auto mt-3"
+            opcoes={[
+              { valor: "despacho", rotulo: "Escalador" },
+              { valor: "motorista", rotulo: "Motorista" },
+            ]}
+            valor={modo}
+            onChange={(opcao) => {
+              setModo(opcao)
+              setErro("")
+            }}
+          />
         </CardHeader>
         
         <form onSubmit={handleLogin}>

@@ -12,13 +12,16 @@ import {
   iniciarMinhaViagem,
   registrarChegadaCliente,
   removerMinhaDespesa,
-  TAMANHO_MAXIMO_PROBLEMA,
 } from "@/lib/services/minhas-viagens.service"
 import { z } from "@/lib/validation/zod"
 import type { RespostaAcao } from "@/lib/types/types"
+import { trocarMotoristaDaViagem } from "@/lib/services/troca-motorista.service"
+import { DATA_HORA_DO_CAMPO, esquemaTroca, type EntradaTroca } from "@/lib/validation/troca-motorista"
+import { converterEntradaDeDataHora } from "@/lib/utils/date-format"
+import { KM_MAXIMO_HODOMETRO, TAMANHO_MAXIMO_PROBLEMA } from "@/lib/services/limites-registro"
 
 const id = z.number().int().positive()
-const km = z.number().int().min(0).max(9_999_999)
+const km = z.number().int().min(0).max(KM_MAXIMO_HODOMETRO)
 
 /** O que o motorista registra muda o Dashboard e as telas de viagem do despacho. */
 function revalidarTelas(viagemId?: number) {
@@ -90,12 +93,12 @@ export async function registrarChegada(
 ): Promise<RespostaAcao> {
   return executar(async () => {
     const { session, filialId, motoristaId } = await requireSessaoMotorista()
-    id.parse(viagemId)
     const entrada = z
       .object({
+        viagemId: id,
         entregaId: id,
         km,
-        chegadaEm: z.string().datetime({ offset: true }),
+        chegadaEm: z.string().regex(DATA_HORA_DO_CAMPO, "Data e hora inválidas."),
         medicao: z.enum(["MANOMETRO", "BALANCA"]).nullable(),
         nivelInicial: leitura,
         nivelFinal: leitura,
@@ -103,12 +106,13 @@ export async function registrarChegada(
         polInicial: leitura,
         polFinal: leitura,
       })
-      .parse({ ...dados, entregaId })
+      .parse({ ...dados, entregaId, viagemId })
     await registrarChegadaCliente(
       filialId,
       motoristaId,
+      entrada.viagemId,
       entrada.entregaId,
-      { ...entrada, chegadaEm: new Date(entrada.chegadaEm) },
+      { ...entrada, chegadaEm: converterEntradaDeDataHora(entrada.chegadaEm) },
       atorDaSessao(session),
     )
   }, viagemId, "Não foi possível registrar a chegada.")
@@ -120,5 +124,20 @@ export async function informarProblema(viagemId: number, texto: string): Promise
     const entrada = z.object({ viagemId: id, texto: z.string().max(TAMANHO_MAXIMO_PROBLEMA) }).parse({ texto, viagemId })
     await informarProblemaMecanico(filialId, motoristaId, entrada.viagemId, entrada.texto, atorDaSessao(session))
   }, viagemId, "Não foi possível salvar o problema.")
+}
+
+/** O motorista que está com a viagem passa ela pro substituto (que continua pelo celular dele). */
+export async function passarViagem(viagemId: number, dados: EntradaTroca): Promise<RespostaAcao> {
+  return executar(async () => {
+    const { session, filialId, motoristaId } = await requireSessaoMotorista()
+    const entrada = esquemaTroca.parse({ ...dados, viagemId })
+    await trocarMotoristaDaViagem(
+      filialId,
+      entrada.viagemId,
+      { ...entrada, trocadoEm: converterEntradaDeDataHora(entrada.trocadoEm) },
+      atorDaSessao(session),
+      { exigirMotoristaAtual: motoristaId },
+    )
+  }, viagemId, "Não foi possível passar a viagem.")
 }
 

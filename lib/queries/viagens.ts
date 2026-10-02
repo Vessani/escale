@@ -1,5 +1,6 @@
 import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
+import { chegadaEmNumeros } from "@/lib/services/descarga";
 import type { FiltroStatusViagem } from "@/lib/services/viagem-status.service";
 import { fimDoDia, inicioDoDia } from "@/lib/utils/date-format";
 import { VIAGENS_POR_PAGINA, type FiltroListaViagens } from "@/lib/services/filtro-viagens";
@@ -67,7 +68,6 @@ export async function buscarViagemPorId(filialId: number, id: number) {
       entregas: true,
       motorista: true,
       motoristaAcompanhante: true,
-      despesas: { where: { deletadoEm: null }, orderBy: { registradoEm: "asc" } },
     },
   });
 }
@@ -220,27 +220,20 @@ export async function buscarProgramacaoDoDia(filialId: number, dia: Date) {
   });
 }
 
-/** Chegadas do motorista nos clientes desta viagem (a viagem já foi conferida na filial por quem chama). */
-export async function buscarChegadasDaViagem(viagemId: number) {
+/** Chegadas do motorista nos clientes desta viagem (escopo pela filial). */
+export async function buscarChegadasDaViagem(filialId: number, viagemId: number) {
   const chegadas = await prisma.chegadaEntrega.findMany({
-    where: { entrega: { viagemId } },
+    where: { entrega: { viagemId, viagem: { filialId } } },
     orderBy: { entregaId: "asc" },
     include: { entrega: { select: { cliente: true, cidade: true, uf: true } } },
   })
-  return chegadas.map((chegada) => ({
-    id: chegada.id,
-    cliente: chegada.entrega.cliente,
-    cidade: chegada.entrega.cidade,
-    uf: chegada.entrega.uf,
-    km: chegada.km,
-    chegadaEm: chegada.chegadaEm,
-    medicao: chegada.medicao,
-    nivelInicial: Number(chegada.nivelInicial),
-    nivelFinal: Number(chegada.nivelFinal),
-    polInicial: chegada.polInicial === null ? null : Number(chegada.polInicial),
-    polFinal: chegada.polFinal === null ? null : Number(chegada.polFinal),
-    fator: chegada.fator === null ? null : Number(chegada.fator),
-    totalDescarregado: Number(chegada.totalDescarregado),
-  }))
+  return chegadas.map(({ entrega, ...chegada }) => ({ ...chegadaEmNumeros(chegada), cliente: entrega.cliente, cidade: entrega.cidade, uf: entrega.uf }))
 }
 
+/** Pedágios e pernoites ativos da viagem (escopo pela filial). */
+export async function buscarDespesasDaViagem(filialId: number, viagemId: number) {
+  return prisma.despesaViagem.findMany({
+    where: { viagemId, deletadoEm: null, viagem: { filialId } },
+    orderBy: { registradoEm: "asc" },
+  })
+}

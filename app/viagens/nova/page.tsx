@@ -20,6 +20,7 @@ import RotaFields from "@/components/viagem/rota-fields"
 import EntregasFieldArray from "@/components/viagem/entregas-field-array"
 import { useTurnoAutomatico } from "@/lib/hooks/use-turno-automatico"
 import ConfirmarLoteViagens, { type ViagemParaConfirmar } from "@/components/viagem/confirmar-lote-viagens"
+import { mensagemDaFalha } from "@/lib/chamar-acao"
 
 export default function NovaViagemPage() {
   const router = useRouter()
@@ -76,8 +77,8 @@ export default function NovaViagemPage() {
         },
       }))
       setRevisandoLote(paraConfirmar)
-    } catch {
-      setErroGlobal("Ocorreu um erro inesperado ao calcular a alocação sugerida.")
+    } catch (erro) {
+      setErroGlobal(mensagemDaFalha(erro))
     } finally {
       setCarregandoRevisao(false)
     }
@@ -105,9 +106,8 @@ export default function NovaViagemPage() {
       } else {
         setErroGlobal(resposta.erro ?? "Ocorreu um erro desconhecido ao salvar a viagem.")
       }
-    } catch (error: unknown) {
-      const mensagem = error instanceof Error ? error.message : "Ocorreu um erro inesperado ao salvar a viagem."
-      setErroGlobal(mensagem)
+    } catch (erro) {
+      setErroGlobal(mensagemDaFalha(erro))
     }
   }
 

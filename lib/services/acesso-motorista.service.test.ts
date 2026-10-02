@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest"
 import bcrypt from "bcrypt"
 
 vi.mock("@/lib/prisma", () => ({
-  prisma: { $transaction: vi.fn(), motorista: { findFirst: vi.fn() }, usuario: { findUnique: vi.fn() } },
+  prisma: { $transaction: vi.fn(), motorista: { findFirst: vi.fn() }, usuario: { findUnique: vi.fn(), findFirst: vi.fn() } },
 }))
 vi.mock("@/lib/services/auditoria.service", () => ({ registrarAuditoria: vi.fn() }))
 vi.mock("@/lib/services/login.service", async (importOriginal) => ({
@@ -75,9 +75,11 @@ describe("desativar e situação", () => {
   })
 
   it("situação: sem acesso, ativo, desativado", async () => {
-    vi.mocked(prisma.usuario.findUnique).mockResolvedValueOnce(null).mockResolvedValueOnce({ ativo: true } as never).mockResolvedValueOnce({ ativo: false } as never)
-    expect(await situacaoAcessoMotorista(42)).toBe("SEM_ACESSO")
-    expect(await situacaoAcessoMotorista(42)).toBe("ATIVO")
-    expect(await situacaoAcessoMotorista(42)).toBe("DESATIVADO")
+    vi.mocked(prisma.usuario.findFirst).mockResolvedValueOnce(null).mockResolvedValueOnce({ ativo: true } as never).mockResolvedValueOnce({ ativo: false } as never)
+    expect(await situacaoAcessoMotorista(3, 42)).toBe("SEM_ACESSO")
+    expect(await situacaoAcessoMotorista(3, 42)).toBe("ATIVO")
+    expect(await situacaoAcessoMotorista(3, 42)).toBe("DESATIVADO")
+    // Escopo pela filial: motorista de outra filial não tem "acesso" aqui.
+    expect(prisma.usuario.findFirst).toHaveBeenCalledWith({ where: { motoristaId: 42, motorista: { filialId: 3 } }, select: { ativo: true } })
   })
 })

@@ -1,5 +1,5 @@
 import { requireSessaoPaginaComFilial } from "@/lib/auth-guard"
-import { buscarChegadasDaViagem, buscarViagemPorId } from "@/lib/queries/viagens"
+import { buscarChegadasDaViagem, buscarDespesasDaViagem, buscarViagemPorId } from "@/lib/queries/viagens"
 import { buscarMotoristasParaSelect } from "@/lib/queries/motoristas"
 import { buscarNumerosSapQueExigemIntegracao } from "@/lib/queries/clientes"
 import { buscarHistoricoDaEntidade } from "@/lib/queries/auditoria"
@@ -12,8 +12,11 @@ import { HistoricoCard } from "@/components/auditoria/historico-card"
 import { serializeData } from "@/lib/serialization"
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
-import { Download } from "lucide-react"
+import { Download, FileText } from "lucide-react"
 import { RegistroMotoristaCard } from "@/components/viagem/registro-motorista-card"
+import { STATUS_EM_ANDAMENTO } from "@/lib/services/viagem-status.service"
+import { TrocaMotoristaCard } from "@/components/viagem/troca-motorista-card"
+import { buscarSubstitutosPossiveis, buscarTrocasDaViagem } from "@/lib/services/troca-motorista.service"
 
 export default async function EditarViagemPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
@@ -31,10 +34,14 @@ export default async function EditarViagemPage({ params }: { params: Promise<{ i
     notFound()
   }
 
-  const [motoristas, numerosSapQueExigemIntegracao, historico] = await Promise.all([
+  const [motoristas, numerosSapQueExigemIntegracao, historico, despesas, chegadas, trocas, substitutos] = await Promise.all([
     buscarMotoristasParaSelect(filialId),
     buscarNumerosSapQueExigemIntegracao(),
     buscarHistoricoDaEntidade("Viagem", viagem.id),
+    buscarDespesasDaViagem(filialId, viagem.id),
+    buscarChegadasDaViagem(filialId, viagem.id),
+    buscarTrocasDaViagem(filialId, viagem.id),
+    buscarSubstitutosPossiveis(filialId, viagem.motoristaId, viagem.produto),
   ])
   // Situação de cada motorista pra esta viagem calculada aqui no servidor —
   // o formulário recebe só id, nome, tipo e situação (ver montarOpcoesMotoristaPorViagem).
@@ -58,12 +65,20 @@ export default async function EditarViagemPage({ params }: { params: Promise<{ i
             Revise os dados da viagem Nº {viagem.numViagem} e confirme o motorista alocado.
           </p>
         </div>
+        <div className="flex flex-wrap gap-2">
+        <Link href={`/viagens/relatorio/${viagem.id}`}>
+          <Button variant="outline">
+            <FileText className="h-4 w-4 mr-2" />
+            Relatório da viagem
+          </Button>
+        </Link>
         <Link href={`/api/viagens/${viagem.id}/excel`}>
           <Button variant="outline">
             <Download className="h-4 w-4 mr-2" />
             Download Excel
           </Button>
         </Link>
+        </div>
       </div>
 
       <FormEditarViagem
@@ -75,10 +90,28 @@ export default async function EditarViagemPage({ params }: { params: Promise<{ i
       <RegistroMotoristaCard
         kmInicial={viagem.kmInicial}
         kmFinal={viagem.kmFinal}
-        despesas={viagem.despesas}
-        chegadas={await buscarChegadasDaViagem(viagem.id)}
+        despesas={despesas}
+        chegadas={chegadas}
         problemaMecanico={viagem.problemaMecanico}
         problemaMecanicoEm={viagem.problemaMecanicoEm}
+      />
+
+      <TrocaMotoristaCard
+        viagemId={viagem.id}
+        numViagem={viagem.numViagem}
+        emAndamento={STATUS_EM_ANDAMENTO.includes(viagem.status)}
+        agoraServidor={new Date().toISOString()}
+        kmInicial={viagem.kmInicial}
+        substitutos={substitutos}
+        trocas={trocas.map((troca) => ({
+          id: troca.id,
+          km: troca.km,
+          trocadoEm: troca.trocadoEm.toISOString(),
+          local: troca.local,
+          motivo: troca.motivo,
+          motoristaAnterior: troca.motoristaAnterior.nome,
+          motoristaNovo: troca.motoristaNovo.nome,
+        }))}
       />
 
       <HistoricoCard registros={serializeData(historico)} />

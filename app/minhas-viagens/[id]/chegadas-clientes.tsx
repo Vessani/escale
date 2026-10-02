@@ -6,10 +6,11 @@ import { CircleCheck, MapPin, Pencil } from "lucide-react"
 import { Alert } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
+import { ControleSegmentado } from "@/components/ui/controle-segmentado"
 import { registrarChegada } from "@/lib/actions/minhas-viagens"
 import { chamarAcao } from "@/lib/chamar-acao"
-import { FATOR_BALANCA, calcularDescarga, formatarNumero, parseNumeroDecimal, type TipoMedicao } from "@/lib/services/descarga"
-import { formatarDataHoraPtBr } from "@/lib/utils/date-format"
+import { FATOR_BALANCA, calcularDescarga, formatarNumero, parseNumeroDecimal, unidadeDescarga, type TipoMedicao } from "@/lib/services/descarga"
+import { formatDateTimeForInput, formatarDataHoraPtBr } from "@/lib/utils/date-format"
 import { cn } from "@/lib/utils"
 
 type Produto = "CO2" | "NITROGENIO" | "ARGONIO" | "BIOMETANO" | "OXIGENIO"
@@ -29,12 +30,6 @@ export type ChegadaDoPainel = {
 export type EntregaDoPainel = { id: number; cliente: string; cidade: string; uf: string; chegada: ChegadaDoPainel | null }
 
 const ROTULO_MEDICAO: Record<TipoMedicao, string> = { MANOMETRO: "Manômetro", BALANCA: "Balança" }
-
-/** "YYYY-MM-DDTHH:MM" no fuso do celular (o do motorista), pro <input type="datetime-local">. */
-function paraCampoDataHora(data: Date): string {
-  const p = (n: number) => String(n).padStart(2, "0")
-  return `${data.getFullYear()}-${p(data.getMonth() + 1)}-${p(data.getDate())}T${p(data.getHours())}:${p(data.getMinutes())}`
-}
 
 const numeroCampo = (valor: number | null | undefined) => (valor === null || valor === undefined ? "" : String(valor).replace(".", ","))
 
@@ -61,12 +56,14 @@ function FormChegada({
   entrega,
   produto,
   kmInicial,
+  agoraServidor,
   aoTerminar,
 }: {
   viagemId: number
   entrega: EntregaDoPainel
   produto: Produto | null
   kmInicial: number | null
+  agoraServidor: string
   aoTerminar: () => void
 }) {
   const router = useRouter()
@@ -76,7 +73,9 @@ function FormChegada({
   const biometano = produto === "BIOMETANO"
 
   const [km, setKm] = useState(anterior ? String(anterior.km) : "")
-  const [quando, setQuando] = useState(() => paraCampoDataHora(anterior ? new Date(anterior.chegadaEm) : new Date()))
+  // Horário de Brasília (como o resto do sistema), a partir do relógio do
+  // servidor — não do celular, que pode estar em outro fuso ou adiantado.
+  const [quando, setQuando] = useState(() => formatDateTimeForInput(anterior ? anterior.chegadaEm : agoraServidor))
   const [medicao, setMedicao] = useState<TipoMedicao | null>(anterior?.medicao ?? null)
   const [inicial, setInicial] = useState(numeroCampo(anterior?.nivelInicial))
   const [final, setFinal] = useState(numeroCampo(anterior?.nivelFinal))
@@ -88,7 +87,7 @@ function FormChegada({
     medicao: biometano ? null : medicao,
     nivelInicial: parseNumeroDecimal(inicial),
     nivelFinal: parseNumeroDecimal(final),
-    fatorCliente: medicao === "MANOMETRO" ? parseNumeroDecimal(fator) : null,
+    fatorCliente: medicao === "MANOMETRO" ? parseNumeroDecimal(fator, { pontoDecimal: true }) : null,
     polInicial: biometano ? parseNumeroDecimal(polInicial) : null,
     polFinal: biometano ? parseNumeroDecimal(polFinal) : null,
   }
@@ -99,7 +98,7 @@ function FormChegada({
     setErro("")
     iniciarTransicao(async () => {
       const resposta = await chamarAcao(() =>
-        registrarChegada(viagemId, entrega.id, { km: Number(km), chegadaEm: new Date(quando).toISOString(), ...dados }),
+        registrarChegada(viagemId, entrega.id, { km: Number(km), chegadaEm: quando, ...dados }),
       )
       if (!resposta.sucesso) return setErro(resposta.erro)
       aoTerminar()
@@ -131,22 +130,13 @@ function FormChegada({
       </div>
 
       {!biometano && (
-        <div className="inline-flex w-full rounded-lg border bg-muted/40 p-1" role="group" aria-label="Tipo de medida">
-          {(["MANOMETRO", "BALANCA"] as const).map((tipo) => (
-            <button
-              key={tipo}
-              type="button"
-              aria-pressed={medicao === tipo}
-              onClick={() => setMedicao(tipo)}
-              className={cn(
-                "flex-1 rounded-md px-3 py-2 text-sm transition-colors",
-                medicao === tipo ? "bg-background font-medium shadow-sm ring-1 ring-border" : "text-muted-foreground",
-              )}
-            >
-              {ROTULO_MEDICAO[tipo]}
-            </button>
-          ))}
-        </div>
+        <ControleSegmentado
+          rotulo="Tipo de medida"
+          largo
+          opcoes={(["MANOMETRO", "BALANCA"] as const).map((tipo) => ({ valor: tipo, rotulo: ROTULO_MEDICAO[tipo] }))}
+          valor={medicao}
+          onChange={setMedicao}
+        />
       )}
 
       {(biometano || medicao) && (
@@ -200,7 +190,7 @@ function FormChegada({
 }
 
 function ResumoChegada({ chegada }: { chegada: ChegadaDoPainel }) {
-  const unidade = chegada.medicao === "MANOMETRO" ? "" : chegada.medicao === "BALANCA" && chegada.fator === 1 ? " kg" : " m³"
+  const unidade = unidadeDescarga(chegada) ? ` ${unidadeDescarga(chegada)}` : ""
   return (
     <dl className="grid grid-cols-3 gap-2 text-sm">
       <div className="rounded-lg bg-muted/60 px-3 py-2">
@@ -225,11 +215,13 @@ export function ChegadasClientes({
   entregas,
   produto,
   kmInicial,
+  agoraServidor,
 }: {
   viagemId: number
   entregas: EntregaDoPainel[]
   produto: Produto | null
   kmInicial: number | null
+  agoraServidor: string
 }) {
   const [aberta, setAberta] = useState<number | null>(null)
 
@@ -258,7 +250,7 @@ export function ChegadasClientes({
           </div>
 
           {aberta === entrega.id ? (
-            <FormChegada viagemId={viagemId} entrega={entrega} produto={produto} kmInicial={kmInicial} aoTerminar={() => setAberta(null)} />
+            <FormChegada viagemId={viagemId} entrega={entrega} produto={produto} kmInicial={kmInicial} agoraServidor={agoraServidor} aoTerminar={() => setAberta(null)} />
           ) : entrega.chegada ? (
             <div className="mt-2">
               <ResumoChegada chegada={entrega.chegada} />

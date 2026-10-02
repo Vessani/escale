@@ -1,6 +1,5 @@
-import { getServerSession } from "next-auth"
-import { authOptions } from "@/lib/auth"
-import { ehMotorista } from "@/lib/papeis"
+import { requireSessaoApi } from "@/lib/api-auth"
+import { respostaErro } from "@/lib/api-response"
 import { buscarViagemPorId } from "@/lib/queries/viagens"
 import { buscarNomeFilial } from "@/lib/queries/filiais"
 import { gerarExcelViagem, sanitizarNomeArquivo } from "@/lib/services/excel-export.service"
@@ -11,9 +10,12 @@ export async function GET(
   _request: Request,
   { params }: { params: Promise<{ id: string }> },
 ) {
-  const session = await getServerSession(authOptions)
-  if (!session || session.user.filialId === null || ehMotorista(session.user.role)) {
-    return new Response("Não autorizado.", { status: 401 })
+  // Mesma checagem de todas as rotas (sessão, filial, motorista não entra) — lib/api-auth.ts.
+  let filialId: number
+  try {
+    ;({ filialId } = await requireSessaoApi())
+  } catch (erro) {
+    return respostaErro(erro)
   }
 
   const { id } = await params
@@ -23,8 +25,8 @@ export async function GET(
   }
 
   const [viagem, filial] = await Promise.all([
-    buscarViagemPorId(session.user.filialId, viagemId),
-    buscarNomeFilial(session.user.filialId),
+    buscarViagemPorId(filialId, viagemId),
+    buscarNomeFilial(filialId),
   ])
   if (!viagem) {
     return new Response("Viagem não encontrada.", { status: 404 })

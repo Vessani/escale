@@ -7,6 +7,7 @@ import { Alert } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { ConfirmDialog } from "@/components/ui/confirm-dialog"
+import { ControleSegmentado } from "@/components/ui/controle-segmentado"
 import { encerrarViagem, iniciarViagem, lancarDespesa, removerDespesa } from "@/lib/actions/minhas-viagens"
 import { MOTIVOS_ATRASO, MOTIVO_OUTRO, TAMANHO_MAXIMO_MOTIVO } from "@/lib/services/motivos-atraso"
 import { minutosDeAtraso, saidaAtrasada } from "@/lib/services/pontualidade"
@@ -14,8 +15,11 @@ import { formatarReais, parseReaisParaCentavos } from "@/lib/utils/dinheiro"
 import { formatarHoraLocal } from "@/lib/utils/date-format"
 import { cn } from "@/lib/utils"
 import { chamarAcao } from "@/lib/chamar-acao"
+import { totaisDespesas } from "@/lib/services/despesas-viagem"
+import { STATUS_A_INICIAR, STATUS_EM_ANDAMENTO } from "@/lib/services/viagem-status.service"
 import { ChegadasClientes, type EntregaDoPainel } from "./chegadas-clientes"
 import { ProblemaMecanico } from "./problema-mecanico"
+import { TrocaMotoristaMotorista } from "./troca-motorista"
 
 type Status = "CRIADA" | "ALOCADA" | "INICIADA" | "RETORNANDO" | "POSTERGADA" | "FINALIZADA" | "CANCELADA"
 type TipoDespesa = "PEDAGIO" | "PERNOITE"
@@ -36,8 +40,6 @@ export type ViagemDoPainel = {
   problemaMecanicoEm: string | null
 }
 
-const A_INICIAR: Status[] = ["CRIADA", "ALOCADA", "POSTERGADA"]
-const EM_ANDAMENTO: Status[] = ["INICIADA", "RETORNANDO"]
 const ROTULO_DESPESA: Record<TipoDespesa, string> = { PEDAGIO: "Pedágio", PERNOITE: "Pernoite" }
 
 /** Só números no campo de km (o teclado do celular às vezes manda ponto/espaço). */
@@ -56,7 +58,8 @@ function Cartao({ titulo, icone: Icone, children }: { titulo: string; icone: typ
 }
 
 function Totais({ despesas }: { despesas: ViagemDoPainel["despesas"] }) {
-  const soma = (tipo: TipoDespesa) => despesas.filter((d) => d.tipo === tipo).reduce((total, d) => total + d.valorCentavos, 0)
+  const totais = totaisDespesas(despesas)
+  const soma = (tipo: TipoDespesa) => (tipo === "PEDAGIO" ? totais.pedagioCentavos : totais.pernoiteCentavos)
   return (
     <dl className="grid grid-cols-2 gap-2 text-sm">
       {(["PEDAGIO", "PERNOITE"] as const).map((tipo) => (
@@ -78,8 +81,10 @@ export function PainelViagemMotorista({
   viagem,
   souPrincipal,
   agoraServidor,
+  substitutos,
 }: {
   viagem: ViagemDoPainel
+  substitutos: Array<{ id: number; nome: string }>
   souPrincipal: boolean
   agoraServidor: string
 }) {
@@ -135,7 +140,7 @@ export function PainelViagemMotorista({
     <div className="space-y-4">
       {erro && <Alert variant="error">{erro}</Alert>}
 
-      {A_INICIAR.includes(viagem.status) && (
+      {STATUS_A_INICIAR.includes(viagem.status) && (
         <Cartao titulo="Iniciar viagem" icone={Play}>
           {atrasada && (
             <Alert variant="warning">
@@ -197,11 +202,11 @@ export function PainelViagemMotorista({
         </Cartao>
       )}
 
-      {A_INICIAR.includes(viagem.status) && (
+      {STATUS_A_INICIAR.includes(viagem.status) && (
         <ProblemaMecanico viagemId={viagem.id} problema={viagem.problemaMecanico} informadoEm={viagem.problemaMecanicoEm} />
       )}
 
-      {EM_ANDAMENTO.includes(viagem.status) && (
+      {STATUS_EM_ANDAMENTO.includes(viagem.status) && (
         <>
           <Alert variant="success">
             Viagem iniciada às {viagem.horarioRealSaida ? formatarHoraLocal(viagem.horarioRealSaida) : "—"}
@@ -210,26 +215,17 @@ export function PainelViagemMotorista({
           </Alert>
 
           <Cartao titulo="Chegada nos clientes" icone={MapPinned}>
-            <ChegadasClientes viagemId={viagem.id} entregas={viagem.entregas} produto={viagem.produto} kmInicial={viagem.kmInicial} />
+            <ChegadasClientes viagemId={viagem.id} entregas={viagem.entregas} produto={viagem.produto} kmInicial={viagem.kmInicial} agoraServidor={agoraServidor} />
           </Cartao>
 
           <Cartao titulo="Pedágio e pernoite" icone={Ticket}>
-            <div className="inline-flex w-full rounded-lg border bg-muted/40 p-1" role="group" aria-label="Tipo de despesa">
-              {(["PEDAGIO", "PERNOITE"] as const).map((tipo) => (
-                <button
-                  key={tipo}
-                  type="button"
-                  aria-pressed={tipoDespesa === tipo}
-                  onClick={() => setTipoDespesa(tipo)}
-                  className={cn(
-                    "flex-1 rounded-md px-3 py-2 text-sm transition-colors",
-                    tipoDespesa === tipo ? "bg-background font-medium shadow-sm ring-1 ring-border" : "text-muted-foreground",
-                  )}
-                >
-                  {ROTULO_DESPESA[tipo]}
-                </button>
-              ))}
-            </div>
+            <ControleSegmentado
+              rotulo="Tipo de despesa"
+              largo
+              opcoes={(["PEDAGIO", "PERNOITE"] as const).map((tipo) => ({ valor: tipo, rotulo: ROTULO_DESPESA[tipo] }))}
+              valor={tipoDespesa}
+              onChange={setTipoDespesa}
+            />
             <div className="flex gap-2">
               <Input
                 inputMode="decimal"
@@ -285,6 +281,8 @@ export function PainelViagemMotorista({
 
           <ProblemaMecanico viagemId={viagem.id} problema={viagem.problemaMecanico} informadoEm={viagem.problemaMecanicoEm} />
 
+          <TrocaMotoristaMotorista viagemId={viagem.id} numViagem={viagem.numViagem} substitutos={substitutos} kmInicial={viagem.kmInicial} agoraServidor={agoraServidor} />
+
           <Cartao titulo="Encerrar viagem" icone={Flag}>
             <label className="grid gap-1.5 text-sm font-medium">
               Km final (hodômetro)
@@ -306,7 +304,10 @@ export function PainelViagemMotorista({
               variant="outline"
               className="h-12 w-full text-base"
               disabled={pendente || !kmFinal}
-              onClick={() => setConfirmarEncerrar(true)}
+              onClick={() => {
+                setErro("") // não levar pro diálogo um erro antigo (ex.: de uma despesa)
+                setConfirmarEncerrar(true)
+              }}
             >
               Encerrar viagem
             </Button>

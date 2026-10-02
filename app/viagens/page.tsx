@@ -120,7 +120,7 @@ function ViagensTabela({ viagens, podeExcluir }: { viagens: Viagem[]; podeExclui
                       Extra
                     </Badge>
                   )}
-                  <AtualizarStatusRapido viagemId={viagem.id} statusAtual={viagem.status} inicioPrevisto={viagem.inicioPrevisto} fimPrevisto={viagem.fimPrevisto} />
+                  <AtualizarStatusRapido key={`${viagem.id}-${viagem.status}`} viagemId={viagem.id} statusAtual={viagem.status} inicioPrevisto={viagem.inicioPrevisto} fimPrevisto={viagem.fimPrevisto} />
                 </div>
               </TableCell>
               <TableCell>
@@ -164,7 +164,7 @@ function ViagensCards({ viagens, podeExcluir }: { viagens: Viagem[]; podeExcluir
                 Extra
               </Badge>
             )}
-            <AtualizarStatusRapido viagemId={viagem.id} statusAtual={viagem.status} inicioPrevisto={viagem.inicioPrevisto} fimPrevisto={viagem.fimPrevisto} />
+            <AtualizarStatusRapido key={`${viagem.id}-${viagem.status}`} viagemId={viagem.id} statusAtual={viagem.status} inicioPrevisto={viagem.inicioPrevisto} fimPrevisto={viagem.fimPrevisto} />
           </div>
 
           <dl className="grid grid-cols-2 gap-x-4 gap-y-2 text-sm">

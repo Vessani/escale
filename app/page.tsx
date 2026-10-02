@@ -136,6 +136,10 @@ function StatusCelula({ item }: { item: ItemDashboard }) {
   return (
     <div className="space-y-1">
       <AtualizarStatusRapido
+        // A chave muda com o status: quando o motorista inicia/encerra pelo
+        // celular e o painel se atualiza sozinho, o seletor reflete na hora
+        // (sem a chave ele guardava o status de quando a tela abriu).
+        key={`${viagem.id}-${viagem.status}`}
         viagemId={viagem.id}
         statusAtual={viagem.status}
         inicioPrevisto={viagem.inicioPrevisto}
@@ -404,8 +408,9 @@ export default async function DashboardPage({
     <div id="painel-dashboard" className="space-y-5">
       {/* O que o motorista registra no celular (saída, encerramento) aparece sozinho. */}
       <AtualizacaoAutomatica segundos={60} />
+      {/* Modo TV: só os dados das viagens — some título, recado, contadores e legenda. */}
       <div className="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
-        <div>
+        <div className="fora-do-modo-tv">
           <div className="flex items-center gap-2">
             <h1 className="text-2xl font-semibold tracking-tight text-foreground">Dashboard</h1>
             <span title={explicacaoDashboard} className="fora-do-modo-tv text-muted-foreground hover:text-foreground">
@@ -437,15 +442,18 @@ export default async function DashboardPage({
               Programação do dia
             </a>
           </Button>
-          <QuadroDeObservacoes textoInicial={quadroObservacoes} />
+          {/* A chave muda quando o recado muda no servidor (outro computador
+              editou): a atualização automática traz o texto novo — sem ela o
+              componente guardava o recado de quando a tela abriu. */}
+          <QuadroDeObservacoes key={quadroObservacoes} textoInicial={quadroObservacoes} />
           <ModoTv alvoId="painel-dashboard" />
         </div>
       </div>
 
       {/* Recado do quadro de observações (ou o editor), quando houver. */}
-      <div id={ID_SLOT_QUADRO} className="empty:hidden" />
+      <div id={ID_SLOT_QUADRO} className="fora-do-modo-tv empty:hidden" />
 
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-4 xl:grid-cols-8">
+      <div className="fora-do-modo-tv grid grid-cols-2 gap-3 sm:grid-cols-4 xl:grid-cols-8">
         {STATUS_ATIVOS_DASHBOARD.map((status) => (
           <ContadorStatus key={status} status={status} valor={contagem[status] ?? 0} />
         ))}
@@ -499,7 +507,7 @@ export default async function DashboardPage({
           <>
             <ViagensEmAndamentoTabela itens={itens} diaMostrado={dataTextoInput} />
             <ViagensEmAndamentoCards itens={itens} />
-            <div className="flex justify-end">
+            <div className="fora-do-modo-tv flex justify-end">
               <LegendaMotoristas mostrarSituacao={false} />
             </div>
           </>

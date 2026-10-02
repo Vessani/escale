@@ -15,7 +15,7 @@ import { formatarProduto } from "@/lib/services/produto.service"
 import { CheckCircle2, PencilLine, Route, Save } from "lucide-react"
 import { CartaoViagemAlocacao } from "@/components/viagem/cartao-viagem-alocacao"
 import { EscolhaMotorista, SEM_MOTORISTA } from "@/components/viagem/escolha-motorista"
-import { MENSAGEM_SEM_CONEXAO } from "@/lib/chamar-acao"
+import { mensagemDaFalha } from "@/lib/chamar-acao"
 
 type Props = {
   viagens: ViagemAlocacao[]
@@ -115,8 +115,8 @@ export default function AlocacaoViagensClient({ viagens }: Props) {
 
         setMensagem(`Viagem ${viagem.numViagem} alocada com sucesso.`)
         router.refresh()
-      } catch {
-        setErro(MENSAGEM_SEM_CONEXAO)
+      } catch (erro) {
+        setErro(mensagemDaFalha(erro))
       } finally {
         setSalvandoId(null)
       }

@@ -25,7 +25,7 @@ export default async function EditarMotoristaPage({ params }: { params: Promise<
     buscarMotoristaPorId(filialId, motoristaId),
     buscarClientes(),
     buscarHistoricoDaEntidade("Motorista", motoristaId),
-    situacaoAcessoMotorista(motoristaId),
+    situacaoAcessoMotorista(filialId, motoristaId),
   ])
 
   if (!motorista) {

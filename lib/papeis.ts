@@ -7,6 +7,9 @@
  * - MOTORISTA: só a área "Minhas viagens", com as viagens dele (login
  *   SEVA + PIN). Bloqueado em todas as outras telas, rotas e ações.
  */
+/** Quem opera a escala (cria, aloca, troca motorista, gera acesso do motorista). */
+export const PAPEIS_ESCALADOR = ["ADMIN", "DESPACHANTE"]
+
 export const PAPEL_MOTORISTA = "MOTORISTA"
 
 /** Única área que o motorista acessa. */

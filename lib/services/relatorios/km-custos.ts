@@ -1,5 +1,6 @@
 import type { StatusViagem, TipoDespesaViagem } from "@prisma/client"
 import { formatarNomeProprio } from "@/lib/utils/texto"
+import { totaisDespesas } from "@/lib/services/despesas-viagem"
 
 /**
  * Relatório de km e custos por viagem: o que o motorista registrou no
@@ -25,6 +26,8 @@ export type ViagemKmCustos = {
   despesas: { tipo: TipoDespesaViagem; valorCentavos: number }[]
   /** Na ordem da rota. */
   entregas: { cidade: string; uf: string; sapcode: string; codewhite: string }[]
+  /** Quantas trocas de motorista a viagem teve (km e custos são da viagem inteira). */
+  _count?: { trocas: number }
 }
 
 /** Código preenchido de verdade (não vazio, nem só zeros/traços). */
@@ -70,13 +73,11 @@ type LinhaKmCustos = {
   regiao: string[]
   /** O motorista registrou algo (km ou despesa) — viagens antigas ou de quem não tem acesso não têm. */
   temRegistro: boolean
+  teveTroca: boolean
 }
 
 export function linhaKmCustos(viagem: ViagemKmCustos): LinhaKmCustos {
-  const soma = (tipo: TipoDespesaViagem) =>
-    viagem.despesas.filter((despesa) => despesa.tipo === tipo).reduce((total, despesa) => total + despesa.valorCentavos, 0)
-  const pedagioCentavos = soma("PEDAGIO")
-  const pernoiteCentavos = soma("PERNOITE")
+  const { pedagioCentavos, pernoiteCentavos } = totaisDespesas(viagem.despesas)
   const kmRodado =
     viagem.kmInicial !== null && viagem.kmFinal !== null && viagem.kmFinal >= viagem.kmInicial ? viagem.kmFinal - viagem.kmInicial : null
 
@@ -98,6 +99,7 @@ export function linhaKmCustos(viagem: ViagemKmCustos): LinhaKmCustos {
     custoCentavos: pedagioCentavos + pernoiteCentavos,
     regiao: regiaoDaViagem(viagem.entregas),
     temRegistro: viagem.kmInicial !== null || viagem.kmFinal !== null || viagem.despesas.length > 0,
+    teveTroca: (viagem._count?.trocas ?? 0) > 0,
   }
 }
 

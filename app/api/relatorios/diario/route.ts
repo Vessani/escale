@@ -1,6 +1,5 @@
-import { getServerSession } from "next-auth"
-import { authOptions } from "@/lib/auth"
-import { ehMotorista } from "@/lib/papeis"
+import { requireSessaoApi } from "@/lib/api-auth"
+import { respostaErro } from "@/lib/api-response"
 import { buscarViagensCriadasEm } from "@/lib/queries/viagens"
 import { buscarNomeFilial } from "@/lib/queries/filiais"
 import { gerarExcelViagensCriadasHoje } from "@/lib/services/excel-export.service"
@@ -9,9 +8,12 @@ import { formatarDiaCompleto } from "@/lib/relatorios/formato"
 import { parseDataLocal } from "@/lib/utils/date-format"
 
 export async function GET(request: Request) {
-  const session = await getServerSession(authOptions)
-  if (!session || session.user.filialId === null || ehMotorista(session.user.role)) {
-    return new Response("Não autorizado.", { status: 401 })
+  // Mesma checagem de todas as rotas (sessão, filial, motorista não entra) — lib/api-auth.ts.
+  let filialId: number
+  try {
+    ;({ filialId } = await requireSessaoApi())
+  } catch (erro) {
+    return respostaErro(erro)
   }
 
   const url = new URL(request.url)
@@ -25,8 +27,8 @@ export async function GET(request: Request) {
   }
 
   const [viagens, filial] = await Promise.all([
-    buscarViagensCriadasEm(session.user.filialId, data),
-    buscarNomeFilial(session.user.filialId),
+    buscarViagensCriadasEm(filialId, data),
+    buscarNomeFilial(filialId),
   ])
   const buffer = await gerarExcelViagensCriadasHoje(viagens, formatarDiaCompleto(data), { filial })
   return respostaExcel(buffer, "viagens-criadas")

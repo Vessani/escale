@@ -38,7 +38,7 @@ export type DadosDescarga = {
 }
 
 type ResultadoDescarga =
-  | { ok: true; total: number; fator: number | null; unidade: string; medicao: TipoMedicao | null }
+  | { ok: true; total: number; fator: number | null; unidade: string; medicao: TipoMedicao | null; nivelInicial: number; nivelFinal: number }
   | { ok: false; erro: string }
 
 const arredondar = (valor: number) => Math.round(valor * 1000) / 1000
@@ -54,12 +54,16 @@ export function calcularDescarga(dados: DadosDescarga): ResultadoDescarga {
     return { ok: false, erro: "O nível final está maior que o inicial — confira as leituras." }
   }
   const diferenca = dados.nivelInicial - dados.nivelFinal
+  const niveis = { nivelInicial: dados.nivelInicial, nivelFinal: dados.nivelFinal }
 
   if (dados.produto === "BIOMETANO") {
     if (!valido(dados.polInicial) || !valido(dados.polFinal)) {
       return { ok: false, erro: "Biometano: informe também o nível inicial e o final em polegadas." }
     }
-    return { ok: true, total: arredondar(diferenca), fator: null, unidade: "m³", medicao: null }
+    if (dados.polFinal > dados.polInicial) {
+      return { ok: false, erro: "Em polegadas, o nível final está maior que o inicial — confira as leituras." }
+    }
+    return { ok: true, total: arredondar(diferenca), fator: null, unidade: "m³", medicao: null, ...niveis }
   }
 
   if (dados.medicao === "MANOMETRO") {
@@ -67,27 +71,30 @@ export function calcularDescarga(dados: DadosDescarga): ResultadoDescarga {
     if (typeof fator !== "number" || !Number.isFinite(fator) || fator <= 0 || fator > FATOR_MAXIMO) {
       return { ok: false, erro: "Informe a conversão do cliente (número maior que zero)." }
     }
-    return { ok: true, total: arredondar(diferenca * fator), fator, unidade: "", medicao: "MANOMETRO" }
+    return { ok: true, total: arredondar(diferenca * fator), fator, unidade: "", medicao: "MANOMETRO", ...niveis }
   }
 
   if (dados.medicao === "BALANCA") {
     const fator = FATOR_BALANCA[dados.produto]
-    return { ok: true, total: arredondar(diferenca * fator), fator, unidade: dados.produto === "CO2" ? "kg" : "m³", medicao: "BALANCA" }
+    return { ok: true, total: arredondar(diferenca * fator), fator, unidade: dados.produto === "CO2" ? "kg" : "m³", medicao: "BALANCA", ...niveis }
   }
 
   return { ok: false, erro: "Escolha o tipo de medida: manômetro ou balança." }
 }
 
 /** "12,5" / "1.234,5" / "12.5" → número; vazio ou inválido → null. */
-export function parseNumeroDecimal(texto: string): number | null {
+export function parseNumeroDecimal(texto: string, opcoes: { pontoDecimal?: boolean } = {}): number | null {
   const limpo = texto.trim().replace(/\s/g, "")
   if (!limpo) return null
   // Com vírgula, o ponto é separador de milhar. Sem vírgula: "1.000" e
   // "152.300" (grupos de 3) são milhar — é como se escreve mil no Brasil;
-  // "12.5" é decimal.
+  // "12.5" é decimal. Nunca milhar: começando com "0." ("0.754") ou quando o
+  // campo é de fator de conversão (`pontoDecimal`) — teclado de celular que
+  // só tem ponto não pode virar um fator mil vezes maior.
+  const ehMilhar = !opcoes.pontoDecimal && /^[1-9]\d{0,2}(\.\d{3})+$/.test(limpo)
   const normalizado = limpo.includes(",")
     ? limpo.replace(/\./g, "").replace(",", ".")
-    : /^\d{1,3}(\.\d{3})+$/.test(limpo)
+    : ehMilhar
       ? limpo.replace(/\./g, "")
       : limpo
   if (!/^\d+(\.\d+)?$/.test(normalizado)) return null
@@ -97,3 +104,54 @@ export function parseNumeroDecimal(texto: string): number | null {
 export function formatarNumero(valor: number, casas = 3): string {
   return valor.toLocaleString("pt-BR", { maximumFractionDigits: casas })
 }
+
+/** O que já foi gravado de uma chegada, pra mostrar (card do escalador, relatório). */
+type ChegadaGravada = {
+  medicao: TipoMedicao | null
+  fator: number | null
+  nivelInicial: number
+  nivelFinal: number
+  polInicial: number | null
+  polFinal: number | null
+}
+
+/** "Manômetro × 12,5", "Balança × 0,754", "Balança (kg)", "Biometano". */
+export function textoMedicao(chegada: Pick<ChegadaGravada, "medicao" | "fator">): string {
+  if (chegada.medicao === "MANOMETRO") return `Manômetro × ${formatarNumero(chegada.fator ?? 0, 4)}`
+  if (chegada.medicao === "BALANCA") return chegada.fator === 1 ? "Balança (kg)" : `Balança × ${formatarNumero(chegada.fator ?? 0, 4)}`
+  return "Biometano"
+}
+
+/** Unidade do total: manômetro depende da conversão do cliente (sem unidade). */
+export function unidadeDescarga(chegada: Pick<ChegadaGravada, "medicao" | "fator">): string {
+  if (chegada.medicao === "MANOMETRO") return ""
+  return chegada.medicao === "BALANCA" && chegada.fator === 1 ? "kg" : "m³"
+}
+
+/** "1.000 → 400" (biometano: "950 → 200 m³ (80 → 15 pol)"). */
+export function textoLeituras(chegada: ChegadaGravada): string {
+  const base = `${formatarNumero(chegada.nivelInicial)} → ${formatarNumero(chegada.nivelFinal)}`
+  return chegada.polInicial !== null && chegada.polFinal !== null
+    ? `${base} m³ (${formatarNumero(chegada.polInicial, 2)} → ${formatarNumero(chegada.polFinal, 2)} pol)`
+    : base
+}
+
+/** Decimal do banco (Prisma) ou número → número. */
+const numero = (valor: unknown) => Number(valor)
+const numeroOuNulo = (valor: unknown) => (valor === null || valor === undefined ? null : Number(valor))
+
+/** ChegadaEntrega do banco (campos Decimal) com os números prontos pra conta e pra tela — um lugar só. */
+export function chegadaEmNumeros<T extends { nivelInicial: unknown; nivelFinal: unknown; polInicial: unknown; polFinal: unknown; fator: unknown; totalDescarregado: unknown }>(
+  chegada: T,
+) {
+  return {
+    ...chegada,
+    nivelInicial: numero(chegada.nivelInicial),
+    nivelFinal: numero(chegada.nivelFinal),
+    polInicial: numeroOuNulo(chegada.polInicial),
+    polFinal: numeroOuNulo(chegada.polFinal),
+    fator: numeroOuNulo(chegada.fator),
+    totalDescarregado: numero(chegada.totalDescarregado),
+  }
+}
+

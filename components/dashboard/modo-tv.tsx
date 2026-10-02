@@ -37,6 +37,13 @@ ${alvo} col.fora-do-modo-tv {
 ${alvo} [data-slot="table-container"] {
   max-height: none;
 }
+/* Do cabeçalho só sobra o botão de sair: discreto, no canto de baixo (não cobre os dados). */
+${alvo} > div:has(> div > [data-botao-modo-tv]) {
+  position: fixed;
+  bottom: 0.75rem;
+  right: 1rem;
+  opacity: 0.45;
+}
 `
 }
 
@@ -97,6 +104,7 @@ export function ModoTv({ alvoId }: { alvoId: string }) {
         variant={ativo ? "ghost" : "outline"}
         size="sm"
         onClick={alternar}
+        data-botao-modo-tv=""
         title={ativo ? "Sair do modo TV (Esc)" : "Painel em tela cheia, letra maior, pra deixar na TV"}
       >
         {ativo ? <Minimize2 className="mr-2 size-4" aria-hidden /> : <Maximize2 className="mr-2 size-4" aria-hidden />}

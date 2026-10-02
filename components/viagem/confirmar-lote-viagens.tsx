@@ -17,6 +17,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { CartaoViagemAlocacao } from "@/components/viagem/cartao-viagem-alocacao"
 import { EscolhaMotorista, SEM_MOTORISTA } from "@/components/viagem/escolha-motorista"
 import { CheckCircle2, Loader2, PackageCheck, UserCheck } from "lucide-react"
+import { mensagemDaFalha } from "@/lib/chamar-acao"
 
 export type ViagemParaConfirmar = {
   dados: NovaViagemFormValues
@@ -76,8 +77,8 @@ export default function ConfirmarLoteViagens({ viagens, onConcluido, onCancelar 
         }
         return proximo
       })
-    } catch {
-      setErro("Não foi possível recalcular a sugestão de motorista. Tente de novo.")
+    } catch (erro) {
+      setErro(mensagemDaFalha(erro))
     } finally {
       setRecalculando((atual) => {
         const proximo = new Set(atual)
@@ -148,8 +149,8 @@ export default function ConfirmarLoteViagens({ viagens, onConcluido, onCancelar 
     iniciarCriacao(async () => {
       try {
         onConcluido(await criarViagensEmLoteComAlocacao(payload))
-      } catch {
-        setErro("Ocorreu um erro inesperado ao criar as viagens.")
+      } catch (erro) {
+        setErro(mensagemDaFalha(erro))
       }
     })
   }
