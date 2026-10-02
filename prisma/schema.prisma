@@ -222,6 +222,10 @@
     kmInicial         Int?
     kmFinal           Int?
     despesas          DespesaViagem[]
+    // Informado pelo motorista no celular; vazio = sem problema (ou resolvido).
+    // Preenchido, aparece em vermelho na linha da viagem no Dashboard/TV.
+    problemaMecanico   String?   @db.VarChar(300)
+    problemaMecanicoEm DateTime?
 
     @@index([motoristaId])
     @@index([motoristaAcompanhanteId])
@@ -314,6 +318,7 @@
     atualizadoEm DateTime     @updatedAt
 
     viagem       Viagem       @relation(fields: [viagemId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+    chegada      ChegadaEntrega?
 
     // O Postgres não cria índice pra chave estrangeira sozinho — sem isto,
     // carregar as entregas de qualquer viagem varria a tabela inteira.
@@ -581,6 +586,37 @@
   enum TipoDespesaViagem {
     PEDAGIO
     PERNOITE
+  }
+
+  enum TipoMedicao {
+    MANOMETRO
+    BALANCA
+  }
+
+  // Chegada do motorista em cada cliente (uma por entrega): km, hora e a
+  // medição do que foi descarregado. Ver lib/services/descarga.ts pra conta.
+  model ChegadaEntrega {
+    id                Int          @id @default(autoincrement())
+    entregaId         Int          @unique
+    entrega           Entrega      @relation(fields: [entregaId], references: [id], onDelete: Cascade)
+
+    km                Int
+    chegadaEm         DateTime
+    // Nulo no biometano (lê em polegadas e m³, sem conversão).
+    medicao           TipoMedicao?
+    // Nível do tanque do caminhão (balança: kg; manômetro: leitura; biometano: m³).
+    nivelInicial      Decimal      @db.Decimal(12, 3)
+    nivelFinal        Decimal      @db.Decimal(12, 3)
+    // Biometano: as mesmas leituras em polegadas.
+    polInicial        Decimal?     @db.Decimal(10, 2)
+    polFinal          Decimal?     @db.Decimal(10, 2)
+    // Conversão usada (manômetro: a do cliente, informada; balança: a do produto).
+    fator             Decimal?     @db.Decimal(10, 4)
+    totalDescarregado Decimal      @db.Decimal(14, 3)
+
+    usuarioId         String?
+    registradoEm      DateTime     @default(now())
+    atualizadoEm      DateTime     @updatedAt
   }
 
   // Pedágio/pernoite lançado durante a viagem (pelo motorista, no acesso

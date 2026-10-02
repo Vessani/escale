@@ -17,8 +17,8 @@ ${alvo} {
   color: var(--foreground);
   overflow-y: auto;
   padding: 1.25rem 1.5rem;
-  /* 1920px de TV vira ~1280 de tela "normal": tudo 50% maior, legível de longe. */
-  zoom: 1.5;
+  /* Um pouco maior que a tela normal, legível de longe sem perder espaço. */
+  zoom: 1.2;
 }
 /* Navegador sem tela cheia (ex.: o da própria TV): ocupa a janela inteira. */
 ${alvo}[data-modo-tv="janela"] {

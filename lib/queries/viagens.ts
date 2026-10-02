@@ -219,3 +219,28 @@ export async function buscarProgramacaoDoDia(filialId: number, dia: Date) {
     },
   });
 }
+
+/** Chegadas do motorista nos clientes desta viagem (a viagem já foi conferida na filial por quem chama). */
+export async function buscarChegadasDaViagem(viagemId: number) {
+  const chegadas = await prisma.chegadaEntrega.findMany({
+    where: { entrega: { viagemId } },
+    orderBy: { entregaId: "asc" },
+    include: { entrega: { select: { cliente: true, cidade: true, uf: true } } },
+  })
+  return chegadas.map((chegada) => ({
+    id: chegada.id,
+    cliente: chegada.entrega.cliente,
+    cidade: chegada.entrega.cidade,
+    uf: chegada.entrega.uf,
+    km: chegada.km,
+    chegadaEm: chegada.chegadaEm,
+    medicao: chegada.medicao,
+    nivelInicial: Number(chegada.nivelInicial),
+    nivelFinal: Number(chegada.nivelFinal),
+    polInicial: chegada.polInicial === null ? null : Number(chegada.polInicial),
+    polFinal: chegada.polFinal === null ? null : Number(chegada.polFinal),
+    fator: chegada.fator === null ? null : Number(chegada.fator),
+    totalDescarregado: Number(chegada.totalDescarregado),
+  }))
+}
+
