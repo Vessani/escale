@@ -72,7 +72,7 @@ export function AcessoMotoristaCard({ motoristaId, seva, situacao }: { motorista
                 Matrícula <strong>{seva}</strong> · PIN <strong className="tracking-widest">{pin}</strong>
               </p>
               <p className="text-xs">
-                Ele entra em {typeof window !== "undefined" ? window.location.host : "o endereço do Escale"}, escolhe
+                Ele entra em {typeof window !== "undefined" ? window.location.host : "o endereço do Escalador"}, escolhe
                 &quot;Motorista&quot; e digita os dois.
               </p>
             </div>

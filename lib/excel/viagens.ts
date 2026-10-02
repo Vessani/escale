@@ -231,7 +231,7 @@ const COLUNAS_ORDEM = 10
  */
 export async function excelOrdemDeViagem(viagem: ViagemExcel & { entregas: EntregaExcel[] }, meta: Metadados = {}): Promise<Buffer> {
   const workbook = new ExcelJS.Workbook()
-  workbook.creator = "Escale"
+  workbook.creator = "Escalador"
   const planilha = workbook.addWorksheet("Ordem de viagem", {
     views: [{ showGridLines: false }],
     pageSetup: {
@@ -242,7 +242,7 @@ export async function excelOrdemDeViagem(viagem: ViagemExcel & { entregas: Entre
       fitToHeight: 0,
       margins: { left: 0.4, right: 0.4, top: 0.5, bottom: 0.5, header: 0.2, footer: 0.2 },
     },
-    headerFooter: { oddFooter: "&L&8Escale&R&8Página &P de &N" },
+    headerFooter: { oddFooter: "&L&8Escalador&R&8Página &P de &N" },
   })
   const larguras = [5, 16, 30, 18, 5, 11, 11, 12, 12, 24]
   larguras.forEach((largura, indice) => (planilha.getColumn(indice + 1).width = largura))

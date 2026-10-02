@@ -4,7 +4,7 @@ import { cn } from "@/lib/utils"
 export function Rodape({ className }: { className?: string }) {
   return (
     <footer className={cn("border-t border-border pt-4 text-center text-xs text-muted-foreground", className)}>
-      Escale · Criado e desenvolvido por <span className="font-medium text-foreground/80">Alan Vessani</span>
+      Escalador · Criado e desenvolvido por <span className="font-medium text-foreground/80">Alan Vessani</span>
     </footer>
   )
 }

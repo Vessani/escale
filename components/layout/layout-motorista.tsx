@@ -5,7 +5,7 @@ import Link from "next/link"
 import { signOut } from "next-auth/react"
 import { LogOut } from "lucide-react"
 import { Button } from "@/components/ui/button"
-import { LogoEscale } from "@/components/layout/logo-escale"
+import { LogoEscalador } from "@/components/layout/logo-escalador"
 import { Rodape } from "@/components/layout/rodape"
 import { AREA_MOTORISTA } from "@/lib/papeis"
 import { formatarNomeProprio } from "@/lib/utils/texto"
@@ -20,7 +20,7 @@ export function LayoutMotorista({ nome, children }: { nome: string | null | unde
       <header className="sticky top-0 z-20 bg-sidebar text-white/80 shadow-md">
         <div className="mx-auto flex max-w-xl items-center justify-between gap-3 px-4 py-3">
           <Link href={AREA_MOTORISTA} className="flex min-w-0 items-center gap-3">
-            <LogoEscale compacto />
+            <LogoEscalador compacto />
             <span className="truncate text-sm font-medium text-white">{nome ? formatarNomeProprio(nome) : "Motorista"}</span>
           </Link>
           <Button

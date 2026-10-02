@@ -121,7 +121,7 @@ export function PainelViagemMotorista({
   }
 
   if (viagem.status === "CANCELADA") {
-    return <Alert variant="warning">Esta viagem foi cancelada pelo despacho.</Alert>
+    return <Alert variant="warning">Esta viagem foi cancelada pelo escalador.</Alert>
   }
 
   return (

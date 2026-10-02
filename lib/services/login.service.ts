@@ -78,7 +78,7 @@ export const MAX_FALHAS_MOTORISTA_24H = 10
 
 export class PinBloqueadoError extends Error {
   constructor() {
-    super("Acesso bloqueado por tentativas erradas. Peça um PIN novo ao despacho.")
+    super("Acesso bloqueado por tentativas erradas. Peça um PIN novo ao escalador.")
     this.name = "PinBloqueadoError"
   }
 }

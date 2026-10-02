@@ -124,7 +124,7 @@ export function ConferenciaJornada({
   const [soCadastrados, setSoCadastrados] = useState(true)
 
   const cadastradas = useMemo(() => new Set(matriculasCadastradas), [matriculasCadastradas])
-  /** Motoristas do arquivo sem cadastro no Escale (a importação não teria onde gravar). */
+  /** Motoristas do arquivo sem cadastro no Escalador (a importação não teria onde gravar). */
   const naoCadastrados = useMemo(() => {
     const porMatricula = new Map<number, string>()
     for (const bruta of brutas) if (!cadastradas.has(bruta.matricula)) porMatricula.set(bruta.matricula, bruta.nome)
@@ -285,7 +285,7 @@ export function ConferenciaJornada({
         {naoCadastrados.length > 0 && (
           <div className="flex flex-col gap-1 rounded-md border bg-muted/40 px-3 py-2 text-sm text-muted-foreground md:flex-row md:items-center md:justify-between">
             <span title={naoCadastrados.map((motorista) => `${motorista.nome} (${motorista.matricula})`).join(", ")}>
-              {soCadastrados ? "Escondidos" : "Mostrando também"} {naoCadastrados.length} motorista(s) do arquivo sem cadastro no Escale
+              {soCadastrados ? "Escondidos" : "Mostrando também"} {naoCadastrados.length} motorista(s) do arquivo sem cadastro no Escalador
               {soCadastrados ? "" : " — eles não entram na importação"}.
             </span>
             <button

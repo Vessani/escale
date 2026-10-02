@@ -544,7 +544,7 @@ export async function atualizarStatusViagemService(
         },
         data: { ...dados, ...condicao.dados },
       })
-      if (count === 0) throw new ErroDeDominio(CODIGO_VIAGEM_MUDOU, "A viagem foi alterada pelo despacho. Atualize a tela.")
+      if (count === 0) throw new ErroDeDominio(CODIGO_VIAGEM_MUDOU, "A viagem foi alterada pelo escalador. Atualize a tela.")
       viagemAtualizada = await tx.viagem.findUniqueOrThrow({ where: { id: idViagem } })
     } else {
       viagemAtualizada = await tx.viagem.update({ where: { id: idViagem, filialId }, data: dados })

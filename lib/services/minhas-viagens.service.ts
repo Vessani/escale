@@ -110,9 +110,9 @@ async function explicarSituacao(filialId: number, motoristaId: number, viagemId:
     select: { status: true, motoristaId: true, deletadoEm: true },
   })
   if (!viagem || viagem.deletadoEm || viagem.motoristaId !== motoristaId) {
-    return new ErroDeDominio("VIAGEM_NAO_E_SUA", "Essa viagem não está mais com você: o despacho trocou o motorista ou excluiu a viagem.")
+    return new ErroDeDominio("VIAGEM_NAO_E_SUA", "Essa viagem não está mais com você: o escalador trocou o motorista ou excluiu a viagem.")
   }
-  if (viagem.status === "CANCELADA") return new ErroDeDominio("VIAGEM_CANCELADA", "Essa viagem foi cancelada pelo despacho.")
+  if (viagem.status === "CANCELADA") return new ErroDeDominio("VIAGEM_CANCELADA", "Essa viagem foi cancelada pelo escalador.")
   if (viagem.status === "FINALIZADA") return new ErroDeDominio("VIAGEM_ENCERRADA", "Essa viagem já foi encerrada.")
   return padrao
 }
@@ -225,7 +225,7 @@ export async function removerMinhaDespesa(filialId: number, motoristaId: number,
   })
   if (!despesa) throw new ErroDeDominio("DESPESA_NAO_ENCONTRADA", "Lançamento não encontrado.")
   if (!STATUS_EM_ANDAMENTO.includes(despesa.viagem.status)) {
-    throw new ErroDeDominio("VIAGEM_ENCERRADA", "A viagem já foi encerrada — peça a correção ao despacho.")
+    throw new ErroDeDominio("VIAGEM_ENCERRADA", "A viagem já foi encerrada — peça a correção ao escalador.")
   }
 
   await prisma.$transaction(async (tx) => {

@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
-import { LogoEscale } from "@/components/layout/logo-escale"
+import { LogoEscalador } from "@/components/layout/logo-escalador"
 import { Rodape } from "@/components/layout/rodape"
 import { AREA_MOTORISTA } from "@/lib/papeis"
 import { cn } from "@/lib/utils"
@@ -66,11 +66,11 @@ export default function LoginPage() {
       <Card className="w-full max-w-100 shadow-lg">
         <CardHeader className="space-y-1 text-center">
           <div className="mb-2 flex justify-center text-foreground">
-            <LogoEscale />
+            <LogoEscalador />
           </div>
           <CardTitle className="text-2xl font-semibold tracking-tight">Entrar</CardTitle>
           <CardDescription>
-            {modo === "motorista" ? "Use sua matrícula (SEVA) e o PIN que o despacho te passou" : "Insira suas credenciais para acessar a operação"}
+            {modo === "motorista" ? "Use sua matrícula (SEVA) e o PIN que o escalador te passou" : "Insira suas credenciais para acessar a operação"}
           </CardDescription>
           <div className="mx-auto mt-3 inline-flex rounded-lg border bg-muted/40 p-1" role="group" aria-label="Tipo de acesso">
             {(["despacho", "motorista"] as const).map((opcao) => (
@@ -89,7 +89,7 @@ export default function LoginPage() {
                     : "text-muted-foreground hover:text-foreground",
                 )}
               >
-                {opcao === "despacho" ? "Despacho" : "Motorista"}
+                {opcao === "despacho" ? "Escalador" : "Motorista"}
               </button>
             ))}
           </div>

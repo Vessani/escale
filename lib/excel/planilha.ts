@@ -137,7 +137,7 @@ function adicionarAba<T>(workbook: ExcelJS.Workbook, aba: Aba<T>, meta: Metadado
       paperSize: 9,
       margins: { left: 0.4, right: 0.4, top: 0.5, bottom: 0.5, header: 0.2, footer: 0.2 },
     },
-    headerFooter: { oddFooter: "&L&8Escale&R&8Página &P de &N" },
+    headerFooter: { oddFooter: "&L&8Escalador&R&8Página &P de &N" },
   })
 
   // Faixa de título
@@ -289,7 +289,7 @@ function adicionarAba<T>(workbook: ExcelJS.Workbook, aba: Aba<T>, meta: Metadado
 /** Gera o .xlsx com uma aba por item, no estilo do Escale. */
 export async function gerarExcel(abas: AbaPronta[], meta: Metadados = {}): Promise<Buffer> {
   const workbook = new ExcelJS.Workbook()
-  workbook.creator = "Escale"
+  workbook.creator = "Escalador"
   workbook.created = meta.geradoEm ?? new Date()
   const usados = new Set<string>()
   for (const aba of abas) aba.escrever(workbook, meta, usados)
