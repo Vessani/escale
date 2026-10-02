@@ -146,23 +146,3 @@
     @apply bg-background text-foreground;
   }
 }
-/* Dashboard no modo TV (components/dashboard/modo-tv.tsx): tela cheia, letra
-   maior, lista sem limite de altura e sem os controles de quem opera. */
-#painel-dashboard:fullscreen {
-  background: var(--background);
-  overflow-y: auto;
-  padding: 1.25rem 1.5rem;
-  /* 1920px de TV vira ~1280 de tela "normal": tudo 50% maior, legível de longe. */
-  zoom: 1.5;
-}
-#painel-dashboard:fullscreen .fora-do-modo-tv {
-  display: none !important;
-}
-/* <col> não some com display:none — zera a largura da coluna do download. */
-#painel-dashboard:fullscreen col.fora-do-modo-tv {
-  display: table-column !important;
-  width: 0;
-}
-#painel-dashboard:fullscreen [data-slot="table-container"] {
-  max-height: none;
-}
