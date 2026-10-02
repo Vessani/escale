@@ -1,7 +1,8 @@
 import Link from "next/link"
-import { notFound } from "next/navigation"
 import { ArrowLeft } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
+import { Alert } from "@/components/ui/alert"
+import { AtualizacaoAutomatica } from "@/components/atualizacao-automatica"
 import { requireSessaoPaginaMotorista } from "@/lib/auth-guard"
 import { buscarMinhaViagem } from "@/lib/services/minhas-viagens.service"
 import { formatarStatusViagem } from "@/lib/services/viagem-status.service"
@@ -27,7 +28,19 @@ export default async function MinhaViagemPage({ params }: { params: Promise<{ id
   const { session, filialId, motoristaId } = await requireSessaoPaginaMotorista()
   const id = Number((await params).id)
   const viagem = Number.isInteger(id) && id > 0 ? await buscarMinhaViagem(filialId, motoristaId, id) : null
-  if (!viagem) notFound()
+  if (!viagem) {
+    // Mesmo aviso pra qualquer id que não seja dele: não revela se a viagem existe.
+    return (
+      <>
+        <Link href="/minhas-viagens" className="inline-flex items-center gap-1.5 text-sm text-muted-foreground">
+          <ArrowLeft className="size-4" aria-hidden /> Minhas viagens
+        </Link>
+        <Alert variant="warning">
+          Essa viagem não está com você. O despacho pode ter trocado o motorista ou excluído a viagem.
+        </Alert>
+      </>
+    )
+  }
 
   const agora = new Date()
   const souPrincipal = viagem.motoristaId === motoristaId
@@ -95,6 +108,8 @@ export default async function MinhaViagemPage({ params }: { params: Promise<{ id
       </section>
 
       <PainelViagemMotorista viagem={dadosPainel} souPrincipal={souPrincipal} agoraServidor={agora.toISOString()} />
+      {/* O despacho pode cancelar, postergar ou trocar o motorista: a tela acompanha sem ele precisar recarregar. */}
+      <AtualizacaoAutomatica segundos={60} />
     </>
   )
 }

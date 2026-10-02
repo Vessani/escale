@@ -1,11 +1,11 @@
 import type { Prisma, StatusViagem, TipoDespesaViagem } from "@prisma/client"
 import { prisma } from "@/lib/prisma"
-import { ErroDeDominio, ViagemNaoEncontradaError } from "@/lib/errors"
+import { ErroDeDominio } from "@/lib/errors"
 import { inicioDoDia } from "@/lib/utils/date-format"
 import { minutosDeAtraso, saidaAtrasada } from "@/lib/services/pontualidade"
 import { TAMANHO_MAXIMO_MOTIVO } from "@/lib/services/motivos-atraso"
 import { registrarAuditoria, type Ator } from "@/lib/services/auditoria.service"
-import { atualizarStatusViagemService } from "@/lib/services/viagem.service"
+import { atualizarStatusViagemService, CODIGO_VIAGEM_MUDOU } from "@/lib/services/viagem.service"
 
 /**
  * Área do motorista ("Minhas viagens"): o que ele vê e o que ele registra.
@@ -99,37 +99,64 @@ export async function buscarMinhaViagem(filialId: number, motoristaId: number, v
   })
 }
 
-/** A viagem, só se este motorista for o principal dela — senão "não encontrada" (não revela que existe). */
-async function viagemDoPrincipal(filialId: number, motoristaId: number, viagemId: number) {
+/**
+ * Por que o motorista não pode fazer isso AGORA — a tela dele pode estar
+ * desatualizada (o despacho cancelou, postergou, trocou o motorista ou
+ * excluiu). Mensagem pelo estado atual da viagem, não uma genérica.
+ */
+async function explicarSituacao(filialId: number, motoristaId: number, viagemId: number, padrao: ErroDeDominio) {
+  const viagem = await prisma.viagem.findFirst({
+    where: { id: viagemId, filialId },
+    select: { status: true, motoristaId: true, deletadoEm: true },
+  })
+  if (!viagem || viagem.deletadoEm || viagem.motoristaId !== motoristaId) {
+    return new ErroDeDominio("VIAGEM_NAO_E_SUA", "Essa viagem não está mais com você: o despacho trocou o motorista ou excluiu a viagem.")
+  }
+  if (viagem.status === "CANCELADA") return new ErroDeDominio("VIAGEM_CANCELADA", "Essa viagem foi cancelada pelo despacho.")
+  if (viagem.status === "FINALIZADA") return new ErroDeDominio("VIAGEM_ENCERRADA", "Essa viagem já foi encerrada.")
+  return padrao
+}
+
+/** A viagem, se for dele (principal) e estiver num dos status esperados; senão, o motivo certo. */
+async function viagemDoPrincipalEm(
+  filialId: number,
+  motoristaId: number,
+  viagemId: number,
+  statusEsperados: StatusViagem[],
+  padrao: ErroDeDominio,
+) {
   const viagem = await prisma.viagem.findFirst({
     where: { id: viagemId, filialId, deletadoEm: null, motoristaId },
   })
-  if (!viagem) throw new ViagemNaoEncontradaError()
+  if (!viagem || !statusEsperados.includes(viagem.status)) {
+    throw await explicarSituacao(filialId, motoristaId, viagemId, padrao)
+  }
   return viagem
 }
 
-type Transacao = Parameters<Parameters<typeof prisma.$transaction>[0]>[0]
-
-/**
- * Grava só se a viagem ainda estiver num dos status esperados NO MOMENTO da
- * escrita — toque duplo ou dois celulares ao mesmo tempo não iniciam/encerram
- * duas vezes (o segundo recebe o erro).
- */
-async function gravarSeStatus(
-  tx: Transacao,
-  alvo: { viagemId: number; filialId: number; motoristaId: number },
+/** Muda o status (com km/saída junto) só se nada mudou desde a leitura — ver atualizarStatusViagemService. */
+async function mudarStatusComoMotorista(
+  filialId: number,
+  motoristaId: number,
+  viagemId: number,
+  novoStatus: "INICIADA" | "FINALIZADA",
   statusEsperados: StatusViagem[],
-  data: Prisma.ViagemUpdateManyMutationInput,
-  codigoErro: string,
-  mensagemErro: string,
+  dados: Prisma.ViagemUpdateManyMutationInput,
+  ator: Ator,
+  padrao: ErroDeDominio,
 ) {
-  const { count } = await tx.viagem.updateMany({
-    where: { id: alvo.viagemId, filialId: alvo.filialId, motoristaId: alvo.motoristaId, deletadoEm: null, status: { in: statusEsperados } },
-    data,
-  })
-  if (count === 0) throw new ErroDeDominio(codigoErro, mensagemErro)
-  return tx.viagem.findUniqueOrThrow({ where: { id: alvo.viagemId } })
+  try {
+    await atualizarStatusViagemService(filialId, viagemId, novoStatus, ator, undefined, { motoristaId, statusEsperados, dados })
+  } catch (erro) {
+    if (erro instanceof ErroDeDominio && erro.codigo === CODIGO_VIAGEM_MUDOU) {
+      throw await explicarSituacao(filialId, motoristaId, viagemId, padrao)
+    }
+    throw erro
+  }
 }
+
+const JA_INICIADA = () => new ErroDeDominio("VIAGEM_JA_INICIADA", "Essa viagem já foi iniciada.")
+const NAO_INICIADA = (mensagem: string) => new ErroDeDominio("VIAGEM_NAO_INICIADA", mensagem)
 
 function validarKm(km: number, campo: string) {
   if (!Number.isInteger(km) || km < 0 || km > KM_MAXIMO) {
@@ -150,10 +177,7 @@ export async function iniciarMinhaViagem(
   ator: Ator,
   agora = new Date(),
 ) {
-  const viagem = await viagemDoPrincipal(filialId, motoristaId, viagemId)
-  if (!STATUS_A_INICIAR.includes(viagem.status)) {
-    throw new ErroDeDominio("VIAGEM_JA_INICIADA", "Essa viagem já foi iniciada.")
-  }
+  const viagem = await viagemDoPrincipalEm(filialId, motoristaId, viagemId, STATUS_A_INICIAR, JA_INICIADA())
   validarKm(dados.kmInicial, "Km inicial")
 
   const motivo = dados.motivoAtraso?.trim().slice(0, TAMANHO_MAXIMO_MOTIVO) || null
@@ -162,15 +186,12 @@ export async function iniciarMinhaViagem(
     throw new ErroDeDominio("MOTIVO_ATRASO_OBRIGATORIO", "A saída está atrasada: informe o motivo.")
   }
 
-  await prisma.$transaction(async (tx) => {
-    const depois = await gravarSeStatus(tx, { viagemId, filialId, motoristaId }, STATUS_A_INICIAR, {
-      kmInicial: dados.kmInicial,
-      horarioRealSaida: agora,
-      motivoAtraso: atrasada ? motivo : null,
-    }, "VIAGEM_JA_INICIADA", "Essa viagem já foi iniciada.")
-    await registrarAuditoria(tx, { entidade: "Viagem", entidadeId: viagemId, acao: "ATUALIZACAO", antes: viagem, depois, ator, filialId })
-  })
-  await atualizarStatusViagemService(filialId, viagemId, "INICIADA", ator)
+  // Km, saída real e status numa escrita só (e uma entrada no histórico).
+  await mudarStatusComoMotorista(
+    filialId, motoristaId, viagemId, "INICIADA", STATUS_A_INICIAR,
+    { kmInicial: dados.kmInicial, horarioRealSaida: agora, motivoAtraso: atrasada ? motivo : null },
+    ator, JA_INICIADA(),
+  )
 }
 
 /** Lança um pedágio ou pernoite na viagem em andamento. */
@@ -181,10 +202,8 @@ export async function adicionarMinhaDespesa(
   dados: { tipo: TipoDespesaViagem; valorCentavos: number },
   ator: Ator,
 ) {
-  const viagem = await viagemDoPrincipal(filialId, motoristaId, viagemId)
-  if (!STATUS_EM_ANDAMENTO.includes(viagem.status)) {
-    throw new ErroDeDominio("VIAGEM_NAO_INICIADA", "Inicie a viagem antes de lançar pedágio ou pernoite.")
-  }
+  await viagemDoPrincipalEm(filialId, motoristaId, viagemId, STATUS_EM_ANDAMENTO,
+    NAO_INICIADA("Inicie a viagem antes de lançar pedágio ou pernoite."))
   if (!Number.isInteger(dados.valorCentavos) || dados.valorCentavos <= 0 || dados.valorCentavos > VALOR_MAXIMO_CENTAVOS) {
     throw new ErroDeDominio("VALOR_INVALIDO", "Informe um valor entre R$ 0,01 e R$ 10.000,00.")
   }
@@ -225,10 +244,8 @@ export async function encerrarMinhaViagem(
   dados: { kmFinal: number },
   ator: Ator,
 ) {
-  const viagem = await viagemDoPrincipal(filialId, motoristaId, viagemId)
-  if (!STATUS_EM_ANDAMENTO.includes(viagem.status)) {
-    throw new ErroDeDominio("VIAGEM_NAO_INICIADA", "Só dá pra encerrar uma viagem em andamento.")
-  }
+  const naoIniciada = NAO_INICIADA("Só dá pra encerrar uma viagem em andamento.")
+  const viagem = await viagemDoPrincipalEm(filialId, motoristaId, viagemId, STATUS_EM_ANDAMENTO, naoIniciada)
   validarKm(dados.kmFinal, "Km final")
   if (viagem.kmInicial !== null) {
     if (dados.kmFinal < viagem.kmInicial) {
@@ -239,10 +256,7 @@ export async function encerrarMinhaViagem(
     }
   }
 
-  await prisma.$transaction(async (tx) => {
-    const depois = await gravarSeStatus(tx, { viagemId, filialId, motoristaId }, STATUS_EM_ANDAMENTO, { kmFinal: dados.kmFinal },
-      "VIAGEM_NAO_INICIADA", "Só dá pra encerrar uma viagem em andamento.")
-    await registrarAuditoria(tx, { entidade: "Viagem", entidadeId: viagemId, acao: "ATUALIZACAO", antes: viagem, depois, ator, filialId })
-  })
-  await atualizarStatusViagemService(filialId, viagemId, "FINALIZADA", ator)
+  await mudarStatusComoMotorista(
+    filialId, motoristaId, viagemId, "FINALIZADA", STATUS_EM_ANDAMENTO, { kmFinal: dados.kmFinal }, ator, naoIniciada,
+  )
 }

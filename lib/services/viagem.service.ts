@@ -8,10 +8,10 @@ import {
   motoristaAutorizadoParaProduto,
   sugerirMotoristaAutomatico,
 } from "./alocacao.service";
-import type { TipoProduto, Turno } from "@prisma/client";
+import type { Prisma, StatusViagem, TipoProduto, Turno } from "@prisma/client";
 import { reconciliarFolgaMotoristasNoDiaAtual } from "./folga.service";
 import { registrarAuditoria, type Ator } from "./auditoria.service";
-import { MotoristaProdutoNaoAutorizadoError, MotoristaNaoEncontradoError, MotoristaEmTreinamentoError, MotoristaNaoViajaError, ViagemNaoEncontradaError, StatusViagemObrigatorioError, NumViagemDuplicadaError } from "@/lib/errors";
+import { ErroDeDominio, MotoristaProdutoNaoAutorizadoError, MotoristaNaoEncontradoError, MotoristaEmTreinamentoError, MotoristaNaoViajaError, ViagemNaoEncontradaError, StatusViagemObrigatorioError, NumViagemDuplicadaError } from "@/lib/errors";
 import { calcularAvisoFrotaIndisponivel, calcularAvisoFrotaProduto, sincronizarDisponibilidadeFrota } from "./frota.service";
 import { converterEditarViagemParaBD, converterNovaViagemParaBD } from "./viagem-data-converter.service";
 import { prepararJornadaDoMotorista } from "./jornada.service";
@@ -460,12 +460,28 @@ export async function deletarViagemService(filialId: number, id: number, ator: A
 /** Nova data de início/fim exigida só quando o status vai para POSTERGADA — ver atualizarStatusViagemService. */
 type NovaDataViagem = { inicioPrevisto: Date; fimPrevisto: Date }
 
+/**
+ * Mudança de status feita pelo próprio motorista (celular): só grava se, NO
+ * MOMENTO da escrita, a viagem ainda for dele e estiver num dos status
+ * esperados — se o despacho cancelou, postergou, trocou o motorista ou
+ * excluiu nesse meio-tempo, nada é gravado e sai VIAGEM_MUDOU.
+ */
+type CondicaoDoMotorista = {
+  motoristaId: number
+  statusEsperados: StatusViagem[]
+  /** Gravado junto, na mesma escrita (km, saída real, motivo). */
+  dados: Prisma.ViagemUpdateManyMutationInput
+}
+
+export const CODIGO_VIAGEM_MUDOU = "VIAGEM_MUDOU"
+
 export async function atualizarStatusViagemService(
   filialId: number,
   idViagem: number,
   status: EditarViagemInput["status"],
   ator: Ator | null,
   novaData?: NovaDataViagem,
+  condicao?: CondicaoDoMotorista,
 ) {
   if (!status) {
     throw new StatusViagemObrigatorioError()
@@ -502,23 +518,37 @@ export async function atualizarStatusViagemService(
   const statusFinal = normalizarStatusPorAlocacao(status, viagemAtual.motoristaId)
 
   return await prisma.$transaction(async (tx) => {
-    const viagemAtualizada = await tx.viagem.update({
-      where: { id: idViagem, filialId },
-      data: {
-        status: statusFinal,
-        canceladoEm: calcularCanceladoEm(statusFinal, viagemAtual.status),
-        finalizadoEm: calcularFinalizadoEm(statusFinal, viagemAtual.status),
-        ...(novaData ? {
-          inicioPrevisto: novaData.inicioPrevisto,
-          fimPrevisto: novaData.fimPrevisto,
-          diasViagem: calcularDiasEntre(novaData.inicioPrevisto, novaData.fimPrevisto),
-          // Postergar da noite pro dia (ou o contrário) troca o turno — senão a
-          // alocação procura motorista do turno errado.
-          turno: turnoPorHorario(novaData.inicioPrevisto) ?? viagemAtual.turno,
-        } : {}),
-        ...avisosRecalculados,
-      },
-    })
+    const dados = {
+      status: statusFinal,
+      canceladoEm: calcularCanceladoEm(statusFinal, viagemAtual.status),
+      finalizadoEm: calcularFinalizadoEm(statusFinal, viagemAtual.status),
+      ...(novaData ? {
+        inicioPrevisto: novaData.inicioPrevisto,
+        fimPrevisto: novaData.fimPrevisto,
+        diasViagem: calcularDiasEntre(novaData.inicioPrevisto, novaData.fimPrevisto),
+        // Postergar da noite pro dia (ou o contrário) troca o turno — senão a
+        // alocação procura motorista do turno errado.
+        turno: turnoPorHorario(novaData.inicioPrevisto) ?? viagemAtual.turno,
+      } : {}),
+      ...avisosRecalculados,
+    }
+    let viagemAtualizada
+    if (condicao) {
+      const { count } = await tx.viagem.updateMany({
+        where: {
+          id: idViagem,
+          filialId,
+          deletadoEm: null,
+          motoristaId: condicao.motoristaId,
+          status: { in: condicao.statusEsperados },
+        },
+        data: { ...dados, ...condicao.dados },
+      })
+      if (count === 0) throw new ErroDeDominio(CODIGO_VIAGEM_MUDOU, "A viagem foi alterada pelo despacho. Atualize a tela.")
+      viagemAtualizada = await tx.viagem.findUniqueOrThrow({ where: { id: idViagem } })
+    } else {
+      viagemAtualizada = await tx.viagem.update({ where: { id: idViagem, filialId }, data: dados })
+    }
 
     // Cancelar/finalizar (ou postergar a data) muda se essa viagem ainda
     // "segura" a frota — sincroniza sempre, não só quando novaData é enviado.

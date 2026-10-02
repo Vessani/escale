@@ -62,7 +62,9 @@ function criarTx() {
     viagem: {
       create: vi.fn(),
       update: vi.fn(),
+      updateMany: vi.fn(),
       findUnique: vi.fn(),
+      findUniqueOrThrow: vi.fn(),
     },
     registroAuditoria: { create: vi.fn() },
   }
@@ -755,6 +757,27 @@ describe("viagem.service", () => {
         data: { status: "INICIADA", canceladoEm: undefined },
       })
       expect(reconciliarFolgaMotoristasNoDiaAtual).toHaveBeenCalledWith(tx, [3, null], expect.anything())
+    })
+
+    it("pelo motorista: só grava se ainda for dele e no status esperado — despacho mexeu no meio, nada muda", async () => {
+      vi.mocked(prisma.viagem.findUnique).mockResolvedValue({ status: "ALOCADA", cavalo: "2064", carreta: "908", produto: "CO2", motoristaId: 3 } as never)
+      const tx = criarTx()
+      vi.mocked(tx.viagem.updateMany).mockResolvedValue({ count: 1 })
+      vi.mocked(tx.viagem.findUniqueOrThrow).mockResolvedValue({ id: 1, motoristaId: 3, motoristaAcompanhanteId: null, cavalo: "2064", carreta: "908" })
+      usarTransacaoCom(tx)
+      const condicao = { motoristaId: 3, statusEsperados: ["ALOCADA" as const], dados: { kmInicial: 100 } }
+
+      await atualizarStatusViagemService(FILIAL_ID, 1, "INICIADA", ATOR, undefined, condicao)
+      expect(tx.viagem.updateMany).toHaveBeenCalledWith({
+        where: { id: 1, filialId: FILIAL_ID, deletadoEm: null, motoristaId: 3, status: { in: ["ALOCADA"] } },
+        data: { status: "INICIADA", canceladoEm: undefined, kmInicial: 100 },
+      })
+      expect(tx.viagem.update).not.toHaveBeenCalled()
+
+      vi.mocked(tx.viagem.updateMany).mockResolvedValue({ count: 0 })
+      vi.mocked(reconciliarFolgaMotoristasNoDiaAtual).mockClear()
+      await expect(atualizarStatusViagemService(FILIAL_ID, 1, "INICIADA", ATOR, undefined, condicao)).rejects.toMatchObject({ codigo: "VIAGEM_MUDOU" })
+      expect(reconciliarFolgaMotoristasNoDiaAtual).not.toHaveBeenCalled()
     })
 
     it("cancelar a viagem sincroniza a frota — é o que libera o conjunto ao cancelar/finalizar", async () => {
