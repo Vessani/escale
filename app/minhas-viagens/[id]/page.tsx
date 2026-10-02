@@ -1,6 +1,7 @@
 import Link from "next/link"
-import { ArrowLeft } from "lucide-react"
+import { ArrowLeft, FileText } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
+import { Button } from "@/components/ui/button"
 import { Alert } from "@/components/ui/alert"
 import { AtualizacaoAutomatica } from "@/components/atualizacao-automatica"
 import { requireSessaoPaginaMotorista } from "@/lib/auth-guard"
@@ -125,7 +126,12 @@ export default async function MinhaViagemPage({ params }: { params: Promise<{ id
         agoraServidor={agora.toISOString()}
         substitutos={souPrincipal ? await buscarSubstitutosPossiveis(filialId, motoristaId, viagem.produto) : []}
       />
-      {/* O despacho pode cancelar, postergar ou trocar o motorista: a tela acompanha sem ele precisar recarregar. */}
+      <Button asChild variant="outline" className="h-11 w-full">
+        <Link href={`/minhas-viagens/${viagem.id}/relatorio`}>
+          <FileText className="mr-2 size-4" aria-hidden /> Relatório da viagem
+        </Link>
+      </Button>
+      {/* O escalador pode cancelar, postergar ou trocar o motorista: a tela acompanha sem ele precisar recarregar. */}
       <AtualizacaoAutomatica segundos={60} />
     </>
   )
