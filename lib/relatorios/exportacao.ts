@@ -129,6 +129,7 @@ export const EXPORTADORES_RELATORIO: Record<string, Exportador> = {
           { titulo: "Nº Viagem", valor: (l) => l.numViagem, tipo: "codigo" },
           { titulo: "Status", valor: (l) => formatarStatusViagem(l.status) },
           { titulo: "Motorista", valor: (l) => nome(l.motorista) },
+          { titulo: "Troca de motorista", valor: (l) => (l.teveTroca ? "sim" : ""), tipo: "texto", largura: 10 },
           { titulo: "Cavalo", valor: (l) => frota(l.cavalo), tipo: "codigo", largura: 9 },
           { titulo: "Carreta", valor: (l) => frota(l.carreta), tipo: "codigo", largura: 9 },
           { titulo: "Início", valor: (l) => l.inicio, tipo: "dataHora" },

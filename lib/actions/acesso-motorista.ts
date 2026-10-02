@@ -8,8 +8,7 @@ import { atorDaSessao } from "@/lib/services/auditoria.service"
 import { desativarAcessoMotorista, gerarPinMotorista } from "@/lib/services/acesso-motorista.service"
 import { z } from "@/lib/validation/zod"
 
-/** Despacho (admin ou despachante) cria/reseta o acesso — ex: motorista esqueceu o PIN à noite. */
-
+/** Escalador (admin ou despachante) cria/reseta o acesso — ex: motorista esqueceu o PIN à noite. */
 export async function gerarAcessoMotorista(
   motoristaId: number,
 ): Promise<{ sucesso: true; pin: string; seva: number } | { sucesso: false; erro: string }> {

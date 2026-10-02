@@ -70,6 +70,19 @@ export async function trocarMotoristaDaViagem(
 
   validarKmDoRegistro(dados.km, viagem.kmInicial, "Km da troca")
   validarHoraDoRegistro(dados.trocadoEm, viagem.horarioRealSaida, agora, "troca")
+  // Segunda troca não volta no tempo nem no hodômetro (a linha do tempo e o
+  // relatório ficariam incoerentes).
+  const trocaAnterior = await prisma.trocaMotorista.findFirst({
+    where: { viagemId },
+    orderBy: { trocadoEm: "desc" },
+    select: { km: true, trocadoEm: true },
+  })
+  if (trocaAnterior && dados.km < trocaAnterior.km) {
+    throw new ErroDeDominio("KM_ANTES_TROCA_ANTERIOR", `O km da troca não pode ser menor que o da troca anterior (${trocaAnterior.km.toLocaleString("pt-BR")}).`)
+  }
+  if (trocaAnterior && dados.trocadoEm < trocaAnterior.trocadoEm) {
+    throw new ErroDeDominio("HORA_ANTES_TROCA_ANTERIOR", "A hora da troca é antes da troca anterior — confira a data e a hora.")
+  }
   const local = dados.local.trim().slice(0, TAMANHO_MAXIMO_LOCAL)
   const motivo = dados.motivo.trim().slice(0, TAMANHO_MAXIMO_MOTIVO_TROCA)
   if (!local) throw new ErroDeDominio("LOCAL_OBRIGATORIO", "Informe o local da troca.")

@@ -27,6 +27,7 @@ import { PRODUTO_OPCOES } from "@/lib/services/produto.service"
 import { editarViagemSchema, type EditarViagemFormValues } from "@/lib/validation/viagens"
 import RotaFields from "@/components/viagem/rota-fields"
 import EntregasFieldArray from "@/components/viagem/entregas-field-array"
+import { mensagemDaFalha } from "@/lib/chamar-acao"
 
 type EntregaFormModel = {
   id: number
@@ -128,8 +129,8 @@ export default function FormEditarViagem({ viagem, opcoesMotorista }: FormEditar
       }
 
       setErroGlobal(resposta.erro ?? "Ocorreu um erro ao salvar a edição.")
-    } catch {
-      setErroGlobal("Ocorreu um erro inesperado de comunicação.")
+    } catch (erro) {
+      setErroGlobal(mensagemDaFalha(erro))
     }
   }
 

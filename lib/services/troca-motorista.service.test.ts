@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest"
 
 vi.mock("@/lib/prisma", () => ({
-  prisma: { $transaction: vi.fn(), viagem: { findFirst: vi.fn() }, motorista: { findFirst: vi.fn() } },
+  prisma: { $transaction: vi.fn(), viagem: { findFirst: vi.fn() }, motorista: { findFirst: vi.fn() }, trocaMotorista: { findFirst: vi.fn() } },
 }))
 vi.mock("@/lib/services/auditoria.service", () => ({ registrarAuditoria: vi.fn() }))
 vi.mock("@/lib/services/folga.service", () => ({ reconciliarFolgaMotoristasNoDiaAtual: vi.fn() }))
@@ -100,6 +100,13 @@ describe("trocarMotoristaDaViagem", () => {
     tx.trocaMotorista.create.mockClear()
     await expect(trocarMotoristaDaViagem(FILIAL, 1, dados(), ator, {}, agora)).rejects.toBeInstanceOf(MotoristaEmTreinamentoError)
     expect(tx.trocaMotorista.create).not.toHaveBeenCalled()
+  })
+
+  it("segunda troca não pode ter km nem hora menor que a troca anterior", async () => {
+    vi.mocked(prisma.trocaMotorista.findFirst).mockResolvedValue({ km: 152700, trocadoEm: h("2026-10-02T13:00:00") } as never)
+    await expect(trocarMotoristaDaViagem(FILIAL, 1, dados({ km: 152600 }), ator, {}, agora)).rejects.toThrow("troca anterior")
+    await expect(trocarMotoristaDaViagem(FILIAL, 1, dados({ km: 152800, trocadoEm: h("2026-10-02T12:30:00") }), ator, {}, agora)).rejects.toThrow("antes da troca anterior")
+    await expect(trocarMotoristaDaViagem(FILIAL, 1, dados({ km: 152800, trocadoEm: h("2026-10-02T14:00:00") }), ator, {}, agora)).resolves.toBeTruthy()
   })
 })
 

@@ -656,6 +656,9 @@
     usuarioId           String?
     registradoEm        DateTime  @default(now())
 
+    // O Postgres não cria índice pra FK sozinho (ver Entrega).
     @@index([viagemId])
+    @@index([motoristaAnteriorId])
+    @@index([motoristaNovoId])
   }
 

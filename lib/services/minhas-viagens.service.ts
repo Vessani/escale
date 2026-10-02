@@ -348,8 +348,8 @@ export async function registrarChegadaCliente(
     km: dados.km,
     chegadaEm: dados.chegadaEm,
     medicao: descarga.medicao,
-    nivelInicial: dados.nivelInicial!,
-    nivelFinal: dados.nivelFinal!,
+    nivelInicial: descarga.nivelInicial,
+    nivelFinal: descarga.nivelFinal,
     polInicial: biometano ? dados.polInicial ?? null : null,
     polFinal: biometano ? dados.polFinal ?? null : null,
     fator: descarga.fator,
@@ -359,6 +359,8 @@ export async function registrarChegadaCliente(
 
   const gravada = await prisma.$transaction(async (tx) => {
     if (!(await travarViagemDoMotorista(tx, filialId, motoristaId, viagem.id, STATUS_EM_ANDAMENTO))) return false
+    // Lido com a viagem travada: toque duplo não registra duas "criações" no histórico.
+    const antes = await tx.chegadaEntrega.findUnique({ where: { entregaId } })
     const depois = await tx.chegadaEntrega.upsert({
       where: { entregaId },
       create: { entregaId, ...registro },
@@ -367,8 +369,8 @@ export async function registrarChegadaCliente(
     await registrarAuditoria(tx, {
       entidade: "ChegadaEntrega",
       entidadeId: depois.id,
-      acao: entrega.chegada ? "ATUALIZACAO" : "CRIACAO",
-      antes: entrega.chegada ?? undefined,
+      acao: antes ? "ATUALIZACAO" : "CRIACAO",
+      antes: antes ?? undefined,
       depois,
       ator,
       filialId,

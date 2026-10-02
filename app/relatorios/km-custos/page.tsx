@@ -61,8 +61,8 @@ export default async function KmCustosPage({ searchParams }: { searchParams?: Pr
             <option value="todas">Todas (inclui sem registro)</option>
           </select>
         </label>
-        <label className="grid gap-1 text-xs text-muted-foreground" title="Com troca de motorista, a viagem inteira conta pro motorista atual (o que terminou a viagem).">
-          Motorista (atual da viagem)
+        <label className="grid gap-1 text-xs text-muted-foreground" title="Com troca de motorista, a viagem aparece pra todos que estiveram nela (km e custos da viagem inteira).">
+          Motorista
           <select
             name="motorista"
             defaultValue={motoristaId ?? ""}
@@ -123,7 +123,14 @@ export default async function KmCustosPage({ searchParams }: { searchParams?: Pr
                       <Badge variant="outline" className={cn("mt-1", classeBadgeStatusViagem(linha.status))}>{formatarStatusViagem(linha.status)}</Badge>
                     )}
                   </TableCell>
-                  <TableCell>{linha.motorista ? formatarNomeProprio(linha.motorista) : "—"}</TableCell>
+                  <TableCell>
+                    {linha.motorista ? formatarNomeProprio(linha.motorista) : "—"}
+                    {linha.teveTroca && (
+                      <span className="block text-[11px] text-muted-foreground" title="Km e custos são da viagem inteira, somando todos os trechos.">
+                        com troca de motorista
+                      </span>
+                    )}
+                  </TableCell>
                   <TableCell className="whitespace-nowrap tabular-nums">
                     {formatarDataHoraPtBr(linha.inicio)}
                     {linha.inicioEhPrevisto && <p className="text-[11px] text-muted-foreground">previsto (sem saída real)</p>}

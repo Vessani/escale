@@ -87,7 +87,7 @@ function FormChegada({
     medicao: biometano ? null : medicao,
     nivelInicial: parseNumeroDecimal(inicial),
     nivelFinal: parseNumeroDecimal(final),
-    fatorCliente: medicao === "MANOMETRO" ? parseNumeroDecimal(fator) : null,
+    fatorCliente: medicao === "MANOMETRO" ? parseNumeroDecimal(fator, { pontoDecimal: true }) : null,
     polInicial: biometano ? parseNumeroDecimal(polInicial) : null,
     polFinal: biometano ? parseNumeroDecimal(polFinal) : null,
   }

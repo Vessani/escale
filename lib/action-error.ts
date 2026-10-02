@@ -1,5 +1,6 @@
 import { Prisma } from "@prisma/client"
 import { ErroDeDominio } from "@/lib/errors"
+import { z } from "@/lib/validation/zod"
 
 function mapearErroPrisma(error: Prisma.PrismaClientKnownRequestError) {
   if (error.code === "P2002") {
@@ -44,6 +45,12 @@ export function errorToMessage(error: unknown, fallback: string) {
 
   if (error instanceof ErroDeDominio) {
     return error.mensagemSegura
+  }
+
+  // Validação de entrada: as mensagens do zod já vêm em português (ver
+  // lib/validation/zod.ts) — mostra a primeira; não é erro inesperado.
+  if (error instanceof z.ZodError) {
+    return error.issues[0]?.message ?? fallback
   }
 
   // Erro inesperado: a pessoa vê só a mensagem genérica, então o motivo

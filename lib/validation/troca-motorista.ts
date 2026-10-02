@@ -7,7 +7,7 @@ export const DATA_HORA_DO_CAMPO = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/
 export const TAMANHO_MAXIMO_LOCAL = 100
 export const TAMANHO_MAXIMO_MOTIVO_TROCA = 200
 
-/** O que a tela manda na troca (escalador ou motorista) — data/hora em ISO. */
+/** O que a tela manda na troca (escalador ou motorista) — data/hora como vem do campo ("YYYY-MM-DDTHH:MM", horário de Brasília). */
 export type EntradaTroca = { motoristaNovoId: number; km: number; trocadoEm: string; local: string; motivo: string }
 
 export const esquemaTroca = z.object({

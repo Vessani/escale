@@ -54,34 +54,30 @@ export function ProblemaMecanico({ viagemId, problema, informadoEm }: { viagemId
             </Button>
           </div>
         </>
-      ) : editando || !problema ? (
+      ) : !editando ? (
+        <Button type="button" variant="outline" className="h-11 w-full" onClick={() => setEditando(true)}>
+          Informar problema
+        </Button>
+      ) : (
         <>
-          {!editando && !problema ? (
-            <Button type="button" variant="outline" className="h-11 w-full" onClick={() => setEditando(true)}>
-              Informar problema
+          <Textarea
+            value={texto}
+            maxLength={TAMANHO_MAXIMO_PROBLEMA}
+            onChange={(e) => setTexto(e.target.value)}
+            placeholder="Ex: pneu furado na BR-101, aguardando socorro"
+            className="min-h-24 resize-none text-base"
+          />
+          <p className="text-right text-xs tabular-nums text-muted-foreground">{texto.length}/{TAMANHO_MAXIMO_PROBLEMA}</p>
+          <div className="flex gap-2">
+            <Button type="button" variant="ghost" className="h-11" onClick={() => { setEditando(false); setTexto(problema ?? "") }} disabled={pendente}>
+              Cancelar
             </Button>
-          ) : (
-            <>
-              <Textarea
-                value={texto}
-                maxLength={TAMANHO_MAXIMO_PROBLEMA}
-                onChange={(e) => setTexto(e.target.value)}
-                placeholder="Ex: pneu furado na BR-101, aguardando socorro"
-                className="min-h-24 resize-none text-base"
-              />
-              <p className="text-right text-xs tabular-nums text-muted-foreground">{texto.length}/{TAMANHO_MAXIMO_PROBLEMA}</p>
-              <div className="flex gap-2">
-                <Button type="button" variant="ghost" className="h-11" onClick={() => { setEditando(false); setTexto(problema ?? "") }} disabled={pendente}>
-                  Cancelar
-                </Button>
-                <Button type="button" className="h-11 flex-1" onClick={() => salvar(texto)} disabled={pendente || !texto.trim()}>
-                  {pendente ? "Enviando..." : "Avisar o escalador"}
-                </Button>
-              </div>
-            </>
-          )}
+            <Button type="button" className="h-11 flex-1" onClick={() => salvar(texto)} disabled={pendente || !texto.trim()}>
+              {pendente ? "Enviando..." : "Avisar o escalador"}
+            </Button>
+          </div>
         </>
-      ) : null}
+      )}
     </section>
   )
 }

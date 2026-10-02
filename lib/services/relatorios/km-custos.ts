@@ -26,6 +26,8 @@ export type ViagemKmCustos = {
   despesas: { tipo: TipoDespesaViagem; valorCentavos: number }[]
   /** Na ordem da rota. */
   entregas: { cidade: string; uf: string; sapcode: string; codewhite: string }[]
+  /** Quantas trocas de motorista a viagem teve (km e custos são da viagem inteira). */
+  _count?: { trocas: number }
 }
 
 /** Código preenchido de verdade (não vazio, nem só zeros/traços). */
@@ -71,6 +73,7 @@ type LinhaKmCustos = {
   regiao: string[]
   /** O motorista registrou algo (km ou despesa) — viagens antigas ou de quem não tem acesso não têm. */
   temRegistro: boolean
+  teveTroca: boolean
 }
 
 export function linhaKmCustos(viagem: ViagemKmCustos): LinhaKmCustos {
@@ -96,6 +99,7 @@ export function linhaKmCustos(viagem: ViagemKmCustos): LinhaKmCustos {
     custoCentavos: pedagioCentavos + pernoiteCentavos,
     regiao: regiaoDaViagem(viagem.entregas),
     temRegistro: viagem.kmInicial !== null || viagem.kmFinal !== null || viagem.despesas.length > 0,
+    teveTroca: (viagem._count?.trocas ?? 0) > 0,
   }
 }
 

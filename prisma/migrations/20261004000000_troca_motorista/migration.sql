@@ -18,6 +18,8 @@ CREATE TABLE "TrocaMotorista" (
 
 -- CreateIndex
 CREATE INDEX "TrocaMotorista_viagemId_idx" ON "TrocaMotorista"("viagemId");
+CREATE INDEX "TrocaMotorista_motoristaAnteriorId_idx" ON "TrocaMotorista"("motoristaAnteriorId");
+CREATE INDEX "TrocaMotorista_motoristaNovoId_idx" ON "TrocaMotorista"("motoristaNovoId");
 
 -- AddForeignKey
 ALTER TABLE "TrocaMotorista" ADD CONSTRAINT "TrocaMotorista_viagemId_fkey" FOREIGN KEY ("viagemId") REFERENCES "Viagem"("id") ON DELETE RESTRICT ON UPDATE CASCADE;

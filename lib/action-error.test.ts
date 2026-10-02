@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest"
 import { Prisma } from "@prisma/client"
 import { errorToMessage } from "@/lib/action-error"
+import { z } from "@/lib/validation/zod"
 import { ViagemNaoEncontradaError, FrotaDuplicadaError, NumViagemDuplicadaError, DataInvalidaError } from "@/lib/errors"
 
 const FALLBACK = "Ocorreu um erro desconhecido."
@@ -64,4 +65,11 @@ describe("errorToMessage", () => {
   it("código Prisma não mapeado cai no fallback", () => {
     expect(errorToMessage(criarErroPrisma("P9999"), FALLBACK)).toBe(FALLBACK)
   })
+
+  it("erro de validação (zod) mostra a mensagem do campo, em português", () => {
+    const resultado = z.object({ trocadoEm: z.string().regex(/^\d{4}$/, "Data e hora inválidas.") }).safeParse({ trocadoEm: "x" })
+    expect(resultado.success).toBe(false)
+    expect(errorToMessage(resultado.error, "Falhou.")).toBe("Data e hora inválidas.")
+  })
 })
+

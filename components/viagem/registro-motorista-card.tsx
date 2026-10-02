@@ -34,7 +34,7 @@ function Numero({ rotulo, valor }: { rotulo: string; valor: string }) {
   )
 }
 
-/** O que o motorista registrou pelo celular nesta viagem (km e despesas) — só leitura pro despacho. */
+/** O que o motorista registrou pelo celular nesta viagem (km, chegadas, despesas e problema mecânico) — só leitura pro escalador. */
 export function RegistroMotoristaCard({
   kmInicial,
   kmFinal,

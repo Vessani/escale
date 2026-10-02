@@ -33,7 +33,7 @@ const h = (iso: string) => new Date(`${iso}-03:00`)
 function criarTx() {
   return {
     despesaViagem: { create: vi.fn().mockResolvedValue({ id: 9 }), update: vi.fn().mockResolvedValue({}) },
-    chegadaEntrega: { upsert: vi.fn().mockResolvedValue({ id: 3 }) },
+    chegadaEntrega: { upsert: vi.fn().mockResolvedValue({ id: 3 }), findUnique: vi.fn().mockResolvedValue(null) },
     viagem: { updateMany: vi.fn().mockResolvedValue({ count: 1 }), findUniqueOrThrow: vi.fn().mockResolvedValue({}) },
     // SELECT … FOR UPDATE: a viagem ainda é dele e está no status esperado.
     $queryRaw: vi.fn().mockResolvedValue([{ id: 1 }]),
