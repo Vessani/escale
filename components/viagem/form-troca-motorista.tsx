@@ -13,15 +13,9 @@ import { AREA_MOTORISTA } from "@/lib/papeis"
 import { TAMANHO_MAXIMO_LOCAL, TAMANHO_MAXIMO_MOTIVO_TROCA } from "@/lib/validation/troca-motorista"
 import { formatarNomeProprio } from "@/lib/utils/texto"
 import { cn } from "@/lib/utils"
+import { formatDateTimeForInput } from "@/lib/utils/date-format"
 
 const MOTIVOS_SUGERIDOS = ["Estouro de jornada", "Revezamento / escala", "Problema de saúde", "Problema mecânico", "Questão pessoal"]
-
-/** "YYYY-MM-DDTHH:MM" no fuso de quem está usando (Brasil), pro <input type="datetime-local">. */
-function agoraParaCampo(): string {
-  const d = new Date()
-  const p = (n: number) => String(n).padStart(2, "0")
-  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}T${p(d.getHours())}:${p(d.getMinutes())}`
-}
 
 /**
  * Troca de motorista no meio da viagem. `modo="motorista"`: o próprio
@@ -34,6 +28,7 @@ export function FormTrocaMotorista({
   substitutos,
   kmInicial,
   modo,
+  agoraServidor,
   aoCancelar,
 }: {
   viagemId: number
@@ -41,6 +36,8 @@ export function FormTrocaMotorista({
   substitutos: Array<{ id: number; nome: string }>
   kmInicial: number | null
   modo: "escalador" | "motorista"
+  /** Relógio do servidor: o campo abre na hora atual de Brasília, não na do aparelho. */
+  agoraServidor: string
   aoCancelar?: () => void
 }) {
   const router = useRouter()
@@ -49,7 +46,7 @@ export function FormTrocaMotorista({
   const [confirmar, setConfirmar] = useState(false)
   const [substitutoId, setSubstitutoId] = useState("")
   const [km, setKm] = useState("")
-  const [quando, setQuando] = useState(agoraParaCampo)
+  const [quando, setQuando] = useState(() => formatDateTimeForInput(agoraServidor))
   const [local, setLocal] = useState("")
   const [motivo, setMotivo] = useState("")
 
@@ -60,7 +57,7 @@ export function FormTrocaMotorista({
 
   const enviar = () => {
     setErro("")
-    const dados = { motoristaNovoId: Number(substitutoId), km: Number(km), trocadoEm: new Date(quando).toISOString(), local, motivo }
+    const dados = { motoristaNovoId: Number(substitutoId), km: Number(km), trocadoEm: quando, local, motivo }
     iniciarTransicao(async () => {
       const resposta = await chamarAcao(() => (modo === "motorista" ? passarViagem(viagemId, dados) : trocarMotorista(viagemId, dados)))
       if (!resposta.sucesso) {

@@ -1,4 +1,5 @@
 import type { StatusViagem } from "@prisma/client"
+import { inicioDoMinuto } from "@/lib/services/limites-registro"
 
 /**
  * Linha do tempo de uma viagem pro "Relatório da viagem": junta, em ordem,
@@ -82,6 +83,5 @@ export function montarLinhaDoTempo(dados: DadosLinhaDoTempo): EventoViagem[] {
   // saída é gravada com segundos (15:21:18) — no mesmo minuto vale a ordem
   // natural do que aconteceu (saída antes da chegada…), não os segundos.
   const ordem: Record<TipoEvento, number> = { STATUS: 0, SAIDA: 1, TROCA: 2, CHEGADA: 3, DESPESA: 4, PROBLEMA: 5, FIM: 6 }
-  const minuto = (data: Date) => Math.floor(data.getTime() / 60_000)
-  return eventos.sort((a, b) => minuto(a.quando) - minuto(b.quando) || ordem[a.tipo] - ordem[b.tipo] || a.quando.getTime() - b.quando.getTime())
+  return eventos.sort((a, b) => inicioDoMinuto(a.quando) - inicioDoMinuto(b.quando) || ordem[a.tipo] - ordem[b.tipo] || a.quando.getTime() - b.quando.getTime())
 }

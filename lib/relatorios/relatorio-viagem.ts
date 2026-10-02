@@ -1,7 +1,7 @@
 import type { StatusViagem } from "@prisma/client"
 import { buscarRelatorioViagem } from "@/lib/queries/relatorio-viagem"
-import { montarLinhaDoTempo, mudancasDeStatus } from "@/lib/services/relatorio-viagem"
-import { formatarNumero, textoLeituras, textoMedicao, unidadeDescarga } from "@/lib/services/descarga"
+import { montarLinhaDoTempo, mudancasDeStatus } from "@/lib/services/linha-do-tempo-viagem"
+import { chegadaEmNumeros, formatarNumero, textoLeituras, textoMedicao, unidadeDescarga } from "@/lib/services/descarga"
 import { formatarStatusViagem } from "@/lib/services/viagem-status.service"
 import { formatarProduto } from "@/lib/services/produto.service"
 import { minutosDeAtraso } from "@/lib/services/pontualidade"
@@ -23,15 +23,7 @@ export async function carregarRelatorioViagem(filialId: number, viagemId: number
 
   const entregas = viagem.entregas.map((entrega, indice) => {
     const c = entrega.chegada
-    const chegada = c && {
-      medicao: c.medicao,
-      fator: c.fator === null ? null : Number(c.fator),
-      nivelInicial: Number(c.nivelInicial),
-      nivelFinal: Number(c.nivelFinal),
-      polInicial: c.polInicial === null ? null : Number(c.polInicial),
-      polFinal: c.polFinal === null ? null : Number(c.polFinal),
-      total: Number(c.totalDescarregado),
-    }
+    const chegada = c && chegadaEmNumeros(c)
     return {
       id: entrega.id,
       ordem: indice + 1,
@@ -43,7 +35,7 @@ export async function carregarRelatorioViagem(filialId: number, viagemId: number
         km: c.km,
         medicao: textoMedicao(chegada),
         leituras: textoLeituras(chegada),
-        total: chegada.total,
+        total: chegada.totalDescarregado,
         unidade: unidadeDescarga(chegada),
       },
     }
@@ -107,7 +99,7 @@ export async function carregarRelatorioViagem(filialId: number, viagemId: number
     encerramento: { rotulo: cancelada ? "Cancelada em" : "Encerrada em", quando: cancelada ? viagem.canceladoEm : viagem.finalizadoEm },
     kmInicial: viagem.kmInicial,
     kmFinal: viagem.kmFinal,
-    kmRodado: viagem.kmInicial !== null && viagem.kmFinal !== null ? viagem.kmFinal - viagem.kmInicial : null,
+    kmRodado: viagem.kmInicial !== null && viagem.kmFinal !== null && viagem.kmFinal >= viagem.kmInicial ? viagem.kmFinal - viagem.kmInicial : null,
     entregas,
     totaisDescarga: [...totaisPorUnidade].map(([unidade, total]) => ({ unidade, total })),
     despesas,

@@ -7,7 +7,7 @@ import { carregarRelatorioViagem } from "@/lib/relatorios/relatorio-viagem"
 import { abasRelatorioViagem } from "@/lib/relatorios/excel-relatorio-viagem"
 import { sanitizarNomeArquivo } from "@/lib/services/excel-export.service"
 
-/** Excel do "Relatório da viagem" — tudo o que aconteceu, em abas. */
+/** Excel do "Relatório da viagem" — tudo o que aconteceu, numa aba, em seções. */
 export async function GET(_request: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
     const { filialId } = await requireSessaoApi()

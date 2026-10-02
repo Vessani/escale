@@ -3,7 +3,12 @@ import { ErroDeDominio, ViagemNaoEncontradaError } from "@/lib/errors"
 import { registrarAuditoria, type Ator } from "@/lib/services/auditoria.service"
 import { reconciliarFolgaMotoristasNoDiaAtual } from "@/lib/services/folga.service"
 import { recalcularAvisosInterjornada } from "@/lib/services/interjornada.service"
-import { STATUS_EM_ANDAMENTO } from "@/lib/services/minhas-viagens.service"
+import { STATUS_EM_ANDAMENTO } from "@/lib/services/viagem-status.service"
+import { validarHoraDoRegistro, validarKmDoRegistro } from "@/lib/services/limites-registro"
+import { CODIGO_VIAGEM_MUDOU, garantirMotoristasValidos } from "@/lib/services/viagem.service"
+import { podeSerPrincipal } from "@/lib/services/tipo-motorista"
+import { motoristaAutorizadoParaProduto } from "@/lib/services/alocacao/compatibilidade"
+import type { TipoProduto } from "@prisma/client"
 import { TAMANHO_MAXIMO_LOCAL, TAMANHO_MAXIMO_MOTIVO_TROCA } from "@/lib/validation/troca-motorista"
 
 /**
@@ -16,8 +21,6 @@ import { TAMANHO_MAXIMO_LOCAL, TAMANHO_MAXIMO_MOTIVO_TROCA } from "@/lib/validat
  * sair é só realocar na Gestão de Viagens.
  */
 
-const KM_MAXIMO_POR_VIAGEM = 10_000
-const FOLGA_FUTURO_MS = 5 * 60 * 1000
 
 type DadosTroca = {
   motoristaNovoId: number
@@ -56,19 +59,17 @@ export async function trocarMotoristaDaViagem(
     select: { id: true, nome: true },
   })
   if (!novo) throw new ErroDeDominio("MOTORISTA_NAO_ENCONTRADO", "Motorista substituto não encontrado no cadastro.")
+  // Mesmas regras de qualquer alocação: quem assume como principal precisa
+  // poder viajar como principal (não enchedor, não em treinamento) e estar
+  // autorizado pro produto da viagem.
+  await garantirMotoristasValidos(filialId, {
+    principalId: novo.id,
+    produtoExigido: viagem.produto,
+    atuais: { principalId: anteriorId, acompanhanteId: viagem.motoristaAcompanhanteId },
+  })
 
-  if (!Number.isInteger(dados.km) || dados.km < 0 || dados.km > 9_999_999) {
-    throw new ErroDeDominio("KM_INVALIDO", "Km da troca: informe o número do hodômetro.")
-  }
-  if (viagem.kmInicial !== null && (dados.km < viagem.kmInicial || dados.km - viagem.kmInicial > KM_MAXIMO_POR_VIAGEM)) {
-    throw new ErroDeDominio("KM_TROCA_FORA", `O km da troca precisa estar entre o km inicial (${viagem.kmInicial}) e ${viagem.kmInicial + KM_MAXIMO_POR_VIAGEM}.`)
-  }
-  if (Number.isNaN(dados.trocadoEm.getTime()) || dados.trocadoEm.getTime() > agora.getTime() + FOLGA_FUTURO_MS) {
-    throw new ErroDeDominio("TROCA_FUTURO", "A hora da troca está no futuro — confira a data e a hora.")
-  }
-  if (viagem.horarioRealSaida && dados.trocadoEm.getTime() < Math.floor(viagem.horarioRealSaida.getTime() / 60_000) * 60_000) {
-    throw new ErroDeDominio("TROCA_ANTES_SAIDA", "A hora da troca é antes da saída da viagem — confira a data e a hora.")
-  }
+  validarKmDoRegistro(dados.km, viagem.kmInicial, "Km da troca")
+  validarHoraDoRegistro(dados.trocadoEm, viagem.horarioRealSaida, agora, "troca")
   const local = dados.local.trim().slice(0, TAMANHO_MAXIMO_LOCAL)
   const motivo = dados.motivo.trim().slice(0, TAMANHO_MAXIMO_MOTIVO_TROCA)
   if (!local) throw new ErroDeDominio("LOCAL_OBRIGATORIO", "Informe o local da troca.")
@@ -84,7 +85,7 @@ export async function trocarMotoristaDaViagem(
         ...(viagem.motoristaAcompanhanteId === novo.id ? { motoristaAcompanhanteId: null } : {}),
       },
     })
-    if (count === 0) throw new ErroDeDominio("VIAGEM_MUDOU", "A viagem foi alterada nesse meio-tempo. Atualize a tela e confira.")
+    if (count === 0) throw new ErroDeDominio(CODIGO_VIAGEM_MUDOU, "A viagem foi alterada nesse meio-tempo. Atualize a tela e confira.")
 
     const troca = await tx.trocaMotorista.create({
       data: { viagemId, motoristaAnteriorId: anteriorId, motoristaNovoId: novo.id, km: dados.km, trocadoEm: dados.trocadoEm, local, motivo, usuarioId: ator.usuarioId },
@@ -101,10 +102,10 @@ export async function trocarMotoristaDaViagem(
   return { motoristaNovo: novo.nome }
 }
 
-/** Trocas já feitas na viagem, da mais antiga pra mais nova. */
-export async function buscarTrocasDaViagem(viagemId: number) {
+/** Trocas já feitas na viagem, da mais antiga pra mais nova (escopo pela filial). */
+export async function buscarTrocasDaViagem(filialId: number, viagemId: number) {
   return prisma.trocaMotorista.findMany({
-    where: { viagemId },
+    where: { viagemId, viagem: { filialId } },
     orderBy: { trocadoEm: "asc" },
     select: {
       id: true,
@@ -118,11 +119,17 @@ export async function buscarTrocasDaViagem(viagemId: number) {
   })
 }
 
-/** Motoristas que podem assumir (cadastro da filial), pra lista da troca. */
-export async function buscarSubstitutosPossiveis(filialId: number, excetoId: number | null) {
-  return prisma.motorista.findMany({
+/**
+ * Motoristas que podem assumir a viagem: do cadastro da filial, que podem ser
+ * principal e autorizados pro produto — a lista só mostra quem a troca aceita.
+ */
+export async function buscarSubstitutosPossiveis(filialId: number, excetoId: number | null, produto: TipoProduto | null) {
+  const motoristas = await prisma.motorista.findMany({
     where: { filialId, deletadoEm: null, ...(excetoId ? { id: { not: excetoId } } : {}) },
     orderBy: { nome: "asc" },
-    select: { id: true, nome: true },
+    select: { id: true, nome: true, tipo: true, produtosAutorizados: true },
   })
+  return motoristas
+    .filter((m) => podeSerPrincipal(m.tipo) && (!produto || motoristaAutorizadoParaProduto(m.produtosAutorizados, produto)))
+    .map(({ id, nome }) => ({ id, nome }))
 }

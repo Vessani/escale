@@ -11,11 +11,13 @@ export function TrocaMotoristaMotorista({
   numViagem,
   substitutos,
   kmInicial,
+  agoraServidor,
 }: {
   viagemId: number
   numViagem: string
   substitutos: Array<{ id: number; nome: string }>
   kmInicial: number | null
+  agoraServidor: string
 }) {
   const [aberto, setAberto] = useState(false)
   return (
@@ -25,7 +27,7 @@ export function TrocaMotoristaMotorista({
         Troca de motorista
       </h2>
       {aberto ? (
-        <FormTrocaMotorista viagemId={viagemId} numViagem={numViagem} substitutos={substitutos} kmInicial={kmInicial} modo="motorista" aoCancelar={() => setAberto(false)} />
+        <FormTrocaMotorista viagemId={viagemId} numViagem={numViagem} substitutos={substitutos} kmInicial={kmInicial} agoraServidor={agoraServidor} modo="motorista" aoCancelar={() => setAberto(false)} />
       ) : (
         <Button type="button" variant="outline" className="h-11 w-full" onClick={() => setAberto(true)}>
           Passar a viagem para outro motorista

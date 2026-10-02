@@ -217,7 +217,7 @@
 
     entregas          Entrega[]
 
-    // Preenchidos pelo motorista no acesso dele (ou pelo despacho): km do
+    // Preenchidos pelo motorista no acesso dele: km do
     // hodômetro na saída e na chegada.
     kmInicial         Int?
     kmFinal           Int?

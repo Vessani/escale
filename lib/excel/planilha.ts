@@ -2,7 +2,7 @@ import ExcelJS from "exceljs"
 import { formatarDataHoraPtBr } from "@/lib/utils/date-format"
 
 /**
- * Planilhas do Escale com cara de relatório: faixa de título, linha de
+ * Planilhas do Escalador com cara de relatório: faixa de título, linha de
  * contexto (período, filial, quando foi gerado), cabeçalho azul fixo com
  * filtro, linhas zebradas, destaque por linha (vermelho/amarelo), datas de
  * verdade (ordenam e filtram no Excel) e página pronta pra imprimir.
@@ -287,7 +287,7 @@ function adicionarAba<T>(workbook: ExcelJS.Workbook, aba: Aba<T>, meta: Metadado
   planilha.pageSetup.printTitlesRow = `${linhaCabecalho}:${linhaCabecalho}`
 }
 
-/** Gera o .xlsx com uma aba por item, no estilo do Escale. */
+/** Gera o .xlsx com uma aba por item, no estilo do Escalador. */
 export async function gerarExcel(abas: AbaPronta[], meta: Metadados = {}): Promise<Buffer> {
   const workbook = new ExcelJS.Workbook()
   workbook.creator = "Escalador"

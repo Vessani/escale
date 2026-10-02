@@ -13,6 +13,9 @@ vi.mock("@/lib/prisma", () => ({
     motorista: {
       findFirst: vi.fn(),
     },
+    entrega: {
+      findMany: vi.fn().mockResolvedValue([]),
+    },
   },
 }))
 
@@ -403,6 +406,21 @@ describe("viagem.service", () => {
 
       await editarViagemService(FILIAL_ID, 1, criarEdicaoInput({ turno: "MANHA", inicioPrevisto: "2026-10-02T20:00" }), ATOR)
       expect(vi.mocked(tx.viagem.update).mock.calls[1][0].data.turno).toBe("MANHA")
+    })
+
+    it("viagem na estrada: não troca o principal pela edição (tem a tela de troca) e não remove entrega com chegada medida", async () => {
+      vi.mocked(prisma.viagem.findFirst).mockResolvedValue(null)
+      vi.mocked(prisma.motorista.findFirst).mockResolvedValue({ produtosAutorizados: [], tipo: "MOTORISTA" } as never)
+      vi.mocked(prisma.viagem.findUnique).mockResolvedValue({ status: "INICIADA", motoristaId: 3, motoristaAcompanhanteId: null } as never)
+      await expect(editarViagemService(FILIAL_ID, 1, criarEdicaoInput({ motoristaId: 9, produto: undefined }), ATOR)).rejects.toThrow("Trocar motorista")
+
+      vi.mocked(prisma.viagem.findUnique).mockResolvedValue({ status: "CRIADA", motoristaId: null, motoristaAcompanhanteId: null } as never)
+      vi.mocked(prisma.entrega.findMany).mockResolvedValueOnce([{ cliente: "HOSPITAL SANTA ISABEL" }] as never)
+      await expect(editarViagemService(FILIAL_ID, 1, criarEdicaoInput(), ATOR)).rejects.toThrow("HOSPITAL SANTA ISABEL")
+      expect(prisma.entrega.findMany).toHaveBeenLastCalledWith({
+        where: { viagemId: 1, id: { notIn: expect.any(Array) }, chegada: { isNot: null } },
+        select: { cliente: true },
+      })
     })
 
     it("lança erro amigável quando o número editado já pertence a OUTRA viagem ativa", async () => {

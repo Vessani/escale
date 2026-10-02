@@ -30,8 +30,8 @@ async function motoristaDaFilial(filialId: number, motoristaId: number) {
   return motorista
 }
 
-export async function situacaoAcessoMotorista(motoristaId: number): Promise<SituacaoAcesso> {
-  const acesso = await prisma.usuario.findUnique({ where: { motoristaId }, select: { ativo: true } })
+export async function situacaoAcessoMotorista(filialId: number, motoristaId: number): Promise<SituacaoAcesso> {
+  const acesso = await prisma.usuario.findFirst({ where: { motoristaId, motorista: { filialId } }, select: { ativo: true } })
   return !acesso ? "SEM_ACESSO" : acesso.ativo ? "ATIVO" : "DESATIVADO"
 }
 

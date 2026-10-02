@@ -1,5 +1,5 @@
 import { requireSessaoPaginaComFilial } from "@/lib/auth-guard"
-import { buscarChegadasDaViagem, buscarViagemPorId } from "@/lib/queries/viagens"
+import { buscarChegadasDaViagem, buscarDespesasDaViagem, buscarViagemPorId } from "@/lib/queries/viagens"
 import { buscarMotoristasParaSelect } from "@/lib/queries/motoristas"
 import { buscarNumerosSapQueExigemIntegracao } from "@/lib/queries/clientes"
 import { buscarHistoricoDaEntidade } from "@/lib/queries/auditoria"
@@ -14,6 +14,7 @@ import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import { Download, FileText } from "lucide-react"
 import { RegistroMotoristaCard } from "@/components/viagem/registro-motorista-card"
+import { STATUS_EM_ANDAMENTO } from "@/lib/services/viagem-status.service"
 import { TrocaMotoristaCard } from "@/components/viagem/troca-motorista-card"
 import { buscarSubstitutosPossiveis, buscarTrocasDaViagem } from "@/lib/services/troca-motorista.service"
 
@@ -33,10 +34,14 @@ export default async function EditarViagemPage({ params }: { params: Promise<{ i
     notFound()
   }
 
-  const [motoristas, numerosSapQueExigemIntegracao, historico] = await Promise.all([
+  const [motoristas, numerosSapQueExigemIntegracao, historico, despesas, chegadas, trocas, substitutos] = await Promise.all([
     buscarMotoristasParaSelect(filialId),
     buscarNumerosSapQueExigemIntegracao(),
     buscarHistoricoDaEntidade("Viagem", viagem.id),
+    buscarDespesasDaViagem(filialId, viagem.id),
+    buscarChegadasDaViagem(filialId, viagem.id),
+    buscarTrocasDaViagem(filialId, viagem.id),
+    buscarSubstitutosPossiveis(filialId, viagem.motoristaId, viagem.produto),
   ])
   // Situação de cada motorista pra esta viagem calculada aqui no servidor —
   // o formulário recebe só id, nome, tipo e situação (ver montarOpcoesMotoristaPorViagem).
@@ -85,8 +90,8 @@ export default async function EditarViagemPage({ params }: { params: Promise<{ i
       <RegistroMotoristaCard
         kmInicial={viagem.kmInicial}
         kmFinal={viagem.kmFinal}
-        despesas={viagem.despesas}
-        chegadas={await buscarChegadasDaViagem(viagem.id)}
+        despesas={despesas}
+        chegadas={chegadas}
         problemaMecanico={viagem.problemaMecanico}
         problemaMecanicoEm={viagem.problemaMecanicoEm}
       />
@@ -94,10 +99,11 @@ export default async function EditarViagemPage({ params }: { params: Promise<{ i
       <TrocaMotoristaCard
         viagemId={viagem.id}
         numViagem={viagem.numViagem}
-        emAndamento={viagem.status === "INICIADA" || viagem.status === "RETORNANDO"}
+        emAndamento={STATUS_EM_ANDAMENTO.includes(viagem.status)}
+        agoraServidor={new Date().toISOString()}
         kmInicial={viagem.kmInicial}
-        substitutos={await buscarSubstitutosPossiveis(filialId, viagem.motoristaId)}
-        trocas={(await buscarTrocasDaViagem(viagem.id)).map((troca) => ({
+        substitutos={substitutos}
+        trocas={trocas.map((troca) => ({
           id: troca.id,
           km: troca.km,
           trocadoEm: troca.trocadoEm.toISOString(),

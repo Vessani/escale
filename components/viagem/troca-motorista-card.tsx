@@ -26,9 +26,11 @@ export function TrocaMotoristaCard({
   trocas,
   substitutos,
   kmInicial,
+  agoraServidor,
 }: {
   viagemId: number
   numViagem: string
+  agoraServidor: string
   emAndamento: boolean
   trocas: TrocaDaViagem[]
   substitutos: Array<{ id: number; nome: string }>
@@ -70,6 +72,7 @@ export function TrocaMotoristaCard({
               numViagem={numViagem}
               substitutos={substitutos}
               kmInicial={kmInicial}
+              agoraServidor={agoraServidor}
               modo="escalador"
               aoCancelar={() => setAberto(false)}
             />

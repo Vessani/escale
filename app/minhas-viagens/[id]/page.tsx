@@ -5,6 +5,7 @@ import { Alert } from "@/components/ui/alert"
 import { AtualizacaoAutomatica } from "@/components/atualizacao-automatica"
 import { requireSessaoPaginaMotorista } from "@/lib/auth-guard"
 import { buscarMinhaViagem } from "@/lib/services/minhas-viagens.service"
+import { chegadaEmNumeros } from "@/lib/services/descarga"
 import { buscarSubstitutosPossiveis } from "@/lib/services/troca-motorista.service"
 import { formatarStatusViagem } from "@/lib/services/viagem-status.service"
 import { formatarCodigoFrota } from "@/lib/services/frota-regras"
@@ -69,17 +70,7 @@ export default async function MinhaViagemPage({ params }: { params: Promise<{ id
       cliente: entrega.cliente,
       cidade: entrega.cidade,
       uf: entrega.uf,
-      chegada: entrega.chegada && {
-        km: entrega.chegada.km,
-        chegadaEm: entrega.chegada.chegadaEm.toISOString(),
-        medicao: entrega.chegada.medicao,
-        nivelInicial: Number(entrega.chegada.nivelInicial),
-        nivelFinal: Number(entrega.chegada.nivelFinal),
-        polInicial: entrega.chegada.polInicial === null ? null : Number(entrega.chegada.polInicial),
-        polFinal: entrega.chegada.polFinal === null ? null : Number(entrega.chegada.polFinal),
-        fator: entrega.chegada.fator === null ? null : Number(entrega.chegada.fator),
-        totalDescarregado: Number(entrega.chegada.totalDescarregado),
-      },
+      chegada: entrega.chegada && { ...chegadaEmNumeros(entrega.chegada), chegadaEm: entrega.chegada.chegadaEm.toISOString() },
     })),
   }
 
@@ -132,7 +123,7 @@ export default async function MinhaViagemPage({ params }: { params: Promise<{ id
         viagem={dadosPainel}
         souPrincipal={souPrincipal}
         agoraServidor={agora.toISOString()}
-        substitutos={souPrincipal ? await buscarSubstitutosPossiveis(filialId, motoristaId) : []}
+        substitutos={souPrincipal ? await buscarSubstitutosPossiveis(filialId, motoristaId, viagem.produto) : []}
       />
       {/* O despacho pode cancelar, postergar ou trocar o motorista: a tela acompanha sem ele precisar recarregar. */}
       <AtualizacaoAutomatica segundos={60} />

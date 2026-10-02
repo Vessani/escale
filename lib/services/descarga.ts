@@ -129,3 +129,22 @@ export function textoLeituras(chegada: ChegadaGravada): string {
     : base
 }
 
+/** Decimal do banco (Prisma) ou número → número. */
+const numero = (valor: unknown) => Number(valor)
+const numeroOuNulo = (valor: unknown) => (valor === null || valor === undefined ? null : Number(valor))
+
+/** ChegadaEntrega do banco (campos Decimal) com os números prontos pra conta e pra tela — um lugar só. */
+export function chegadaEmNumeros<T extends { nivelInicial: unknown; nivelFinal: unknown; polInicial: unknown; polFinal: unknown; fator: unknown; totalDescarregado: unknown }>(
+  chegada: T,
+) {
+  return {
+    ...chegada,
+    nivelInicial: numero(chegada.nivelInicial),
+    nivelFinal: numero(chegada.nivelFinal),
+    polInicial: numeroOuNulo(chegada.polInicial),
+    polFinal: numeroOuNulo(chegada.polFinal),
+    fator: numeroOuNulo(chegada.fator),
+    totalDescarregado: numero(chegada.totalDescarregado),
+  }
+}
+

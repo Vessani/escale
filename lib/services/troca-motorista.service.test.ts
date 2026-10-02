@@ -6,9 +6,12 @@ vi.mock("@/lib/prisma", () => ({
 vi.mock("@/lib/services/auditoria.service", () => ({ registrarAuditoria: vi.fn() }))
 vi.mock("@/lib/services/folga.service", () => ({ reconciliarFolgaMotoristasNoDiaAtual: vi.fn() }))
 vi.mock("@/lib/services/interjornada.service", () => ({ recalcularAvisosInterjornada: vi.fn() }))
+vi.mock("@/lib/services/viagem.service", () => ({ CODIGO_VIAGEM_MUDOU: "VIAGEM_MUDOU", garantirMotoristasValidos: vi.fn() }))
 
 import { prisma } from "@/lib/prisma"
 import { recalcularAvisosInterjornada } from "@/lib/services/interjornada.service"
+import { garantirMotoristasValidos } from "@/lib/services/viagem.service"
+import { MotoristaEmTreinamentoError } from "@/lib/errors"
 import { trocarMotoristaDaViagem } from "./troca-motorista.service"
 
 const FILIAL = 3
@@ -76,7 +79,7 @@ describe("trocarMotoristaDaViagem", () => {
     await expect(tentar(dados({ motoristaNovoId: 7 }))).rejects.toThrow("diferente do atual")
     vi.mocked(prisma.motorista.findFirst).mockResolvedValueOnce(null)
     await expect(tentar()).rejects.toThrow("não encontrado no cadastro")
-    await expect(tentar(dados({ km: 152000 }))).rejects.toThrow("entre o km inicial")
+    await expect(tentar(dados({ km: 152000 }))).rejects.toThrow("menor que o km inicial")
     await expect(tentar(dados({ trocadoEm: h("2026-10-02T16:00:00") }))).rejects.toThrow("no futuro")
     await expect(tentar(dados({ trocadoEm: h("2026-10-02T06:00:00") }))).rejects.toThrow("antes da saída")
     await expect(tentar(dados({ local: "  " }))).rejects.toThrow("local")
@@ -87,4 +90,16 @@ describe("trocarMotoristaDaViagem", () => {
     await expect(tentar()).rejects.toThrow("alterada nesse meio-tempo")
     expect(tx.trocaMotorista.create).not.toHaveBeenCalled()
   })
+
+  it("substituto passa pelas mesmas regras da alocação (tipo e produto); se não pode, nada é gravado", async () => {
+    vi.mocked(prisma.viagem.findFirst).mockResolvedValue(viagem({ produto: "OXIGENIO", motoristaAcompanhanteId: 8 }) as never)
+    await trocarMotoristaDaViagem(FILIAL, 1, dados(), ator, {}, agora)
+    expect(garantirMotoristasValidos).toHaveBeenCalledWith(FILIAL, { principalId: 4, produtoExigido: "OXIGENIO", atuais: { principalId: 7, acompanhanteId: 8 } })
+
+    vi.mocked(garantirMotoristasValidos).mockRejectedValueOnce(new MotoristaEmTreinamentoError())
+    tx.trocaMotorista.create.mockClear()
+    await expect(trocarMotoristaDaViagem(FILIAL, 1, dados(), ator, {}, agora)).rejects.toBeInstanceOf(MotoristaEmTreinamentoError)
+    expect(tx.trocaMotorista.create).not.toHaveBeenCalled()
+  })
 })
+

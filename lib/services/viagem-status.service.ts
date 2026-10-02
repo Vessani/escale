@@ -50,3 +50,8 @@ export function parseStatusFiltro(valor?: string): FiltroStatusViagem {
 
   return ehStatusViagem(valor) ? valor : "TODOS"
 }
+
+/** Ainda não saiu. Única fonte desses grupos — servidor e telas (sem dependências de banco). */
+export const STATUS_A_INICIAR: StatusViagem[] = ["CRIADA", "ALOCADA", "POSTERGADA"]
+/** Na estrada. */
+export const STATUS_EM_ANDAMENTO: StatusViagem[] = ["INICIADA", "RETORNANDO"]

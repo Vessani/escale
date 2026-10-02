@@ -17,7 +17,7 @@ const semAssinatura = () => () => {}
  * Recado geral da operação (frota com problema, indo pra oficina...), bloco
  * único e compartilhado, sem histórico. Não ocupa tela à toa: sem recado é
  * só o botão "+ Observação"; com recado vira uma faixa fina acima dos
- * contadores (aparece também na TV).
+ * contadores (no modo TV, que mostra só as viagens, não aparece).
  */
 export default function QuadroDeObservacoes({ textoInicial }: { textoInicial: string }) {
   const [pendente, iniciarTransicao] = useTransition()

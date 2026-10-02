@@ -442,7 +442,10 @@ export default async function DashboardPage({
               Programação do dia
             </a>
           </Button>
-          <QuadroDeObservacoes textoInicial={quadroObservacoes} />
+          {/* A chave muda quando o recado muda no servidor (outro computador
+              editou): a atualização automática traz o texto novo — sem ela o
+              componente guardava o recado de quando a tela abriu. */}
+          <QuadroDeObservacoes key={quadroObservacoes} textoInicial={quadroObservacoes} />
           <ModoTv alvoId="painel-dashboard" />
         </div>
       </div>

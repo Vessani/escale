@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest"
-import { montarLinhaDoTempo, mudancasDeStatus } from "./relatorio-viagem"
+import { montarLinhaDoTempo, mudancasDeStatus } from "./linha-do-tempo-viagem"
 
 const h = (hora: string) => new Date(`2026-10-02T${hora}:00-03:00`)
 const rotulo = (s: string) => ({ ALOCADA: "Alocada", INICIADA: "Iniciada", FINALIZADA: "Finalizada", CRIADA: "Criada" })[s] ?? s

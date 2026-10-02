@@ -9,8 +9,8 @@ import { Textarea } from "@/components/ui/textarea"
 import { informarProblema } from "@/lib/actions/minhas-viagens"
 import { chamarAcao } from "@/lib/chamar-acao"
 import { formatarHoraLocal } from "@/lib/utils/date-format"
+import { TAMANHO_MAXIMO_PROBLEMA } from "@/lib/services/limites-registro"
 
-const TAMANHO_MAXIMO = 300
 
 /** Problema mecânico: o que ele escrever aparece em vermelho pro escalador. "Resolvido" limpa. */
 export function ProblemaMecanico({ viagemId, problema, informadoEm }: { viagemId: number; problema: string | null; informadoEm: string | null }) {
@@ -64,12 +64,12 @@ export function ProblemaMecanico({ viagemId, problema, informadoEm }: { viagemId
             <>
               <Textarea
                 value={texto}
-                maxLength={TAMANHO_MAXIMO}
+                maxLength={TAMANHO_MAXIMO_PROBLEMA}
                 onChange={(e) => setTexto(e.target.value)}
                 placeholder="Ex: pneu furado na BR-101, aguardando socorro"
                 className="min-h-24 resize-none text-base"
               />
-              <p className="text-right text-xs tabular-nums text-muted-foreground">{texto.length}/{TAMANHO_MAXIMO}</p>
+              <p className="text-right text-xs tabular-nums text-muted-foreground">{texto.length}/{TAMANHO_MAXIMO_PROBLEMA}</p>
               <div className="flex gap-2">
                 <Button type="button" variant="ghost" className="h-11" onClick={() => { setEditando(false); setTexto(problema ?? "") }} disabled={pendente}>
                   Cancelar

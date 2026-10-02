@@ -61,8 +61,8 @@ export default async function KmCustosPage({ searchParams }: { searchParams?: Pr
             <option value="todas">Todas (inclui sem registro)</option>
           </select>
         </label>
-        <label className="grid gap-1 text-xs text-muted-foreground">
-          Motorista
+        <label className="grid gap-1 text-xs text-muted-foreground" title="Com troca de motorista, a viagem inteira conta pro motorista atual (o que terminou a viagem).">
+          Motorista (atual da viagem)
           <select
             name="motorista"
             defaultValue={motoristaId ?? ""}

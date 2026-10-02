@@ -7,6 +7,8 @@ import { TAMANHO_MAXIMO_MOTIVO } from "@/lib/services/motivos-atraso"
 import { registrarAuditoria, type Ator } from "@/lib/services/auditoria.service"
 import { atualizarStatusViagemService, CODIGO_VIAGEM_MUDOU } from "@/lib/services/viagem.service"
 import { calcularDescarga, type DadosDescarga } from "@/lib/services/descarga"
+import { STATUS_A_INICIAR, STATUS_EM_ANDAMENTO } from "@/lib/services/viagem-status.service"
+import { KM_MAXIMO_HODOMETRO, KM_MAXIMO_POR_VIAGEM, TAMANHO_MAXIMO_PROBLEMA, validarHoraDoRegistro, validarKmDoRegistro } from "@/lib/services/limites-registro"
 
 /**
  * Área do motorista ("Minhas viagens"): o que ele vê e o que ele registra.
@@ -19,14 +21,7 @@ import { calcularDescarga, type DadosDescarga } from "@/lib/services/descarga"
 
 const UM_DIA_MS = 24 * 60 * 60 * 1000
 
-/** Ainda não saiu. */
-export const STATUS_A_INICIAR: StatusViagem[] = ["CRIADA", "ALOCADA", "POSTERGADA"]
-/** Na estrada. */
-export const STATUS_EM_ANDAMENTO: StatusViagem[] = ["INICIADA", "RETORNANDO"]
 
-/** Hodômetro: até 9.999.999 km; uma viagem não roda mais que isso. */
-const KM_MAXIMO = 9_999_999
-const KM_MAXIMO_POR_VIAGEM = 10_000
 /** R$ 10.000,00 por lançamento — acima disso é erro de digitação. */
 const VALOR_MAXIMO_CENTAVOS = 1_000_000
 
@@ -177,11 +172,28 @@ async function mudarStatusComoMotorista(
   }
 }
 
+type Tx = Parameters<Parameters<typeof prisma.$transaction>[0]>[0]
+
+/**
+ * Trava a linha da viagem (SELECT … FOR UPDATE) dentro da transação, só se
+ * ela ainda for deste motorista e estiver num dos status. Enquanto a
+ * transação não termina, o escalador não consegue encerrar/cancelar/trocar
+ * o motorista — e se já fez, nada é gravado (sem corrida entre conferir e gravar).
+ */
+async function travarViagemDoMotorista(tx: Tx, filialId: number, motoristaId: number, viagemId: number, statusAceitos: StatusViagem[]) {
+  const linhas = await tx.$queryRaw<Array<{ id: number }>>`
+    SELECT id FROM "Viagem"
+    WHERE id = ${viagemId} AND "filialId" = ${filialId} AND "motoristaId" = ${motoristaId}
+      AND "deletadoEm" IS NULL AND status::text = ANY(${statusAceitos})
+    FOR UPDATE`
+  return linhas.length > 0
+}
+
 const JA_INICIADA = () => new ErroDeDominio("VIAGEM_JA_INICIADA", "Essa viagem já foi iniciada.")
 const NAO_INICIADA = (mensagem: string) => new ErroDeDominio("VIAGEM_NAO_INICIADA", mensagem)
 
 function validarKm(km: number, campo: string) {
-  if (!Number.isInteger(km) || km < 0 || km > KM_MAXIMO) {
+  if (!Number.isInteger(km) || km < 0 || km > KM_MAXIMO_HODOMETRO) {
     throw new ErroDeDominio("KM_INVALIDO", `${campo}: informe o número do hodômetro, só números.`)
   }
 }
@@ -226,17 +238,22 @@ export async function adicionarMinhaDespesa(
 ) {
   await viagemDoPrincipalEm(filialId, motoristaId, viagemId, STATUS_EM_ANDAMENTO,
     NAO_INICIADA("Inicie a viagem antes de lançar pedágio ou pernoite."))
+  // (conferido de novo, com a viagem travada, na hora de gravar)
   if (!Number.isInteger(dados.valorCentavos) || dados.valorCentavos <= 0 || dados.valorCentavos > VALOR_MAXIMO_CENTAVOS) {
     throw new ErroDeDominio("VALOR_INVALIDO", "Informe um valor entre R$ 0,01 e R$ 10.000,00.")
   }
 
-  return prisma.$transaction(async (tx) => {
+  const naoIniciada = NAO_INICIADA("Inicie a viagem antes de lançar pedágio ou pernoite.")
+  const gravada = await prisma.$transaction(async (tx) => {
+    if (!(await travarViagemDoMotorista(tx, filialId, motoristaId, viagemId, STATUS_EM_ANDAMENTO))) return null
     const despesa = await tx.despesaViagem.create({
       data: { viagemId, tipo: dados.tipo, valorCentavos: dados.valorCentavos, usuarioId: ator.usuarioId },
     })
     await registrarAuditoria(tx, { entidade: "DespesaViagem", entidadeId: despesa.id, acao: "CRIACAO", depois: despesa, ator, filialId })
     return despesa
   })
+  if (!gravada) throw await explicarSituacao(filialId, motoristaId, viagemId, naoIniciada)
+  return gravada
 }
 
 /** Apaga um lançamento feito por engano — só os dele, e só com a viagem ainda em andamento. */
@@ -247,7 +264,7 @@ export async function removerMinhaDespesa(filialId: number, motoristaId: number,
   })
   if (!despesa) throw new ErroDeDominio("DESPESA_NAO_ENCONTRADA", "Lançamento não encontrado.")
   if (!STATUS_EM_ANDAMENTO.includes(despesa.viagem.status)) {
-    throw new ErroDeDominio("VIAGEM_ENCERRADA", "A viagem já foi encerrada — peça a correção ao escalador.")
+    throw new ErroDeDominio("VIAGEM_ENCERRADA", "A viagem já foi encerrada — se o lançamento está errado, avise o escalador.")
   }
 
   await prisma.$transaction(async (tx) => {
@@ -283,10 +300,6 @@ export async function encerrarMinhaViagem(
   )
 }
 
-/** Problema mecânico: no máximo isso de texto. */
-export const TAMANHO_MAXIMO_PROBLEMA = 300
-/** Chegada registrada com hora "no futuro" além disso = relógio errado ou digitação. */
-const FOLGA_FUTURO_MS = 5 * 60 * 1000
 
 type DadosChegada = Omit<DadosDescarga, "produto"> & { km: number; chegadaEm: Date }
 
@@ -298,13 +311,14 @@ type DadosChegada = Omit<DadosDescarga, "produto"> & { km: number; chegadaEm: Da
 export async function registrarChegadaCliente(
   filialId: number,
   motoristaId: number,
+  viagemId: number,
   entregaId: number,
   dados: DadosChegada,
   ator: Ator,
   agora = new Date(),
 ) {
   const entrega = await prisma.entrega.findFirst({
-    where: { id: entregaId, viagem: { filialId, motoristaId, deletadoEm: null } },
+    where: { id: entregaId, viagemId, viagem: { filialId, motoristaId, deletadoEm: null } },
     include: {
       chegada: true,
       viagem: { select: { id: true, status: true, produto: true, kmInicial: true, horarioRealSaida: true } },
@@ -316,23 +330,8 @@ export async function registrarChegadaCliente(
     throw await explicarSituacao(filialId, motoristaId, viagem.id, NAO_INICIADA("Inicie a viagem antes de registrar a chegada no cliente."))
   }
 
-  validarKm(dados.km, "Km da chegada")
-  if (viagem.kmInicial !== null) {
-    if (dados.km < viagem.kmInicial) {
-      throw new ErroDeDominio("KM_CHEGADA_MENOR", `O km da chegada não pode ser menor que o km inicial (${viagem.kmInicial}).`)
-    }
-    if (dados.km - viagem.kmInicial > KM_MAXIMO_POR_VIAGEM) {
-      throw new ErroDeDominio("KM_CHEGADA_ALTO", "Mais de 10.000 km desde a saída — confira o km.")
-    }
-  }
-  if (Number.isNaN(dados.chegadaEm.getTime()) || dados.chegadaEm.getTime() > agora.getTime() + FOLGA_FUTURO_MS) {
-    throw new ErroDeDominio("CHEGADA_FUTURO", "A hora da chegada está no futuro — confira a data e a hora.")
-  }
-  // O campo da tela não tem segundos: saiu 14:29:40 e chegou "14:29" é o
-  // mesmo minuto, não "antes da saída".
-  if (viagem.horarioRealSaida && dados.chegadaEm.getTime() < Math.floor(viagem.horarioRealSaida.getTime() / 60_000) * 60_000) {
-    throw new ErroDeDominio("CHEGADA_ANTES_SAIDA", "A hora da chegada é antes da saída da viagem — confira a data e a hora.")
-  }
+  validarKmDoRegistro(dados.km, viagem.kmInicial, "Km da chegada")
+  validarHoraDoRegistro(dados.chegadaEm, viagem.horarioRealSaida, agora, "chegada")
 
   // O servidor refaz a conta — não grava o total que veio da tela.
   const descarga = calcularDescarga({ ...dados, produto: viagem.produto })
@@ -352,7 +351,8 @@ export async function registrarChegadaCliente(
     usuarioId: ator.usuarioId,
   }
 
-  await prisma.$transaction(async (tx) => {
+  const gravada = await prisma.$transaction(async (tx) => {
+    if (!(await travarViagemDoMotorista(tx, filialId, motoristaId, viagem.id, STATUS_EM_ANDAMENTO))) return false
     const depois = await tx.chegadaEntrega.upsert({
       where: { entregaId },
       create: { entregaId, ...registro },
@@ -367,7 +367,11 @@ export async function registrarChegadaCliente(
       ator,
       filialId,
     })
+    return true
   })
+  if (!gravada) {
+    throw await explicarSituacao(filialId, motoristaId, viagem.id, NAO_INICIADA("Inicie a viagem antes de registrar a chegada no cliente."))
+  }
 }
 
 /**
@@ -389,14 +393,21 @@ export async function informarProblemaMecanico(
     [...STATUS_A_INICIAR, ...STATUS_EM_ANDAMENTO],
     new ErroDeDominio("VIAGEM_ENCERRADA", "A viagem já foi encerrada — avise o escalador."),
   )
+  // (conferido de novo na gravação, no updateMany condicionado)
   const problema = texto.trim().slice(0, TAMANHO_MAXIMO_PROBLEMA) || null
 
-  await prisma.$transaction(async (tx) => {
-    const depois = await tx.viagem.update({
-      where: { id: viagemId, filialId },
+  const encerrada = new ErroDeDominio("VIAGEM_ENCERRADA", "A viagem já foi encerrada — avise o escalador.")
+  const gravado = await prisma.$transaction(async (tx) => {
+    // Só grava se ainda for dele e não tiver sido encerrada/cancelada no meio-tempo.
+    const { count } = await tx.viagem.updateMany({
+      where: { id: viagemId, filialId, motoristaId, deletadoEm: null, status: { in: [...STATUS_A_INICIAR, ...STATUS_EM_ANDAMENTO] } },
       data: { problemaMecanico: problema, problemaMecanicoEm: problema ? agora : null },
     })
+    if (count === 0) return false
+    const depois = await tx.viagem.findUniqueOrThrow({ where: { id: viagemId } })
     await registrarAuditoria(tx, { entidade: "Viagem", entidadeId: viagemId, acao: "ATUALIZACAO", antes: viagem, depois, ator, filialId })
+    return true
   })
+  if (!gravado) throw await explicarSituacao(filialId, motoristaId, viagemId, encerrada)
 }
 

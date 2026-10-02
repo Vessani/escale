@@ -18,6 +18,7 @@ import { prepararJornadaDoMotorista } from "./jornada.service";
 import { recalcularAvisosInterjornada } from "./interjornada.service";
 import { podeSerAcompanhante, podeSerPrincipal } from "./tipo-motorista";
 import { calcularDiasEntre, inicioDoDia } from "@/lib/utils/date-format";
+import { STATUS_EM_ANDAMENTO } from "./viagem-status.service";
 
 function resolverStatusPorAlocacao(motoristaId: number | null) {
   return motoristaId === null ? "CRIADA" : "ALOCADA";
@@ -119,7 +120,7 @@ type MotoristasDaViagem = {
  * mudou de tipo depois não pode travar a edição dela.
  * Filial e produto valem sempre.
  */
-async function garantirMotoristasValidos(filialId: number, dados: MotoristasDaViagem) {
+export async function garantirMotoristasValidos(filialId: number, dados: MotoristasDaViagem) {
   const { principalId, acompanhanteId, produtoExigido, atuais } = dados
 
   if (principalId) {
@@ -326,6 +327,23 @@ export async function editarViagemService(filialId: number, idViagem: number, da
     idViagem,
   )
   const avisoFrotaProdutoIncompativel = await calcularAvisoFrotaProduto(filialId, dados.cavalo, dados.carreta, dados.produto)
+
+  // Viagem na estrada: trocar o principal por aqui apagaria o registro de
+  // quem dirigiu até onde — a troca tem tela própria (km, local, motivo).
+  const emAndamento = STATUS_EM_ANDAMENTO.includes(viagemAtual.status)
+  if (emAndamento && viagemAtual.motoristaId !== null && motoristaIdFinal !== viagemAtual.motoristaId) {
+    throw new ErroDeDominio("USAR_TROCA_DE_MOTORISTA", "A viagem já saiu: pra trocar o motorista, use \"Trocar motorista\" no fim desta tela.")
+  }
+  // Entrega com chegada registrada pelo motorista (medição do descarregado)
+  // não pode sumir numa edição — levaria a medição junto, sem histórico.
+  const removidasComChegada = await prisma.entrega.findMany({
+    where: { viagemId: idViagem, id: { notIn: manterEntregas }, chegada: { isNot: null } },
+    select: { cliente: true },
+  })
+  if (removidasComChegada.length > 0) {
+    const clientes = removidasComChegada.map((entrega) => entrega.cliente).join(", ")
+    throw new ErroDeDominio("ENTREGA_COM_CHEGADA", `Não dá pra remover ${clientes}: o motorista já registrou a chegada e a medição nessa entrega.`)
+  }
 
   return await prisma.$transaction(async (tx) => {
     const viagemAtualizada = await tx.viagem.update({
