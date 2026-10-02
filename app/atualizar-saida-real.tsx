@@ -10,6 +10,7 @@ import { atualizarSaidaReal } from "@/lib/actions/viagens"
 import { formatDateTimeForInput, formatarHoraLocal, tentarConverterEntradaDeDataHora } from "@/lib/utils/date-format"
 import { cn } from "@/lib/utils"
 import { TOLERANCIA_SAIDA_MINUTOS, minutosDeAtraso, saidaAtrasada } from "@/lib/services/pontualidade"
+import { MOTIVOS_ATRASO } from "@/lib/services/motivos-atraso"
 
 type Props = {
   viagemId: number
@@ -182,10 +183,17 @@ export default function AtualizarSaidaReal({
                 className={cn("h-8 text-xs", atrasadoNoRascunho && !motivo && "border-warning/40")}
                 placeholder={atrasadoNoRascunho ? "Ex: troca de frota" : "Opcional"}
                 maxLength={200}
+                list="motivos-atraso"
                 value={motivo}
                 disabled={isPending}
                 onChange={(evento) => setMotivo(evento.target.value)}
               />
+              {/* Mesma lista do motorista no celular — escolher dela deixa o relatório de pontualidade agrupado. */}
+              <datalist id="motivos-atraso">
+                {MOTIVOS_ATRASO.map((opcao) => (
+                  <option key={opcao} value={opcao} />
+                ))}
+              </datalist>
             </div>
             {erro ? <p className="text-[11px] text-destructive">{erro}</p> : null}
             <div className="flex items-center justify-between gap-2">

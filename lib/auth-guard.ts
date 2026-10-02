@@ -2,6 +2,16 @@ import { redirect } from "next/navigation"
 import { getServerSession } from "next-auth"
 import { authOptions } from "@/lib/auth"
 import { NaoAutorizadoError } from "@/lib/errors"
+import { AREA_MOTORISTA, PAPEL_MOTORISTA, ehMotorista } from "@/lib/papeis"
+
+/**
+ * O motorista (papel MOTORISTA) só passa onde for liberado de propósito
+ * (rolesPermitidos com MOTORISTA) — todas as actions, páginas e rotas
+ * existentes ficam fechadas pra ele sem precisar mexer em cada uma.
+ */
+function motoristaBarrado(role: string, rolesPermitidos?: string[]) {
+  return ehMotorista(role) && !rolesPermitidos?.includes(PAPEL_MOTORISTA)
+}
 
 /**
  * Reforça a sessão dentro da própria Server Action — o middleware já
@@ -16,6 +26,10 @@ export async function requireSession(rolesPermitidos?: string[]) {
   const session = await getServerSession(authOptions)
 
   if (!session) {
+    throw new NaoAutorizadoError()
+  }
+
+  if (motoristaBarrado(session.user.role, rolesPermitidos)) {
     throw new NaoAutorizadoError()
   }
 
@@ -58,6 +72,10 @@ export async function requireSessaoPagina(rolesPermitidos?: string[]) {
     redirect("/login")
   }
 
+  if (motoristaBarrado(session.user.role, rolesPermitidos)) {
+    redirect(AREA_MOTORISTA)
+  }
+
   if (rolesPermitidos && !rolesPermitidos.includes(session.user.role)) {
     redirect("/")
   }
@@ -77,4 +95,27 @@ export async function requireSessaoPaginaComFilial(rolesPermitidos?: string[]) {
   }
 
   return { session, filialId: session.user.filialId }
+}
+
+/**
+ * Actions do motorista (área "Minhas viagens"): exige o papel MOTORISTA e
+ * devolve o motorista dono do acesso — toda consulta da área filtra por ele.
+ */
+export async function requireSessaoMotorista() {
+  const session = await requireSession([PAPEL_MOTORISTA])
+  const motoristaId = session.user.motoristaId
+  if (!motoristaId || session.user.filialId === null) {
+    throw new NaoAutorizadoError()
+  }
+  return { session, filialId: session.user.filialId, motoristaId }
+}
+
+/** Páginas da área do motorista: mesmo que requireSessaoMotorista, redirecionando em vez de lançar. */
+export async function requireSessaoPaginaMotorista() {
+  const session = await requireSessaoPagina([PAPEL_MOTORISTA])
+  const motoristaId = session.user.motoristaId
+  if (!motoristaId || session.user.filialId === null) {
+    redirect("/login")
+  }
+  return { session, filialId: session.user.filialId, motoristaId }
 }

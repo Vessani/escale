@@ -66,7 +66,8 @@ export async function buscarViagemPorId(filialId: number, id: number) {
     include: {
       entregas: true,
       motorista: true,
-      motoristaAcompanhante: true
+      motoristaAcompanhante: true,
+      despesas: { where: { deletadoEm: null }, orderBy: { registradoEm: "asc" } },
     },
   });
 }

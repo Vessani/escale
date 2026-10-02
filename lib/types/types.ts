@@ -84,6 +84,8 @@ declare module "next-auth" {
       id: string;
       role: string;
       filialId: number | null;
+      /** Só no papel MOTORISTA: o motorista do cadastro dono do acesso. */
+      motoristaId?: number | null;
     } & DefaultSession["user"];
   }
 
@@ -91,6 +93,7 @@ declare module "next-auth" {
     id: string;
     role: string;
     filialId: number | null;
+    motoristaId?: number | null;
   }
 }
 
@@ -99,6 +102,7 @@ declare module "next-auth/jwt" {
     id: string;
     role: string;
     filialId: number | null;
+    motoristaId?: number | null;
     /** Momento do login (ms) — a sessão vale 12h a partir daqui. */
     loginEm?: number;
   }

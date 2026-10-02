@@ -1,6 +1,7 @@
 import bcrypt from "bcrypt"
 import type { JWT } from "next-auth/jwt"
 import { prisma } from "@/lib/prisma"
+import { PAPEL_MOTORISTA, ehMotorista } from "@/lib/papeis"
 import {
   garantirLoginNaoBloqueado,
   ipDaRequisicao,
@@ -14,6 +15,10 @@ export const DURACAO_SESSAO_SEGUNDOS = 12 * 60 * 60
 
 export const MENSAGEM_CREDENCIAIS_INVALIDAS = "Credenciais inválidas."
 export const MENSAGEM_USUARIO_DESATIVADO = "Usuário desativado. Fale com o administrador."
+export const MENSAGEM_PIN_INVALIDO = "Matrícula ou PIN inválidos."
+
+/** Hash qualquer pra comparar quando a matrícula não tem acesso — o tempo de resposta não revela se ela existe. */
+const HASH_FALSO = "$2b$10$OfJBf9pjWL29US8BcMsxCeqaU3QPKLLQ1WauxSA5EPv4duYd4Gvbu"
 
 class SessaoInvalidaError extends Error {
   constructor(motivo: string) {
@@ -66,6 +71,60 @@ export async function autenticarUsuario(credenciais: Credenciais, headers: Cabec
   }
 }
 
+type CredenciaisMotorista = { seva?: string; pin?: string } | undefined
+
+/**
+ * Login do motorista: matrícula (SEVA) + PIN gerado pelo despacho. Mesmo
+ * limite de tentativas do login por e-mail (chave "motorista:<seva>"). A
+ * mesma matrícula pode existir em mais de uma filial — vale o acesso cujo
+ * PIN bater.
+ */
+export async function autenticarMotorista(credenciais: CredenciaisMotorista, headers: CabecalhosRequisicao) {
+  const sevaTexto = credenciais?.seva?.trim() ?? ""
+  const pin = credenciais?.pin?.trim() ?? ""
+  if (!/^\d{1,9}$/.test(sevaTexto) || !pin) {
+    throw new Error("Preencha a matrícula (SEVA) e o PIN.")
+  }
+
+  const seva = Number(sevaTexto)
+  const chave = `motorista:${seva}`
+  const ip = ipDaRequisicao(headers)
+  await garantirLoginNaoBloqueado(chave, ip)
+
+  const acessos = await prisma.usuario.findMany({
+    where: { role: PAPEL_MOTORISTA, motorista: { seva, deletadoEm: null } },
+    select: { id: true, senha: true, ativo: true, motorista: { select: { id: true, nome: true, filialId: true } } },
+  })
+
+  let acesso: (typeof acessos)[number] | null = null
+  for (const candidato of acessos) {
+    if (candidato.senha && (await bcrypt.compare(pin, candidato.senha))) {
+      acesso = candidato
+      break
+    }
+  }
+  if (acessos.length === 0) await bcrypt.compare(pin, HASH_FALSO)
+
+  if (!acesso?.motorista) {
+    await registrarFalhaLogin(chave, ip)
+    throw new Error(MENSAGEM_PIN_INVALIDO)
+  }
+  if (!acesso.ativo) {
+    throw new Error(MENSAGEM_USUARIO_DESATIVADO)
+  }
+
+  await limparFalhasLogin(chave)
+
+  return {
+    id: acesso.id,
+    name: acesso.motorista.nome,
+    email: null,
+    role: PAPEL_MOTORISTA,
+    filialId: acesso.motorista.filialId,
+    motoristaId: acesso.motorista.id,
+  }
+}
+
 /**
  * Roda a cada leitura de sessão (getServerSession). Lançar aqui faz o
  * next-auth descartar o cookie e a sessão vira null — é assim que desativar
@@ -81,13 +140,17 @@ export async function revalidarToken(token: JWT, agora = Date.now()): Promise<JW
 
   const usuario = await prisma.usuario.findUnique({
     where: { id: token.id },
-    select: { ativo: true, role: true, filialId: true },
+    select: { ativo: true, role: true, filialId: true, motoristaId: true, motorista: { select: { deletadoEm: true } } },
   })
 
   if (!usuario) throw new SessaoInvalidaError("Usuário não existe mais.")
   if (!usuario.ativo) throw new SessaoInvalidaError("Usuário desativado.")
+  if (ehMotorista(usuario.role) && (!usuario.motoristaId || !usuario.motorista || usuario.motorista.deletadoEm)) {
+    throw new SessaoInvalidaError("Motorista excluído do cadastro.")
+  }
 
   token.role = usuario.role
   token.filialId = usuario.filialId
+  token.motoristaId = usuario.motoristaId
   return token
 }

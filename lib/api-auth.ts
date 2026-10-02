@@ -1,6 +1,7 @@
 import { getServerSession } from "next-auth"
 import { authOptions } from "@/lib/auth"
 import { NaoAutorizadoError } from "@/lib/errors"
+import { ehMotorista } from "@/lib/papeis"
 
 /**
  * Autenticação pra route handlers (app/api/**\/route.ts) — mesma checagem de
@@ -16,7 +17,8 @@ import { NaoAutorizadoError } from "@/lib/errors"
 export async function requireSessaoApi() {
   const session = await getServerSession(authOptions)
 
-  if (!session || session.user.filialId === null) {
+  // Motorista não usa nenhuma rota de API (relatórios, Excel, listas).
+  if (!session || session.user.filialId === null || ehMotorista(session.user.role)) {
     throw new NaoAutorizadoError()
   }
 

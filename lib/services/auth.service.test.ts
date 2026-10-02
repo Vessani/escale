@@ -3,7 +3,7 @@ import bcrypt from "bcrypt"
 
 vi.mock("@/lib/prisma", () => ({
   prisma: {
-    usuario: { findFirst: vi.fn(), findUnique: vi.fn() },
+    usuario: { findFirst: vi.fn(), findUnique: vi.fn(), findMany: vi.fn() },
   },
 }))
 
@@ -25,7 +25,9 @@ import {
   registrarFalhaLogin,
 } from "@/lib/services/login.service"
 import {
+  autenticarMotorista,
   autenticarUsuario,
+  MENSAGEM_PIN_INVALIDO,
   DURACAO_SESSAO_SEGUNDOS,
   MENSAGEM_CREDENCIAIS_INVALIDAS,
   MENSAGEM_USUARIO_DESATIVADO,
@@ -134,3 +136,73 @@ describe("revalidarToken", () => {
     expect(prisma.usuario.findUnique).not.toHaveBeenCalled()
   })
 })
+
+describe("autenticarMotorista (SEVA + PIN)", () => {
+  beforeEach(() => vi.clearAllMocks())
+  const pinCerto = "482913"
+  const acesso = (extra: Record<string, unknown> = {}) => ({
+    id: "m1",
+    senha: bcrypt.hashSync(pinCerto, 4),
+    ativo: true,
+    motorista: { id: 42, nome: "JOSE SILVA", filialId: 3 },
+    ...extra,
+  })
+
+  it("entra com matrícula e PIN certos, como MOTORISTA da filial do cadastro", async () => {
+    vi.mocked(prisma.usuario.findMany).mockResolvedValue([acesso()] as never)
+
+    const resultado = await autenticarMotorista({ seva: " 261 ", pin: pinCerto }, headers)
+
+    expect(resultado).toEqual({ id: "m1", name: "JOSE SILVA", email: null, role: "MOTORISTA", filialId: 3, motoristaId: 42 })
+    expect(garantirLoginNaoBloqueado).toHaveBeenCalledWith("motorista:261", "200.1.1.1")
+    expect(limparFalhasLogin).toHaveBeenCalledWith("motorista:261")
+  })
+
+  it("PIN errado ou matrícula sem acesso: mesma mensagem e conta tentativa", async () => {
+    vi.mocked(prisma.usuario.findMany).mockResolvedValue([acesso()] as never)
+    await expect(autenticarMotorista({ seva: "261", pin: "000000" }, headers)).rejects.toThrow(MENSAGEM_PIN_INVALIDO)
+
+    vi.mocked(prisma.usuario.findMany).mockResolvedValue([] as never)
+    await expect(autenticarMotorista({ seva: "999", pin: pinCerto }, headers)).rejects.toThrow(MENSAGEM_PIN_INVALIDO)
+
+    expect(registrarFalhaLogin).toHaveBeenCalledTimes(2)
+  })
+
+  it("mesma matrícula em duas filiais: entra no acesso cujo PIN bate", async () => {
+    vi.mocked(prisma.usuario.findMany).mockResolvedValue([
+      acesso({ id: "outro", senha: bcrypt.hashSync("111111", 4), motorista: { id: 7, nome: "OUTRO", filialId: 9 } }),
+      acesso(),
+    ] as never)
+
+    expect(await autenticarMotorista({ seva: "261", pin: pinCerto }, headers)).toMatchObject({ id: "m1", filialId: 3 })
+  })
+
+  it("acesso desativado não entra; matrícula não numérica nem consulta o banco", async () => {
+    vi.mocked(prisma.usuario.findMany).mockResolvedValue([acesso({ ativo: false })] as never)
+    await expect(autenticarMotorista({ seva: "261", pin: pinCerto }, headers)).rejects.toThrow(MENSAGEM_USUARIO_DESATIVADO)
+
+    vi.clearAllMocks()
+    await expect(autenticarMotorista({ seva: "abc", pin: pinCerto }, headers)).rejects.toThrow("Preencha a matrícula")
+    expect(prisma.usuario.findMany).not.toHaveBeenCalled()
+  })
+})
+
+describe("revalidarToken — motorista", () => {
+  beforeEach(() => vi.clearAllMocks())
+  const token = { id: "m1", role: "MOTORISTA", filialId: 3, loginEm: Date.now() }
+
+  it("motorista excluído do cadastro perde a sessão na hora", async () => {
+    vi.mocked(prisma.usuario.findUnique).mockResolvedValue({
+      ativo: true, role: "MOTORISTA", filialId: 3, motoristaId: 42, motorista: { deletadoEm: new Date() },
+    } as never)
+    await expect(revalidarToken({ ...token })).rejects.toThrow("Motorista excluído")
+  })
+
+  it("mantém o motoristaId no token", async () => {
+    vi.mocked(prisma.usuario.findUnique).mockResolvedValue({
+      ativo: true, role: "MOTORISTA", filialId: 3, motoristaId: 42, motorista: { deletadoEm: null },
+    } as never)
+    expect(await revalidarToken({ ...token })).toMatchObject({ motoristaId: 42 })
+  })
+})
+

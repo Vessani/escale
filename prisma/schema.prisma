@@ -217,6 +217,12 @@
 
     entregas          Entrega[]
 
+    // Preenchidos pelo motorista no acesso dele (ou pelo despacho): km do
+    // hodômetro na saída e na chegada.
+    kmInicial         Int?
+    kmFinal           Int?
+    despesas          DespesaViagem[]
+
     @@index([motoristaId])
     @@index([motoristaAcompanhanteId])
     @@index([status])
@@ -361,6 +367,8 @@
     viagens         Viagem[]     @relation("MotoristaPrincipal")
     viagensComoAcompanhante Viagem[] @relation("MotoristaAcompanhante")
     registrosJornada RegistroJornada[]
+    /** Acesso do próprio motorista (área "Minhas viagens"), se o despacho criou. */
+    acesso          Usuario?
 
     @@index([seva])
     @@index([filialId])
@@ -434,6 +442,11 @@
     // aplicada na action de criar usuário, não dá pra expressar isso no schema).
     filialId      Int?
     filial        Filial?   @relation(fields: [filialId], references: [id])
+
+    // Só pro papel MOTORISTA: o motorista do cadastro dono deste acesso
+    // (login = SEVA + PIN, ver autenticarMotorista). Um acesso por motorista.
+    motoristaId   Int?       @unique
+    motorista     Motorista? @relation(fields: [motoristaId], references: [id])
 
     accounts      Account[]
     sessions      Session[]
@@ -560,3 +573,26 @@
     @@index([filialId, veiculo, codigo])
     @@index([filialId, inicioPrevisto])
   }
+
+  enum TipoDespesaViagem {
+    PEDAGIO
+    PERNOITE
+  }
+
+  // Pedágio/pernoite lançado durante a viagem (pelo motorista, no acesso
+  // dele). Vários lançamentos por viagem; valor em centavos pra não ter
+  // erro de arredondamento. Excluir = soft delete (fica no histórico).
+  model DespesaViagem {
+    id            Int               @id @default(autoincrement())
+    viagemId      Int
+    viagem        Viagem            @relation(fields: [viagemId], references: [id])
+    tipo          TipoDespesaViagem
+    valorCentavos Int
+    registradoEm  DateTime          @default(now())
+    // Quem lançou (Usuario.id) — texto, não FK, como na auditoria.
+    usuarioId     String?
+    deletadoEm    DateTime?
+
+    @@index([viagemId])
+  }
+

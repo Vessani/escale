@@ -38,4 +38,11 @@ describe("requireSessaoApi", () => {
     expect(resultado.filialId).toBe(9)
     expect(resultado.session).toEqual(session)
   })
+
+  it("motorista não usa nenhuma rota de API (relatórios, Excel, listas)", async () => {
+    vi.mocked(getServerSession).mockResolvedValue({ user: { id: "m1", role: "MOTORISTA", filialId: 3, motoristaId: 42 } } as never)
+
+    await expect(requireSessaoApi()).rejects.toBeInstanceOf(NaoAutorizadoError)
+  })
 })
+

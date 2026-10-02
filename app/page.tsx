@@ -24,6 +24,7 @@ import { buscarQuadroObservacoes } from "@/lib/queries/quadro"
 import { formatarCodigoFrota } from "@/lib/services/frota-regras"
 import { LegendaMotoristas } from "@/components/motorista/legenda-motoristas"
 import { BotaoIcone } from "@/components/ui/botao-icone"
+import { AtualizacaoAutomatica } from "@/components/atualizacao-automatica"
 import { diaParaTexto } from "@/lib/relatorios/periodo"
 import { TOLERANCIA_SAIDA_MINUTOS, minutosDeAtraso, saidaAtrasada } from "@/lib/services/pontualidade"
 
@@ -317,6 +318,8 @@ export default async function DashboardPage({
 
   return (
     <div className="space-y-6">
+      {/* O que o motorista registra no celular (saída, encerramento) aparece sozinho. */}
+      <AtualizacaoAutomatica segundos={60} />
       <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
         <div>
           <div className="flex items-center gap-2">

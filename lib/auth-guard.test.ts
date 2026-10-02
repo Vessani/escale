@@ -6,6 +6,7 @@ import {
   requireSessionComFilial,
   requireSessaoPagina,
   requireSessaoPaginaComFilial,
+  requireSessaoMotorista,
 } from "@/lib/auth-guard"
 
 vi.mock("next-auth", () => ({
@@ -116,4 +117,30 @@ describe("requireSessaoPagina / requireSessaoPaginaComFilial", () => {
 
     await expect(requireSessaoPaginaComFilial()).resolves.toEqual({ session: sessao, filialId: 3 })
   })
+
+  describe("perfil MOTORISTA", () => {
+    const motorista = { user: { id: "m1", role: "MOTORISTA", filialId: 3, motoristaId: 42 } }
+
+    it("é barrado em toda action/página que não libera MOTORISTA de propósito", async () => {
+      vi.mocked(getServerSession).mockResolvedValue(motorista as never)
+
+      await expect(requireSession()).rejects.toThrow("Não autorizado.")
+      await expect(requireSessionComFilial()).rejects.toThrow("Não autorizado.")
+      await expect(requireSessionComFilial(["ADMIN"])).rejects.toThrow("Não autorizado.")
+      await expect(requireSessaoPagina()).rejects.toThrow("REDIRECT:/minhas-viagens")
+      await expect(requireSessaoPaginaComFilial()).rejects.toThrow("REDIRECT:/minhas-viagens")
+    })
+
+    it("requireSessaoMotorista devolve o motorista do acesso; outros papéis não passam", async () => {
+      vi.mocked(getServerSession).mockResolvedValue(motorista as never)
+      await expect(requireSessaoMotorista()).resolves.toMatchObject({ filialId: 3, motoristaId: 42 })
+
+      vi.mocked(getServerSession).mockResolvedValue({ user: { id: "1", role: "DESPACHANTE", filialId: 3 } } as never)
+      await expect(requireSessaoMotorista()).rejects.toThrow("Não autorizado.")
+
+      vi.mocked(getServerSession).mockResolvedValue({ user: { id: "m2", role: "MOTORISTA", filialId: 3, motoristaId: null } } as never)
+      await expect(requireSessaoMotorista()).rejects.toThrow("Não autorizado.")
+    })
+  })
 })
+
