@@ -83,7 +83,7 @@ describe("iniciarMinhaViagem", () => {
   it("tela desatualizada: diz o motivo certo — cancelada, trocou de motorista/excluída, já iniciada", async () => {
     // cancelada
     vi.mocked(prisma.viagem.findFirst).mockResolvedValue(viagem({ status: "CANCELADA" }) as never)
-    await expect(iniciarMinhaViagem(FILIAL, ZE, 1, { kmInicial: 10, motivoAtraso: null }, ator)).rejects.toThrow("cancelada pelo despacho")
+    await expect(iniciarMinhaViagem(FILIAL, ZE, 1, { kmInicial: 10, motivoAtraso: null }, ator)).rejects.toThrow("cancelada pelo escalador")
     // passada pra outro motorista (a busca do principal não acha; a explicação vê outro dono)
     vi.mocked(prisma.viagem.findFirst).mockResolvedValueOnce(null).mockResolvedValueOnce(viagem({ motoristaId: 99 }) as never)
     await expect(iniciarMinhaViagem(FILIAL, ZE, 1, { kmInicial: 10, motivoAtraso: null }, ator)).rejects.toThrow("não está mais com você")
@@ -103,7 +103,7 @@ describe("iniciarMinhaViagem", () => {
     despachoMudouAViagem()
     await expect(
       iniciarMinhaViagem(FILIAL, ZE, 1, { kmInicial: 10, motivoAtraso: null }, ator, h("2026-10-02T07:00:00")),
-    ).rejects.toThrow("cancelada pelo despacho")
+    ).rejects.toThrow("cancelada pelo escalador")
   })
 
   it("km inválido é recusado", async () => {

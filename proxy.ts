@@ -38,6 +38,7 @@ export default withAuth(
 
 export const config = {
   matcher: [
-    "/((?!api|_next/static|_next/image|favicon.ico|login).*)",
+    // Ícones e manifest ficam fora: a aba e a tela de login (sem sessão) precisam deles.
+    "/((?!api|_next/static|_next/image|favicon.ico|icon.svg|apple-icon.png|icone-|manifest.webmanifest|login).*)",
   ],
 };

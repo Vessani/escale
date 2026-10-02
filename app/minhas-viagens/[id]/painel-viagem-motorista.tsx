@@ -121,7 +121,7 @@ export function PainelViagemMotorista({
   }
 
   if (viagem.status === "CANCELADA") {
-    return <Alert variant="warning">Esta viagem foi cancelada pelo despacho.</Alert>
+    return <Alert variant="warning">Esta viagem foi cancelada pelo escalador.</Alert>
   }
 
   return (
@@ -157,7 +157,7 @@ export function PainelViagemMotorista({
                     aria-pressed={motivo === opcao}
                     onClick={() => setMotivo(opcao)}
                     className={cn(
-                      "min-h-11 rounded-lg border px-3 py-2 text-left text-sm transition-colors",
+                      "min-h-11 rounded-lg border px-2.5 py-2 text-left text-sm transition-colors",
                       motivo === opcao ? "border-primary bg-primary/10 font-medium text-primary" : "bg-background hover:bg-muted",
                     )}
                   >

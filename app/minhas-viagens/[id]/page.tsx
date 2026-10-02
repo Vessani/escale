@@ -36,7 +36,7 @@ export default async function MinhaViagemPage({ params }: { params: Promise<{ id
           <ArrowLeft className="size-4" aria-hidden /> Minhas viagens
         </Link>
         <Alert variant="warning">
-          Essa viagem não está com você. O despacho pode ter trocado o motorista ou excluído a viagem.
+          Essa viagem não está com você. O escalador pode ter trocado o motorista ou excluído a viagem.
         </Alert>
       </>
     )

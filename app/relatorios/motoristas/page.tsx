@@ -46,7 +46,7 @@ export default async function PainelMotoristasPage({ searchParams }: { searchPar
   return (
     <div className="space-y-6">
       <CabecalhoRelatorio titulo="Painel por motorista">
-        Quanto cada motorista trabalhou no período (pelo relatório de jornada), quantas viagens fez no Escale e quantas vezes
+        Quanto cada motorista trabalhou no período (pelo relatório de jornada), quantas viagens fez no Escalador e quantas vezes
         caiu em cada alerta. Quem precisa de atenção aparece primeiro. Clique num número vermelho para ver os detalhes.
       </CabecalhoRelatorio>
 

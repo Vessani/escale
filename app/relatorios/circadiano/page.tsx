@@ -105,7 +105,7 @@ export default async function CircadianoPage({ searchParams }: { searchParams?: 
 
       <SecaoRelatorio
         titulo="Realizado — relatório de jornada"
-        descricao="Início e fim reais do relatório importado, com a viagem do Escale que o motorista fazia no horário (sem viagem = Interno)."
+        descricao="Início e fim reais do relatório importado, com a viagem do Escalador que o motorista fazia no horário (sem viagem = Interno)."
       >
         {relatorio.realizadas.length === 0 ? (
           <EmptyState icone={MoonStar} titulo="Ninguém passou do horário" descricao="Nenhuma jornada do relatório nesse período terminou depois do limite do turno." />

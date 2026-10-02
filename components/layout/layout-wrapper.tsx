@@ -25,7 +25,7 @@ import {
 import { Session } from "next-auth"
 import { Dialog } from "radix-ui"
 import TrocarSenhaDialog from "@/components/usuario/trocar-senha-dialog"
-import { LogoEscale } from "@/components/layout/logo-escale"
+import { LogoEscalador } from "@/components/layout/logo-escalador"
 import { Rodape } from "@/components/layout/rodape"
 
 const CHAVE_SIDEBAR_COLAPSADA = "escalador:sidebar-colapsada"
@@ -211,7 +211,7 @@ export function LayoutWrapper({
         } ${colapsada ? "w-16" : "w-64"}`}
       >
         <div className={`h-16 flex items-center bg-black/20 text-white overflow-hidden ${colapsada ? "justify-center px-2" : "px-4"}`}>
-          <LogoEscale compacto={colapsada} />
+          <LogoEscalador compacto={colapsada} />
         </div>
         <LinksDoMenu pathname={pathname} role={usuario?.role} colapsado={colapsada} />
         <PainelUsuario usuario={usuario} colapsado={colapsada} />
@@ -237,7 +237,7 @@ export function LayoutWrapper({
               Menu principal do sistema com os links para as telas de dashboard, viagens, alocação, motoristas e frotas.
             </Dialog.Description>
             <div className="h-16 flex items-center justify-between px-6 bg-black/20 text-white">
-              <LogoEscale />
+              <LogoEscalador />
               <Dialog.Close
                 aria-label="Fechar menu"
                 className="rounded-md p-1 text-white/70 hover:bg-white/10 hover:text-white"
@@ -263,7 +263,7 @@ export function LayoutWrapper({
             <Menu className="w-5 h-5" />
           </button>
           <span className="text-foreground">
-            <LogoEscale />
+            <LogoEscalador />
           </span>
         </div>
 

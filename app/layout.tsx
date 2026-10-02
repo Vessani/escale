@@ -11,7 +11,7 @@ const fonteSans = Geist({ subsets: ["latin"], variable: "--font-geist-sans" })
 const fonteMono = Geist_Mono({ subsets: ["latin"], variable: "--font-geist-mono" })
 
 export const metadata: Metadata = {
-  title: { default: "Escale", template: "%s · Escale" },
+  title: { default: "Escalador", template: "%s · Escalador" },
   description: "Sistema de Alocação e Gestão de Frotas",
 }
 
