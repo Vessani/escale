@@ -425,6 +425,31 @@ describe("viagem.service", () => {
       })
     })
 
+    it("entrega com chegada medida não muda de cliente/lugar; sem mudança nesses campos, grava", async () => {
+      vi.mocked(prisma.viagem.findFirst).mockResolvedValue(null)
+      vi.mocked(prisma.viagem.findUnique).mockResolvedValue({ status: "INICIADA", motoristaId: null, motoristaAcompanhanteId: null } as never)
+      const entregaBase = { ...criarViagemInput().entregas[0], id: 11 }
+      const gravada = { id: 11, cliente: entregaBase.cliente, cidade: entregaBase.cidade, uf: entregaBase.uf, sapcode: entregaBase.sapcode, codewhite: entregaBase.codewhite }
+
+      const tx = criarTx()
+      usarTransacaoCom(tx)
+      tx.entrega.findMany.mockResolvedValueOnce([]).mockResolvedValueOnce([gravada])
+      await expect(
+        editarViagemService(FILIAL_ID, 1, criarEdicaoInput({ entregas: [{ ...entregaBase, cliente: "OUTRO CLIENTE" }] }), ATOR),
+      ).rejects.toThrow(`Não dá pra mudar cliente de ${entregaBase.cliente}`)
+      expect(tx.viagem.update).not.toHaveBeenCalled()
+      expect(tx.entrega.findMany).toHaveBeenLastCalledWith({
+        where: { viagemId: 1, id: { in: [11] }, chegada: { isNot: null } },
+        select: { id: true, cliente: true, cidade: true, uf: true, sapcode: true, codewhite: true },
+      })
+
+      // Mudando outro campo (ex: peso) da mesma entrega: passa.
+      tx.entrega.findMany.mockResolvedValueOnce([]).mockResolvedValueOnce([gravada])
+      tx.viagem.update.mockResolvedValue({ id: 1, motoristaId: null })
+      await editarViagemService(FILIAL_ID, 1, criarEdicaoInput({ entregas: [{ ...entregaBase, kg: 999 }] }), ATOR)
+      expect(tx.viagem.update).toHaveBeenCalled()
+    })
+
     it("lança erro amigável quando o número editado já pertence a OUTRA viagem ativa", async () => {
       vi.mocked(prisma.viagem.findUnique).mockResolvedValue({ status: "CRIADA", motoristaId: null, motoristaAcompanhanteId: null } as never)
       vi.mocked(prisma.viagem.findFirst).mockResolvedValue({ id: 2 } as never)

@@ -11,6 +11,7 @@ import {
 import type { Prisma, StatusViagem, TipoProduto, Turno } from "@prisma/client";
 import { reconciliarFolgaMotoristasNoDiaAtual } from "./folga.service";
 import { registrarAuditoria, type Ator } from "./auditoria.service";
+import { camposTravadosAlterados } from "./trava-chegada";
 import { ErroDeDominio, MotoristaProdutoNaoAutorizadoError, MotoristaNaoEncontradoError, MotoristaEmTreinamentoError, MotoristaNaoViajaError, ViagemNaoEncontradaError, StatusViagemObrigatorioError, NumViagemDuplicadaError } from "@/lib/errors";
 import { calcularAvisoFrotaIndisponivel, calcularAvisoFrotaProduto, sincronizarDisponibilidadeFrota } from "./frota.service";
 import { converterEditarViagemParaBD, converterNovaViagemParaBD } from "./viagem-data-converter.service";
@@ -347,6 +348,22 @@ export async function editarViagemService(filialId: number, idViagem: number, da
     if (removidasComChegada.length > 0) {
       const clientes = removidasComChegada.map((entrega) => entrega.cliente).join(", ")
       throw new ErroDeDominio("ENTREGA_COM_CHEGADA", `Não dá pra remover ${clientes}: o motorista já registrou a chegada e a medição nessa entrega.`)
+    }
+    // E também não muda de cliente/lugar: a medição ficaria ligada a um
+    // cliente onde ela não aconteceu (ver trava-chegada.ts).
+    const mantidasComChegada = await tx.entrega.findMany({
+      where: { viagemId: idViagem, id: { in: manterEntregas }, chegada: { isNot: null } },
+      select: { id: true, cliente: true, cidade: true, uf: true, sapcode: true, codewhite: true },
+    })
+    for (const atual of mantidasComChegada) {
+      const editada = entregasExistentes.find((entrega) => entrega.id === atual.id)
+      const alterados = editada ? camposTravadosAlterados(atual, editada) : []
+      if (alterados.length > 0) {
+        throw new ErroDeDominio(
+          "ENTREGA_COM_CHEGADA_ALTERADA",
+          `Não dá pra mudar ${alterados.join(", ")} de ${atual.cliente}: o motorista já registrou a chegada e a medição nessa entrega. Se a chegada está errada, apague ela em "Registro do motorista" e depois edite.`,
+        )
+      }
     }
 
     const viagemAtualizada = await tx.viagem.update({
