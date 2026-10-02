@@ -226,6 +226,7 @@
     // Preenchido, aparece em vermelho na linha da viagem no Dashboard/TV.
     problemaMecanico   String?   @db.VarChar(300)
     problemaMecanicoEm DateTime?
+    trocas             TrocaMotorista[]
 
     @@index([motoristaId])
     @@index([motoristaAcompanhanteId])
@@ -371,6 +372,8 @@
     integracao      Integracao[]
     viagens         Viagem[]     @relation("MotoristaPrincipal")
     viagensComoAcompanhante Viagem[] @relation("MotoristaAcompanhante")
+    trocasSaiu      TrocaMotorista[] @relation("TrocaAnterior")
+    trocasEntrou    TrocaMotorista[] @relation("TrocaNovo")
     registrosJornada RegistroJornada[]
     /** Acesso do próprio motorista (área "Minhas viagens"), se o despacho criou. */
     acesso          Usuario?
@@ -632,6 +635,26 @@
     // Quem lançou (Usuario.id) — texto, não FK, como na auditoria.
     usuarioId     String?
     deletadoEm    DateTime?
+
+    @@index([viagemId])
+  }
+
+  // Troca de motorista no meio da viagem: quem entregou, quem assumiu, onde
+  // e com quantos km. A viagem passa pro novo (Viagem.motoristaId).
+  model TrocaMotorista {
+    id                  Int       @id @default(autoincrement())
+    viagemId            Int
+    viagem              Viagem    @relation(fields: [viagemId], references: [id])
+    motoristaAnteriorId Int
+    motoristaAnterior   Motorista @relation("TrocaAnterior", fields: [motoristaAnteriorId], references: [id])
+    motoristaNovoId     Int
+    motoristaNovo       Motorista @relation("TrocaNovo", fields: [motoristaNovoId], references: [id])
+    km                  Int
+    trocadoEm           DateTime
+    local               String    @db.VarChar(100)
+    motivo              String    @db.VarChar(200)
+    usuarioId           String?
+    registradoEm        DateTime  @default(now())
 
     @@index([viagemId])
   }

@@ -16,6 +16,8 @@ import {
 } from "@/lib/services/minhas-viagens.service"
 import { z } from "@/lib/validation/zod"
 import type { RespostaAcao } from "@/lib/types/types"
+import { trocarMotoristaDaViagem } from "@/lib/services/troca-motorista.service"
+import { esquemaTroca, type EntradaTroca } from "@/lib/validation/troca-motorista"
 
 const id = z.number().int().positive()
 const km = z.number().int().min(0).max(9_999_999)
@@ -120,5 +122,20 @@ export async function informarProblema(viagemId: number, texto: string): Promise
     const entrada = z.object({ viagemId: id, texto: z.string().max(TAMANHO_MAXIMO_PROBLEMA) }).parse({ texto, viagemId })
     await informarProblemaMecanico(filialId, motoristaId, entrada.viagemId, entrada.texto, atorDaSessao(session))
   }, viagemId, "Não foi possível salvar o problema.")
+}
+
+/** O motorista que está com a viagem passa ela pro substituto (que continua pelo celular dele). */
+export async function passarViagem(viagemId: number, dados: EntradaTroca): Promise<RespostaAcao> {
+  return executar(async () => {
+    const { session, filialId, motoristaId } = await requireSessaoMotorista()
+    const entrada = esquemaTroca.parse({ ...dados, viagemId })
+    await trocarMotoristaDaViagem(
+      filialId,
+      entrada.viagemId,
+      { ...entrada, trocadoEm: new Date(entrada.trocadoEm) },
+      atorDaSessao(session),
+      { exigirMotoristaAtual: motoristaId },
+    )
+  }, viagemId, "Não foi possível passar a viagem.")
 }
 

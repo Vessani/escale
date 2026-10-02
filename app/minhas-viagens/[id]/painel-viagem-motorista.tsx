@@ -16,6 +16,7 @@ import { cn } from "@/lib/utils"
 import { chamarAcao } from "@/lib/chamar-acao"
 import { ChegadasClientes, type EntregaDoPainel } from "./chegadas-clientes"
 import { ProblemaMecanico } from "./problema-mecanico"
+import { TrocaMotoristaMotorista } from "./troca-motorista"
 
 type Status = "CRIADA" | "ALOCADA" | "INICIADA" | "RETORNANDO" | "POSTERGADA" | "FINALIZADA" | "CANCELADA"
 type TipoDespesa = "PEDAGIO" | "PERNOITE"
@@ -78,8 +79,10 @@ export function PainelViagemMotorista({
   viagem,
   souPrincipal,
   agoraServidor,
+  substitutos,
 }: {
   viagem: ViagemDoPainel
+  substitutos: Array<{ id: number; nome: string }>
   souPrincipal: boolean
   agoraServidor: string
 }) {
@@ -284,6 +287,8 @@ export function PainelViagemMotorista({
           </Cartao>
 
           <ProblemaMecanico viagemId={viagem.id} problema={viagem.problemaMecanico} informadoEm={viagem.problemaMecanicoEm} />
+
+          <TrocaMotoristaMotorista viagemId={viagem.id} numViagem={viagem.numViagem} substitutos={substitutos} kmInicial={viagem.kmInicial} />
 
           <Cartao titulo="Encerrar viagem" icone={Flag}>
             <label className="grid gap-1.5 text-sm font-medium">

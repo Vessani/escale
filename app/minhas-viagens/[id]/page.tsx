@@ -5,6 +5,7 @@ import { Alert } from "@/components/ui/alert"
 import { AtualizacaoAutomatica } from "@/components/atualizacao-automatica"
 import { requireSessaoPaginaMotorista } from "@/lib/auth-guard"
 import { buscarMinhaViagem } from "@/lib/services/minhas-viagens.service"
+import { buscarSubstitutosPossiveis } from "@/lib/services/troca-motorista.service"
 import { formatarStatusViagem } from "@/lib/services/viagem-status.service"
 import { formatarCodigoFrota } from "@/lib/services/frota-regras"
 import { formatarProduto } from "@/lib/services/produto.service"
@@ -127,7 +128,12 @@ export default async function MinhaViagemPage({ params }: { params: Promise<{ id
         </ol>
       </section>
 
-      <PainelViagemMotorista viagem={dadosPainel} souPrincipal={souPrincipal} agoraServidor={agora.toISOString()} />
+      <PainelViagemMotorista
+        viagem={dadosPainel}
+        souPrincipal={souPrincipal}
+        agoraServidor={agora.toISOString()}
+        substitutos={souPrincipal ? await buscarSubstitutosPossiveis(filialId, motoristaId) : []}
+      />
       {/* O despacho pode cancelar, postergar ou trocar o motorista: a tela acompanha sem ele precisar recarregar. */}
       <AtualizacaoAutomatica segundos={60} />
     </>

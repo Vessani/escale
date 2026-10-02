@@ -46,5 +46,8 @@ export function errorToMessage(error: unknown, fallback: string) {
     return error.mensagemSegura
   }
 
+  // Erro inesperado: a pessoa vê só a mensagem genérica, então o motivo
+  // precisa ficar no log do servidor (Vercel) pra dar pra investigar.
+  console.error("[acao] erro inesperado:", error)
   return fallback
 }

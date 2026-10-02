@@ -14,6 +14,8 @@ import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import { Download } from "lucide-react"
 import { RegistroMotoristaCard } from "@/components/viagem/registro-motorista-card"
+import { TrocaMotoristaCard } from "@/components/viagem/troca-motorista-card"
+import { buscarSubstitutosPossiveis, buscarTrocasDaViagem } from "@/lib/services/troca-motorista.service"
 
 export default async function EditarViagemPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
@@ -79,6 +81,23 @@ export default async function EditarViagemPage({ params }: { params: Promise<{ i
         chegadas={await buscarChegadasDaViagem(viagem.id)}
         problemaMecanico={viagem.problemaMecanico}
         problemaMecanicoEm={viagem.problemaMecanicoEm}
+      />
+
+      <TrocaMotoristaCard
+        viagemId={viagem.id}
+        numViagem={viagem.numViagem}
+        emAndamento={viagem.status === "INICIADA" || viagem.status === "RETORNANDO"}
+        kmInicial={viagem.kmInicial}
+        substitutos={await buscarSubstitutosPossiveis(filialId, viagem.motoristaId)}
+        trocas={(await buscarTrocasDaViagem(viagem.id)).map((troca) => ({
+          id: troca.id,
+          km: troca.km,
+          trocadoEm: troca.trocadoEm.toISOString(),
+          local: troca.local,
+          motivo: troca.motivo,
+          motoristaAnterior: troca.motoristaAnterior.nome,
+          motoristaNovo: troca.motoristaNovo.nome,
+        }))}
       />
 
       <HistoricoCard registros={serializeData(historico)} />
