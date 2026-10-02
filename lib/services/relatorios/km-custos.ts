@@ -119,8 +119,6 @@ export function relatorioKmCustos(viagens: ViagemKmCustos[], filtro: "com-regist
     linhas,
     totais: {
       viagens: linhas.length,
-      /** Viagens do período sem nenhum registro do motorista (escondidas no filtro padrão). */
-      semRegistro: todas.length - comRegistro,
       viagensComKm: comKm.length,
       kmRodado,
       pedagioCentavos: linhas.reduce((total, linha) => total + linha.pedagioCentavos, 0),

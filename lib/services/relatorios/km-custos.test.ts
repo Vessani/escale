@@ -74,7 +74,6 @@ describe("relatorioKmCustos", () => {
     expect(linhas.map((linha) => linha.id)).toEqual([1, 3, 2])
     expect(totais).toEqual({
       viagens: 3,
-      semRegistro: 0,
       viagensComKm: 2,
       kmRodado: 960,
       pedagioCentavos: 2140 * 2 + 500,
@@ -93,10 +92,10 @@ describe("relatorioKmCustos", () => {
     const viagens = [viagem({ id: 1 }), viagem({ id: 2, kmInicial: null, kmFinal: null, despesas: [] })]
     const padrao = relatorioKmCustos(viagens)
     expect(padrao.linhas.map((linha) => linha.id)).toEqual([1])
-    expect(padrao.totais).toMatchObject({ viagens: 1, semRegistro: 1, custoMedioPorViagemCentavos: 10140 })
+    expect(padrao.totais).toMatchObject({ viagens: 1, custoMedioPorViagemCentavos: 10140 })
 
     const todas = relatorioKmCustos(viagens, "todas")
     expect(todas.linhas.map((linha) => linha.id)).toEqual([1, 2])
-    expect(todas.totais).toMatchObject({ viagens: 2, semRegistro: 1, custoMedioPorViagemCentavos: 10140 })
+    expect(todas.totais).toMatchObject({ viagens: 2, custoMedioPorViagemCentavos: 10140 })
   })
 })

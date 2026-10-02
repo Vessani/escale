@@ -84,16 +84,9 @@ export default async function KmCustosPage({ searchParams }: { searchParams?: Pr
           icone={Gauge}
         />
         <StatCard rotulo="Custo total" valor={formatarReais(totais.custoCentavos)} icone={Wallet} />
-        <StatCard rotulo="Custo médio por viagem (com registro)" valor={totais.viagens ? formatarReais(totais.custoMedioPorViagemCentavos) : "—"} icone={Receipt} />
+        <StatCard rotulo="Custo médio por viagem" valor={totais.viagens ? formatarReais(totais.custoMedioPorViagemCentavos) : "—"} icone={Receipt} />
         <StatCard rotulo="Custo por km" valor={totais.custoPorKmCentavos === null ? "—" : formatarReais(totais.custoPorKmCentavos)} icone={Coins} />
       </div>
-
-      {registro === "com-registro" && totais.semRegistro > 0 && (
-        <p className="text-sm text-muted-foreground">
-          {totais.semRegistro} viagem(ns) do período saíram sem nenhum registro do motorista (sem km nem despesa) e não aparecem aqui —{" "}
-          escolha &quot;Todas&quot; no filtro pra ver.
-        </p>
-      )}
 
       {linhas.length === 0 ? (
         <EmptyState
@@ -142,15 +135,19 @@ export default async function KmCustosPage({ searchParams }: { searchParams?: Pr
                   <TableCell className="text-right tabular-nums">{reais(linha.pedagioCentavos)}</TableCell>
                   <TableCell className="text-right tabular-nums">{reais(linha.pernoiteCentavos)}</TableCell>
                   <TableCell className="text-right font-medium tabular-nums">{reais(linha.custoCentavos)}</TableCell>
-                  <TableCell className="text-xs">
+                  <TableCell className="py-2 text-xs">
                     {linha.regiao.length ? (
-                      // Uma cidade por linha, na ordem da rota — não estica a tabela.
-                      linha.regiao.map((cidade, indice) => (
-                        <span key={cidade} className="block whitespace-nowrap">
-                          {indice > 0 && <span className="text-muted-foreground">→ </span>}
-                          {cidade}
-                        </span>
-                      ))
+                      // Uma cidade por linha, numerada na ordem da rota — todas alinhadas na mesma coluna.
+                      <ol className="space-y-0.5">
+                        {linha.regiao.map((cidade, indice) => (
+                          <li key={cidade} className="flex items-center gap-1.5 whitespace-nowrap">
+                            <span className="grid size-4 shrink-0 place-items-center rounded-full bg-muted text-[10px] font-medium tabular-nums text-muted-foreground">
+                              {indice + 1}
+                            </span>
+                            {cidade}
+                          </li>
+                        ))}
+                      </ol>
                     ) : (
                       <span className="text-muted-foreground">—</span>
                     )}
