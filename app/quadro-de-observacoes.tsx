@@ -1,65 +1,101 @@
 "use client"
 
-import { useState, useTransition } from "react"
-import { ClipboardList } from "lucide-react"
+import { useState, useSyncExternalStore, useTransition } from "react"
+import { createPortal } from "react-dom"
+import { ClipboardList, Pencil, Plus, X } from "lucide-react"
+import { Button } from "@/components/ui/button"
 import { Textarea } from "@/components/ui/textarea"
 import { atualizarObservacoes } from "@/lib/actions/quadro"
 import { chamarAcao } from "@/lib/chamar-acao"
 
-type Props = {
-  textoInicial: string
-}
+/** Onde o recado/editor aparece (acima dos contadores do Dashboard). */
+export const ID_SLOT_QUADRO = "slot-quadro-observacoes"
 
-/** Recado geral da operação (frota com problema, indo pra oficina, etc.) — bloco único e compartilhado, sem histórico. */
-export default function QuadroDeObservacoes({ textoInicial }: Props) {
-  const [isPending, startTransition] = useTransition()
-  const [texto, setTexto] = useState(textoInicial)
+const semAssinatura = () => () => {}
+
+/**
+ * Recado geral da operação (frota com problema, indo pra oficina...), bloco
+ * único e compartilhado, sem histórico. Não ocupa tela à toa: sem recado é
+ * só o botão "+ Observação"; com recado vira uma faixa fina acima dos
+ * contadores (aparece também na TV).
+ */
+export default function QuadroDeObservacoes({ textoInicial }: { textoInicial: string }) {
+  const [pendente, iniciarTransicao] = useTransition()
+  const [salvo, setSalvo] = useState(textoInicial.trim())
+  const [rascunho, setRascunho] = useState(textoInicial)
+  const [editando, setEditando] = useState(false)
   const [erro, setErro] = useState("")
-  const [salvo, setSalvo] = useState(true)
+  // O lugar do recado só existe no navegador (no servidor, null → nada é desenhado ali).
+  const slot = useSyncExternalStore(
+    semAssinatura,
+    () => document.getElementById(ID_SLOT_QUADRO),
+    () => null,
+  )
 
-  const salvar = () => {
+  const gravar = (texto: string) => {
     setErro("")
-    startTransition(async () => {
+    iniciarTransicao(async () => {
       const resposta = await chamarAcao(() => atualizarObservacoes(texto))
-      if (!resposta.sucesso) {
-        setErro(resposta.erro ?? "Não foi possível salvar as observações.")
-        return
-      }
-      setSalvo(true)
+      if (!resposta.sucesso) return setErro(resposta.erro ?? "Não foi possível salvar o recado.")
+      setSalvo(texto.trim())
+      setRascunho(texto.trim())
+      setEditando(false)
     })
   }
 
-  return (
-    <section className="rounded-lg border bg-card shadow-sm p-4 space-y-2">
-      <div className="flex items-center gap-2">
-        <ClipboardList className="h-4 w-4 text-muted-foreground" />
-        <h2 className="text-sm font-semibold text-foreground">Quadro de observações</h2>
-      </div>
-      <p className="text-xs text-muted-foreground">
-        Recados gerais da operação: frota com problema, indo pra oficina, etc. Visível pra todo mundo, sem histórico — o texto atual é sempre o mais recente.
+  const abrir = () => {
+    setRascunho(salvo)
+    setEditando(true)
+  }
+
+  const conteudo = editando ? (
+    <section className="space-y-2 rounded-lg border bg-card p-3 shadow-sm">
+      <p className="flex items-center gap-2 text-sm font-semibold">
+        <ClipboardList className="size-4 text-muted-foreground" aria-hidden /> Recado pra operação
       </p>
       <Textarea
-        className="min-h-24"
+        autoFocus
+        className="min-h-20"
         placeholder="Ex.: Frota 2064/908 com problema no freio, não alocar até revisão."
-        value={texto}
-        disabled={isPending}
-        onChange={(evento) => {
-          setTexto(evento.target.value)
-          setSalvo(false)
-        }}
-        onBlur={salvar}
+        value={rascunho}
+        disabled={pendente}
+        onChange={(evento) => setRascunho(evento.target.value)}
       />
-      <div className="text-[11px]">
-        {erro ? (
-          <p className="text-destructive">{erro}</p>
-        ) : isPending ? (
-          <p className="text-muted-foreground">Salvando...</p>
-        ) : salvo ? (
-          <p className="text-muted-foreground">Salvo.</p>
-        ) : (
-          <p className="text-muted-foreground">Alterações não salvas — clique fora do campo pra salvar.</p>
-        )}
+      {erro && <p className="text-xs text-destructive">{erro}</p>}
+      <div className="flex justify-end gap-2">
+        <Button type="button" variant="ghost" size="sm" disabled={pendente} onClick={() => setEditando(false)}>
+          Cancelar
+        </Button>
+        <Button type="button" size="sm" disabled={pendente} onClick={() => gravar(rascunho)}>
+          {pendente ? "Salvando..." : "Salvar"}
+        </Button>
       </div>
     </section>
+  ) : salvo ? (
+    <section className="flex items-start gap-2 rounded-lg border border-warning/30 bg-warning/10 px-3 py-2 text-sm">
+      <ClipboardList className="mt-0.5 size-4 shrink-0 text-warning" aria-hidden />
+      <p className="flex-1 whitespace-pre-line text-foreground">{salvo}</p>
+      <span className="fora-do-modo-tv flex shrink-0 items-center">
+        <Button type="button" variant="ghost" size="icon-sm" aria-label="Editar recado" onClick={abrir} disabled={pendente}>
+          <Pencil className="size-4 text-muted-foreground" aria-hidden />
+        </Button>
+        <Button type="button" variant="ghost" size="icon-sm" aria-label="Apagar recado" onClick={() => gravar("")} disabled={pendente}>
+          <X className="size-4 text-muted-foreground" aria-hidden />
+        </Button>
+      </span>
+      {erro && <p className="text-xs text-destructive">{erro}</p>}
+    </section>
+  ) : null
+
+  return (
+    <>
+      {!salvo && !editando && (
+        <Button type="button" variant="outline" size="sm" className="fora-do-modo-tv" onClick={abrir}>
+          <Plus className="mr-2 size-4" aria-hidden />
+          Observação
+        </Button>
+      )}
+      {slot && conteudo && createPortal(conteudo, slot)}
+    </>
   )
 }

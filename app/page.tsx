@@ -24,7 +24,7 @@ import { fimDoDia, formatDateForDateInput, formatarDataHoraPtBr, formatarHoraLoc
 import { RotaDestinos } from "@/components/viagem/rota-destinos"
 import AtualizarSaidaReal from "./atualizar-saida-real"
 import AtualizarStatusRapido from "./viagens/atualizar-status-rapido"
-import QuadroDeObservacoes from "./quadro-de-observacoes"
+import QuadroDeObservacoes, { ID_SLOT_QUADRO } from "./quadro-de-observacoes"
 import { buscarQuadroObservacoes } from "@/lib/queries/quadro"
 import { formatarCodigoFrota } from "@/lib/services/frota-regras"
 import { LegendaMotoristas } from "@/components/motorista/legenda-motoristas"
@@ -437,9 +437,13 @@ export default async function DashboardPage({
               Programação do dia
             </a>
           </Button>
+          <QuadroDeObservacoes textoInicial={quadroObservacoes} />
           <ModoTv alvoId="painel-dashboard" />
         </div>
       </div>
+
+      {/* Recado do quadro de observações (ou o editor), quando houver. */}
+      <div id={ID_SLOT_QUADRO} className="empty:hidden" />
 
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-4 xl:grid-cols-8">
         {STATUS_ATIVOS_DASHBOARD.map((status) => (
@@ -502,10 +506,6 @@ export default async function DashboardPage({
         )}
       </section>
 
-      {/* Na TV, o quadro só aparece se tiver recado. */}
-      <div className={cn(!quadroObservacoes.trim() && "fora-do-modo-tv")}>
-        <QuadroDeObservacoes textoInicial={quadroObservacoes} />
-      </div>
     </div>
   )
 }
