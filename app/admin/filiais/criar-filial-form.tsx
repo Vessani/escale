@@ -12,6 +12,7 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "
 import { PlusCircle } from "lucide-react"
 import { criarFilial } from "@/lib/actions/filiais"
 import { filialSchema, type FilialFormValues } from "@/lib/validation/filiais"
+import { chamarAcao } from "@/lib/chamar-acao"
 
 export default function CriarFilialForm() {
   const router = useRouter()
@@ -24,7 +25,7 @@ export default function CriarFilialForm() {
 
   const handleSubmit: SubmitHandler<FilialFormValues> = async (dados) => {
     setErro(null)
-    const resposta = await criarFilial(dados)
+    const resposta = await chamarAcao(() => criarFilial(dados))
 
     if (!resposta.sucesso) {
       setErro(resposta.erro ?? "Não foi possível criar a filial.")

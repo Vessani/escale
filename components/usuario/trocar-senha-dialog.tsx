@@ -11,6 +11,7 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "
 import { Input } from "@/components/ui/input"
 import { trocarSenhaPropria } from "@/lib/actions/usuarios"
 import { trocarSenhaSchema, type TrocarSenhaFormValues } from "@/lib/validation/usuarios"
+import { chamarAcao } from "@/lib/chamar-acao"
 
 const valoresPadrao: TrocarSenhaFormValues = { senhaAtual: "", novaSenha: "", confirmarSenha: "" }
 
@@ -32,7 +33,7 @@ export default function TrocarSenhaDialog({ colapsado = false }: { colapsado?: b
   }
 
   const onSubmit: SubmitHandler<TrocarSenhaFormValues> = async (dados) => {
-    const resposta = await trocarSenhaPropria(dados)
+    const resposta = await chamarAcao(() => trocarSenhaPropria(dados))
 
     if (!resposta.sucesso) {
       form.setError("root", { message: resposta.erro ?? "Não foi possível trocar a senha." })

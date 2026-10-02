@@ -13,6 +13,7 @@ import { classeBadgeTurno } from "../../viagens/badge-styles"
 import { classeBadgeJornada } from "../jornada-status"
 import type { TipoMotorista } from "@prisma/client"
 import { NomeMotorista } from "@/components/motorista/icone-tipo-motorista"
+import { chamarAcao } from "@/lib/chamar-acao"
 
 type MotoristaSemViagem = {
   id: number
@@ -47,7 +48,7 @@ export default function SemViagemClient({ motoristas, dataReferencia }: Props) {
     setMensagemErro("")
 
     startTransition(async () => {
-      const resposta = await atualizarJornadaMotoristaNoCalendario(motoristaId, dataReferencia, codigoNoDia)
+      const resposta = await chamarAcao(() => atualizarJornadaMotoristaNoCalendario(motoristaId, dataReferencia, codigoNoDia))
       setMotoristaSalvando(null)
 
       if (!resposta.sucesso) {

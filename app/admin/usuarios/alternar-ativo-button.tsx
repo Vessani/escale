@@ -6,6 +6,7 @@ import { UserCheck, UserX } from "lucide-react"
 import { BotaoIcone } from "@/components/ui/botao-icone"
 import { ConfirmDialog } from "@/components/ui/confirm-dialog"
 import { alterarUsuarioAtivo } from "@/lib/actions/usuarios"
+import { chamarAcao } from "@/lib/chamar-acao"
 
 type Props = {
   usuarioId: string
@@ -22,7 +23,7 @@ export default function AlternarAtivoButton({ usuarioId, nome, ativo }: Props) {
   const confirmar = () => {
     setErro(null)
     startTransition(async () => {
-      const resposta = await alterarUsuarioAtivo(usuarioId, !ativo)
+      const resposta = await chamarAcao(() => alterarUsuarioAtivo(usuarioId, !ativo))
       if (!resposta.sucesso) {
         setErro(resposta.erro)
         return

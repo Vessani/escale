@@ -6,6 +6,7 @@ import { Trash2 } from "lucide-react"
 import { BotaoIcone } from "@/components/ui/botao-icone"
 import { ConfirmDialog } from "@/components/ui/confirm-dialog"
 import { deletarViagem } from "@/lib/actions/viagens"
+import { chamarAcao } from "@/lib/chamar-acao"
 
 type Props = {
   viagemId: number
@@ -22,7 +23,7 @@ export default function ExcluirViagemButton({ viagemId, numeroViagem }: Props) {
     setErro(null)
 
     startTransition(async () => {
-      const resposta = await deletarViagem(viagemId)
+      const resposta = await chamarAcao(() => deletarViagem(viagemId))
       if (!resposta.sucesso) {
         setErro(resposta.erro ?? "Não foi possível excluir a viagem.")
         return

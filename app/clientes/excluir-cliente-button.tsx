@@ -6,6 +6,7 @@ import { Trash2 } from "lucide-react"
 import { BotaoIcone } from "@/components/ui/botao-icone"
 import { ConfirmDialog } from "@/components/ui/confirm-dialog"
 import { deletarCliente } from "@/lib/actions/clientes"
+import { chamarAcao } from "@/lib/chamar-acao"
 
 type Props = {
   clienteId: number
@@ -22,7 +23,7 @@ export default function ExcluirClienteButton({ clienteId, nome }: Props) {
     setErro(null)
 
     startTransition(async () => {
-      const resposta = await deletarCliente(clienteId)
+      const resposta = await chamarAcao(() => deletarCliente(clienteId))
       if (!resposta.sucesso) {
         setErro(resposta.erro ?? "Não foi possível excluir o cliente.")
         return

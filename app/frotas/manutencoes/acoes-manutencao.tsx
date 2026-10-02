@@ -11,6 +11,7 @@ import { Input } from "@/components/ui/input"
 import { concluirManutencao, excluirManutencao, iniciarManutencao, reabrirManutencao } from "@/lib/actions/manutencoes"
 import { formatDateTimeForInput } from "@/lib/utils/date-format"
 import type { SituacaoManutencao } from "@/lib/services/manutencao-regras"
+import { chamarAcao } from "@/lib/chamar-acao"
 
 type Props = {
   id: number
@@ -92,7 +93,7 @@ export default function AcoesManutencao({ id, descricaoCurta, situacao, sugestao
   const [pendente, iniciar] = useTransition()
 
   const executar = async (acao: () => Promise<{ sucesso: true } | { sucesso: false; erro: string }>) => {
-    const resposta = await acao()
+    const resposta = await chamarAcao(acao)
     if (!resposta.sucesso) return resposta.erro
     router.refresh()
     return null

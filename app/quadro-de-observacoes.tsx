@@ -4,6 +4,7 @@ import { useState, useTransition } from "react"
 import { ClipboardList } from "lucide-react"
 import { Textarea } from "@/components/ui/textarea"
 import { atualizarObservacoes } from "@/lib/actions/quadro"
+import { chamarAcao } from "@/lib/chamar-acao"
 
 type Props = {
   textoInicial: string
@@ -19,7 +20,7 @@ export default function QuadroDeObservacoes({ textoInicial }: Props) {
   const salvar = () => {
     setErro("")
     startTransition(async () => {
-      const resposta = await atualizarObservacoes(texto)
+      const resposta = await chamarAcao(() => atualizarObservacoes(texto))
       if (!resposta.sucesso) {
         setErro(resposta.erro ?? "Não foi possível salvar as observações.")
         return

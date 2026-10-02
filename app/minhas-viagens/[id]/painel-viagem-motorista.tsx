@@ -13,6 +13,7 @@ import { minutosDeAtraso, saidaAtrasada } from "@/lib/services/pontualidade"
 import { formatarReais, parseReaisParaCentavos } from "@/lib/utils/dinheiro"
 import { formatarHoraLocal } from "@/lib/utils/date-format"
 import { cn } from "@/lib/utils"
+import { chamarAcao } from "@/lib/chamar-acao"
 
 type Status = "CRIADA" | "ALOCADA" | "INICIADA" | "RETORNANDO" | "POSTERGADA" | "FINALIZADA" | "CANCELADA"
 type TipoDespesa = "PEDAGIO" | "PERNOITE"
@@ -98,7 +99,7 @@ export function PainelViagemMotorista({
   const executar = (acao: () => Promise<{ sucesso: true } | { sucesso: false; erro: string }>, depois?: () => void) => {
     setErro("")
     iniciarTransicao(async () => {
-      const resposta = await acao()
+      const resposta = await chamarAcao(acao)
       if (!resposta.sucesso) {
         setErro(resposta.erro)
         return

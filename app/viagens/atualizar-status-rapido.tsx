@@ -19,6 +19,7 @@ import {
   normalizarStatusViagem,
   type StatusViagemSelecionavel,
 } from "@/lib/services/viagem-status.service"
+import { chamarAcao } from "@/lib/chamar-acao"
 
 type Props = {
   viagemId: number
@@ -48,7 +49,7 @@ export default function AtualizarStatusRapido({ viagemId, statusAtual, inicioPre
     setErro("")
 
     startTransition(async () => {
-      const resposta = await atualizarStatusViagem(viagemId, novoStatus, novaData)
+      const resposta = await chamarAcao(() => atualizarStatusViagem(viagemId, novoStatus, novaData))
       if (!resposta.sucesso) {
         setErro(resposta.erro ?? "Não foi possível atualizar o status.")
         return
