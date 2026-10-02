@@ -1,0 +1,99 @@
+import type { TipoProduto } from "@prisma/client"
+
+/**
+ * Conta do total descarregado em cada cliente. Sem dependências de servidor:
+ * a tela do motorista usa a mesma função pra mostrar o total enquanto ele
+ * digita, e o servidor recalcula ao gravar (não confia no número da tela).
+ *
+ * O nível é do tanque do caminhão: inicial (chegou) − final (saiu) = o que
+ * ficou no cliente.
+ *  - Manômetro: (inicial − final) × conversão do cliente (o motorista informa).
+ *  - Balança:   (inicial − final) × conversão do produto (kg → m³; CO2 fica em kg).
+ *  - Biometano: lê em polegadas e em m³; total = m³ inicial − m³ final.
+ */
+
+export type TipoMedicao = "MANOMETRO" | "BALANCA"
+
+export const FATOR_BALANCA: Record<Exclude<TipoProduto, "BIOMETANO">, number> = {
+  ARGONIO: 0.604,
+  OXIGENIO: 0.754,
+  NITROGENIO: 0.862,
+  CO2: 1,
+}
+
+/** Leitura absurda = erro de digitação. */
+const LEITURA_MAXIMA = 1_000_000
+const FATOR_MAXIMO = 10_000
+
+export type DadosDescarga = {
+  produto: TipoProduto | null
+  medicao: TipoMedicao | null
+  nivelInicial: number | null
+  nivelFinal: number | null
+  /** Só manômetro. */
+  fatorCliente?: number | null
+  /** Só biometano. */
+  polInicial?: number | null
+  polFinal?: number | null
+}
+
+type ResultadoDescarga =
+  | { ok: true; total: number; fator: number | null; unidade: string; medicao: TipoMedicao | null }
+  | { ok: false; erro: string }
+
+const arredondar = (valor: number) => Math.round(valor * 1000) / 1000
+const valido = (valor: number | null | undefined): valor is number =>
+  typeof valor === "number" && Number.isFinite(valor) && valor >= 0 && valor <= LEITURA_MAXIMA
+
+export function calcularDescarga(dados: DadosDescarga): ResultadoDescarga {
+  if (!dados.produto) return { ok: false, erro: "A viagem está sem produto cadastrado — peça ao escalador pra informar." }
+  if (!valido(dados.nivelInicial) || !valido(dados.nivelFinal)) {
+    return { ok: false, erro: "Informe o nível inicial e o final (só números)." }
+  }
+  if (dados.nivelFinal > dados.nivelInicial) {
+    return { ok: false, erro: "O nível final está maior que o inicial — confira as leituras." }
+  }
+  const diferenca = dados.nivelInicial - dados.nivelFinal
+
+  if (dados.produto === "BIOMETANO") {
+    if (!valido(dados.polInicial) || !valido(dados.polFinal)) {
+      return { ok: false, erro: "Biometano: informe também o nível inicial e o final em polegadas." }
+    }
+    return { ok: true, total: arredondar(diferenca), fator: null, unidade: "m³", medicao: null }
+  }
+
+  if (dados.medicao === "MANOMETRO") {
+    const fator = dados.fatorCliente
+    if (typeof fator !== "number" || !Number.isFinite(fator) || fator <= 0 || fator > FATOR_MAXIMO) {
+      return { ok: false, erro: "Informe a conversão do cliente (número maior que zero)." }
+    }
+    return { ok: true, total: arredondar(diferenca * fator), fator, unidade: "", medicao: "MANOMETRO" }
+  }
+
+  if (dados.medicao === "BALANCA") {
+    const fator = FATOR_BALANCA[dados.produto]
+    return { ok: true, total: arredondar(diferenca * fator), fator, unidade: dados.produto === "CO2" ? "kg" : "m³", medicao: "BALANCA" }
+  }
+
+  return { ok: false, erro: "Escolha o tipo de medida: manômetro ou balança." }
+}
+
+/** "12,5" / "1.234,5" / "12.5" → número; vazio ou inválido → null. */
+export function parseNumeroDecimal(texto: string): number | null {
+  const limpo = texto.trim().replace(/\s/g, "")
+  if (!limpo) return null
+  // Com vírgula, o ponto é separador de milhar. Sem vírgula: "1.000" e
+  // "152.300" (grupos de 3) são milhar — é como se escreve mil no Brasil;
+  // "12.5" é decimal.
+  const normalizado = limpo.includes(",")
+    ? limpo.replace(/\./g, "").replace(",", ".")
+    : /^\d{1,3}(\.\d{3})+$/.test(limpo)
+      ? limpo.replace(/\./g, "")
+      : limpo
+  if (!/^\d+(\.\d+)?$/.test(normalizado)) return null
+  return Number(normalizado)
+}
+
+export function formatarNumero(valor: number, casas = 3): string {
+  return valor.toLocaleString("pt-BR", { maximumFractionDigits: casas })
+}

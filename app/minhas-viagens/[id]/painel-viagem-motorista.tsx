@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useTransition } from "react"
 import { useRouter } from "next/navigation"
-import { BedDouble, CircleCheck, Flag, Play, Ticket, Trash2 } from "lucide-react"
+import { BedDouble, CircleCheck, Flag, MapPinned, Play, Ticket, Trash2 } from "lucide-react"
 import { Alert } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -14,6 +14,8 @@ import { formatarReais, parseReaisParaCentavos } from "@/lib/utils/dinheiro"
 import { formatarHoraLocal } from "@/lib/utils/date-format"
 import { cn } from "@/lib/utils"
 import { chamarAcao } from "@/lib/chamar-acao"
+import { ChegadasClientes, type EntregaDoPainel } from "./chegadas-clientes"
+import { ProblemaMecanico } from "./problema-mecanico"
 
 type Status = "CRIADA" | "ALOCADA" | "INICIADA" | "RETORNANDO" | "POSTERGADA" | "FINALIZADA" | "CANCELADA"
 type TipoDespesa = "PEDAGIO" | "PERNOITE"
@@ -28,6 +30,10 @@ export type ViagemDoPainel = {
   kmInicial: number | null
   kmFinal: number | null
   despesas: Array<{ id: number; tipo: TipoDespesa; valorCentavos: number; registradoEm: string; minha: boolean }>
+  produto: "CO2" | "NITROGENIO" | "ARGONIO" | "BIOMETANO" | "OXIGENIO" | null
+  entregas: EntregaDoPainel[]
+  problemaMecanico: string | null
+  problemaMecanicoEm: string | null
 }
 
 const A_INICIAR: Status[] = ["CRIADA", "ALOCADA", "POSTERGADA"]
@@ -191,6 +197,10 @@ export function PainelViagemMotorista({
         </Cartao>
       )}
 
+      {A_INICIAR.includes(viagem.status) && (
+        <ProblemaMecanico viagemId={viagem.id} problema={viagem.problemaMecanico} informadoEm={viagem.problemaMecanicoEm} />
+      )}
+
       {EM_ANDAMENTO.includes(viagem.status) && (
         <>
           <Alert variant="success">
@@ -198,6 +208,10 @@ export function PainelViagemMotorista({
             {viagem.kmInicial !== null && ` · km inicial ${viagem.kmInicial}`}
             {viagem.motivoAtraso && ` · atraso: ${viagem.motivoAtraso}`}
           </Alert>
+
+          <Cartao titulo="Chegada nos clientes" icone={MapPinned}>
+            <ChegadasClientes viagemId={viagem.id} entregas={viagem.entregas} produto={viagem.produto} kmInicial={viagem.kmInicial} />
+          </Cartao>
 
           <Cartao titulo="Pedágio e pernoite" icone={Ticket}>
             <div className="inline-flex w-full rounded-lg border bg-muted/40 p-1" role="group" aria-label="Tipo de despesa">
@@ -268,6 +282,8 @@ export function PainelViagemMotorista({
             )}
             <Totais despesas={viagem.despesas} />
           </Cartao>
+
+          <ProblemaMecanico viagemId={viagem.id} problema={viagem.problemaMecanico} informadoEm={viagem.problemaMecanicoEm} />
 
           <Cartao titulo="Encerrar viagem" icone={Flag}>
             <label className="grid gap-1.5 text-sm font-medium">

@@ -60,6 +60,26 @@ export default async function MinhaViagemPage({ params }: { params: Promise<{ id
       registradoEm: despesa.registradoEm.toISOString(),
       minha: despesa.usuarioId === session.user.id,
     })),
+    produto: viagem.produto,
+    problemaMecanico: viagem.problemaMecanico,
+    problemaMecanicoEm: viagem.problemaMecanicoEm?.toISOString() ?? null,
+    entregas: viagem.entregas.map((entrega) => ({
+      id: entrega.id,
+      cliente: entrega.cliente,
+      cidade: entrega.cidade,
+      uf: entrega.uf,
+      chegada: entrega.chegada && {
+        km: entrega.chegada.km,
+        chegadaEm: entrega.chegada.chegadaEm.toISOString(),
+        medicao: entrega.chegada.medicao,
+        nivelInicial: Number(entrega.chegada.nivelInicial),
+        nivelFinal: Number(entrega.chegada.nivelFinal),
+        polInicial: entrega.chegada.polInicial === null ? null : Number(entrega.chegada.polInicial),
+        polFinal: entrega.chegada.polFinal === null ? null : Number(entrega.chegada.polFinal),
+        fator: entrega.chegada.fator === null ? null : Number(entrega.chegada.fator),
+        totalDescarregado: Number(entrega.chegada.totalDescarregado),
+      },
+    })),
   }
 
   return (

@@ -1,5 +1,5 @@
 import { requireSessaoPaginaComFilial } from "@/lib/auth-guard"
-import { buscarViagemPorId } from "@/lib/queries/viagens"
+import { buscarChegadasDaViagem, buscarViagemPorId } from "@/lib/queries/viagens"
 import { buscarMotoristasParaSelect } from "@/lib/queries/motoristas"
 import { buscarNumerosSapQueExigemIntegracao } from "@/lib/queries/clientes"
 import { buscarHistoricoDaEntidade } from "@/lib/queries/auditoria"
@@ -72,7 +72,14 @@ export default async function EditarViagemPage({ params }: { params: Promise<{ i
         opcoesMotorista={opcoesMotorista}
       />
 
-      <RegistroMotoristaCard kmInicial={viagem.kmInicial} kmFinal={viagem.kmFinal} despesas={viagem.despesas} />
+      <RegistroMotoristaCard
+        kmInicial={viagem.kmInicial}
+        kmFinal={viagem.kmFinal}
+        despesas={viagem.despesas}
+        chegadas={await buscarChegadasDaViagem(viagem.id)}
+        problemaMecanico={viagem.problemaMecanico}
+        problemaMecanicoEm={viagem.problemaMecanicoEm}
+      />
 
       <HistoricoCard registros={serializeData(historico)} />
     </div>

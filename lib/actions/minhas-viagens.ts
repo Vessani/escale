@@ -8,8 +8,11 @@ import { AREA_MOTORISTA } from "@/lib/papeis"
 import {
   adicionarMinhaDespesa,
   encerrarMinhaViagem,
+  informarProblemaMecanico,
   iniciarMinhaViagem,
+  registrarChegadaCliente,
   removerMinhaDespesa,
+  TAMANHO_MAXIMO_PROBLEMA,
 } from "@/lib/services/minhas-viagens.service"
 import { z } from "@/lib/validation/zod"
 import type { RespostaAcao } from "@/lib/types/types"
@@ -68,3 +71,54 @@ export async function encerrarViagem(viagemId: number, dados: { kmFinal: number 
     await encerrarMinhaViagem(filialId, motoristaId, entrada.viagemId, entrada, atorDaSessao(session))
   }, viagemId, "Não foi possível encerrar a viagem.")
 }
+
+const leitura = z.number().min(0).max(1_000_000).nullable()
+
+export async function registrarChegada(
+  viagemId: number,
+  entregaId: number,
+  dados: {
+    km: number
+    chegadaEm: string
+    medicao: "MANOMETRO" | "BALANCA" | null
+    nivelInicial: number | null
+    nivelFinal: number | null
+    fatorCliente: number | null
+    polInicial: number | null
+    polFinal: number | null
+  },
+): Promise<RespostaAcao> {
+  return executar(async () => {
+    const { session, filialId, motoristaId } = await requireSessaoMotorista()
+    id.parse(viagemId)
+    const entrada = z
+      .object({
+        entregaId: id,
+        km,
+        chegadaEm: z.string().datetime({ offset: true }),
+        medicao: z.enum(["MANOMETRO", "BALANCA"]).nullable(),
+        nivelInicial: leitura,
+        nivelFinal: leitura,
+        fatorCliente: z.number().positive().max(10_000).nullable(),
+        polInicial: leitura,
+        polFinal: leitura,
+      })
+      .parse({ ...dados, entregaId })
+    await registrarChegadaCliente(
+      filialId,
+      motoristaId,
+      entrada.entregaId,
+      { ...entrada, chegadaEm: new Date(entrada.chegadaEm) },
+      atorDaSessao(session),
+    )
+  }, viagemId, "Não foi possível registrar a chegada.")
+}
+
+export async function informarProblema(viagemId: number, texto: string): Promise<RespostaAcao> {
+  return executar(async () => {
+    const { session, filialId, motoristaId } = await requireSessaoMotorista()
+    const entrada = z.object({ viagemId: id, texto: z.string().max(TAMANHO_MAXIMO_PROBLEMA) }).parse({ texto, viagemId })
+    await informarProblemaMecanico(filialId, motoristaId, entrada.viagemId, entrada.texto, atorDaSessao(session))
+  }, viagemId, "Não foi possível salvar o problema.")
+}
+

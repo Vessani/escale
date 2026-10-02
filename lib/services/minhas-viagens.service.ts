@@ -6,6 +6,7 @@ import { minutosDeAtraso, saidaAtrasada } from "@/lib/services/pontualidade"
 import { TAMANHO_MAXIMO_MOTIVO } from "@/lib/services/motivos-atraso"
 import { registrarAuditoria, type Ator } from "@/lib/services/auditoria.service"
 import { atualizarStatusViagemService, CODIGO_VIAGEM_MUDOU } from "@/lib/services/viagem.service"
+import { calcularDescarga, type DadosDescarga } from "@/lib/services/descarga"
 
 /**
  * Área do motorista ("Minhas viagens"): o que ele vê e o que ele registra.
@@ -44,11 +45,32 @@ const selecaoViagem = {
   kmInicial: true,
   kmFinal: true,
   motoristaId: true,
+  problemaMecanico: true,
+  problemaMecanicoEm: true,
   motorista: { select: { nome: true } },
   motoristaAcompanhante: { select: { nome: true } },
   entregas: {
     orderBy: { dataEntrega: "asc" as const },
-    select: { id: true, cliente: true, cidade: true, uf: true, dataEntrega: true },
+    select: {
+      id: true,
+      cliente: true,
+      cidade: true,
+      uf: true,
+      dataEntrega: true,
+      chegada: {
+        select: {
+          km: true,
+          chegadaEm: true,
+          medicao: true,
+          nivelInicial: true,
+          nivelFinal: true,
+          polInicial: true,
+          polFinal: true,
+          fator: true,
+          totalDescarregado: true,
+        },
+      },
+    },
   },
   despesas: {
     where: { deletadoEm: null },
@@ -260,3 +282,121 @@ export async function encerrarMinhaViagem(
     filialId, motoristaId, viagemId, "FINALIZADA", STATUS_EM_ANDAMENTO, { kmFinal: dados.kmFinal }, ator, naoIniciada,
   )
 }
+
+/** Problema mecânico: no máximo isso de texto. */
+export const TAMANHO_MAXIMO_PROBLEMA = 300
+/** Chegada registrada com hora "no futuro" além disso = relógio errado ou digitação. */
+const FOLGA_FUTURO_MS = 5 * 60 * 1000
+
+type DadosChegada = Omit<DadosDescarga, "produto"> & { km: number; chegadaEm: Date }
+
+/**
+ * Chegada num cliente: km, hora e a medição do que ficou lá. Uma por
+ * entrega — registrar de novo corrige (vale a última). Só com a viagem em
+ * andamento e só o motorista principal.
+ */
+export async function registrarChegadaCliente(
+  filialId: number,
+  motoristaId: number,
+  entregaId: number,
+  dados: DadosChegada,
+  ator: Ator,
+  agora = new Date(),
+) {
+  const entrega = await prisma.entrega.findFirst({
+    where: { id: entregaId, viagem: { filialId, motoristaId, deletadoEm: null } },
+    include: {
+      chegada: true,
+      viagem: { select: { id: true, status: true, produto: true, kmInicial: true, horarioRealSaida: true } },
+    },
+  })
+  if (!entrega) throw new ErroDeDominio("ENTREGA_NAO_ENCONTRADA", "Entrega não encontrada nesta viagem.")
+  const { viagem } = entrega
+  if (!STATUS_EM_ANDAMENTO.includes(viagem.status)) {
+    throw await explicarSituacao(filialId, motoristaId, viagem.id, NAO_INICIADA("Inicie a viagem antes de registrar a chegada no cliente."))
+  }
+
+  validarKm(dados.km, "Km da chegada")
+  if (viagem.kmInicial !== null) {
+    if (dados.km < viagem.kmInicial) {
+      throw new ErroDeDominio("KM_CHEGADA_MENOR", `O km da chegada não pode ser menor que o km inicial (${viagem.kmInicial}).`)
+    }
+    if (dados.km - viagem.kmInicial > KM_MAXIMO_POR_VIAGEM) {
+      throw new ErroDeDominio("KM_CHEGADA_ALTO", "Mais de 10.000 km desde a saída — confira o km.")
+    }
+  }
+  if (Number.isNaN(dados.chegadaEm.getTime()) || dados.chegadaEm.getTime() > agora.getTime() + FOLGA_FUTURO_MS) {
+    throw new ErroDeDominio("CHEGADA_FUTURO", "A hora da chegada está no futuro — confira a data e a hora.")
+  }
+  // O campo da tela não tem segundos: saiu 14:29:40 e chegou "14:29" é o
+  // mesmo minuto, não "antes da saída".
+  if (viagem.horarioRealSaida && dados.chegadaEm.getTime() < Math.floor(viagem.horarioRealSaida.getTime() / 60_000) * 60_000) {
+    throw new ErroDeDominio("CHEGADA_ANTES_SAIDA", "A hora da chegada é antes da saída da viagem — confira a data e a hora.")
+  }
+
+  // O servidor refaz a conta — não grava o total que veio da tela.
+  const descarga = calcularDescarga({ ...dados, produto: viagem.produto })
+  if (!descarga.ok) throw new ErroDeDominio("DESCARGA_INVALIDA", descarga.erro)
+  const biometano = viagem.produto === "BIOMETANO"
+
+  const registro = {
+    km: dados.km,
+    chegadaEm: dados.chegadaEm,
+    medicao: descarga.medicao,
+    nivelInicial: dados.nivelInicial!,
+    nivelFinal: dados.nivelFinal!,
+    polInicial: biometano ? dados.polInicial ?? null : null,
+    polFinal: biometano ? dados.polFinal ?? null : null,
+    fator: descarga.fator,
+    totalDescarregado: descarga.total,
+    usuarioId: ator.usuarioId,
+  }
+
+  await prisma.$transaction(async (tx) => {
+    const depois = await tx.chegadaEntrega.upsert({
+      where: { entregaId },
+      create: { entregaId, ...registro },
+      update: registro,
+    })
+    await registrarAuditoria(tx, {
+      entidade: "ChegadaEntrega",
+      entidadeId: depois.id,
+      acao: entrega.chegada ? "ATUALIZACAO" : "CRIACAO",
+      antes: entrega.chegada ?? undefined,
+      depois,
+      ator,
+      filialId,
+    })
+  })
+}
+
+/**
+ * Problema mecânico da viagem (texto livre). Vazio = resolvido. Pode ser
+ * informado antes de sair ou na estrada; fica em vermelho no Dashboard.
+ */
+export async function informarProblemaMecanico(
+  filialId: number,
+  motoristaId: number,
+  viagemId: number,
+  texto: string,
+  ator: Ator,
+  agora = new Date(),
+) {
+  const viagem = await viagemDoPrincipalEm(
+    filialId,
+    motoristaId,
+    viagemId,
+    [...STATUS_A_INICIAR, ...STATUS_EM_ANDAMENTO],
+    new ErroDeDominio("VIAGEM_ENCERRADA", "A viagem já foi encerrada — avise o escalador."),
+  )
+  const problema = texto.trim().slice(0, TAMANHO_MAXIMO_PROBLEMA) || null
+
+  await prisma.$transaction(async (tx) => {
+    const depois = await tx.viagem.update({
+      where: { id: viagemId, filialId },
+      data: { problemaMecanico: problema, problemaMecanicoEm: problema ? agora : null },
+    })
+    await registrarAuditoria(tx, { entidade: "Viagem", entidadeId: viagemId, acao: "ATUALIZACAO", antes: viagem, depois, ator, filialId })
+  })
+}
+
