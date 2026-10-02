@@ -1,5 +1,6 @@
 import { excelListaViagens, excelOrdemDeViagem, type EntregaExcel, type ViagemExcel } from "@/lib/excel/viagens"
 import type { Metadados } from "@/lib/excel/planilha"
+import { soEntregasDeCliente } from "@/lib/services/entrega-cliente"
 
 /**
  * Planilhas de viagens (download na Gestão de Viagens e nos Relatórios). A
@@ -25,12 +26,9 @@ export function gerarExcelViagensMotorista(viagens: ViagemExcel[], motorista: st
   return excelListaViagens({ titulo: `Viagens de ${motorista}`, subtitulo: "Alocadas, iniciadas e retornando", viagens, meta })
 }
 
-/** Entrega sem SAP Code é anotação da planilha, não entrega de verdade. */
+/** Entrega sem SAP code e número white é origem/anotação da planilha, não entrega de verdade. */
 function contarEntregasReais(viagens: ViagemExcel[]) {
-  return viagens.reduce(
-    (total, viagem) => total + (viagem.entregas ?? []).filter((entrega) => (entrega.sapcode ?? "").trim().length > 0).length,
-    0,
-  )
+  return viagens.reduce((total, viagem) => total + soEntregasDeCliente(viagem.entregas ?? []).length, 0)
 }
 
 /**

@@ -7,6 +7,7 @@ import type {
   ViagemDisponibilidade,
   ViagemPontualidade,
 } from "@/lib/services/relatorios/operacao"
+import { soEntregasDeCliente } from "@/lib/services/entrega-cliente"
 import { frotaEhValida } from "@/lib/services/frota-regras"
 
 const UM_DIA_MS = 24 * 60 * 60 * 1000
@@ -46,13 +47,14 @@ export async function buscarViagensPontualidade(filialId: number, de: Date, ate:
       horarioRealSaida: true,
       motivoAtraso: true,
       motorista: { select: { id: true, nome: true } },
-      entregas: { select: { cliente: true } },
+      entregas: { select: { cliente: true, sapcode: true, codewhite: true } },
     },
   })
 
   return viagens.map(({ entregas, ...viagem }) => ({
     ...viagem,
-    clientes: [...new Set(entregas.map((entrega) => entrega.cliente.trim()).filter(Boolean))],
+    // Só clientes de verdade (SAP code + número white) — a origem não é cliente.
+    clientes: [...new Set(soEntregasDeCliente(entregas).map((entrega) => entrega.cliente.trim()).filter(Boolean))],
   }))
 }
 

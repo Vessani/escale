@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/prisma"
 import { PRODUTO_VALORES, formatarProduto } from "@/lib/services/produto.service"
 import { STATUS_VIAGEM_VALORES, formatarStatusViagem } from "@/lib/services/viagem-status.service"
+import { soEntregasDeCliente } from "@/lib/services/entrega-cliente"
 import type { StatusViagem, TipoProduto, Turno } from "@prisma/client"
 
 export type IndicadoresDashboard = {
@@ -58,7 +59,7 @@ export async function buscarIndicadoresDashboard(
     // (ver topClientes*) em vez de contar linha de entrega direto.
     prisma.entrega.findMany({
       where: { viagem: where },
-      select: { cliente: true, viagem: { select: { id: true, status: true } } },
+      select: { cliente: true, sapcode: true, codewhite: true, viagem: { select: { id: true, status: true } } },
     }),
   ])
 
@@ -105,7 +106,8 @@ export async function buscarIndicadoresDashboard(
 
   const viagensPorCliente = new Map<string, Set<number>>()
   const canceladasPorCliente = new Map<string, Set<number>>()
-  for (const entrega of entregas) {
+  // Só clientes de verdade (SAP code + número white): a origem não entra no ranking.
+  for (const entrega of soEntregasDeCliente(entregas)) {
     const nome = entrega.cliente.trim()
     if (!nome) continue
 

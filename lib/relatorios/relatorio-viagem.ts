@@ -8,6 +8,7 @@ import { minutosDeAtraso } from "@/lib/services/pontualidade"
 import { formatarReais } from "@/lib/utils/dinheiro"
 import { formatarNomeProprio } from "@/lib/utils/texto"
 import { totaisDespesas } from "@/lib/services/despesas-viagem"
+import { soEntregasDeCliente } from "@/lib/services/entrega-cliente"
 
 /**
  * Tudo do "Relatório da viagem" já calculado — a tela e o Excel usam o mesmo
@@ -23,7 +24,8 @@ export async function carregarRelatorioViagem(filialId: number, viagemId: number
   if (!dados) return null
   const { viagem, historico } = dados
 
-  const entregas = viagem.entregas.map((entrega, indice) => {
+  // Só clientes de verdade (SAP code + número white) — a origem não é entrega.
+  const entregas = soEntregasDeCliente(viagem.entregas).map((entrega, indice) => {
     const c = entrega.chegada
     const chegada = c && chegadaEmNumeros(c)
     return {

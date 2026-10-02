@@ -202,6 +202,18 @@ describe("consulta", () => {
       { OR: expect.arrayContaining([{ status: { in: ["INICIADA", "RETORNANDO"] } }]) },
     ])
   })
+
+  it("o motorista só vê como entrega o cliente com SAP code e número white (a origem some)", async () => {
+    const entregas = [
+      { id: 1, cliente: "BASE RITMO", cidade: "JOINVILLE", sapcode: "", codewhite: "" },
+      { id: 2, cliente: "WEG", cidade: "RIO DO SUL", sapcode: "2001", codewhite: "W10" },
+    ]
+    vi.mocked(prisma.viagem.findFirst).mockResolvedValue({ id: 7, entregas } as never)
+    expect((await buscarMinhaViagem(FILIAL, ZE, 7))?.entregas.map((e) => e.id)).toEqual([2])
+
+    vi.mocked(prisma.viagem.findMany).mockResolvedValue([{ id: 7, entregas }] as never)
+    expect((await buscarMinhasViagens(FILIAL, ZE))[0].entregas.map((e) => e.id)).toEqual([2])
+  })
 })
 
 describe("registrarChegadaCliente", () => {
@@ -209,6 +221,8 @@ describe("registrarChegadaCliente", () => {
   const agora = h("2026-10-02T10:00:00")
   const entrega = (viagemParcial: Record<string, unknown> = {}, chegada: unknown = null) => ({
     id: 11,
+    sapcode: "2001",
+    codewhite: "W10",
     chegada,
     viagem: { id: 1, status: "INICIADA", produto: "OXIGENIO", kmInicial: 152300, horarioRealSaida: saida, ...viagemParcial },
   })
@@ -248,6 +262,10 @@ describe("registrarChegadaCliente", () => {
 
   it("recusa: entrega de outro motorista, viagem não iniciada, km menor que o inicial, hora no futuro ou antes da saída, leituras invertidas", async () => {
     vi.mocked(prisma.entrega.findFirst).mockResolvedValue(null)
+    await expect(registrarChegadaCliente(FILIAL, ZE, 1, 11, dados(), ator, agora)).rejects.toThrow("Entrega não encontrada")
+
+    // Origem (sem SAP code e número white) não é cliente: não recebe chegada.
+    vi.mocked(prisma.entrega.findFirst).mockResolvedValue({ ...entrega(), sapcode: "", codewhite: "" } as never)
     await expect(registrarChegadaCliente(FILIAL, ZE, 1, 11, dados(), ator, agora)).rejects.toThrow("Entrega não encontrada")
 
     vi.mocked(prisma.entrega.findFirst).mockResolvedValue(entrega({ status: "ALOCADA" }) as never)
@@ -299,7 +317,7 @@ describe("gravações do motorista com a viagem travada", () => {
     expect(tx.despesaViagem.create).not.toHaveBeenCalled()
 
     vi.mocked(prisma.entrega.findFirst).mockResolvedValue({
-      id: 11, chegada: null, viagem: { id: 1, status: "INICIADA", produto: "OXIGENIO", kmInicial: 100, horarioRealSaida: null },
+      id: 11, sapcode: "2001", codewhite: "W10", chegada: null, viagem: { id: 1, status: "INICIADA", produto: "OXIGENIO", kmInicial: 100, horarioRealSaida: null },
     } as never)
     vi.mocked(prisma.viagem.findFirst).mockResolvedValueOnce(viagem({ motoristaId: 99 }) as never)
     await expect(

@@ -7,6 +7,7 @@ import { TAMANHO_MAXIMO_MOTIVO } from "@/lib/services/motivos-atraso"
 import { registrarAuditoria, type Ator } from "@/lib/services/auditoria.service"
 import { atualizarStatusViagemService, CODIGO_VIAGEM_MUDOU } from "@/lib/services/viagem.service"
 import { calcularDescarga, type DadosDescarga } from "@/lib/services/descarga"
+import { ehEntregaDeCliente, soEntregasDeCliente } from "@/lib/services/entrega-cliente"
 import { STATUS_A_INICIAR, STATUS_EM_ANDAMENTO } from "@/lib/services/viagem-status.service"
 import { KM_MAXIMO_HODOMETRO, KM_MAXIMO_POR_VIAGEM, TAMANHO_MAXIMO_PROBLEMA, validarHoraDoRegistro, validarKmDoRegistro } from "@/lib/services/limites-registro"
 
@@ -51,6 +52,8 @@ const selecaoViagem = {
       cliente: true,
       cidade: true,
       uf: true,
+      sapcode: true,
+      codewhite: true,
       dataEntrega: true,
       chegada: {
         select: {
@@ -83,9 +86,14 @@ function doMotorista(motoristaId: number) {
  * sair (de ontem em diante — viagem atrasada de ontem ainda aparece) e as
  * finalizadas nas últimas 24h, pra ele conferir o que lançou.
  */
+/** O motorista só vê como entrega o cliente de verdade (SAP code + número white) — a origem fica de fora. */
+function soClientes<T extends { entregas: Array<{ sapcode: string; codewhite: string }> }>(viagem: T): T {
+  return { ...viagem, entregas: soEntregasDeCliente(viagem.entregas) }
+}
+
 export async function buscarMinhasViagens(filialId: number, motoristaId: number, agora = new Date()) {
   const ontem = new Date(inicioDoDia(agora).getTime() - UM_DIA_MS)
-  return prisma.viagem.findMany({
+  const viagens = await prisma.viagem.findMany({
     where: {
       filialId,
       deletadoEm: null,
@@ -105,15 +113,17 @@ export async function buscarMinhasViagens(filialId: number, motoristaId: number,
     orderBy: { inicioPrevisto: "asc" },
     select: selecaoViagem,
   })
+  return viagens.map(soClientes)
 }
 
 export type MinhaViagem = Awaited<ReturnType<typeof buscarMinhasViagens>>[number]
 
 export async function buscarMinhaViagem(filialId: number, motoristaId: number, viagemId: number) {
-  return prisma.viagem.findFirst({
+  const viagem = await prisma.viagem.findFirst({
     where: { id: viagemId, filialId, deletadoEm: null, ...doMotorista(motoristaId) },
     select: selecaoViagem,
   })
+  return viagem && soClientes(viagem)
 }
 
 /**
@@ -330,7 +340,7 @@ export async function registrarChegadaCliente(
       viagem: { select: { id: true, status: true, produto: true, kmInicial: true, horarioRealSaida: true } },
     },
   })
-  if (!entrega) throw new ErroDeDominio("ENTREGA_NAO_ENCONTRADA", "Entrega não encontrada nesta viagem.")
+  if (!entrega || !ehEntregaDeCliente(entrega)) throw new ErroDeDominio("ENTREGA_NAO_ENCONTRADA", "Entrega não encontrada nesta viagem.")
   const { viagem } = entrega
   if (!STATUS_EM_ANDAMENTO.includes(viagem.status)) {
     throw await explicarSituacao(filialId, motoristaId, viagem.id, NAO_INICIADA("Inicie a viagem antes de registrar a chegada no cliente."))
