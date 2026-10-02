@@ -214,9 +214,11 @@ export function PainelViagemMotorista({
             {viagem.motivoAtraso && ` · atraso: ${viagem.motivoAtraso}`}
           </Alert>
 
-          <Cartao titulo="Chegada nos clientes" icone={MapPinned}>
-            <ChegadasClientes viagemId={viagem.id} entregas={viagem.entregas} produto={viagem.produto} kmInicial={viagem.kmInicial} agoraServidor={agoraServidor} />
-          </Cartao>
+          {viagem.entregas.length > 0 && (
+            <Cartao titulo="Chegada nos clientes" icone={MapPinned}>
+              <ChegadasClientes viagemId={viagem.id} entregas={viagem.entregas} produto={viagem.produto} kmInicial={viagem.kmInicial} agoraServidor={agoraServidor} />
+            </Cartao>
+          )}
 
           <Cartao titulo="Pedágio e pernoite" icone={Ticket}>
             <ControleSegmentado

@@ -1,6 +1,7 @@
 import type { StatusViagem, TipoDespesaViagem, TipoProduto } from "@prisma/client"
 import { formatarNomeProprio } from "@/lib/utils/texto"
 import { totaisDespesas } from "@/lib/services/despesas-viagem"
+import { ehEntregaDeCliente } from "@/lib/services/entrega-cliente"
 
 /**
  * Relatório de km e custos por viagem: o que o motorista registrou no
@@ -31,11 +32,6 @@ export type ViagemKmCustos = {
   _count?: { trocas: number }
 }
 
-/** Código preenchido de verdade (não vazio, nem só zeros/traços). */
-function codigoPreenchido(codigo: string | null | undefined): boolean {
-  return /[1-9a-z]/i.test(codigo ?? "")
-}
-
 /**
  * Região = cidades das entregas de cliente (com SAP code E número white) —
  * fica de fora a linha de coleta/base, que não tem esses códigos. Sem
@@ -44,7 +40,7 @@ function codigoPreenchido(codigo: string | null | undefined): boolean {
 export function regiaoDaViagem(entregas: ViagemKmCustos["entregas"]): string[] {
   const cidades: string[] = []
   for (const entrega of entregas) {
-    if (!codigoPreenchido(entrega.sapcode) || !codigoPreenchido(entrega.codewhite)) continue
+    if (!ehEntregaDeCliente(entrega)) continue
     const cidade = formatarNomeProprio(entrega.cidade)
     if (!cidade) continue
     const rotulo = entrega.uf.trim() ? `${cidade}/${entrega.uf.trim().toUpperCase()}` : cidade

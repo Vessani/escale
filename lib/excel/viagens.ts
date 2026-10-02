@@ -6,6 +6,7 @@ import { formatarProduto } from "@/lib/services/produto.service"
 import { formatarStatusViagem } from "@/lib/services/viagem-status.service"
 import { formatarCodigoFrota } from "@/lib/services/frota-regras"
 import { minutosDeAtraso, saidaAtrasada } from "@/lib/services/pontualidade"
+import { soEntregasDeCliente } from "@/lib/services/entrega-cliente"
 import { BORDA_FINA, CORES, aba, gerarExcel, paraHorarioDeParede, preencher, type Metadados } from "./planilha"
 
 type Decimal = Prisma.Decimal | number
@@ -39,7 +40,7 @@ export type ViagemExcel = {
   viagemExtra: boolean
   horarioRealSaida?: Date | string | null
   motivoAtraso?: string | null
-  entregas?: Array<Partial<EntregaExcel> & { cidade?: string; cliente?: string; sapcode?: string }>
+  entregas?: Array<Partial<EntregaExcel> & { cidade?: string; cliente?: string; sapcode?: string; codewhite?: string }>
 }
 
 const nome = (texto: string | null | undefined) => (texto ? formatarNomeProprio(texto) : "")
@@ -48,16 +49,21 @@ const turno = (valor: string) => (valor === "NOITE" ? "Noite" : "Dia")
 const frota = (codigo: string) => formatarCodigoFrota(codigo).replace("—", "")
 
 
+/** Só as entregas de cliente (SAP code + número white) — a origem/base não entra em rota, contagem nem peso. */
+function entregasDe(viagem: ViagemExcel) {
+  return soEntregasDeCliente(viagem.entregas ?? [])
+}
+
 function rota(viagem: ViagemExcel): string {
-  return paradasDaRota((viagem.entregas ?? []).map((entrega) => entrega.cidade)).join(" › ")
+  return paradasDaRota(entregasDe(viagem).map((entrega) => entrega.cidade)).join(" › ")
 }
 
 function clientes(viagem: ViagemExcel): string {
-  return [...new Set((viagem.entregas ?? []).map((entrega) => nome(entrega.cliente)).filter(Boolean))].join(", ")
+  return [...new Set(entregasDe(viagem).map((entrega) => nome(entrega.cliente)).filter(Boolean))].join(", ")
 }
 
 function pesoTotal(viagem: ViagemExcel): number {
-  return (viagem.entregas ?? []).reduce((soma, entrega) => soma + Number(entrega.kg ?? 0), 0)
+  return entregasDe(viagem).reduce((soma, entrega) => soma + Number(entrega.kg ?? 0), 0)
 }
 
 // ---------------------------------------------------------------------------
@@ -138,7 +144,7 @@ export async function excelProgramacaoDoDia(opcoes: { dia: Date; viagens: Viagem
   const ativas = viagens.filter((viagem) => viagem.status !== "CANCELADA")
   const contar = (filtro: (viagem: ViagemExcel) => boolean) => ativas.filter(filtro).length
   const entregas: LinhaEntrega[] = ativas.flatMap((viagem) =>
-    (viagem.entregas ?? []).map((entrega) => ({ ...(entrega as EntregaExcel), viagem })),
+    entregasDe(viagem).map((entrega) => ({ ...(entrega as EntregaExcel), viagem })),
   )
 
   return gerarExcel(
@@ -170,7 +176,7 @@ export async function excelProgramacaoDoDia(opcoes: { dia: Date; viagens: Viagem
           { titulo: "Tanque", valor: (v) => v.tanque, tipo: "codigo", largura: 9 },
           { titulo: "Rota", valor: (v) => rota(v), largura: 36 },
           { titulo: "Clientes", valor: (v) => clientes(v), largura: 32 },
-          { titulo: "Entregas", valor: (v) => (v.entregas ?? []).length, tipo: "numero", somar: true },
+          { titulo: "Entregas", valor: (v) => entregasDe(v).length, tipo: "numero", somar: true },
           { titulo: "Peso (kg)", valor: (v) => pesoTotal(v), tipo: "numero", somar: true },
           { titulo: "Fim previsto", valor: (v) => data(v.fimPrevisto), tipo: "dataHora" },
           { titulo: "Saída real", valor: (v) => data(v.horarioRealSaida), tipo: "hora", largura: 10 },
@@ -333,7 +339,7 @@ export async function excelOrdemDeViagem(viagem: ViagemExcel & { entregas: Entre
   ])
   linha++
 
-  const reais = viagem.entregas as EntregaExcel[]
+  const reais = soEntregasDeCliente(viagem.entregas)
   faixa(`Entregas (${reais.length})`, "secao")
   const titulos = ["#", "Data", "Cliente", "Cidade", "UF", "Peso (kg)", "Volume (m³)", "SAP Code", "Code White", "Observação"]
   const cabecalho = planilha.getRow(linha)

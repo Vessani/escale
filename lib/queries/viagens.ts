@@ -4,6 +4,7 @@ import { chegadaEmNumeros } from "@/lib/services/descarga";
 import type { FiltroStatusViagem } from "@/lib/services/viagem-status.service";
 import { fimDoDia, inicioDoDia } from "@/lib/utils/date-format";
 import { VIAGENS_POR_PAGINA, type FiltroListaViagens } from "@/lib/services/filtro-viagens";
+import { soEntregasDeCliente } from "@/lib/services/entrega-cliente";
 
 /**
  * Lista da Gestão de Viagens, paginada e filtrada no banco (ver
@@ -104,7 +105,7 @@ export async function buscarViagensDoDashboard(filialId: number, hoje: Date) {
   const inicioHoje = inicioDoDia(hoje);
   const fimHoje = fimDoDia(hoje);
 
-  return await prisma.viagem.findMany({
+  const viagens = await prisma.viagem.findMany({
     where: {
       deletadoEm: null,
       filialId,
@@ -118,11 +119,13 @@ export async function buscarViagensDoDashboard(filialId: number, hoje: Date) {
     orderBy: { inicioPrevisto: "asc" },
     include: {
       // Ordem de cadastro = ordem da rota; o painel de destinos mostra cidade, cliente e horário de cada entrega.
-      entregas: { select: { cidade: true, uf: true, cliente: true, dataEntrega: true }, orderBy: { id: "asc" } },
+      entregas: { select: { cidade: true, uf: true, cliente: true, dataEntrega: true, sapcode: true, codewhite: true }, orderBy: { id: "asc" } },
       motorista: { select: { nome: true, tipo: true } },
       motoristaAcompanhante: { select: { nome: true, tipo: true } },
     },
   });
+  // Só clientes (SAP code + número white): a origem não é parada nem conta como entrega no resumo do turno.
+  return viagens.map((viagem) => ({ ...viagem, entregas: soEntregasDeCliente(viagem.entregas) }));
 }
 
 export async function buscarViagensParaRelatorioGeral(
@@ -151,7 +154,7 @@ export async function buscarViagensParaRelatorioGeral(
     include: {
       motorista: true,
       motoristaAcompanhante: true,
-      entregas: { select: { cidade: true, cliente: true, sapcode: true, kg: true }, orderBy: { id: "asc" } },
+      entregas: { select: { cidade: true, cliente: true, sapcode: true, codewhite: true, kg: true }, orderBy: { id: "asc" } },
     },
   });
 }
@@ -173,7 +176,7 @@ export async function buscarViagensPorMotorista(filialId: number, motoristaId: n
     include: {
       motorista: true,
       motoristaAcompanhante: true,
-      entregas: { select: { cidade: true, cliente: true, sapcode: true, kg: true }, orderBy: { id: "asc" } },
+      entregas: { select: { cidade: true, cliente: true, sapcode: true, codewhite: true, kg: true }, orderBy: { id: "asc" } },
     },
   });
 }
@@ -193,9 +196,9 @@ export async function buscarViagensCriadasEm(filialId: number, data: Date) {
     include: {
       motorista: true,
       motoristaAcompanhante: true,
-      // sapcode decide se a entrega conta no resumo (ver
-      // gerarExcelViagensCriadasHoje); cidade/cliente montam a rota.
-      entregas: { select: { cidade: true, cliente: true, sapcode: true, kg: true }, orderBy: { id: "asc" } },
+      // sapcode + codewhite decidem se a entrega conta (ver
+      // soEntregasDeCliente); cidade/cliente montam a rota.
+      entregas: { select: { cidade: true, cliente: true, sapcode: true, codewhite: true, kg: true }, orderBy: { id: "asc" } },
     },
   });
 }

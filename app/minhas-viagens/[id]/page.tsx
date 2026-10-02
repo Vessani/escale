@@ -105,6 +105,7 @@ export default async function MinhaViagemPage({ params }: { params: Promise<{ id
 
       <section className="rounded-xl border bg-card p-4 shadow-sm">
         <h2 className="text-base font-semibold">Entregas ({viagem.entregas.length})</h2>
+        {viagem.entregas.length === 0 && <p className="mt-2 text-sm text-muted-foreground">Nenhum cliente nesta viagem. Fale com o escalador.</p>}
         <ol className="mt-2 divide-y">
           {viagem.entregas.map((entrega, indice) => (
             <li key={entrega.id} className="flex gap-3 py-2 text-sm">
