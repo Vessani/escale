@@ -16,7 +16,8 @@ import {
 import { z } from "@/lib/validation/zod"
 import type { RespostaAcao } from "@/lib/types/types"
 import { trocarMotoristaDaViagem } from "@/lib/services/troca-motorista.service"
-import { DATA_HORA_DO_CAMPO, esquemaTroca, type EntradaTroca } from "@/lib/validation/troca-motorista"
+import { esquemaTroca, type EntradaTroca } from "@/lib/validation/troca-motorista"
+import { esquemaChegada, type EntradaChegada } from "@/lib/validation/chegada"
 import { converterEntradaDeDataHora } from "@/lib/utils/date-format"
 import { KM_MAXIMO_HODOMETRO, TAMANHO_MAXIMO_PROBLEMA } from "@/lib/services/limites-registro"
 
@@ -75,38 +76,10 @@ export async function encerrarViagem(viagemId: number, dados: { kmFinal: number 
   }, viagemId, "Não foi possível encerrar a viagem.")
 }
 
-const leitura = z.number().min(0).max(1_000_000).nullable()
-
-export async function registrarChegada(
-  viagemId: number,
-  entregaId: number,
-  dados: {
-    km: number
-    chegadaEm: string
-    medicao: "MANOMETRO" | "BALANCA" | null
-    nivelInicial: number | null
-    nivelFinal: number | null
-    fatorCliente: number | null
-    polInicial: number | null
-    polFinal: number | null
-  },
-): Promise<RespostaAcao> {
+export async function registrarChegada(viagemId: number, entregaId: number, dados: EntradaChegada): Promise<RespostaAcao> {
   return executar(async () => {
     const { session, filialId, motoristaId } = await requireSessaoMotorista()
-    const entrada = z
-      .object({
-        viagemId: id,
-        entregaId: id,
-        km,
-        chegadaEm: z.string().regex(DATA_HORA_DO_CAMPO, "Data e hora inválidas."),
-        medicao: z.enum(["MANOMETRO", "BALANCA"]).nullable(),
-        nivelInicial: leitura,
-        nivelFinal: leitura,
-        fatorCliente: z.number().positive().max(10_000).nullable(),
-        polInicial: leitura,
-        polFinal: leitura,
-      })
-      .parse({ ...dados, entregaId, viagemId })
+    const entrada = esquemaChegada.extend({ viagemId: id, entregaId: id }).parse({ ...dados, entregaId, viagemId })
     await registrarChegadaCliente(
       filialId,
       motoristaId,

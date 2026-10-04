@@ -7,11 +7,15 @@ import { Alert } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { ControleSegmentado } from "@/components/ui/controle-segmentado"
-import { registrarChegada } from "@/lib/actions/minhas-viagens"
 import { chamarAcao } from "@/lib/chamar-acao"
 import { FATOR_BALANCA, calcularDescarga, formatarNumero, parseNumeroDecimal, unidadeDescarga, type TipoMedicao } from "@/lib/services/descarga"
 import { formatDateTimeForInput, formatarDataHoraPtBr } from "@/lib/utils/date-format"
 import { cn } from "@/lib/utils"
+import type { RespostaAcao } from "@/lib/types/types"
+import type { EntradaChegada } from "@/lib/validation/chegada"
+
+/** Grava a chegada de uma entrega — a action do motorista ou a do escalador (correção). */
+type SalvarChegada = (entregaId: number, dados: EntradaChegada) => Promise<RespostaAcao>
 
 type Produto = "CO2" | "NITROGENIO" | "ARGONIO" | "BIOMETANO" | "OXIGENIO"
 
@@ -27,7 +31,7 @@ export type ChegadaDoPainel = {
   totalDescarregado: number
 }
 
-export type EntregaDoPainel = { id: number; cliente: string; cidade: string; uf: string; chegada: ChegadaDoPainel | null }
+export type EntregaDoPainel = { id: number; cliente: string; cidade: string; uf: string; chegada: (ChegadaDoPainel & { id?: number }) | null }
 
 const ROTULO_MEDICAO: Record<TipoMedicao, string> = { MANOMETRO: "Manômetro", BALANCA: "Balança" }
 
@@ -52,14 +56,14 @@ function CampoNumero({ rotulo, valor, onChange, sufixo }: { rotulo: string; valo
 }
 
 function FormChegada({
-  viagemId,
+  salvar,
   entrega,
   produto,
   kmInicial,
   agoraServidor,
   aoTerminar,
 }: {
-  viagemId: number
+  salvar: SalvarChegada
   entrega: EntregaDoPainel
   produto: Produto | null
   kmInicial: number | null
@@ -94,11 +98,11 @@ function FormChegada({
   const resultado = calcularDescarga({ ...dados, produto })
   const preenchido = inicial && final && (biometano ? polInicial && polFinal : medicao && (medicao === "BALANCA" || fator))
 
-  const salvar = () => {
+  const enviar = () => {
     setErro("")
     iniciarTransicao(async () => {
       const resposta = await chamarAcao(() =>
-        registrarChegada(viagemId, entrega.id, { km: Number(km), chegadaEm: quando, ...dados }),
+        salvar(entrega.id, { km: Number(km), chegadaEm: quando, ...dados }),
       )
       if (!resposta.sucesso) return setErro(resposta.erro)
       aoTerminar()
@@ -180,7 +184,7 @@ function FormChegada({
           type="button"
           className="h-12 flex-1 text-base"
           disabled={pendente || !km || !quando || !preenchido || !resultado.ok}
-          onClick={salvar}
+          onClick={enviar}
         >
           {pendente ? "Salvando..." : anterior ? "Salvar correção" : "Registrar chegada"}
         </Button>
@@ -209,16 +213,23 @@ function ResumoChegada({ chegada }: { chegada: ChegadaDoPainel }) {
   )
 }
 
-/** Uma linha por cliente da rota: registrar a chegada (km, hora, medição) e ver o que já foi registrado. */
+/**
+ * Uma linha por cliente da rota: registrar a chegada (km, hora, medição) e
+ * ver o que já foi registrado. Usado pelo motorista (celular) e pelo
+ * escalador na edição da viagem (correção).
+ */
 export function ChegadasClientes({
-  viagemId,
+  salvar,
   entregas,
   produto,
   kmInicial,
   agoraServidor,
+  acoes,
 }: {
-  viagemId: number
+  salvar: SalvarChegada
   entregas: EntregaDoPainel[]
+  /** Botões extras ao lado do "corrigir" de uma chegada registrada (ex: o escalador apagar). */
+  acoes?: (entrega: EntregaDoPainel) => React.ReactNode
   produto: Produto | null
   kmInicial: number | null
   agoraServidor: string
@@ -245,12 +256,13 @@ export function ChegadasClientes({
                 <Button type="button" variant="ghost" size="icon-sm" aria-label={`Corrigir chegada em ${entrega.cliente}`} onClick={() => setAberta(entrega.id)}>
                   <Pencil className="size-4 text-muted-foreground" aria-hidden />
                 </Button>
+                {acoes?.(entrega)}
               </span>
             )}
           </div>
 
           {aberta === entrega.id ? (
-            <FormChegada viagemId={viagemId} entrega={entrega} produto={produto} kmInicial={kmInicial} agoraServidor={agoraServidor} aoTerminar={() => setAberta(null)} />
+            <FormChegada salvar={salvar} entrega={entrega} produto={produto} kmInicial={kmInicial} agoraServidor={agoraServidor} aoTerminar={() => setAberta(null)} />
           ) : entrega.chegada ? (
             <div className="mt-2">
               <ResumoChegada chegada={entrega.chegada} />

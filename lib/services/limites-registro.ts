@@ -9,6 +9,9 @@ import { ErroDeDominio } from "@/lib/errors"
 /** Problema mecânico: no máximo isso de texto. */
 export const TAMANHO_MAXIMO_PROBLEMA = 300
 
+/** Pedágio/pernoite: R$ 10.000,00 por lançamento — acima disso é erro de digitação. */
+export const VALOR_MAXIMO_CENTAVOS = 1_000_000
+
 /** Hodômetro: até 9.999.999 km. */
 export const KM_MAXIMO_HODOMETRO = 9_999_999
 /** Uma viagem não roda mais que isso — acima é erro de digitação. */

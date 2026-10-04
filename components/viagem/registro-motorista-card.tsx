@@ -1,30 +1,15 @@
-import { BedDouble, Smartphone, Ticket, Wrench } from "lucide-react"
+import { MapPinned, Receipt, Smartphone, Wrench } from "lucide-react"
+import type { StatusViagem, TipoProduto } from "@prisma/client"
 import { Alert } from "@/components/ui/alert"
-import { ApagarChegadaBotao } from "@/components/viagem/apagar-chegada-botao"
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
-import { formatarNumero, textoLeituras, textoMedicao, unidadeDescarga } from "@/lib/services/descarga"
-import { formatarNomeProprio } from "@/lib/utils/texto"
-import { totaisDespesas } from "@/lib/services/despesas-viagem"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import type { EntregaDoPainel } from "@/components/viagem/chegadas-clientes"
+import { ChegadasEditaveis, CorrigirKm, DespesasEditaveis } from "@/components/viagem/correcao-registro"
+import { totaisDespesas } from "@/lib/services/despesas-viagem"
+import { STATUS_EM_ANDAMENTO } from "@/lib/services/viagem-status.service"
 import { formatarReais } from "@/lib/utils/dinheiro"
 import { formatarDataHoraPtBr } from "@/lib/utils/date-format"
 
 type Despesa = { id: number; tipo: "PEDAGIO" | "PERNOITE"; valorCentavos: number; registradoEm: Date }
-type Chegada = {
-  id: number
-  cliente: string
-  cidade: string
-  uf: string
-  km: number
-  chegadaEm: Date
-  medicao: "MANOMETRO" | "BALANCA" | null
-  nivelInicial: number
-  nivelFinal: number
-  polInicial: number | null
-  polFinal: number | null
-  fator: number | null
-  totalDescarregado: number
-}
 
 function Numero({ rotulo, valor }: { rotulo: string; valor: string }) {
   return (
@@ -35,25 +20,51 @@ function Numero({ rotulo, valor }: { rotulo: string; valor: string }) {
   )
 }
 
-/** O que o motorista registrou pelo celular nesta viagem (km, chegadas, despesas e problema mecânico) — só leitura pro escalador. */
+function Bloco({ titulo, icone: Icone, children }: { titulo: string; icone: typeof Receipt; children: React.ReactNode }) {
+  return (
+    <section className="space-y-2">
+      <h3 className="flex items-center gap-1.5 text-sm font-semibold">
+        <Icone className="size-4 text-muted-foreground" aria-hidden /> {titulo}
+      </h3>
+      {children}
+    </section>
+  )
+}
+
+/**
+ * O que o motorista registrou pelo celular nesta viagem (km, chegadas,
+ * despesas e problema mecânico). Depois que a viagem sai, o escalador pode
+ * corrigir tudo aqui — inclusive com ela já encerrada (fica no histórico).
+ */
 export function RegistroMotoristaCard({
+  viagemId,
+  status,
+  produto,
   kmInicial,
   kmFinal,
   despesas,
-  chegadas,
+  entregas,
   problemaMecanico,
   problemaMecanicoEm,
 }: {
+  viagemId: number
+  status: StatusViagem
+  produto: TipoProduto | null
   kmInicial: number | null
   kmFinal: number | null
   despesas: Despesa[]
-  chegadas: Chegada[]
+  /** Só os clientes (SAP code + número white), com a chegada de cada um. */
+  entregas: EntregaDoPainel[]
   problemaMecanico: string | null
   problemaMecanicoEm: Date | null
 }) {
-  if (kmInicial === null && kmFinal === null && despesas.length === 0 && chegadas.length === 0 && !problemaMecanico) return null
+  const encerrada = status === "FINALIZADA"
+  const podeCorrigir = encerrada || STATUS_EM_ANDAMENTO.includes(status)
+  const temRegistro = kmInicial !== null || kmFinal !== null || despesas.length > 0 || entregas.some((e) => e.chegada) || !!problemaMecanico
+  if (!podeCorrigir && !temRegistro) return null
+
   const totais = totaisDespesas(despesas)
-  const soma = (tipo: Despesa["tipo"]) => (tipo === "PEDAGIO" ? totais.pedagioCentavos : totais.pernoiteCentavos)
+  const semCorrecao = status === "CANCELADA" ? "Viagem cancelada: os registros não são corrigidos." : "A viagem ainda não saiu."
 
   return (
     <Card className="shadow-sm border-border">
@@ -61,9 +72,11 @@ export function RegistroMotoristaCard({
         <CardTitle className="text-lg flex items-center gap-2">
           <Smartphone className="size-5" aria-hidden /> Registro do motorista
         </CardTitle>
-        <CardDescription>Lançado pelo motorista no acesso dele.</CardDescription>
+        <CardDescription>
+          Lançado pelo motorista no acesso dele.{podeCorrigir && " Se ele errou, corrija aqui — a correção fica no histórico."}
+        </CardDescription>
       </CardHeader>
-      <CardContent className="pt-6 space-y-4">
+      <CardContent className="pt-6 space-y-6">
         {problemaMecanico && (
           <Alert variant="error">
             <span className="flex items-center gap-1.5 font-medium"><Wrench className="size-4" aria-hidden /> Problema mecânico</span>
@@ -71,64 +84,36 @@ export function RegistroMotoristaCard({
             {problemaMecanicoEm && <span className="block text-xs opacity-80">Informado em {formatarDataHoraPtBr(problemaMecanicoEm)}</span>}
           </Alert>
         )}
-        <dl className="grid grid-cols-2 gap-2 text-sm sm:grid-cols-5">
-          <Numero rotulo="Km inicial" valor={kmInicial?.toString() ?? "—"} />
-          <Numero rotulo="Km final" valor={kmFinal?.toString() ?? "—"} />
-          <Numero rotulo="Rodou" valor={kmInicial !== null && kmFinal !== null ? `${kmFinal - kmInicial} km` : "—"} />
-          <Numero rotulo="Pedágio" valor={formatarReais(soma("PEDAGIO"))} />
-          <Numero rotulo="Pernoite" valor={formatarReais(soma("PERNOITE"))} />
-        </dl>
-        {chegadas.length > 0 && (
-          <div className="overflow-x-auto rounded-lg border">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Cliente</TableHead>
-                  <TableHead>Chegada</TableHead>
-                  <TableHead className="text-right">Km</TableHead>
-                  <TableHead>Medição</TableHead>
-                  <TableHead className="text-right">Nível inicial → final</TableHead>
-                  <TableHead className="text-right">Descarregado</TableHead>
-                  <TableHead className="w-10"><span className="sr-only">Apagar</span></TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {chegadas.map((chegada) => (
-                  <TableRow key={chegada.id}>
-                    <TableCell>
-                      <span className="font-medium">{chegada.cliente}</span>
-                      <span className="block text-[11px] text-muted-foreground">{formatarNomeProprio(chegada.cidade)}/{chegada.uf}</span>
-                    </TableCell>
-                    <TableCell className="whitespace-nowrap tabular-nums">{formatarDataHoraPtBr(chegada.chegadaEm)}</TableCell>
-                    <TableCell className="text-right tabular-nums">{chegada.km.toLocaleString("pt-BR")}</TableCell>
-                    <TableCell>{textoMedicao(chegada)}</TableCell>
-                    <TableCell className="text-right tabular-nums">{textoLeituras(chegada)}</TableCell>
-                    <TableCell className="text-right font-semibold tabular-nums">
-                      {formatarNumero(chegada.totalDescarregado)} {unidadeDescarga(chegada)}
-                    </TableCell>
-                    <TableCell className="px-1">
-                      <ApagarChegadaBotao chegadaId={chegada.id} cliente={chegada.cliente} />
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </div>
-        )}
-        {despesas.length > 0 && (
-          <ul className="divide-y rounded-lg border text-sm">
-            {despesas.map((despesa) => (
-              <li key={despesa.id} className="flex items-center justify-between px-3 py-2">
-                <span className="flex items-center gap-2">
-                  {despesa.tipo === "PEDAGIO" ? <Ticket className="size-4 text-muted-foreground" aria-hidden /> : <BedDouble className="size-4 text-muted-foreground" aria-hidden />}
-                  {despesa.tipo === "PEDAGIO" ? "Pedágio" : "Pernoite"}
-                  <span className="text-xs text-muted-foreground">{formatarDataHoraPtBr(despesa.registradoEm)}</span>
-                </span>
-                <span className="font-medium tabular-nums">{formatarReais(despesa.valorCentavos)}</span>
-              </li>
-            ))}
-          </ul>
-        )}
+
+        <div className="space-y-2">
+          <dl className="grid grid-cols-2 gap-2 text-sm sm:grid-cols-5">
+            <Numero rotulo="Km inicial" valor={kmInicial?.toLocaleString("pt-BR") ?? "—"} />
+            <Numero rotulo="Km final" valor={kmFinal?.toLocaleString("pt-BR") ?? "—"} />
+            <Numero rotulo="Rodou" valor={kmInicial !== null && kmFinal !== null ? `${(kmFinal - kmInicial).toLocaleString("pt-BR")} km` : "—"} />
+            <Numero rotulo="Pedágio" valor={formatarReais(totais.pedagioCentavos)} />
+            <Numero rotulo="Pernoite" valor={formatarReais(totais.pernoiteCentavos)} />
+          </dl>
+          {podeCorrigir && <CorrigirKm key={`${kmInicial}-${kmFinal}`} viagemId={viagemId} kmInicial={kmInicial} kmFinal={kmFinal} encerrada={encerrada} />}
+        </div>
+
+        <Bloco titulo="Chegada nos clientes" icone={MapPinned}>
+          {podeCorrigir ? (
+            <ChegadasEditaveis entregas={entregas} produto={produto} kmInicial={kmInicial} agoraServidor={new Date().toISOString()} />
+          ) : (
+            <p className="text-sm text-muted-foreground">{semCorrecao}</p>
+          )}
+        </Bloco>
+
+        <Bloco titulo="Pedágio e pernoite" icone={Receipt}>
+          {podeCorrigir ? (
+            <DespesasEditaveis
+              viagemId={viagemId}
+              despesas={despesas.map((despesa) => ({ ...despesa, registradoEm: despesa.registradoEm.toISOString() }))}
+            />
+          ) : (
+            <p className="text-sm text-muted-foreground">{semCorrecao}</p>
+          )}
+        </Bloco>
       </CardContent>
     </Card>
   )
