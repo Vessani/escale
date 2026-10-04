@@ -27,6 +27,15 @@ function Secao({ titulo, icone: Icone, children }: { titulo: string; icone: type
   )
 }
 
+function ItemChegada({ rotulo, destaque, children }: { rotulo: string; destaque?: boolean; children: React.ReactNode }) {
+  return (
+    <div className={cn(destaque && "col-span-2")}>
+      <dt className="text-[11px] text-muted-foreground">{rotulo}</dt>
+      <dd className={cn("tabular-nums", destaque && "font-semibold")}>{children}</dd>
+    </div>
+  )
+}
+
 function Dado({ rotulo, children }: { rotulo: string; children: React.ReactNode }) {
   return (
     <div className="rounded-lg bg-muted/60 px-3 py-2">
@@ -89,7 +98,44 @@ export function RelatorioViagemConteudo({ r }: { r: RelatorioViagem }) {
         </Secao>
 
         <Secao titulo={`Entregas e chegadas (${r.entregas.length})`} icone={MapPin}>
-          <div className="overflow-x-auto rounded-lg border print:overflow-visible print:[&_table]:text-[9px] print:[&_td]:px-1 print:[&_th]:px-1 print:[&_td]:whitespace-normal print:[&_th]:whitespace-normal">
+          {/* Celular e impressão: um cartão por cliente — a tabela larga cortava medição e descarga na folha. */}
+          <ol className="space-y-2 md:hidden print:block print:space-y-2">
+            {r.entregas.map((entrega) => (
+              <li key={entrega.id} className="rounded-lg border p-3 text-sm break-inside-avoid">
+                <div className="flex gap-2">
+                  <span className="grid size-6 shrink-0 place-items-center rounded-full bg-muted text-xs font-semibold tabular-nums">{entrega.ordem}</span>
+                  <div className="min-w-0">
+                    <p className="font-medium">{entrega.cliente}</p>
+                    <p className="text-xs text-muted-foreground">{entrega.cidade} · prevista {quando(entrega.prevista)}</p>
+                  </div>
+                </div>
+                {entrega.chegada ? (
+                  <dl className="mt-2 grid grid-cols-2 gap-x-3 gap-y-1.5">
+                    <ItemChegada rotulo="Chegada">{quando(entrega.chegada.quando)}</ItemChegada>
+                    <ItemChegada rotulo="Km">{km(entrega.chegada.km)}</ItemChegada>
+                    <ItemChegada rotulo="Medição">{entrega.chegada.medicao}</ItemChegada>
+                    <ItemChegada rotulo="Nível inicial → final">{entrega.chegada.leituras}</ItemChegada>
+                    <ItemChegada rotulo="Descarregado" destaque>
+                      {`${formatarNumero(entrega.chegada.total)} ${entrega.chegada.unidade}`.trim()}
+                    </ItemChegada>
+                  </dl>
+                ) : (
+                  <p className="mt-2 text-xs text-muted-foreground">Chegada não registrada.</p>
+                )}
+              </li>
+            ))}
+            {r.totaisDescarga.length > 0 && (
+              <li className="flex justify-between gap-3 rounded-lg bg-muted/60 px-3 py-2 text-sm font-semibold break-inside-avoid">
+                <span>Total descarregado</span>
+                <span className="text-right tabular-nums">
+                  {r.totaisDescarga.map(({ unidade, total }) => (
+                    <span key={unidade} className="block">{`${formatarNumero(total)} ${unidade}`.trim()}</span>
+                  ))}
+                </span>
+              </li>
+            )}
+          </ol>
+          <div className="hidden overflow-x-auto rounded-lg border md:block print:hidden">
             <Table>
               <TableHeader>
                 <TableRow>
