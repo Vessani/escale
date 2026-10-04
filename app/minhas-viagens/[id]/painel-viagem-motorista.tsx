@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { ConfirmDialog } from "@/components/ui/confirm-dialog"
 import { ControleSegmentado } from "@/components/ui/controle-segmentado"
-import { encerrarViagem, iniciarViagem, lancarDespesa, removerDespesa } from "@/lib/actions/minhas-viagens"
+import { encerrarViagem, iniciarViagem, lancarDespesa, registrarChegada, removerDespesa } from "@/lib/actions/minhas-viagens"
 import { MOTIVOS_ATRASO, MOTIVO_OUTRO, TAMANHO_MAXIMO_MOTIVO } from "@/lib/services/motivos-atraso"
 import { minutosDeAtraso, saidaAtrasada } from "@/lib/services/pontualidade"
 import { formatarReais, parseReaisParaCentavos } from "@/lib/utils/dinheiro"
@@ -17,7 +17,7 @@ import { cn } from "@/lib/utils"
 import { chamarAcao } from "@/lib/chamar-acao"
 import { totaisDespesas } from "@/lib/services/despesas-viagem"
 import { STATUS_A_INICIAR, STATUS_EM_ANDAMENTO } from "@/lib/services/viagem-status.service"
-import { ChegadasClientes, type EntregaDoPainel } from "./chegadas-clientes"
+import { ChegadasClientes, type EntregaDoPainel } from "@/components/viagem/chegadas-clientes"
 import { ProblemaMecanico } from "./problema-mecanico"
 import { TrocaMotoristaMotorista } from "./troca-motorista"
 
@@ -216,7 +216,7 @@ export function PainelViagemMotorista({
 
           {viagem.entregas.length > 0 && (
             <Cartao titulo="Chegada nos clientes" icone={MapPinned}>
-              <ChegadasClientes viagemId={viagem.id} entregas={viagem.entregas} produto={viagem.produto} kmInicial={viagem.kmInicial} agoraServidor={agoraServidor} />
+              <ChegadasClientes salvar={(entregaId, dados) => registrarChegada(viagem.id, entregaId, dados)} entregas={viagem.entregas} produto={viagem.produto} kmInicial={viagem.kmInicial} agoraServidor={agoraServidor} />
             </Cartao>
           )}
 

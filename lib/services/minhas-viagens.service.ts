@@ -6,10 +6,10 @@ import { minutosDeAtraso, saidaAtrasada } from "@/lib/services/pontualidade"
 import { TAMANHO_MAXIMO_MOTIVO } from "@/lib/services/motivos-atraso"
 import { registrarAuditoria, type Ator } from "@/lib/services/auditoria.service"
 import { atualizarStatusViagemService, CODIGO_VIAGEM_MUDOU } from "@/lib/services/viagem.service"
-import { calcularDescarga, type DadosDescarga } from "@/lib/services/descarga"
+import { montarRegistroChegada, type DadosChegada } from "@/lib/services/chegada-registro"
 import { ehEntregaDeCliente, soEntregasDeCliente } from "@/lib/services/entrega-cliente"
 import { STATUS_A_INICIAR, STATUS_EM_ANDAMENTO } from "@/lib/services/viagem-status.service"
-import { KM_MAXIMO_HODOMETRO, KM_MAXIMO_POR_VIAGEM, TAMANHO_MAXIMO_PROBLEMA, validarHoraDoRegistro, validarKmDoRegistro } from "@/lib/services/limites-registro"
+import { KM_MAXIMO_HODOMETRO, KM_MAXIMO_POR_VIAGEM, TAMANHO_MAXIMO_PROBLEMA, VALOR_MAXIMO_CENTAVOS } from "@/lib/services/limites-registro"
 
 /**
  * Área do motorista ("Minhas viagens"): o que ele vê e o que ele registra.
@@ -23,8 +23,6 @@ import { KM_MAXIMO_HODOMETRO, KM_MAXIMO_POR_VIAGEM, TAMANHO_MAXIMO_PROBLEMA, val
 const UM_DIA_MS = 24 * 60 * 60 * 1000
 
 
-/** R$ 10.000,00 por lançamento — acima disso é erro de digitação. */
-const VALOR_MAXIMO_CENTAVOS = 1_000_000
 
 const selecaoViagem = {
   id: true,
@@ -317,7 +315,6 @@ export async function encerrarMinhaViagem(
 }
 
 
-type DadosChegada = Omit<DadosDescarga, "produto"> & { km: number; chegadaEm: Date }
 
 /**
  * Chegada num cliente: km, hora e a medição do que ficou lá. Uma por
@@ -346,26 +343,8 @@ export async function registrarChegadaCliente(
     throw await explicarSituacao(filialId, motoristaId, viagem.id, NAO_INICIADA("Inicie a viagem antes de registrar a chegada no cliente."))
   }
 
-  validarKmDoRegistro(dados.km, viagem.kmInicial, "Km da chegada")
-  validarHoraDoRegistro(dados.chegadaEm, viagem.horarioRealSaida, agora, "chegada")
-
   // O servidor refaz a conta — não grava o total que veio da tela.
-  const descarga = calcularDescarga({ ...dados, produto: viagem.produto })
-  if (!descarga.ok) throw new ErroDeDominio("DESCARGA_INVALIDA", descarga.erro)
-  const biometano = viagem.produto === "BIOMETANO"
-
-  const registro = {
-    km: dados.km,
-    chegadaEm: dados.chegadaEm,
-    medicao: descarga.medicao,
-    nivelInicial: descarga.nivelInicial,
-    nivelFinal: descarga.nivelFinal,
-    polInicial: biometano ? dados.polInicial ?? null : null,
-    polFinal: biometano ? dados.polFinal ?? null : null,
-    fator: descarga.fator,
-    totalDescarregado: descarga.total,
-    usuarioId: ator.usuarioId,
-  }
+  const registro = montarRegistroChegada(dados, viagem, ator.usuarioId, agora)
 
   const gravada = await prisma.$transaction(async (tx) => {
     if (!(await travarViagemDoMotorista(tx, filialId, motoristaId, viagem.id, STATUS_EM_ANDAMENTO))) return false

@@ -10,6 +10,7 @@ import { notFound } from "next/navigation"
 import FormEditarViagem from "./form-editar"
 import { HistoricoCard } from "@/components/auditoria/historico-card"
 import { ehGerencia } from "@/lib/papeis"
+import { soEntregasDeCliente } from "@/lib/services/entrega-cliente"
 import { serializeData } from "@/lib/serialization"
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
@@ -91,10 +92,33 @@ export default async function EditarViagemPage({ params }: { params: Promise<{ i
       />
 
       <RegistroMotoristaCard
+        viagemId={viagem.id}
+        status={viagem.status}
+        produto={viagem.produto}
         kmInicial={viagem.kmInicial}
         kmFinal={viagem.kmFinal}
         despesas={despesas}
-        chegadas={chegadas}
+        entregas={soEntregasDeCliente(viagem.entregas).map((entrega) => {
+          const chegada = chegadas.find((c) => c.entregaId === entrega.id)
+          return {
+            id: entrega.id,
+            cliente: entrega.cliente,
+            cidade: entrega.cidade,
+            uf: entrega.uf,
+            chegada: chegada ? {
+              id: chegada.id,
+              km: chegada.km,
+              chegadaEm: chegada.chegadaEm.toISOString(),
+              medicao: chegada.medicao,
+              nivelInicial: chegada.nivelInicial,
+              nivelFinal: chegada.nivelFinal,
+              polInicial: chegada.polInicial,
+              polFinal: chegada.polFinal,
+              fator: chegada.fator,
+              totalDescarregado: chegada.totalDescarregado,
+            } : null,
+          }
+        })}
         problemaMecanico={viagem.problemaMecanico}
         problemaMecanicoEm={viagem.problemaMecanicoEm}
       />
