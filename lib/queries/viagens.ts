@@ -1,7 +1,7 @@
 import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { chegadaEmNumeros } from "@/lib/services/descarga";
-import { STATUS_A_INICIAR, STATUS_EM_ANDAMENTO, type FiltroStatusViagem } from "@/lib/services/viagem-status.service";
+import { STATUS_A_INICIAR, STATUS_EM_ANDAMENTO } from "@/lib/services/viagem-status.service";
 import { DIAS_NAO_SAIU_NO_DASHBOARD } from "@/lib/services/dashboard.service";
 
 const UM_DIA_MS = 24 * 60 * 60 * 1000;
@@ -133,83 +133,7 @@ export async function buscarViagensDoDashboard(filialId: number, hoje: Date) {
   });
   // Só clientes (SAP code + número white): a origem não é parada nem conta como entrega no resumo do turno.
   return viagens.map((viagem) => ({ ...viagem, entregas: soEntregasDeCliente(viagem.entregas) }));
-}
-
-export async function buscarViagensParaRelatorioGeral(
-  filialId: number,
-  filtros: { status?: FiltroStatusViagem; de?: Date; ate?: Date },
-) {
-  const filtroStatus =
-    filtros.status && filtros.status !== "TODOS"
-      ? ({ status: filtros.status } satisfies Prisma.ViagemWhereInput)
-      : {};
-
-  const filtroPeriodo: Prisma.ViagemWhereInput = {};
-  if (filtros.de) filtroPeriodo.inicioPrevisto = { gte: filtros.de };
-  if (filtros.ate) {
-    filtroPeriodo.fimPrevisto = { lte: fimDoDia(filtros.ate) };
-  }
-
-  return await prisma.viagem.findMany({
-    where: {
-      deletadoEm: null,
-      filialId,
-      ...filtroStatus,
-      ...filtroPeriodo,
-    },
-    orderBy: { inicioPrevisto: "desc" },
-    include: {
-      motorista: true,
-      motoristaAcompanhante: true,
-      entregas: { select: { cidade: true, cliente: true, sapcode: true, codewhite: true, kg: true }, orderBy: { id: "asc" } },
-    },
-  });
-}
-
-/**
- * Viagens de um motorista específico com status ALOCADA/INICIADA/RETORNANDO
- * — pra montar o Excel individual que é enviado direto pra ele (ver plano,
- * seção "3 relatórios").
- */
-export async function buscarViagensPorMotorista(filialId: number, motoristaId: number) {
-  return await prisma.viagem.findMany({
-    where: {
-      deletadoEm: null,
-      filialId,
-      motoristaId,
-      status: { in: ["ALOCADA", "INICIADA", "RETORNANDO"] },
-    },
-    orderBy: { inicioPrevisto: "asc" },
-    include: {
-      motorista: true,
-      motoristaAcompanhante: true,
-      entregas: { select: { cidade: true, cliente: true, sapcode: true, codewhite: true, kg: true }, orderBy: { id: "asc" } },
-    },
-  });
-}
-
-/**
- * Viagens criadas (criadoEm) num dia específico — pra montar o Excel enviado
- * pra operação com o que entrou no sistema naquele dia.
- */
-export async function buscarViagensCriadasEm(filialId: number, data: Date) {
-  return await prisma.viagem.findMany({
-    where: {
-      deletadoEm: null,
-      filialId,
-      criadoEm: { gte: inicioDoDia(data), lte: fimDoDia(data) },
-    },
-    orderBy: { inicioPrevisto: "asc" },
-    include: {
-      motorista: true,
-      motoristaAcompanhante: true,
-      // sapcode + codewhite decidem se a entrega conta (ver
-      // soEntregasDeCliente); cidade/cliente montam a rota.
-      entregas: { select: { cidade: true, cliente: true, sapcode: true, codewhite: true, kg: true }, orderBy: { id: "asc" } },
-    },
-  });
-}
-/**
+}/**
  * Programação do dia: viagens previstas pra começar no dia (horário de
  * Brasília), em qualquer status, com motorista, acompanhante e entregas
  * completas — base do Excel "Programação do dia".

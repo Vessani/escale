@@ -67,51 +67,6 @@ function pesoTotal(viagem: ViagemExcel): number {
 }
 
 // ---------------------------------------------------------------------------
-// Lista de viagens (relatório geral, viagens do motorista, criadas no dia)
-// ---------------------------------------------------------------------------
-
-export async function excelListaViagens(opcoes: {
-  titulo: string
-  subtitulo?: string
-  viagens: ViagemExcel[]
-  meta?: Metadados
-  /** Inclui a coluna de CPF (relatório geral, pra portaria de cliente). */
-  comCpf?: boolean
-  resumo?: Array<{ rotulo: string; valor: string | number }>
-}): Promise<Buffer> {
-  return gerarExcel(
-    [
-      aba<ViagemExcel>({
-        nome: "Viagens",
-        titulo: opcoes.titulo,
-        subtitulo: opcoes.subtitulo,
-        resumo: opcoes.resumo ?? [{ rotulo: "Viagens", valor: opcoes.viagens.length }],
-        linhas: opcoes.viagens,
-        destaque: (viagem) => (viagem.status === "CANCELADA" ? "apagado" : !viagem.motorista ? "alerta" : null),
-        colunas: [
-          { titulo: "Nº Viagem", valor: (v) => v.numViagem, tipo: "codigo" },
-          { titulo: "Status", valor: (v) => formatarStatusViagem(v.status) },
-          { titulo: "Turno", valor: (v) => turno(v.turno) },
-          { titulo: "Produto", valor: (v) => formatarProduto(v.produto) },
-          { titulo: "Início previsto", valor: (v) => data(v.inicioPrevisto), tipo: "dataHora" },
-          { titulo: "Fim previsto", valor: (v) => data(v.fimPrevisto), tipo: "dataHora" },
-          { titulo: "Motorista", valor: (v) => (v.motorista ? nome(v.motorista.nome) : "Não alocado") },
-          ...(opcoes.comCpf ? [{ titulo: "CPF", valor: (v: ViagemExcel) => v.motorista?.cpf ?? "", tipo: "codigo" as const }] : []),
-          { titulo: "Acompanhante", valor: (v) => nome(v.motoristaAcompanhante?.nome) },
-          { titulo: "Cavalo", valor: (v) => frota(v.cavalo), tipo: "codigo" },
-          { titulo: "Carreta", valor: (v) => frota(v.carreta), tipo: "codigo" },
-          { titulo: "Tanque", valor: (v) => v.tanque, tipo: "codigo" },
-          { titulo: "Rota", valor: (v) => rota(v), largura: 40 },
-          { titulo: "Integração", valor: (v) => v.integracaoExigida ?? "" },
-          { titulo: "Extra", valor: (v) => (v.viagemExtra ? "Sim" : "") },
-        ],
-      }),
-    ],
-    opcoes.meta,
-  )
-}
-
-// ---------------------------------------------------------------------------
 // Programação do dia
 // ---------------------------------------------------------------------------
 

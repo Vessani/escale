@@ -251,16 +251,6 @@ export async function buscarMotoristasParaApi(filialId: number) {
     },
   })
 }
-
-/** Só id e nome dos motoristas ativos — pra selects que não precisam de agenda nem jornada. */
-export async function buscarNomesMotoristas(filialId: number) {
-  return prisma.motorista.findMany({
-    where: { deletadoEm: null, filialId },
-    orderBy: { nome: "asc" },
-    select: { id: true, nome: true },
-  })
-}
-
 /** Matrículas (SEVA) dos motoristas ativos da filial — a conferência do relatório de jornada mostra só esses. */
 export async function buscarMatriculasCadastradas(filialId: number): Promise<number[]> {
   const motoristas = await prisma.motorista.findMany({ where: { filialId, deletadoEm: null }, select: { seva: true } })
