@@ -16,6 +16,7 @@ import {
   STATUS_ENCERRADOS_DASHBOARD,
   organizarViagensDoDashboard,
   resumoPorTurno,
+  pendenciaDeOutroDia,
   viagemEncerrada,
 } from "@/lib/services/dashboard.service"
 import { cn } from "@/lib/utils"
@@ -37,7 +38,7 @@ import { TOLERANCIA_SAIDA_MINUTOS, minutosDeAtraso, saidaAtrasada } from "@/lib/
 
 async function buscarDadosDashboard(filialId: number, hoje: Date) {
   const viagens = await buscarViagensDoDashboard(filialId, hoje)
-  return serializeData(viagens.map((viagem) => ({ viagem })))
+  return serializeData(viagens.map((viagem) => ({ viagem, pendencia: pendenciaDeOutroDia(viagem, inicioDoDia(hoje)) })))
 }
 
 type ItemDashboard = Awaited<ReturnType<typeof buscarDadosDashboard>>[number]
@@ -131,6 +132,26 @@ function SaidaCelula({ item }: { item: ItemDashboard }) {
   )
 }
 
+/** Viagem ativa que vem de um dia anterior: "desde 01/10" (saiu e não encerrou) ou "não saiu (01/10)". */
+function PendenciaDeOutroDia({ pendencia }: { pendencia: ItemDashboard["pendencia"] }) {
+  if (!pendencia) return null
+  const dia = formatarDataHoraPtBr(pendencia.desde).slice(0, 5)
+  if (pendencia.tipo === "NAO_SAIU") {
+    return (
+      <Alert variant="warning" inline title="Era pra ter saído num dia anterior e continua sem sair: inicie, posterge ou cancele.">
+        Não saiu ({dia})
+      </Alert>
+    )
+  }
+  return pendencia.atrasada ? (
+    <Alert variant="warning" inline title="Saiu num dia anterior, o fim previsto já passou e a viagem não foi encerrada.">
+      Desde {dia}
+    </Alert>
+  ) : (
+    <p className="text-[11px] text-muted-foreground" title="Saiu num dia anterior e ainda está em andamento.">Desde {dia}</p>
+  )
+}
+
 function StatusCelula({ item }: { item: ItemDashboard }) {
   const { viagem } = item
   return (
@@ -146,6 +167,7 @@ function StatusCelula({ item }: { item: ItemDashboard }) {
         fimPrevisto={viagem.fimPrevisto}
         opcoesPermitidas={STATUS_ALTERAVEIS_NO_DASHBOARD}
       />
+      <PendenciaDeOutroDia pendencia={item.pendencia} />
     </div>
   )
 }
@@ -394,7 +416,7 @@ export default async function DashboardPage({
   )
 
   const explicacaoDashboard =
-    "Painel de acompanhamento: na lista, só o que ainda está ativo (criadas, alocadas, iniciadas, retornando — inclusive de dias anteriores — e postergadas). Finalizadas e canceladas no dia ficam só no contador. Aqui só se registra a saída real e o status — editar, alocar e criar é na Gestão de Viagens." +
+    "Painel de acompanhamento: na lista, só o que ainda está ativo (criadas, alocadas, iniciadas, retornando e postergadas). De dias anteriores aparecem as que saíram e não encerraram (“desde 01/10”) e as que não saíram quando deviam (“não saiu”, até 30 dias). Finalizadas e canceladas no dia ficam só no contador. Aqui só se registra a saída real e o status — editar, alocar e criar é na Gestão de Viagens." +
     (vendoOutroDia ? " Status mostrado é o atual da viagem, não uma foto de como estava naquele dia — pra ver a mudança em si, use o Histórico." : "")
 
   const saidas = todosDoDia.filter((item) => item.viagem.horarioRealSaida)

@@ -1,4 +1,5 @@
 import type { StatusViagem, Turno } from "@prisma/client"
+import { STATUS_A_INICIAR, STATUS_EM_ANDAMENTO } from "@/lib/services/viagem-status.service"
 
 /**
  * No Dashboard (painel de acompanhamento) só se muda o status do ciclo da
@@ -27,6 +28,30 @@ export const STATUS_ENCERRADOS_DASHBOARD = ["FINALIZADA", "CANCELADA"] as const 
 
 export function viagemEncerrada(status: StatusViagem): boolean {
   return (STATUS_ENCERRADOS_DASHBOARD as readonly StatusViagem[]).includes(status)
+}
+
+/** Viagem que não saiu fica no painel por até tantos dias depois do início previsto (depois disso é lixo antigo, não pendência). */
+export const DIAS_NAO_SAIU_NO_DASHBOARD = 30
+
+/**
+ * Viagem ativa que vem de um dia anterior ao mostrado — o painel marca pra
+ * não passar batido:
+ * - EM_ANDAMENTO: saiu num dia anterior e não encerrou ("desde 01/10");
+ *   `atrasada` quando o fim previsto também já passou.
+ * - NAO_SAIU: era pra sair num dia anterior e continua Criada/Alocada/Postergada.
+ */
+export function pendenciaDeOutroDia(
+  viagem: { status: StatusViagem; inicioPrevisto: Date | string; fimPrevisto: Date | string; horarioRealSaida?: Date | string | null },
+  inicioDia: Date,
+): { tipo: "EM_ANDAMENTO"; desde: Date; atrasada: boolean } | { tipo: "NAO_SAIU"; desde: Date } | null {
+  const inicio = new Date(viagem.inicioPrevisto)
+  if (STATUS_EM_ANDAMENTO.includes(viagem.status)) {
+    const desde = new Date(viagem.horarioRealSaida ?? inicio)
+    if (desde.getTime() >= inicioDia.getTime()) return null
+    return { tipo: "EM_ANDAMENTO", desde, atrasada: new Date(viagem.fimPrevisto).getTime() < inicioDia.getTime() }
+  }
+  if (STATUS_A_INICIAR.includes(viagem.status) && inicio.getTime() < inicioDia.getTime()) return { tipo: "NAO_SAIU", desde: inicio }
+  return null
 }
 
 /**

@@ -1,7 +1,10 @@
 import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { chegadaEmNumeros } from "@/lib/services/descarga";
-import type { FiltroStatusViagem } from "@/lib/services/viagem-status.service";
+import { STATUS_A_INICIAR, STATUS_EM_ANDAMENTO, type FiltroStatusViagem } from "@/lib/services/viagem-status.service";
+import { DIAS_NAO_SAIU_NO_DASHBOARD } from "@/lib/services/dashboard.service";
+
+const UM_DIA_MS = 24 * 60 * 60 * 1000;
 import { fimDoDia, inicioDoDia } from "@/lib/utils/date-format";
 import { VIAGENS_POR_PAGINA, type FiltroListaViagens } from "@/lib/services/filtro-viagens";
 import { soEntregasDeCliente } from "@/lib/services/entrega-cliente";
@@ -92,9 +95,10 @@ export async function buscarViagensSemMotorista(filialId: number) {
 /**
  * Viagens do painel do Dashboard (só leitura, fora saída real e status):
  * qualquer status com atividade no dia (mesmo critério de sobreposição de
- * `reconciliarFolgaMotoristasNoDiaAtual`), mais qualquer "Retornando"
- * independente da data — ela não pode sumir só porque começou num dia
- * anterior — mais Canceladas e Finalizadas NAQUELE dia (canceladoEm /
+ * `reconciliarFolgaMotoristasNoDiaAtual`), mais Iniciada/Retornando de
+ * dias anteriores — não podem sumir só porque o fim previsto passou — e as
+ * que não saíram quando deviam (últimos 30 dias, ver
+ * DIAS_NAO_SAIU_NO_DASHBOARD), mais Canceladas e Finalizadas NAQUELE dia (canceladoEm /
  * finalizadoEm), mesmo que a janela original da viagem já tenha passado.
  *
  * Traz todos os status de uma vez: o filtro por status e as contagens dos
@@ -111,7 +115,10 @@ export async function buscarViagensDoDashboard(filialId: number, hoje: Date) {
       filialId,
       OR: [
         { inicioPrevisto: { lte: fimHoje }, fimPrevisto: { gte: inicioHoje } },
-        { status: "RETORNANDO" },
+        // Em andamento de dias anteriores fica até encerrar (mesmo com o fim previsto já passado).
+        { status: { in: STATUS_EM_ANDAMENTO }, inicioPrevisto: { lte: fimHoje } },
+        // Não saiu e era pra ter saído antes: pendência pro escalador resolver.
+        { status: { in: STATUS_A_INICIAR }, inicioPrevisto: { gte: new Date(inicioHoje.getTime() - DIAS_NAO_SAIU_NO_DASHBOARD * UM_DIA_MS), lt: inicioHoje } },
         { status: "CANCELADA", canceladoEm: { gte: inicioHoje, lte: fimHoje } },
         { status: "FINALIZADA", finalizadoEm: { gte: inicioHoje, lte: fimHoje } },
       ],
