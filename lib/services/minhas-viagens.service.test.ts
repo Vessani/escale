@@ -256,7 +256,7 @@ describe("registrarChegadaCliente", () => {
     expect(tx.chegadaEntrega.upsert.mock.calls[0][0].create).toMatchObject({ medicao: null, polInicial: 80, polFinal: 15, totalDescarregado: 750, fator: null })
 
     vi.mocked(prisma.entrega.findFirst).mockResolvedValue(entrega() as never)
-    await registrarChegadaCliente(FILIAL, ZE, 1, 11, dados({ medicao: "MANOMETRO", nivelInicial: 80, nivelFinal: 30, fatorCliente: 12.5 }), ator, agora)
+    await registrarChegadaCliente(FILIAL, ZE, 1, 11, dados({ medicao: "MANOMETRO", nivelInicial: 30, nivelFinal: 80, fatorCliente: 12.5 }), ator, agora)
     expect(tx.chegadaEntrega.upsert.mock.calls[1][0].create).toMatchObject({ medicao: "MANOMETRO", fator: 12.5, totalDescarregado: 625, polInicial: null })
   })
 
