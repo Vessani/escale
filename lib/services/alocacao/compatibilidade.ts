@@ -105,26 +105,29 @@ export function motoristaAutorizadoParaProduto(
   return !produtoExigido || produtosAutorizados.includes(produtoExigido)
 }
 
-export function motoristaEhCompativel(
-  motorista: MotoristaParaAlocacao,
-  contexto: ContextoCompatibilidade,
-) {
+const ROTULO_CODIGO_PARADO: Record<number, string> = { 7: "Folga", 8: "Férias", 9: "Exames", 10: "Interno", 11: "Manutenção" }
+const diaCurto = (data: Date) => new Intl.DateTimeFormat("pt-BR", { timeZone: "America/Sao_Paulo", day: "2-digit", month: "2-digit" }).format(data)
+
+/**
+ * Por que o motorista NÃO cabe na regra pra esta viagem (null = cabe) — o
+ * mesmo texto aparece no seletor ao lado do nome "fora da regra", pra quem
+ * escala não ter que adivinhar. Fonte única: motoristaEhCompativel é
+ * `motivoForaDaRegra(...) === null`.
+ */
+export function motivoForaDaRegra(motorista: MotoristaParaAlocacao, contexto: ContextoCompatibilidade): string | null {
   // Em treinamento/enchedor nunca vão como principal (ver tipo-motorista.ts).
   // Instrutor e interno PODEM — só não entram na sugestão automática, filtro
   // aplicado em filtrarMotoristasCompativeis, não aqui: esta função também
   // responde "cabe na regra?" pra escolha manual (Dashboard, edição).
-  if (!podeSerPrincipal(motorista.tipo)) {
-    return false
-  }
+  if (!podeSerPrincipal(motorista.tipo)) return "Não vai como principal"
 
-  if (motorista.turno !== contexto.turnoViagem) {
-    return false
-  }
+  if (motorista.turno !== contexto.turnoViagem) return `Turno ${motorista.turno === "NOITE" ? "Noite" : "Dia"}`
 
   const codigoNaViagem = codigoJornadaNaViagem(motorista, contexto)
-
+  const parado = ROTULO_CODIGO_PARADO[codigoNaViagem]
+  if (parado) return `${parado} em ${diaCurto(contexto.dataInicioViagem)}`
   if (calcularDiasDisponiveis(codigoNaViagem) < contexto.diasViagem) {
-    return false
+    return `${codigoNaViagem}º dia: não cabem ${contexto.diasViagem} dias de viagem`
   }
 
   // Garante que a viagem inteira cabe dentro do ciclo de trabalho: mesmo com
@@ -144,16 +147,20 @@ export function motoristaEhCompativel(
     motorista.diasTrabalhados,
   )
   if (codigoNoUltimoDia > MAX_DIAS_CONSECUTIVOS) {
-    return false
+    return `${ROTULO_CODIGO_PARADO[codigoNoUltimoDia] ?? "Folga"} em ${diaCurto(fimViagem)} (fim da viagem)`
   }
 
   if (!motoristaAutorizadoParaProduto(motorista.produtosAutorizados, contexto.produtoExigido)) {
-    return false
+    return "Produto não autorizado"
   }
 
-  if (!contexto.integracaoExigida) {
-    return true
+  if (contexto.integracaoExigida && !temIntegracaoValida(motorista, contexto.integracaoExigida, contexto.dataInicioViagem)) {
+    return "Sem integração válida"
   }
 
-  return temIntegracaoValida(motorista, contexto.integracaoExigida, contexto.dataInicioViagem)
+  return null
+}
+
+export function motoristaEhCompativel(motorista: MotoristaParaAlocacao, contexto: ContextoCompatibilidade) {
+  return motivoForaDaRegra(motorista, contexto) === null
 }

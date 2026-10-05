@@ -12,6 +12,7 @@ import {
   motoristaChegaATempo,
   filtrarMotoristasDisponiveisNoPeriodo,
   motoristaEhCompativel,
+  motivoForaDaRegra,
   motoristaEstaDisponivelNoPeriodo,
   periodoConflita,
   periodosConflitamComDescanso,
@@ -103,6 +104,21 @@ describe("alocacao.service", () => {
         SAP_CODES_TESTE,
       )
       expect(resultado).toBe("4521087")
+    })
+  })
+
+  describe("motivoForaDaRegra (texto ao lado do nome no seletor)", () => {
+    const hoje = new Date("2026-07-08T00:00:00")
+    const contexto = (parcial = {}) => ({ turnoViagem: "MANHA" as const, diasViagem: 1, dataInicioViagem: hoje, integracaoExigida: null, hoje, ...parcial })
+
+    it("diz o motivo de cada regra; null quando cabe", () => {
+      expect(motivoForaDaRegra(criarMotorista({ diasTrabalhados: 3 }), contexto())).toBeNull()
+      expect(motivoForaDaRegra(criarMotorista({ turno: "NOITE" }), contexto())).toBe("Turno Noite")
+      expect(motivoForaDaRegra(criarMotorista({ tipo: "ENCHEDOR" }), contexto())).toBe("Não vai como principal")
+      expect(motivoForaDaRegra(criarMotorista({ diasTrabalhados: 7 }), contexto())).toBe("Folga em 08/07")
+      expect(motivoForaDaRegra(criarMotorista({ diasTrabalhados: 5 }), contexto({ diasViagem: 3 }))).toBe("5º dia: não cabem 3 dias de viagem")
+      expect(motivoForaDaRegra(criarMotorista({ produtosAutorizados: [] }), contexto({ produtoExigido: "NITROGENIO" }))).toBe("Produto não autorizado")
+      expect(motivoForaDaRegra(criarMotorista({}), contexto({ integracaoExigida: "2001" }))).toBe("Sem integração válida")
     })
   })
 

@@ -2,7 +2,8 @@ import { UserX } from "lucide-react"
 import { EmptyState } from "@/components/ui/empty-state"
 import { requireSessaoPaginaComFilial } from "@/lib/auth-guard"
 import { buscarMotoristasSemViagemHoje, contarMotoristasAtivos } from "@/lib/queries/motoristas"
-import { mapearRegistrosJornada, projetarCodigoNoDia } from "@/lib/services/jornada.service"
+import { completarFolgasDoRelatorio, mapearRegistrosJornada, projetarCodigoNoDia } from "@/lib/services/jornada.service"
+import { buscarCoberturaRelatorioJornada } from "@/lib/queries/filiais"
 import { determinarAcaoSugerida } from "@/lib/services/motoristas-ociosos.service"
 import { formatarDataDia } from "../calendario-utils"
 import SemViagemClient from "./sem-viagem-client"
@@ -11,13 +12,14 @@ export default async function MotoristasSemViagemPage() {
   const { filialId } = await requireSessaoPaginaComFilial()
   const hoje = new Date()
 
-  const [motoristas, totalMotoristas] = await Promise.all([
+  const [motoristas, totalMotoristas, coberturaRelatorio] = await Promise.all([
     buscarMotoristasSemViagemHoje(filialId, hoje),
     contarMotoristasAtivos(filialId),
+    buscarCoberturaRelatorioJornada(filialId),
   ])
 
   const motoristasComAcao = motoristas.map((motorista) => {
-    const registrosProjetados = mapearRegistrosJornada(motorista.registrosJornada)
+    const registrosProjetados = completarFolgasDoRelatorio(mapearRegistrosJornada(motorista.registrosJornada), coberturaRelatorio)
     const codigoHoje = projetarCodigoNoDia(registrosProjetados, hoje, hoje, motorista.diasTrabalhados)
     return {
       id: motorista.id,

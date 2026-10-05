@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest"
 import {
+  completarFolgasDoRelatorio,
   calcularCodigoJornadaNoDia,
   diferencaEmDias,
   encontrarFimJornadaAnterior,
@@ -285,5 +286,39 @@ describe("jornada.service", () => {
       expect(projetarCodigoNoDia(registrosProjetados, hojeReal, hojeReal, 3)).toBe(3)
       expect(projetarCodigoNoDia(registrosProjetados, amanhaReal, hojeReal, 3)).toBe(7)
     })
+  })
+})
+
+describe("completarFolgasDoRelatorio (dia coberto pelo relatório sem registro = folga)", () => {
+  const d = (dia: string) => new Date(`${dia}T00:00:00-03:00`)
+  const trabalhou = (dia: string, codigo: number) => ({ data: d(dia), codigo, fimJornada: new Date(`${dia}T18:00:00-03:00`) })
+  const hoje = d("2026-10-05")
+
+  it("caso real: 4º dia em 03/10, não apareceu em 04/10 → no 06/10 está no 1º dia, não em Folga", () => {
+    const registros = [trabalhou("2026-10-01", 2), trabalhou("2026-10-02", 3), trabalhou("2026-10-03", 4)]
+    // sem a cobertura, a projeção supunha que ele seguiu trabalhando
+    expect(projetarCodigoNoDia(registros, d("2026-10-06"), hoje, 1)).toBe(7)
+
+    const completos = completarFolgasDoRelatorio(registros, d("2026-10-05"))
+    // 04/10 vira Folga; 05/10 (último dia do relatório) fica de fora
+    expect(completos.filter((r) => r.fimJornada === null).map((r) => r.data)).toEqual([d("2026-10-04")])
+    expect(projetarCodigoNoDia(completos, d("2026-10-05"), hoje, 1)).toBe(1)
+    expect(projetarCodigoNoDia(completos, d("2026-10-06"), hoje, 1)).toBe(2)
+  })
+
+  it("último dia do relatório é incompleto (noturno entra às 20h): a ausência ali segue a projeção normal", () => {
+    const registros = [trabalhou("2026-10-04", 3)]
+    const completos = completarFolgasDoRelatorio(registros, d("2026-10-05"))
+    expect(completos).toBe(registros)
+    expect(projetarCodigoNoDia(completos, d("2026-10-05"), hoje, 1)).toBe(4)
+  })
+
+  it("não mexe: sem cobertura, sem histórico, Férias/Exames/Interno/Manutenção, dias já registrados", () => {
+    expect(completarFolgasDoRelatorio([trabalhou("2026-10-01", 2)], null)).toHaveLength(1)
+    expect(completarFolgasDoRelatorio([], d("2026-10-05"))).toEqual([])
+    expect(completarFolgasDoRelatorio([{ data: d("2026-10-01"), codigo: 8 }], d("2026-10-05"))).toHaveLength(1)
+    const comFolgaManual = [trabalhou("2026-10-01", 5), { data: d("2026-10-03"), codigo: 7 }]
+    const completos = completarFolgasDoRelatorio(comFolgaManual, d("2026-10-05"))
+    expect(completos.map((r) => r.data.getTime()).sort()).toEqual([d("2026-10-01"), d("2026-10-03"), d("2026-10-04")].map((x) => x.getTime()))
   })
 })

@@ -86,6 +86,44 @@ export function mapearRegistrosJornada(registros: RegistroJornadaBruto[]): Ponto
   }))
 }
 
+const CODIGO_FOLGA = 7
+const UM_DIA_MS = 86_400_000
+
+/**
+ * O Relatório de Jornada traz todo dia trabalhado (quem pega veículo bate o
+ * ponto). Então, dentro do que o relatório cobre, dia sem registro = o
+ * motorista NÃO trabalhou = folga. Sem isso a projeção supunha que ele
+ * seguiu trabalhando (4º → 5º → 6º → "7º = Folga") e um motorista
+ * descansado aparecia fora da regra.
+ *
+ * Preenche com Folga os dias depois do último registro até a VÉSPERA do
+ * fim da cobertura — o último dia do relatório pode estar incompleto (o
+ * noturno que entra às 20h ainda não bateu o ponto quando o relatório é
+ * exportado), então ali a ausência continua sendo "não sei" e vale a
+ * projeção normal. Não mexe em quem está em Férias/Exames/Interno/Manutenção
+ * (códigos 8-11) nem em quem não tem histórico.
+ */
+export function completarFolgasDoRelatorio(registros: PontoRegistroJornada[], relatorioJornadaAte: Date | null): PontoRegistroJornada[] {
+  if (!relatorioJornadaAte || registros.length === 0) return registros
+  const limite = inicioDoDia(relatorioJornadaAte).getTime() - UM_DIA_MS
+  const dias = new Set(registros.map((registro) => inicioDoDia(registro.data).getTime()))
+
+  let ancora: PontoRegistroJornada | null = null
+  for (const registro of registros) {
+    const dia = inicioDoDia(registro.data).getTime()
+    if (dia <= limite && (!ancora || dia > inicioDoDia(ancora.data).getTime())) ancora = registro
+  }
+  if (!ancora || ancora.codigo > CODIGO_FOLGA) return registros
+
+  const folgas: PontoRegistroJornada[] = []
+  for (let dia = inicioDoDia(ancora.data).getTime() + UM_DIA_MS; dia <= limite; dia += UM_DIA_MS) {
+    // inicioDoDia de novo: dia + 24h pode cair às 23h/01h numa virada de horário de verão.
+    const data = inicioDoDia(new Date(dia + UM_DIA_MS / 2))
+    if (!dias.has(data.getTime())) folgas.push({ data, codigo: CODIGO_FOLGA, fimJornada: null })
+  }
+  return folgas.length ? [...registros, ...folgas] : registros
+}
+
 /**
  * O que a regra de descanso precisa da jornada de um motorista vindo do
  * banco: o histórico convertido (mapearRegistrosJornada) e até que dia o
@@ -97,9 +135,10 @@ export function prepararJornadaDoMotorista(motorista: {
   filial?: { relatorioJornadaAte: Date | string | null } | null
 }): { registrosJornada: PontoRegistroJornada[]; relatorioJornadaAte: Date | null } {
   const cobertura = motorista.filial?.relatorioJornadaAte
+  const relatorioJornadaAte = cobertura ? colunaDateParaLocal(new Date(cobertura)) : null
   return {
-    registrosJornada: mapearRegistrosJornada(motorista.registrosJornada),
-    relatorioJornadaAte: cobertura ? colunaDateParaLocal(new Date(cobertura)) : null,
+    registrosJornada: completarFolgasDoRelatorio(mapearRegistrosJornada(motorista.registrosJornada), relatorioJornadaAte),
+    relatorioJornadaAte,
   }
 }
 

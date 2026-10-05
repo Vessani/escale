@@ -7,7 +7,8 @@ import FormEditarMotorista from "./form-editar"
 import { HistoricoCard } from "@/components/auditoria/historico-card"
 import { ehGerencia } from "@/lib/papeis"
 import { serializeData } from "@/lib/serialization"
-import { mapearRegistrosJornada, projetarCodigoNoDia } from "@/lib/services/jornada.service"
+import { completarFolgasDoRelatorio, mapearRegistrosJornada, projetarCodigoNoDia } from "@/lib/services/jornada.service"
+import { buscarCoberturaRelatorioJornada } from "@/lib/queries/filiais"
 import { inicioDoDia } from "@/lib/utils/date-format"
 import { AcessoMotoristaCard } from "@/components/motorista/acesso-motorista-card"
 import { situacaoAcessoMotorista } from "@/lib/services/acesso-motorista.service"
@@ -23,11 +24,12 @@ export default async function EditarMotoristaPage({ params }: { params: Promise<
   const { filialId, session } = await requireSessaoPaginaComFilial()
   const verHistorico = ehGerencia(session.user.role)
 
-  const [motorista, clientes, historico, acesso] = await Promise.all([
+  const [motorista, clientes, historico, acesso, coberturaRelatorio] = await Promise.all([
     buscarMotoristaPorId(filialId, motoristaId),
     buscarClientes(),
     verHistorico ? buscarHistoricoDaEntidade("Motorista", motoristaId) : null,
     situacaoAcessoMotorista(filialId, motoristaId),
+    buscarCoberturaRelatorioJornada(filialId),
   ])
 
   if (!motorista) {
@@ -39,7 +41,7 @@ export default async function EditarMotoristaPage({ params }: { params: Promise<
   // que pode estar parado desde a última vez que algo escreveu no dia de hoje.
   const hoje = inicioDoDia(new Date())
   const codigoHoje = projetarCodigoNoDia(
-    mapearRegistrosJornada(motorista.registrosJornada),
+    completarFolgasDoRelatorio(mapearRegistrosJornada(motorista.registrosJornada), coberturaRelatorio),
     hoje,
     hoje,
     motorista.diasTrabalhados,

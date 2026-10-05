@@ -1,6 +1,6 @@
 import type { TipoMotorista, TipoProduto, Turno } from "@prisma/client"
 import { situacaoDoMotorista, type SituacaoMotorista } from "@/components/motorista/indicador-compatibilidade"
-import { motoristaEhCompativel, motoristaEstaDisponivelNoPeriodo } from "./alocacao.service"
+import { motivoForaDaRegra, motoristaEstaDisponivelNoPeriodo } from "./alocacao.service"
 import type { IntegracaoBase, ViagemParaDisponibilidade } from "./alocacao/tipos"
 import { prepararJornadaDoMotorista } from "./jornada.service"
 
@@ -10,6 +10,8 @@ type OpcaoMotoristaServidor = {
   nome: string
   tipo: TipoMotorista
   situacao: SituacaoMotorista
+  /** Por que está fora da regra ("Folga em 06/10", "Turno Noite"...) — null quando cabe. */
+  motivo: string | null
 }
 
 type MotoristaComAgendaBruta = {
@@ -73,7 +75,7 @@ export function montarOpcoesMotoristaPorViagem(
           fim,
           hoje,
         )
-        const compativel = motoristaEhCompativel(motorista, {
+        const motivo = motivoForaDaRegra(motorista, {
           turnoViagem: viagem.turno,
           diasViagem: viagem.diasViagem,
           dataInicioViagem: inicio,
@@ -87,7 +89,8 @@ export function montarOpcoesMotoristaPorViagem(
           id: motorista.id,
           nome: motorista.nome,
           tipo: motorista.tipo,
-          situacao: situacaoDoMotorista(compativel, disponivel),
+          situacao: situacaoDoMotorista(motivo === null, disponivel),
+          motivo,
         }
       })
 
