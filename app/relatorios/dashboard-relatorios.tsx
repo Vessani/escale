@@ -37,6 +37,33 @@ function formatarDiaCurto(dia: string) {
   return `${dd}/${mes}`
 }
 
+/**
+ * Ranking em barras horizontais com o nome em cima de cada barra — nomes
+ * longos de cliente (ex: "CEBRACE BV N2L O2 LIQUIDO") ficam numa linha só,
+ * cortados com "…" e o nome inteiro no tooltip, sem sobrepor o vizinho.
+ */
+function RankingBarras({ dados, cor, rotulo }: { dados: Array<{ nome: string; quantidade: number }>; cor: string; rotulo: string }) {
+  const maior = Math.max(...dados.map((item) => item.quantidade), 1)
+  return (
+    <ol className="space-y-2.5">
+      {dados.map((item, indice) => (
+        <li key={item.nome} title={`${item.nome}: ${item.quantidade} ${rotulo}`}>
+          <div className="flex items-baseline justify-between gap-3 text-sm">
+            <span className="min-w-0 truncate">
+              <span className="mr-1.5 text-xs tabular-nums text-muted-foreground">{indice + 1}.</span>
+              {item.nome}
+            </span>
+            <span className="shrink-0 font-semibold tabular-nums">{item.quantidade}</span>
+          </div>
+          <div className="mt-1 h-2 rounded-full bg-muted">
+            <div className="h-2 rounded-full" style={{ width: `${(item.quantidade / maior) * 100}%`, backgroundColor: cor }} />
+          </div>
+        </li>
+      ))}
+    </ol>
+  )
+}
+
 function KpiCard({ label, valor, destaque }: { label: string; valor: string | number; destaque?: "success" | "destructive" | "warning" }) {
   const corTexto =
     destaque === "success" ? "text-success" : destaque === "destructive" ? "text-destructive" : destaque === "warning" ? "text-warning" : "text-foreground"
@@ -199,15 +226,7 @@ export default function DashboardRelatorios({
             {topMotoristas.length === 0 ? (
               <p className="text-sm text-muted-foreground">Nenhuma viagem alocada no período.</p>
             ) : (
-              <ResponsiveContainer width="100%" height={260}>
-                <BarChart data={topMotoristas} layout="vertical" margin={{ left: 24 }}>
-                  <CartesianGrid strokeDasharray="3 3" horizontal={false} />
-                  <XAxis type="number" allowDecimals={false} tick={{ fontSize: 12 }} />
-                  <YAxis type="category" dataKey="nome" tick={{ fontSize: 12 }} width={120} />
-                  <Tooltip />
-                  <Bar dataKey="quantidade" name="Viagens" fill="var(--info)" radius={[0, 4, 4, 0]} />
-                </BarChart>
-              </ResponsiveContainer>
+              <RankingBarras dados={topMotoristas} cor="var(--info)" rotulo="viagens" />
             )}
           </CardContent>
         </Card>
@@ -220,15 +239,7 @@ export default function DashboardRelatorios({
             {topClientesRotas.length === 0 ? (
               <p className="text-sm text-muted-foreground">Nenhuma entrega no período.</p>
             ) : (
-              <ResponsiveContainer width="100%" height={260}>
-                <BarChart data={topClientesRotas} layout="vertical" margin={{ left: 24 }}>
-                  <CartesianGrid strokeDasharray="3 3" horizontal={false} />
-                  <XAxis type="number" allowDecimals={false} tick={{ fontSize: 12 }} />
-                  <YAxis type="category" dataKey="nome" tick={{ fontSize: 12 }} width={120} />
-                  <Tooltip />
-                  <Bar dataKey="quantidade" name="Viagens" fill="var(--success)" radius={[0, 4, 4, 0]} />
-                </BarChart>
-              </ResponsiveContainer>
+              <RankingBarras dados={topClientesRotas} cor="var(--success)" rotulo="viagens" />
             )}
           </CardContent>
         </Card>
@@ -241,15 +252,7 @@ export default function DashboardRelatorios({
             {topClientesCancelamentos.length === 0 ? (
               <p className="text-sm text-muted-foreground">Nenhum cancelamento no período.</p>
             ) : (
-              <ResponsiveContainer width="100%" height={260}>
-                <BarChart data={topClientesCancelamentos} layout="vertical" margin={{ left: 24 }}>
-                  <CartesianGrid strokeDasharray="3 3" horizontal={false} />
-                  <XAxis type="number" allowDecimals={false} tick={{ fontSize: 12 }} />
-                  <YAxis type="category" dataKey="nome" tick={{ fontSize: 12 }} width={120} />
-                  <Tooltip />
-                  <Bar dataKey="quantidade" name="Cancelamentos" fill="var(--destructive)" radius={[0, 4, 4, 0]} />
-                </BarChart>
-              </ResponsiveContainer>
+              <RankingBarras dados={topClientesCancelamentos} cor="var(--destructive)" rotulo="cancelamentos" />
             )}
           </CardContent>
         </Card>
