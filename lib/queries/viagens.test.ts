@@ -87,6 +87,12 @@ describe("lib/queries/viagens — isolamento por filial", () => {
     // Sem filtro de status no banco — o filtro e as contagens saem da mesma lista, na página.
     expect(chamada.where).not.toHaveProperty("status")
     expect(chamada.where.OR).toContainEqual(expect.objectContaining({ status: "FINALIZADA" }))
+    // Em andamento de dias anteriores (qualquer fim previsto) e as que não saíram quando deviam.
+    expect(chamada.where.OR).toContainEqual({ status: { in: ["INICIADA", "RETORNANDO"] }, inicioPrevisto: { lte: expect.any(Date) } })
+    const naoSaiu = chamada.where.OR.find((filtro) => JSON.stringify(filtro.status ?? null).includes("ALOCADA")) as {
+      inicioPrevisto: { gte: Date; lt: Date }
+    }
+    expect((naoSaiu.inicioPrevisto.lt.getTime() - naoSaiu.inicioPrevisto.gte.getTime()) / 86_400_000).toBe(30)
   })
 
   it("buscarViagensDoDashboard nunca mistura filialId de duas chamadas diferentes", async () => {

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest"
-import { organizarViagensDoDashboard, resumoPorTurno } from "./dashboard.service"
+import { organizarViagensDoDashboard, pendenciaDeOutroDia, resumoPorTurno } from "./dashboard.service"
 
 type Status = "INICIADA" | "FINALIZADA" | "CANCELADA" | "CRIADA" | "RETORNANDO" | "POSTERGADA"
 const v = (id: number, status: Status, inicio: string) => ({ id, status, inicioPrevisto: new Date(`${inicio}:00-03:00`) })
@@ -50,5 +50,30 @@ describe("resumoPorTurno", () => {
     expect(resumo.dia).toEqual({ viagens: 2, entregas: 5 })
     expect(resumo.noite).toEqual({ viagens: 2, entregas: 3 })
     expect(resumo.total).toEqual({ viagens: 4, entregas: 8 })
+  })
+})
+
+describe("pendenciaDeOutroDia", () => {
+  const hoje = new Date("2026-10-05T03:00:00Z") // 05/10 00:00 em Brasília
+  const v = (status: string, inicio: string, fim: string, saida: string | null = null) =>
+    ({ status, inicioPrevisto: new Date(inicio), fimPrevisto: new Date(fim), horarioRealSaida: saida && new Date(saida) }) as never
+
+  it("saiu em 01/10 e não encerrou: desde a saída; atrasada quando o fim previsto passou", () => {
+    expect(pendenciaDeOutroDia(v("INICIADA", "2026-10-01T13:00:00Z", "2026-10-01T23:00:00Z", "2026-10-01T13:15:00Z"), hoje)).toEqual({
+      tipo: "EM_ANDAMENTO", desde: new Date("2026-10-01T13:15:00Z"), atrasada: true,
+    })
+    // viagem longa planejada até amanhã: marca a data, sem atraso
+    expect(pendenciaDeOutroDia(v("RETORNANDO", "2026-10-04T13:00:00Z", "2026-10-06T13:00:00Z"), hoje)).toMatchObject({ tipo: "EM_ANDAMENTO", atrasada: false })
+  })
+
+  it("não saiu quando devia: Criada/Alocada/Postergada com início antes do dia", () => {
+    expect(pendenciaDeOutroDia(v("ALOCADA", "2026-10-01T13:00:00Z", "2026-10-01T23:00:00Z"), hoje)).toEqual({ tipo: "NAO_SAIU", desde: new Date("2026-10-01T13:00:00Z") })
+    expect(pendenciaDeOutroDia(v("CRIADA", "2026-10-04T23:00:00Z", "2026-10-05T09:00:00Z"), hoje)).toMatchObject({ tipo: "NAO_SAIU" })
+  })
+
+  it("do próprio dia ou encerrada: sem marca", () => {
+    expect(pendenciaDeOutroDia(v("INICIADA", "2026-10-05T10:00:00Z", "2026-10-05T20:00:00Z", "2026-10-05T10:05:00Z"), hoje)).toBeNull()
+    expect(pendenciaDeOutroDia(v("ALOCADA", "2026-10-05T10:00:00Z", "2026-10-05T20:00:00Z"), hoje)).toBeNull()
+    expect(pendenciaDeOutroDia(v("FINALIZADA", "2026-10-01T13:00:00Z", "2026-10-01T23:00:00Z"), hoje)).toBeNull()
   })
 })
