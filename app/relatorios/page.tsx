@@ -12,7 +12,6 @@ import {
   Wallet,
 } from "lucide-react"
 import { requireSessaoPaginaComFilial } from "@/lib/auth-guard"
-import { buscarNomesMotoristas } from "@/lib/queries/motoristas"
 import { buscarIndicadoresDashboard } from "@/lib/queries/dashboard"
 import { buscarRelatorioCircadiano } from "@/lib/queries/circadiano"
 import { buscarEstourosSetimoDia } from "@/lib/queries/estouro-setimo-dia"
@@ -20,7 +19,6 @@ import { contarAlertasOperacao } from "@/lib/queries/relatorios/operacao"
 import { PERIODO_PADRAO } from "@/lib/relatorios/catalogo"
 import { periodoOuPadrao } from "@/lib/relatorios/periodo"
 import { DIAS_INTEGRACAO_PADRAO } from "@/lib/services/relatorios/operacao"
-import RelatoriosClient from "./relatorios-client"
 import DashboardRelatorios from "./dashboard-relatorios"
 import { GradeRelatorios } from "./cartoes-relatorio"
 
@@ -40,8 +38,7 @@ export default async function RelatoriosPage({
   const periodoSetimoDia = periodoOuPadrao(undefined, undefined, PERIODO_PADRAO.estouroSetimoDia)
 
   const { filialId } = await requireSessaoPaginaComFilial()
-  const [motoristas, indicadores, circadiano, estourosSetimoDia, alertas] = await Promise.all([
-    buscarNomesMotoristas(filialId),
+  const [indicadores, circadiano, estourosSetimoDia, alertas] = await Promise.all([
     buscarIndicadoresDashboard(filialId, periodoIndicadores.de, periodoIndicadores.ate),
     buscarRelatorioCircadiano(filialId, periodoCircadiano.de, periodoCircadiano.ate),
     buscarEstourosSetimoDia(filialId, periodoSetimoDia.de, periodoSetimoDia.ate),
@@ -146,10 +143,6 @@ export default async function RelatoriosPage({
         <DashboardRelatorios indicadores={indicadores} de={periodoIndicadores.deTexto} ate={periodoIndicadores.ateTexto} />
       </section>
 
-      <section className="space-y-3">
-        <h2 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">Planilhas de viagens</h2>
-        <RelatoriosClient motoristas={motoristas} />
-      </section>
     </div>
   )
 }

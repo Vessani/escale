@@ -3,9 +3,6 @@ import ExcelJS from "exceljs"
 import {
   sanitizarNomeArquivo,
   gerarExcelViagem,
-  gerarExcelRelatorioGeral,
-  gerarExcelViagensMotorista,
-  gerarExcelViagensCriadasHoje,
 } from "@/lib/services/excel-export.service"
 import { excelProgramacaoDoDia } from "@/lib/excel/viagens"
 import { lerAba, nomesDasAbas, textoDaAba } from "@/lib/excel/ler-planilha"
@@ -84,48 +81,6 @@ describe("gerarExcelViagem (ordem de viagem)", () => {
     const texto = textoDaAba(await gerarExcelViagem({ ...viagemBase, motorista: null, entregas: [] }), "Ordem de viagem")
     expect(texto).toContain("Não alocado")
     expect(texto).toContain("Nenhuma entrega cadastrada.")
-  })
-})
-
-describe("listas de viagens", () => {
-  it("relatório geral: uma linha por viagem, com CPF, rota e extra", async () => {
-    const buffer = await gerarExcelRelatorioGeral([{ ...viagemBase, viagemExtra: true, integracaoExigida: "Cliente X" }])
-    const [linha] = lerAba(buffer, "Viagens")
-
-    expect(linha["Nº Viagem"]).toBe("123")
-    expect(linha["Status"]).toBe("Alocada")
-    expect(linha["Produto"]).toBe("Carbono")
-    expect(linha["Motorista"]).toBe("João da Silva")
-    expect(linha["CPF"]).toBe("11144477735")
-    expect(linha["Rota"]).toBe("Joinville › Blumenau")
-    expect(linha["Integração"]).toBe("Cliente X")
-    expect(linha["Extra"]).toBe("Sim")
-  })
-
-  it("viagens do motorista: sem CPF, título com o nome", async () => {
-    const buffer = await gerarExcelViagensMotorista([viagemBase], "João da Silva")
-    expect(lerAba(buffer, "Viagens")[0]).not.toHaveProperty("CPF")
-    expect(textoDaAba(buffer, "Viagens")).toContain("Viagens de João da Silva")
-  })
-
-  it("criadas no dia: resumo conta viagens e entregas por turno (só entrega com SAP Code)", async () => {
-    const buffer = await gerarExcelViagensCriadasHoje(
-      [
-        { ...viagemBase, numViagem: "D1", entregas: [{ ...entrega }, { ...entrega, sapcode: "" }, { ...entrega, sapcode: "S2" }] },
-        { ...viagemBase, numViagem: "D2", entregas: [{ ...entrega }] },
-        { ...viagemBase, numViagem: "N1", turno: "NOITE", entregas: [{ ...entrega }, { ...entrega, sapcode: "  " }] },
-      ],
-      "15/08/2026",
-    )
-
-    const texto = textoDaAba(buffer, "Viagens")
-    expect(texto).toContain("Viagens criadas em 15/08/2026")
-    expect(texto).toContain("Viagens: 3")
-    expect(texto).toContain("Dia: 2")
-    expect(texto).toContain("Noite: 1")
-    expect(texto).toContain("Entregas (dia): 3")
-    expect(texto).toContain("Entregas (noite): 1")
-    expect(lerAba(buffer, "Viagens")).toHaveLength(3)
   })
 })
 
