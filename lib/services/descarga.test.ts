@@ -11,11 +11,16 @@ describe("calcularDescarga", () => {
     expect(calcularDescarga({ produto: "CO2", medicao: "BALANCA", nivelInicial: 800, nivelFinal: 300 })).toMatchObject({ total: 500, unidade: "kg" })
   })
 
-  it("manômetro: (inicial − final) × conversão que o motorista informa", () => {
-    expect(calcularDescarga({ produto: "OXIGENIO", medicao: "MANOMETRO", nivelInicial: 80, nivelFinal: 30, fatorCliente: 12.5 })).toMatchObject({
-      ok: true, total: 625, fator: 12.5,
+  it("manômetro (tanque do cliente, sobe): (final − inicial) × conversão que o motorista informa", () => {
+    // Caso real: nitrogênio, 122" → 250", conversão 131,92
+    expect(calcularDescarga({ produto: "NITROGENIO", medicao: "MANOMETRO", nivelInicial: 122, nivelFinal: 250, fatorCliente: 131.92 })).toEqual({
+      ok: true, total: 16885.76, fator: 131.92, unidade: "", medicao: "MANOMETRO", nivelInicial: 122, nivelFinal: 250,
     })
-    expect(calcularDescarga({ produto: "OXIGENIO", medicao: "MANOMETRO", nivelInicial: 80, nivelFinal: 30, fatorCliente: 0 })).toMatchObject({ ok: false })
+    expect(calcularDescarga({ produto: "OXIGENIO", medicao: "MANOMETRO", nivelInicial: 30, nivelFinal: 80, fatorCliente: 0 })).toMatchObject({ ok: false })
+    // final menor que o inicial no manômetro = leituras trocadas
+    expect(calcularDescarga({ produto: "OXIGENIO", medicao: "MANOMETRO", nivelInicial: 80, nivelFinal: 30, fatorCliente: 12.5 })).toMatchObject({
+      ok: false, erro: expect.stringContaining("tanque do cliente"),
+    })
   })
 
   it("biometano: m³ inicial − m³ final, exige também as polegadas", () => {

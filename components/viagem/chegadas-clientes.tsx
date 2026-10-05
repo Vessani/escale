@@ -110,7 +110,7 @@ function FormChegada({
     })
   }
 
-  const unidadeLeitura = biometano ? "m³" : medicao === "BALANCA" ? "kg" : undefined
+  const unidadeLeitura = biometano ? "m³" : medicao === "BALANCA" ? "kg" : "pol"
 
   return (
     <div className="space-y-3 border-t pt-3">
@@ -156,7 +156,13 @@ function FormChegada({
             <CampoNumero rotulo="Nível final" valor={final} onChange={setFinal} sufixo={unidadeLeitura} />
           </div>
           {medicao === "MANOMETRO" && !biometano && (
-            <CampoNumero rotulo="Conversão do cliente" valor={fator} onChange={setFator} />
+            <>
+              <p className="text-xs text-muted-foreground">Manômetro do tanque do cliente: o nível sobe com a descarga (final maior que o inicial).</p>
+              <CampoNumero rotulo="Conversão do cliente" valor={fator} onChange={setFator} />
+            </>
+          )}
+          {medicao === "BALANCA" && !biometano && (
+            <p className="text-xs text-muted-foreground">Peso do caminhão: cai com a descarga (final menor que o inicial).</p>
           )}
           {medicao === "BALANCA" && produto && produto !== "BIOMETANO" && (
             <p className="text-xs text-muted-foreground">
