@@ -11,6 +11,8 @@ export type OpcaoMotorista = {
   nome: string
   tipo: TipoMotorista
   situacao: SituacaoMotorista
+  /** Por que está fora da regra — aparece ao lado do nome. */
+  motivo?: string | null
 }
 
 const ORDEM_SITUACAO: Record<SituacaoMotorista, number> = {
@@ -26,6 +28,7 @@ function ItemMotorista({ motorista, mostrarSituacao }: { motorista: OpcaoMotoris
       <span className="flex min-w-0 items-center gap-2">
         {mostrarSituacao && <IndicadorCompatibilidade situacao={motorista.situacao} />}
         <NomeMotorista nome={motorista.nome} tipo={motorista.tipo} />
+        {mostrarSituacao && motorista.motivo && <span className="truncate text-xs text-muted-foreground">· {motorista.motivo}</span>}
       </span>
     </SelectItem>
   )

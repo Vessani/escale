@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button"
 import { EmptyState } from "@/components/ui/empty-state"
 import { ChevronLeft, ChevronRight, PlusCircle, Upload, Users } from "lucide-react"
 import { buscarMotoristasComAgenda } from "@/lib/queries/motoristas"
+import { buscarCoberturaRelatorioJornada } from "@/lib/queries/filiais"
 import { serializeData } from "@/lib/serialization"
 import { fimDoDia, inicioDoDia } from "@/lib/utils/date-format"
 import CalendarioMotoristas from "./calendario-motoristas"
@@ -39,7 +40,10 @@ export default async function MotoristasPage({
 
   const { session, filialId } = await requireSessaoPaginaComFilial()
   const podeExcluir = session.user.role === "ADMIN"
-  const motoristas = await buscarMotoristasComAgenda(filialId, inicioJanela, fimJanela)
+  const [motoristas, coberturaRelatorio] = await Promise.all([
+    buscarMotoristasComAgenda(filialId, inicioJanela, fimJanela),
+    buscarCoberturaRelatorioJornada(filialId),
+  ])
   const inicioParam = formatarDataDia(inicioJanela)
   const diasIso = dias.map((dia) => formatarDataDia(dia))
   const calendarioSerializado = serializeData(
@@ -123,6 +127,7 @@ export default async function MotoristasPage({
         <CalendarioMotoristas
           inicioParam={inicioParam}
           hojeIso={hoje.toISOString()}
+          relatorioJornadaAteIso={coberturaRelatorio?.toISOString() ?? null}
           dias={diasIso}
           motoristas={calendarioSerializado}
           podeExcluir={podeExcluir}

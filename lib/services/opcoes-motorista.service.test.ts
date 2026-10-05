@@ -34,7 +34,7 @@ describe("montarOpcoesMotoristaPorViagem", () => {
   it("devolve só id, nome, tipo e situação — nada de agenda ou histórico pro navegador", () => {
     const opcoes = montarOpcoesMotoristaPorViagem([motorista()], [VIAGEM], HOJE).get(10)
 
-    expect(opcoes).toEqual([{ id: 1, nome: "ANA", tipo: "MOTORISTA", situacao: "OK" }])
+    expect(opcoes).toEqual([{ id: 1, nome: "ANA", tipo: "MOTORISTA", situacao: "OK", motivo: null }])
   })
 
   it("ignora a própria viagem na agenda — quem já está nela não aparece ocupado", () => {
@@ -56,5 +56,6 @@ describe("montarOpcoesMotoristaPorViagem", () => {
     const opcoes = montarOpcoesMotoristaPorViagem([motorista({ turno: "NOITE" })], [VIAGEM], HOJE).get(10)
 
     expect(opcoes?.[0].situacao).toBe("FORA_DA_REGRA")
+    expect(opcoes?.[0].motivo).toBe("Turno Noite")
   })
 })

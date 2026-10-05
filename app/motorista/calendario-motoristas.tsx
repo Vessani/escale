@@ -7,7 +7,7 @@ import { Badge } from "@/components/ui/badge"
 import { ConfirmDialog } from "@/components/ui/confirm-dialog"
 import { atualizarJornadaMotoristaNoCalendario, deletarMotorista } from "@/lib/actions/motoristas"
 import { calcularDiasDisponiveis } from "@/lib/services/alocacao.service"
-import { mapearRegistrosJornada, obterStatusJornada, projetarCodigoNoDia } from "@/lib/services/jornada.service"
+import { completarFolgasDoRelatorio, mapearRegistrosJornada, obterStatusJornada, projetarCodigoNoDia } from "@/lib/services/jornada.service"
 import { colunaDateParaLocal, fimDoDia, formatarHoraLocal, inicioDoDia } from "@/lib/utils/date-format"
 import { classeBadgeTurno } from "../viagens/badge-styles"
 import {
@@ -77,12 +77,14 @@ type Motorista = {
 type Props = {
   inicioParam: string
   hojeIso: string
+  /** Até que dia o Relatório de Jornada cobre — dia coberto sem registro conta como folga. */
+  relatorioJornadaAteIso: string | null
   dias: string[]
   motoristas: Motorista[]
   podeExcluir: boolean
 }
 
-export default function CalendarioMotoristas({ inicioParam, hojeIso, dias, motoristas, podeExcluir }: Props) {
+export default function CalendarioMotoristas({ inicioParam, hojeIso, relatorioJornadaAteIso, dias, motoristas, podeExcluir }: Props) {
   const router = useRouter()
   const [celulaEmEdicao, setCelulaEmEdicao] = useState<string | null>(null)
   const [celulaSalvando, setCelulaSalvando] = useState<string | null>(null)
@@ -105,11 +107,14 @@ export default function CalendarioMotoristas({ inicioParam, hojeIso, dias, motor
         // registrosProjetados alimenta só a projeção/rotação (projetarCodigoNoDia);
         // motorista.registrosJornada (bruto, preservado pelo spread) é usado à parte
         // pra achar o horário real de um dia exato — ver buscarJornadaRealNoDia.
-        const registrosProjetados = mapearRegistrosJornada(motorista.registrosJornada)
+        const registrosProjetados = completarFolgasDoRelatorio(
+          mapearRegistrosJornada(motorista.registrosJornada),
+          relatorioJornadaAteIso ? new Date(relatorioJornadaAteIso) : null,
+        )
         const codigoHoje = projetarCodigoNoDia(registrosProjetados, hoje, hoje, motorista.diasTrabalhados)
         return { ...motorista, registrosProjetados, codigoHoje }
       }),
-    [motoristas, hoje],
+    [motoristas, hoje, relatorioJornadaAteIso],
   )
 
   const motoristasFiltrados = useMemo(
