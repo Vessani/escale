@@ -1,5 +1,5 @@
 import { TipoProduto } from "@prisma/client"
-import { colunaDateParaLocal, fimDoDia } from "@/lib/utils/date-format"
+import { colunaDateParaLocal, fimDoDia, formatarDiaMes } from "@/lib/utils/date-format"
 import { projetarCodigoNoDia } from "../jornada.service"
 import type { ContextoCompatibilidade, MotoristaParaAlocacao } from "./tipos"
 import { podeSerPrincipal } from "../tipo-motorista"
@@ -106,7 +106,6 @@ export function motoristaAutorizadoParaProduto(
 }
 
 const ROTULO_CODIGO_PARADO: Record<number, string> = { 7: "Folga", 8: "Férias", 9: "Exames", 10: "Interno", 11: "Manutenção" }
-const diaCurto = (data: Date) => new Intl.DateTimeFormat("pt-BR", { timeZone: "America/Sao_Paulo", day: "2-digit", month: "2-digit" }).format(data)
 
 /**
  * Por que o motorista NÃO cabe na regra pra esta viagem (null = cabe) — o
@@ -125,7 +124,7 @@ export function motivoForaDaRegra(motorista: MotoristaParaAlocacao, contexto: Co
 
   const codigoNaViagem = codigoJornadaNaViagem(motorista, contexto)
   const parado = ROTULO_CODIGO_PARADO[codigoNaViagem]
-  if (parado) return `${parado} em ${diaCurto(contexto.dataInicioViagem)}`
+  if (parado) return `${parado} em ${formatarDiaMes(contexto.dataInicioViagem)}`
   if (calcularDiasDisponiveis(codigoNaViagem) < contexto.diasViagem) {
     return `${codigoNaViagem}º dia: não cabem ${contexto.diasViagem} dias de viagem`
   }
@@ -147,7 +146,7 @@ export function motivoForaDaRegra(motorista: MotoristaParaAlocacao, contexto: Co
     motorista.diasTrabalhados,
   )
   if (codigoNoUltimoDia > MAX_DIAS_CONSECUTIVOS) {
-    return `${ROTULO_CODIGO_PARADO[codigoNoUltimoDia] ?? "Folga"} em ${diaCurto(fimViagem)} (fim da viagem)`
+    return `${ROTULO_CODIGO_PARADO[codigoNoUltimoDia] ?? "Folga"} em ${formatarDiaMes(fimViagem)} (fim da viagem)`
   }
 
   if (!motoristaAutorizadoParaProduto(motorista.produtosAutorizados, contexto.produtoExigido)) {

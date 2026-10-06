@@ -33,6 +33,20 @@ import {
 import { calcularAvisoFrotaIndisponivel, calcularAvisoFrotaProduto } from "@/lib/services/frota.service";
 import { prepararJornadaDoMotorista } from "@/lib/services/jornada.service";
 import { converterEntradaDeDataHora, inicioDoDia } from "@/lib/utils/date-format";
+import { ErroDeDominio } from "@/lib/errors";
+import { TAMANHO_MAXIMO_MOTIVO } from "@/lib/services/motivos-atraso";
+import { DATA_HORA_DO_CAMPO } from "@/lib/validation/troca-motorista";
+import { z } from "@/lib/validation/zod";
+
+/** Teto de uma importação de planilha — acima disso é arquivo errado. */
+const MAX_VIAGENS_POR_LOTE = 500;
+/** Quantas viagens do lote calculam aviso de frota ao mesmo tempo (2 consultas cada). */
+const CONSULTAS_POR_BLOCO = 10;
+/** "YYYY-MM-DDTHH:MM" (campo datetime-local) ou ISO completo. */
+const dataHoraDoCampo = z.string().max(40).refine(
+  (texto) => DATA_HORA_DO_CAMPO.test(texto) || !Number.isNaN(new Date(texto).getTime()),
+  "Data e hora inválidas.",
+);
 
 export async function criarViagemAvulsa(dados: NovaViagemInput): Promise<RespostaAcao> {
   try {
@@ -50,7 +64,6 @@ export async function criarViagemAvulsa(dados: NovaViagemInput): Promise<Respost
     return { sucesso: true };
 
   } catch (erro) {
-    console.error("[criarViagemAvulsa] Erro ao salvar viagem:", erro);
     const mensagem = errorToMessage(erro, "Ocorreu um erro desconhecido ao salvar.");
 
     return { sucesso: false, erro: mensagem };
@@ -66,6 +79,9 @@ export async function sugerirAlocacaoParaViagens(
   viagens: NovaViagemFormValues[],
 ): Promise<SugestaoAlocacaoPendente[]> {
   const { filialId } = await requireSessionComFilial();
+  if (!Array.isArray(viagens) || viagens.length > MAX_VIAGENS_POR_LOTE) {
+    throw new ErroDeDominio("LOTE_GRANDE", `Importe no máximo ${MAX_VIAGENS_POR_LOTE} viagens por vez.`);
+  }
 
   const [motoristasBrutos, numerosSapQueExigemIntegracao, produtoPorCarreta] = await Promise.all([
     buscarMotoristasParaSelect(filialId),
@@ -95,7 +111,16 @@ export async function sugerirAlocacaoParaViagens(
 
   const sugestoes = sugerirAlocacoesEmLote(viagensParaSugestao, motoristas, hoje);
 
-  return Promise.all(sugestoes.map(async (sugestao, indice) => {
+  // Avisos de frota em blocos: um Promise.all do lote inteiro abria centenas
+  // de consultas ao mesmo tempo (2 por viagem) e esgotava o pool do banco.
+  const resultado: SugestaoAlocacaoPendente[] = [];
+  for (let inicio = 0; inicio < sugestoes.length; inicio += CONSULTAS_POR_BLOCO) {
+    const bloco = sugestoes.slice(inicio, inicio + CONSULTAS_POR_BLOCO);
+    resultado.push(...(await Promise.all(bloco.map((sugestao, posicao) => montarSugestao(sugestao, inicio + posicao)))));
+  }
+  return resultado;
+
+  async function montarSugestao(sugestao: (typeof sugestoes)[number], indice: number): Promise<SugestaoAlocacaoPendente> {
     const dataInicioViagem = new Date(viagens[indice].inicioPrevisto);
     const avisoFrotaIndisponivel = await calcularAvisoFrotaIndisponivel(
       filialId,
@@ -128,7 +153,7 @@ export async function sugerirAlocacaoParaViagens(
         montarMotoristaCompativel(motorista, { inicioPrevisto: dataInicioViagem }, hoje),
       ),
     };
-  }));
+  }
 }
 
 /**
@@ -148,6 +173,10 @@ export async function criarViagensEmLoteComAlocacao(
     return { sucesso: false, criadas: 0, falhas: [{ numViagem: "-", erro: errorToMessage(erro, "Não autorizado.") }] }
   }
 
+  if (!Array.isArray(viagens) || viagens.length > MAX_VIAGENS_POR_LOTE) {
+    return { sucesso: false, criadas: 0, falhas: [{ numViagem: "-", erro: `Importe no máximo ${MAX_VIAGENS_POR_LOTE} viagens por vez.` }] }
+  }
+
   let criadas = 0
   const falhas: FalhaImportacaoViagem[] = []
 
@@ -165,7 +194,6 @@ export async function criarViagensEmLoteComAlocacao(
       await criarViagemComAlocacaoService(filialId, validacao.data, motoristaId, ator)
       criadas++
     } catch (erro) {
-      console.error(`[criarViagensEmLoteComAlocacao] Erro ao salvar viagem ${identificador}:`, erro)
       falhas.push({ numViagem: identificador, erro: errorToMessage(erro, "Erro desconhecido ao salvar.") })
     }
   }
@@ -194,7 +222,6 @@ export async function editarViagem(idViagem: number, dados: EditarViagemInput): 
     return { sucesso: true };
 
   } catch (erro) {
-    console.error("[editarViagem] Erro ao editar viagem:", erro);
     const mensagem = errorToMessage(erro, "Ocorreu um erro desconhecido ao editar.");
 
     return { sucesso: false, erro: mensagem };
@@ -212,7 +239,6 @@ export async function deletarViagem(id: number): Promise<RespostaAcao> {
     return { sucesso: true };
 
   } catch (erro) {
-    console.error("[deletarViagem] Erro ao apagar viagem:", erro);
     const mensagem = errorToMessage(erro, "Não foi possível apagar a viagem.");
 
     return { sucesso: false, erro: mensagem };
@@ -234,6 +260,9 @@ export async function atualizarStatusViagem(
     if (status === "POSTERGADA" && (!novaData?.inicioPrevisto || !novaData?.fimPrevisto)) {
       return { sucesso: false, erro: "Informe a nova data de início e fim para postergar a viagem." }
     }
+    if (novaData) {
+      z.object({ inicioPrevisto: dataHoraDoCampo, fimPrevisto: dataHoraDoCampo }).parse(novaData)
+    }
 
     await atualizarStatusViagemService(
       filialId,
@@ -254,7 +283,6 @@ export async function atualizarStatusViagem(
     revalidatePath("/")
     return { sucesso: true }
   } catch (erro) {
-    console.error("[atualizarStatusViagem] Erro ao atualizar status:", erro);
     const mensagem = errorToMessage(erro, "Não foi possível atualizar o status da viagem.")
     return { sucesso: false, erro: mensagem }
   }
@@ -267,6 +295,10 @@ export async function atualizarSaidaReal(
 ): Promise<RespostaAcao> {
   try {
     const { session, filialId } = await requireSessionComFilial();
+    z.object({
+      horarioRealSaida: dataHoraDoCampo.nullable(),
+      motivoAtraso: z.string().max(TAMANHO_MAXIMO_MOTIVO, `O motivo aceita até ${TAMANHO_MAXIMO_MOTIVO} caracteres.`).nullable(),
+    }).parse(dados)
     await atualizarSaidaRealService(
       filialId,
       idViagem,
@@ -278,7 +310,6 @@ export async function atualizarSaidaReal(
     revalidatePath("/")
     return { sucesso: true }
   } catch (erro) {
-    console.error("[atualizarSaidaReal] Erro ao atualizar saída real:", erro);
     const mensagem = errorToMessage(erro, "Não foi possível atualizar a saída real.")
     return { sucesso: false, erro: mensagem }
   }

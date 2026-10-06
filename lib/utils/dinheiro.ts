@@ -21,3 +21,13 @@ export function parseReaisParaCentavos(texto: string): number | null {
   const valor = Math.round(Number(normalizado) * 100)
   return Number.isFinite(valor) ? valor : null
 }
+
+/** Como em formatarReais, mas "—" para zero (célula de relatório sem lançamento). */
+export function formatarReaisOuTraco(centavos: number): string {
+  return centavos ? formatarReais(centavos) : "—"
+}
+
+/** "12,50" — valor pra preencher um campo de edição (o inverso de parseReaisParaCentavos). */
+export function reaisNoCampo(centavos: number): string {
+  return (centavos / 100).toFixed(2).replace(".", ",")
+}

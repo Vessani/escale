@@ -1,125 +1,166 @@
 # Escalador
 
-Sistema de gestão de viagens e alocação de motoristas para uma transportadora, com autenticação por filial e sugestão automática de motorista compatível com cada viagem.
+Sistema de escala de viagens da Ritmo Logística: programação das viagens de gases (CO₂, nitrogênio, argônio, oxigênio e biometano), alocação de motorista e frota, acompanhamento da viagem pelo próprio motorista e relatórios operacionais. Tudo separado por filial.
 
 ## O que o sistema faz
 
-- Cadastro de viagens, motoristas, frotas (conjuntos cavalo/carreta) e clientes, isolados por filial.
-- Alocação automática de motorista por viagem, considerando turno, integração ativa exigida pelo cliente, jornada (limite de 6 dias consecutivos de trabalho) e descanso mínimo entre viagens (interjornada de 11h, ou 35h após o 6º dia consecutivo).
-- Aviso de conflito quando duas viagens sobrepostas (ou muito próximas) seriam atribuídas ao mesmo motorista.
-- Importação de viagens via planilha .xlsx/.xls, uma de cada vez ou em lote com revisão de alocação antes de confirmar.
-- Calendário operacional de motoristas (jornada projetada dia a dia, folga/férias/exames/interno).
-- Controle de disponibilidade de frota (cavalo/carreta), recalculada a partir das viagens ativas do conjunto.
-- Exportação de viagem em PDF e dashboard de acompanhamento por status.
+**Operação (escalador)**
+- **Dashboard** do dia: viagens por status, motoristas livres, quadro de recados da filial e viagens de outros dias que continuam em aberto ("Desde 01/10", "Não saiu (03/10)").
+- **Viagens**: cadastro manual ou importação de planilha (.xlsx/.xls), uma a uma ou em lote, com revisão da alocação sugerida antes de confirmar.
+- **Alocação de motorista** com sugestão automática. O seletor mostra cada motorista em cores, com o motivo ao lado:
+  - verde: cabe na regra e na agenda ("3 dias disponíveis");
+  - laranja: cabe na regra, mas tem viagem ou descanso no caminho;
+  - branco/vermelho: fora da regra (turno, produto não autorizado, integração do cliente, folga ou 7º dia).
+- **Correção do que o motorista registrou**: km, pedágio/pernoite e chegadas nos clientes, inclusive com a viagem encerrada. Toda correção fica no histórico.
+- **Motoristas**: cadastro, calendário de jornada (trabalho, folga, férias, exames, interno, manutenção) e importação do relatório de jornada do ponto, com conferência antes de gravar.
+- **Frotas** (cavalo + carreta) com disponibilidade calculada pelas viagens ativas e registro de manutenções.
+- **Clientes**: SAP code, número white, cidade, fator do tanque e integrações exigidas.
 
-## Decisões de arquitetura
+**Motorista** (login com matrícula + PIN, área `/minhas-viagens`)
+- Vê só as próprias viagens, registra saída, km, pedágio/pernoite e a chegada em cada cliente com a medição da descarga:
+  - manômetro: (final − inicial) × fator do cliente;
+  - balança: (inicial − final) × fator da balança;
+  - biometano: m³ inicial − m³ final.
+- Baixa o relatório da viagem.
 
-**Server actions como única porta de mutação.** Toda escrita passa por `lib/actions/*.ts`, que valida a sessão, valida o payload com Zod e delega para `lib/services/*.ts`. Não há rotas REST para as operações principais — as poucas rotas em `app/api/` existem só onde o Next não permite server action (autenticação via NextAuth, exportação de PDF).
+**Relatórios** (`/relatorios`, com exportação Excel)
+- **Viagens:** relatório linear, uma linha por viagem.
+- **Km e custos:** por viagem e por motorista.
+- **Pontualidade.**
+- **Jornada:** estouro de jornada, estouro do 7º dia, quebra de interstício, circadiano.
+- **Cadastros e operação:** motoristas, frota, integrações, avisos.
 
-**Regra de negócio isolada em `lib/services`.** Cálculo de compatibilidade de motorista, descanso mínimo, disponibilidade de frota e projeção de jornada vivem em funções puras ou quase-puras, independentes de Next.js/Prisma quando possível — o que permite testá-las diretamente, sem mockar HTTP ou banco. `lib/actions` não contém lógica de negócio, só orquestração e autorização; `lib/queries` concentra as leituras.
+Só contam como entrega de cliente as paradas com **SAP code e número white** preenchidos; a origem (ex.: Joinville) não entra.
 
-**Soft delete com unicidade parcial.** Viagens e frotas não são apagadas de fato (`deletadoEm`), mas o número da viagem (`numViagem`) precisa ser único apenas entre registros ativos da mesma filial — um índice único parcial (criado à mão na migration, não representável só com `@@unique` do Prisma) garante isso sem impedir reaproveitar um número depois de uma viagem excluída, nem colidir entre filiais diferentes.
+**Gerência** (papel ADMIN): filiais, usuários e o histórico de alterações (auditoria de quem mudou o quê).
 
-**Isolamento multi-filial em duas camadas.** Toda tabela operacional tem `filialId`, e toda query/mutação recebe esse valor a partir da sessão autenticada — nunca do cliente. Como camada adicional, Row Level Security do Postgres está habilitado nas tabelas, reduzindo o custo de um erro de escopo esquecido em alguma query.
+## Regras de escala
 
-**Interjornada calculada contra o histórico real, não um agregado.** O aviso de descanso insuficiente busca o último registro de jornada real anterior ao início da viagem sendo avaliada (`RegistroJornada`), em vez de um campo `jornadaRelatorioFim` fixo no motorista — que representava só "a jornada mais recente do último lote importado" e podia, em alguns casos, ser posterior à própria viagem sendo avaliada.
+| Regra | Valor | Onde |
+|---|---|---|
+| Dias seguidos de trabalho antes da folga | 6 | `lib/services/dias-sem-folga.ts` |
+| Descanso mínimo entre jornadas (interjornada) | 11 h | `lib/services/alocacao/disponibilidade.ts` |
+| Descanso que caracteriza folga | 35 h | `lib/services/alocacao/disponibilidade.ts` |
+| Jornada prevista (estouro) | 12 h | `lib/services/relatorios/jornada-analise.ts` |
+
+## Papéis
+
+| Papel | Acesso |
+|---|---|
+| `ADMIN` | Tudo da filial + gerência (filiais, usuários, histórico) |
+| `DESPACHANTE` | Operação da filial: viagens, alocação, motoristas, frotas, clientes, relatórios |
+| `MOTORISTA` | Só `/minhas-viagens`, com as viagens dele |
+
+## Arquitetura
+
+```
+página / componente
+   │  leitura ───────────────► lib/queries ──► Prisma
+   │  escrita
+   ▼
+lib/actions (server action) ─► lib/services (regra de negócio) ─► Prisma (transação)
+   sessão + filial, Zod           funções testáveis,               + RegistroAuditoria
+                                  trava de linha (FOR UPDATE)
+```
+
+- **Server actions são a porta de escrita.** Cada action:
+  - valida a sessão e a filial (`requireSessionComFilial` / `requireSessaoMotorista`);
+  - valida o payload com Zod e chama um service;
+  - devolve `RespostaAcao` (`{ sucesso, erro }`).
+
+  Os erros passam por `errorToMessage`, que traduz erro de validação, de domínio (`ErroDeDominio`) e do Prisma, e só registra no log o que é inesperado.
+- **Regra de negócio em `lib/services`**, em funções puras sempre que possível: compatibilidade, disponibilidade, jornada, descarga e relatórios. É a parte com mais testes.
+- **Multi-filial em duas camadas.** `filialId` vem sempre da sessão, nunca do cliente. Além disso, o Postgres tem Row Level Security nas tabelas operacionais.
+- **Concorrência**: escritas que dependem do estado atual (alocar, iniciar ou encerrar viagem, correções) travam a viagem com `SELECT … FOR UPDATE` dentro da transação.
+- **Auditoria**: toda criação, alteração ou exclusão grava antes/depois em `RegistroAuditoria` (`registrarAuditoria`), com um campo `_contexto` legível ("Correção do escalador (viagem 922087) · km").
+- **Soft delete** (`deletadoEm`). Um índice único parcial garante `numViagem` único só entre as viagens ativas da mesma filial.
+- **Fuso horário**: tudo é calculado em horário de Brasília com offset fixo (UTC−3), independente do fuso do servidor. Os helpers ficam em `lib/utils/date-format.ts`, e os testes rodam em UTC e em `America/Sao_Paulo`.
+- **Segurança**:
+  - headers de segurança em `next.config.ts`;
+  - rate limit de login (usuário e PIN do motorista);
+  - PIN guardado só como hash;
+  - nenhuma SQL montada com texto do usuário (`$queryRaw` com template).
 
 ## Stack
 
-- **Framework:** Next.js 16 (App Router)
-- **Linguagem:** TypeScript
-- **Banco de dados:** PostgreSQL, com Row Level Security
-- **ORM:** Prisma
-- **Autenticação:** NextAuth.js
-- **UI:** Tailwind CSS + Radix UI
-- **Formulários:** React Hook Form + Zod
-- **Testes:** Vitest
+Next.js 16 (App Router, server actions) · TypeScript · PostgreSQL (Supabase) com RLS · Prisma 7 · NextAuth (JWT) · Tailwind CSS + Radix UI · React Hook Form + Zod · ExcelJS · Vitest · Vercel.
 
-## Instalação
+## Estrutura
+
+```
+app/
+├── page.tsx                 # dashboard
+├── viagens/                 # lista, nova (manual/planilha), editar/[id], alocacao, relatorio
+├── motorista/               # lista, calendário, importar-jornada, sem-viagem
+├── minhas-viagens/          # área do motorista
+├── frotas/                  # frotas + manutencoes
+├── clientes/
+├── relatorios/              # avisos, circadiano, estouro-7-dia, estouro-jornada, frota,
+│                            # integracoes, km-custos, motoristas, pontualidade,
+│                            # quebra-intersticio, viagens
+├── historico/               # auditoria (gerência)
+├── admin/                   # filiais, usuarios (gerência)
+├── login/
+└── api/                     # só o que não pode ser server action (ver abaixo)
+lib/
+├── actions/                 # server actions — porta de escrita
+├── services/                # regras de negócio (+ alocacao/, relatorios/)
+├── queries/                 # leituras
+├── validation/              # schemas Zod
+├── parsers/                 # planilha de viagens, relatório de jornada
+├── excel/, relatorios/      # leitura/geração de planilhas e catálogo de relatórios
+├── utils/                   # datas, dinheiro, km, texto — sem dependências de servidor
+└── auth.ts, auth-guard.ts, papeis.ts, action-error.ts, chamar-acao.ts
+components/                  # ui/ (primitivos), layout/, viagem/, motorista/, frota/, relatorio/…
+prisma/                      # schema.prisma + migrations/
+proxy.ts                     # proteção de rotas por sessão e papel
+```
+
+### Rotas HTTP (`app/api/`)
+
+| Rota | Uso |
+|---|---|
+| `/api/auth/[...nextauth]` | Login (NextAuth) |
+| `GET /api/viagens`, `GET /api/viagens/[id]` | Consulta de viagens |
+| `GET /api/viagens/[id]/relatorio` | Relatório da viagem (motorista/escalador) |
+| `GET /api/viagens/[id]/excel` | Viagem em Excel |
+| `GET /api/motoristas` | Consulta de motoristas |
+| `GET /api/relatorios/exportar/[tipo]` | Exportação Excel de cada relatório |
+| `GET /api/relatorios/programacao` | Programação do período em Excel |
+
+## Rodando localmente
 
 ```bash
-npm install
-cp .env.example .env.local   # configurar DATABASE_URL, NEXTAUTH_SECRET, NEXTAUTH_URL
+npm install                    # roda prisma generate no postinstall
+cp .env.example .env.local     # DATABASE_URL, NEXTAUTH_SECRET, NEXTAUTH_URL, TZ
 npx prisma migrate deploy
-npm run dev
+npm run dev                    # http://localhost:3000
 ```
 
-Acesse [http://localhost:3000](http://localhost:3000).
-
-## Build
-
-```bash
-npm run lint
-npm run build
-npm run start
-```
-
-Instruções de deployment em [DEPLOYMENT.md](./DEPLOYMENT.md).
-
-## Estrutura do projeto
-
-```
-escala/
-├── app/
-│   ├── motorista/        # listagem, calendário de jornada, criar/editar
-│   ├── viagens/           # listagem, criar (com import .xlsx), editar, alocação manual
-│   ├── api/
-│   │   ├── auth/[...nextauth]/
-│   │   └── viagens/[id]/pdf/
-│   └── layout.tsx
-├── lib/
-│   ├── actions/           # server actions — única porta de entrada para mutações
-│   ├── queries/            # leituras direto do Prisma
-│   ├── services/           # regras de negócio (*.service.ts)
-│   ├── parsers/             # parser de planilha .xlsx/.xls
-│   ├── validation/          # schemas Zod
-│   ├── types/                # tipos compartilhados (input/output de actions)
-│   └── utils/                 # utilitários puros (ex: formatação de data)
-├── components/
-│   ├── ui/                # primitivos shadcn/radix
-│   ├── layout/             # shell da aplicação
-│   ├── motorista/           # formulário compartilhado criar/editar motorista
-│   └── viagem/                # upload .xlsx, campos de rota e entregas
-├── prisma/
-│   ├── schema.prisma
-│   └── migrations/
-└── proxy.ts                # middleware de autenticação
-```
-
-Fluxo de dados: página/componente → `lib/actions` (server action) → `lib/services` (regra de negócio) → Prisma. Leituras usam `lib/queries` diretamente, sem passar por `lib/actions`.
-
-## Variáveis de ambiente
-
-```env
-DATABASE_URL="postgresql://user:password@localhost:5432/escala?schema=public"
-NEXTAUTH_SECRET="gere-uma-chave-aleatoria-com-32-caracteres"
-NEXTAUTH_URL="http://localhost:3000"
-```
-
-Nunca commitar `.env`. Para gerar `NEXTAUTH_SECRET`:
+`.env.example` explica cada variável. `DIRECT_URL` só é necessária quando o `DATABASE_URL` passa por pooler em modo transação (Supabase, porta 6543). Para gerar o `NEXTAUTH_SECRET`:
 
 ```bash
 node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
 ```
 
-## Testes
+## Scripts
 
-```bash
-npm run test
-```
+| Script | O que faz |
+|---|---|
+| `npm run dev` | Servidor de desenvolvimento |
+| `npm run build` / `npm start` | Build e servidor de produção |
+| `npm run vercel-build` | Build da Vercel: em produção aplica as migrations (`scripts/vercel-build.sh`) |
+| `npm run lint` | ESLint |
+| `npm test` | Testes em UTC (como na Vercel) |
+| `npm run test:br` | Testes em horário de Brasília |
+| `npm run knip` | Procura arquivos, exports e dependências sem uso |
 
-## Rotas HTTP e server actions
+O CI (`.github/workflows/ci.yml`) roda tipos, lint, knip e as duas suítes de teste em todo PR.
 
-A maior parte das operações (criar/editar/excluir viagem e motorista, alocar motorista, atualizar status/jornada, importar em lote) não é REST — são [Server Actions](https://nextjs.org/docs/app/building-your-application/data-fetching/server-actions-and-mutations) do Next.js, chamadas diretamente pelos componentes client a partir de `lib/actions/viagens.ts` e `lib/actions/motoristas.ts`.
+## Deploy
 
-Rotas HTTP reais (`app/api/`):
-- `GET|POST /api/auth/[...nextauth]` — autenticação (NextAuth)
-- `GET /api/viagens/[id]/pdf` — exporta uma viagem em PDF
-
-Páginas (`app/`):
-- `/login`, `/motorista`, `/motorista/novo`, `/motorista/editar/[id]`
-- `/viagens`, `/viagens/nova`, `/viagens/editar/[id]`, `/viagens/alocacao`
+Vercel, com o banco no Supabase. Cada merge na `main` publica. Detalhes em [DEPLOYMENT.md](./DEPLOYMENT.md) e [DEPLOYMENT-CHECKLIST.md](./DEPLOYMENT-CHECKLIST.md).
 
 ## Licença
 
-Proprietary — Transportadora Digital
+Proprietário — Ritmo Logística.

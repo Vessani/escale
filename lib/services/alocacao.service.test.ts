@@ -108,7 +108,7 @@ describe("alocacao.service", () => {
   })
 
   describe("motivoForaDaRegra (texto ao lado do nome no seletor)", () => {
-    const hoje = new Date("2026-07-08T00:00:00")
+    const hoje = new Date("2026-07-08T00:00:00-03:00")
     const contexto = (parcial = {}) => ({ turnoViagem: "MANHA" as const, diasViagem: 1, dataInicioViagem: hoje, integracaoExigida: null, hoje, ...parcial })
 
     it("diz o motivo de cada regra; null quando cabe", () => {

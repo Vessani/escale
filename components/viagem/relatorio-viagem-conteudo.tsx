@@ -11,10 +11,10 @@ import { classeBadgeStatusViagem } from "@/app/viagens/badge-styles"
 import { formatarReais } from "@/lib/utils/dinheiro"
 import { formatarDataHoraPtBr } from "@/lib/utils/date-format"
 import { cn } from "@/lib/utils"
+import { formatarKm } from "@/lib/utils/numero"
 
 
 const quando = (data: Date | null | undefined) => (data ? formatarDataHoraPtBr(data) : "—")
-const km = (valor: number | null | undefined) => (valor === null || valor === undefined ? "—" : valor.toLocaleString("pt-BR"))
 
 function Secao({ titulo, icone: Icone, children }: { titulo: string; icone: typeof Route; children: React.ReactNode }) {
   return (
@@ -90,9 +90,9 @@ export function RelatorioViagemConteudo({ r }: { r: RelatorioViagem }) {
               ) : null}
             </Dado>
             <Dado rotulo={r.encerramento.rotulo}>{quando(r.encerramento.quando)}</Dado>
-            <Dado rotulo="Km inicial"><span className="tabular-nums">{km(r.kmInicial)}</span></Dado>
-            <Dado rotulo="Km final"><span className="tabular-nums">{km(r.kmFinal)}</span></Dado>
-            <Dado rotulo="Km rodado"><span className="tabular-nums">{r.kmRodado === null ? "—" : `${km(r.kmRodado)} km`}</span></Dado>
+            <Dado rotulo="Km inicial"><span className="tabular-nums">{formatarKm(r.kmInicial)}</span></Dado>
+            <Dado rotulo="Km final"><span className="tabular-nums">{formatarKm(r.kmFinal)}</span></Dado>
+            <Dado rotulo="Km rodado"><span className="tabular-nums">{r.kmRodado === null ? "—" : `${formatarKm(r.kmRodado)} km`}</span></Dado>
             <Dado rotulo="Pedágio + pernoite"><span className="tabular-nums">{formatarReais(r.pedagioCentavos + r.pernoiteCentavos)}</span></Dado>
           </dl>
         </Secao>
@@ -112,7 +112,7 @@ export function RelatorioViagemConteudo({ r }: { r: RelatorioViagem }) {
                 {entrega.chegada ? (
                   <dl className="mt-2 grid grid-cols-2 gap-x-3 gap-y-1.5">
                     <ItemChegada rotulo="Chegada">{quando(entrega.chegada.quando)}</ItemChegada>
-                    <ItemChegada rotulo="Km">{km(entrega.chegada.km)}</ItemChegada>
+                    <ItemChegada rotulo="Km">{formatarKm(entrega.chegada.km)}</ItemChegada>
                     <ItemChegada rotulo="Medição">{entrega.chegada.medicao}</ItemChegada>
                     <ItemChegada rotulo="Nível inicial → final">{entrega.chegada.leituras}</ItemChegada>
                     <ItemChegada rotulo="Descarregado" destaque>
@@ -161,7 +161,7 @@ export function RelatorioViagemConteudo({ r }: { r: RelatorioViagem }) {
                     <TableCell className="whitespace-nowrap tabular-nums">
                       {entrega.chegada ? quando(entrega.chegada.quando) : <span className="text-muted-foreground">não registrada</span>}
                     </TableCell>
-                    <TableCell className="text-right tabular-nums">{entrega.chegada ? km(entrega.chegada.km) : "—"}</TableCell>
+                    <TableCell className="text-right tabular-nums">{entrega.chegada ? formatarKm(entrega.chegada.km) : "—"}</TableCell>
                     <TableCell>{entrega.chegada?.medicao ?? "—"}</TableCell>
                     <TableCell className="text-right tabular-nums">{entrega.chegada?.leituras ?? "—"}</TableCell>
                     <TableCell className="text-right font-semibold tabular-nums">
@@ -214,7 +214,7 @@ export function RelatorioViagemConteudo({ r }: { r: RelatorioViagem }) {
                   {r.trocas.map((t) => (
                     <li key={t.id} className="space-y-0.5 px-3 py-2">
                       <p className="font-medium">{t.de} → {t.para}</p>
-                      <p className="text-xs text-muted-foreground">{quando(t.quando)} · km {km(t.km)} · {t.local}</p>
+                      <p className="text-xs text-muted-foreground">{quando(t.quando)} · km {formatarKm(t.km)} · {t.local}</p>
                       <p className="text-xs">Motivo: {t.motivo}</p>
                     </li>
                   ))}
