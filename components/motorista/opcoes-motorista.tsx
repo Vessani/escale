@@ -5,13 +5,14 @@ import { SelectGroup, SelectItem, SelectLabel, SelectSeparator, SelectValue } fr
 import { NomeMotorista } from "@/components/motorista/icone-tipo-motorista"
 import { IndicadorCompatibilidade, type SituacaoMotorista } from "@/components/motorista/indicador-compatibilidade"
 import { podeSerAcompanhante, podeSerPrincipal } from "@/lib/services/tipo-motorista"
+import { cn } from "@/lib/utils"
 
 export type OpcaoMotorista = {
   id: number
   nome: string
   tipo: TipoMotorista
   situacao: SituacaoMotorista
-  /** Por que está fora da regra — aparece ao lado do nome. */
+  /** O porquê da cor (dias disponíveis, descanso, regra) — aparece ao lado do nome. */
   motivo?: string | null
 }
 
@@ -28,7 +29,11 @@ function ItemMotorista({ motorista, mostrarSituacao }: { motorista: OpcaoMotoris
       <span className="flex min-w-0 items-center gap-2">
         {mostrarSituacao && <IndicadorCompatibilidade situacao={motorista.situacao} />}
         <NomeMotorista nome={motorista.nome} tipo={motorista.tipo} />
-        {mostrarSituacao && motorista.motivo && <span className="truncate text-xs text-muted-foreground">· {motorista.motivo}</span>}
+        {mostrarSituacao && motorista.motivo && (
+          <span className={cn("truncate text-xs", motorista.situacao === "SEM_DESCANSO" ? "text-warning" : "text-muted-foreground")}>
+            · {motorista.motivo}
+          </span>
+        )}
       </span>
     </SelectItem>
   )
