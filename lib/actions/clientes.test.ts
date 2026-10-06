@@ -19,7 +19,6 @@ vi.mock("@/lib/prisma", () => ({
     cliente: {
       create: vi.fn(),
       update: vi.fn(),
-      findUniqueOrThrow: vi.fn(),
     },
   },
 }))
@@ -31,7 +30,8 @@ const clienteValido = { nome: "WEG", numeroSap: "4521087", exigeIntegracao: true
 
 function criarTx() {
   return {
-    cliente: { create: vi.fn(), update: vi.fn() },
+    $queryRaw: vi.fn(),
+    cliente: { create: vi.fn(), update: vi.fn(), findFirst: vi.fn().mockResolvedValue({ id: 7 }) },
     registroAuditoria: { create: vi.fn() },
   }
 }
@@ -120,6 +120,15 @@ describe("lib/actions/clientes — controle de acesso", () => {
       expect(tx.registroAuditoria.create).toHaveBeenCalledTimes(1)
     })
 
+    it("editarCliente de cliente excluído ou inexistente: não encontrado, nada gravado", async () => {
+      const tx = criarTx()
+      tx.cliente.findFirst.mockResolvedValue(null)
+      usarTransacaoCom(tx)
+
+      expect(await editarCliente(7, clienteValido)).toEqual({ sucesso: false, erro: "Cliente não encontrado." })
+      expect(tx.cliente.update).not.toHaveBeenCalled()
+    })
+
     it("criarCliente recusa dados inválidos (nome vazio) e não chama o prisma", async () => {
       const resposta = await criarCliente({ nome: "", numeroSap: "4521087", exigeIntegracao: false })
 
@@ -142,7 +151,6 @@ describe("lib/actions/clientes — controle de acesso", () => {
     })
 
     it("editarCliente atualiza o registro pelo id", async () => {
-      vi.mocked(prisma.cliente.findUniqueOrThrow).mockResolvedValue({ id: 7 } as never)
       const tx = criarTx()
       vi.mocked(tx.cliente.update).mockResolvedValue({ id: 7, ...clienteValido })
       usarTransacaoCom(tx)
@@ -152,10 +160,12 @@ describe("lib/actions/clientes — controle de acesso", () => {
       expect(resposta).toEqual({ sucesso: true })
       expect(tx.cliente.update).toHaveBeenCalledWith({ where: { id: 7 }, data: clienteValido })
       expect(tx.registroAuditoria.create).toHaveBeenCalledTimes(1)
+      // "antes" lido dentro da transação, com a linha travada
+      expect(tx.$queryRaw).toHaveBeenCalled()
+      expect(tx.cliente.findFirst).toHaveBeenCalledWith({ where: { id: 7, deletadoEm: null } })
     })
 
     it("deletarCliente marca deletadoEm em vez de apagar o registro", async () => {
-      vi.mocked(prisma.cliente.findUniqueOrThrow).mockResolvedValue({ id: 7 } as never)
       const tx = criarTx()
       vi.mocked(tx.cliente.update).mockResolvedValue({ id: 7, deletadoEm: new Date() })
       usarTransacaoCom(tx)

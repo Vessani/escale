@@ -767,6 +767,20 @@ describe("viagem.service", () => {
       expect(recalcularAvisosInterjornada).toHaveBeenCalledWith(tx, FILIAL_ID, [7, null])
     })
 
+    it("lê o 'antes' da auditoria dentro da transação, com a viagem travada", async () => {
+      const tx = criarTx()
+      vi.mocked(tx.viagem.findUniqueOrThrow).mockResolvedValue({ id: 1, numViagem: "922087" })
+      vi.mocked(tx.viagem.update).mockResolvedValue({ id: 1, motoristaId: null, motoristaAcompanhanteId: null, cavalo: "2064", carreta: "908" })
+      usarTransacaoCom(tx)
+
+      await deletarViagemService(FILIAL_ID, 1, ATOR)
+
+      expect(tx.$queryRaw).toHaveBeenCalled()
+      expect(tx.viagem.findUniqueOrThrow).toHaveBeenCalledWith({ where: { id: 1, filialId: FILIAL_ID } })
+      expect(prisma.viagem.findUniqueOrThrow).not.toHaveBeenCalled()
+      expect(tx.registroAuditoria.create).toHaveBeenCalled()
+    })
+
     it("sincroniza a disponibilidade da frota — excluir a viagem pode liberar o conjunto", async () => {
       const tx = criarTx()
       vi.mocked(tx.viagem.update).mockResolvedValue({ id: 1, motoristaId: 7, motoristaAcompanhanteId: null, cavalo: "2064", carreta: "908" })

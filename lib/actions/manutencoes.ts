@@ -28,10 +28,9 @@ function horario(texto?: string | null): Date {
 export async function criarManutencao(dados: ManutencaoFormValues): Promise<RespostaAcao> {
   try {
     const { session, filialId } = await requireSessionComFilial()
-    const validacao = manutencaoSchema.safeParse(dados)
-    if (!validacao.success) return { sucesso: false, erro: validacao.error.issues[0]?.message ?? "Dados inválidos." }
+    const dadosValidados = manutencaoSchema.parse(dados)
 
-    await criarManutencaoService(filialId, validacao.data, atorDaSessao(session))
+    await criarManutencaoService(filialId, dadosValidados, atorDaSessao(session))
     revalidar()
     return { sucesso: true }
   } catch (erro) {
@@ -42,10 +41,9 @@ export async function criarManutencao(dados: ManutencaoFormValues): Promise<Resp
 export async function editarManutencao(id: number, dados: ManutencaoFormValues): Promise<RespostaAcao> {
   try {
     const { session, filialId } = await requireSessionComFilial()
-    const validacao = manutencaoSchema.safeParse(dados)
-    if (!validacao.success) return { sucesso: false, erro: validacao.error.issues[0]?.message ?? "Dados inválidos." }
+    const dadosValidados = manutencaoSchema.parse(dados)
 
-    await editarManutencaoService(filialId, id, validacao.data, atorDaSessao(session))
+    await editarManutencaoService(filialId, id, dadosValidados, atorDaSessao(session))
     revalidar()
     return { sucesso: true }
   } catch (erro) {

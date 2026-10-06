@@ -15,12 +15,9 @@ export async function criarFrota(dados: FrotaFormValues): Promise<RespostaAcao> 
   try {
     const { session, filialId } = await requireSessionComFilial();
 
-    const validacao = frotaSchema.safeParse(dados);
-    if (!validacao.success) {
-      return { sucesso: false, erro: validacao.error.issues[0]?.message ?? "Dados inválidos." };
-    }
+    const dadosValidados = frotaSchema.parse(dados);
 
-    await criarFrotaService(filialId, validacao.data, atorDaSessao(session));
+    await criarFrotaService(filialId, dadosValidados, atorDaSessao(session));
 
     revalidatePath("/frotas");
     return { sucesso: true };
@@ -33,12 +30,9 @@ export async function editarFrota(id: number, dados: FrotaFormValues): Promise<R
   try {
     const { session, filialId } = await requireSessionComFilial();
 
-    const validacao = frotaSchema.safeParse(dados);
-    if (!validacao.success) {
-      return { sucesso: false, erro: validacao.error.issues[0]?.message ?? "Dados inválidos." };
-    }
+    const dadosValidados = frotaSchema.parse(dados);
 
-    await editarFrotaService(filialId, id, validacao.data, atorDaSessao(session));
+    await editarFrotaService(filialId, id, dadosValidados, atorDaSessao(session));
 
     revalidatePath("/frotas");
     return { sucesso: true };

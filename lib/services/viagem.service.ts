@@ -465,9 +465,10 @@ export async function editarViagemService(filialId: number, idViagem: number, da
 }
 
 export async function deletarViagemService(filialId: number, id: number, ator: Ator | null) {
-  const viagemAntes = await prisma.viagem.findUniqueOrThrow({ where: { id, filialId } })
-
   return await prisma.$transaction(async (tx) => {
+    // Lida já travada: o "antes" da auditoria é o estado que de fato sai.
+    await tx.$queryRaw`SELECT id FROM "Viagem" WHERE id = ${id} AND "filialId" = ${filialId} FOR UPDATE`
+    const viagemAntes = await tx.viagem.findUniqueOrThrow({ where: { id, filialId } })
     const viagemDeletada = await tx.viagem.update({
       where: { id: id, filialId },
       data: {

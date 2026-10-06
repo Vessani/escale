@@ -21,7 +21,10 @@ const h = (iso: string) => new Date(`${iso}-03:00`)
 
 function criarTx() {
   return {
+    $queryRaw: vi.fn(),
     manutencao: {
+      // a leitura (com trava) acontece dentro da transação
+      findFirst: vi.fn((...args: unknown[]) => (prisma.manutencao.findFirst as (...a: unknown[]) => unknown)(...args)),
       create: vi.fn(async ({ data }) => ({ id: 5, ...data })),
       update: vi.fn(async ({ data }) => ({ id: 5, veiculo: "CARRETA", codigo: "908", ...data })),
     },
@@ -112,7 +115,8 @@ describe("manutencao.service", () => {
 
     await excluirManutencaoService(FILIAL, 5, ATOR)
     expect(tx.manutencao.update).toHaveBeenCalledWith({ where: { id: 5 }, data: { deletadoEm: expect.any(Date) } })
-    expect(prisma.manutencao.findFirst).toHaveBeenCalledWith({ where: { id: 5, filialId: FILIAL, deletadoEm: null } })
+    expect(tx.$queryRaw).toHaveBeenCalled()
+    expect(tx.manutencao.findFirst).toHaveBeenCalledWith({ where: { id: 5, filialId: FILIAL, deletadoEm: null } })
 
     vi.mocked(prisma.manutencao.findFirst).mockResolvedValue(null)
     await expect(excluirManutencaoService(FILIAL, 99, ATOR)).rejects.toThrow("Manutenção não encontrada.")

@@ -25,12 +25,9 @@ export async function criarMotorista(dados: NovoMotoristaInput): Promise<Respost
   try {
     const { session, filialId } = await requireSessionComFilial();
 
-    const validacao = motoristaComIntegracoesServerSchema.safeParse(dados);
-    if (!validacao.success) {
-      return { sucesso: false, erro: validacao.error.issues[0]?.message ?? "Dados inválidos." };
-    }
+    const dadosValidados = motoristaComIntegracoesServerSchema.parse(dados);
 
-    await criarMotoristaService(filialId, validacao.data, atorDaSessao(session));
+    await criarMotoristaService(filialId, dadosValidados, atorDaSessao(session));
 
     revalidatePath("/motorista");
     return { sucesso: true };
@@ -43,12 +40,9 @@ export async function editarMotorista(idMotorista: number, dados: EditarMotorist
   try {
     const { session, filialId } = await requireSessionComFilial();
 
-    const validacao = motoristaComIntegracoesServerSchema.safeParse(dados);
-    if (!validacao.success) {
-      return { sucesso: false, erro: validacao.error.issues[0]?.message ?? "Dados inválidos." };
-    }
+    const dadosValidados = motoristaComIntegracoesServerSchema.parse(dados);
 
-    await editarMotoristaService(filialId, idMotorista, validacao.data, atorDaSessao(session));
+    await editarMotoristaService(filialId, idMotorista, dadosValidados, atorDaSessao(session));
 
     revalidatePath("/motorista");
     return { sucesso: true };

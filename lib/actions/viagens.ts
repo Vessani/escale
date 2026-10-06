@@ -52,12 +52,9 @@ export async function criarViagemAvulsa(dados: NovaViagemInput): Promise<Respost
   try {
     const { session, filialId } = await requireSessionComFilial();
 
-    const validacao = novaViagemSchema.safeParse(dados);
-    if (!validacao.success) {
-      return { sucesso: false, erro: validacao.error.issues[0]?.message ?? "Dados inválidos." };
-    }
+    const dadosValidados = novaViagemSchema.parse(dados);
 
-    await criarViagemAvulsaService(filialId, validacao.data, atorDaSessao(session));
+    await criarViagemAvulsaService(filialId, dadosValidados, atorDaSessao(session));
 
     revalidatePath("/viagens");
     revalidatePath("/motorista");
@@ -209,12 +206,9 @@ export async function editarViagem(idViagem: number, dados: EditarViagemInput): 
   try {
     const { session, filialId } = await requireSessionComFilial();
 
-    const validacao = editarViagemServerSchema.safeParse(dados);
-    if (!validacao.success) {
-      return { sucesso: false, erro: validacao.error.issues[0]?.message ?? "Dados inválidos." };
-    }
+    const dadosValidados = editarViagemServerSchema.parse(dados);
 
-    await editarViagemService(filialId, idViagem, validacao.data, atorDaSessao(session));
+    await editarViagemService(filialId, idViagem, dadosValidados, atorDaSessao(session));
 
     revalidatePath("/viagens");
     revalidatePath("/motorista");

@@ -28,7 +28,8 @@ import { atualizarObservacoes } from "@/lib/actions/quadro"
 
 function criarTx() {
   return {
-    quadroObservacao: { upsert: vi.fn() },
+    // o "antes" é lido dentro da transação; delega pro mock do prisma que os testes configuram
+    quadroObservacao: { upsert: vi.fn(), findUnique: vi.fn((...a: unknown[]) => (prisma.quadroObservacao.findUnique as (...x: unknown[]) => unknown)(...a)) },
     registroAuditoria: { create: vi.fn() },
   }
 }

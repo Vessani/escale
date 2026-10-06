@@ -41,7 +41,15 @@ const usuarioValido = { nome: "Maria Souza", email: "maria@transportadora.com", 
 
 function criarTx() {
   return {
-    usuario: { create: vi.fn(), update: vi.fn() },
+    $queryRaw: vi.fn(),
+    usuario: {
+      create: vi.fn(),
+      update: vi.fn(),
+      // As leituras acontecem dentro da transação; delegam pros mocks do prisma que cada teste configura.
+      findFirst: vi.fn((...a: unknown[]) => (prisma.usuario.findFirst as (...x: unknown[]) => unknown)(...a)),
+      findUnique: vi.fn((...a: unknown[]) => (prisma.usuario.findUnique as (...x: unknown[]) => unknown)(...a)),
+      count: vi.fn((...a: unknown[]) => (prisma.usuario.count as (...x: unknown[]) => unknown)(...a)),
+    },
     registroAuditoria: { create: vi.fn() },
   }
 }
@@ -191,7 +199,7 @@ describe("lib/actions/usuarios — trocarSenhaPropria", () => {
       const resposta = await trocarSenhaPropria(dadosTroca)
 
       expect(resposta).toEqual({ sucesso: true })
-      expect(prisma.usuario.findUnique).toHaveBeenCalledWith({ where: { id: "user-1" } })
+      expect(prisma.usuario.findUnique).toHaveBeenCalledWith(expect.objectContaining({ where: { id: "user-1" } }))
       expect(bcrypt.compare).toHaveBeenCalledWith("senhaAntiga1", "hash-salvo")
       expect(bcrypt.hash).toHaveBeenCalledWith("senhaNova123", 10)
       expect(tx.usuario.update).toHaveBeenCalledWith({ where: { id: "user-1" }, data: { senha: "hash-novo" } })
@@ -238,11 +246,14 @@ describe("lib/actions/usuarios — alterarUsuarioAtivo", () => {
   it("não deixa desativar o último Superadmin ativo", async () => {
     vi.mocked(prisma.usuario.findUnique).mockResolvedValue({ id: "s2", ativo: true, role: "SUPERADMIN", filialId: null } as never)
     vi.mocked(prisma.usuario.count).mockResolvedValue(0)
+    const tx = criarTx()
+    usarTransacaoCom(tx)
 
     const resposta = await alterarUsuarioAtivo("s2", false)
 
-    expect(resposta.sucesso).toBe(false)
-    expect(prisma.$transaction).not.toHaveBeenCalled()
+    expect(resposta).toEqual({ sucesso: false, erro: "Não dá pra desativar o último Superadmin ativo." })
+    expect(tx.$queryRaw).toHaveBeenCalled()
+    expect(tx.usuario.update).not.toHaveBeenCalled()
   })
 
   it("desativa e audita antes/depois", async () => {
