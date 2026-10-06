@@ -11,15 +11,14 @@ vi.mock("@/lib/services/login.service", async (importOriginal) => {
   const original = await importOriginal<typeof import("@/lib/services/login.service")>()
   return {
     ...original,
-    garantirLoginNaoBloqueado: vi.fn(),
+    reservarTentativaLogin: vi.fn(),
     garantirPinNaoBloqueado: vi.fn(),
-    registrarFalhaLogin: vi.fn(),
     limparFalhasLogin: vi.fn(),
   }
 })
 
 import { prisma } from "@/lib/prisma"
-import { garantirLoginNaoBloqueado, LoginBloqueadoError, limparFalhasLogin, registrarFalhaLogin } from "@/lib/services/login.service"
+import { LoginBloqueadoError, limparFalhasLogin, reservarTentativaLogin } from "@/lib/services/login.service"
 import {
   autenticarMotorista,
   autenticarUsuario,
@@ -48,12 +47,12 @@ describe("autenticarUsuario", () => {
     const resultado = await autenticarUsuario({ email: "  Ana@Ritmo.com ", senha: senhaCerta }, headers)
 
     expect(resultado).toMatchObject({ id: "u1", role: "ADMIN", filialId: 1 })
-    expect(garantirLoginNaoBloqueado).toHaveBeenCalledWith("ana@ritmo.com", "200.1.1.1")
+    expect(reservarTentativaLogin).toHaveBeenCalledWith("ana@ritmo.com", "200.1.1.1")
     expect(prisma.usuario.findFirst).toHaveBeenCalledWith({
       where: { email: { equals: "ana@ritmo.com", mode: "insensitive" } },
     })
+    // a tentativa foi contada antes da senha; acertou, apaga as tentativas
     expect(limparFalhasLogin).toHaveBeenCalledWith("ana@ritmo.com")
-    expect(registrarFalhaLogin).not.toHaveBeenCalled()
   })
 
   it("senha errada registra falha e dá a mesma mensagem de e-mail inexistente", async () => {
@@ -63,12 +62,13 @@ describe("autenticarUsuario", () => {
     vi.mocked(prisma.usuario.findFirst).mockResolvedValue(null)
     await expect(autenticarUsuario({ email: "nao@existe.com", senha: "x" }, headers)).rejects.toThrow(MENSAGEM_CREDENCIAIS_INVALIDAS)
 
-    expect(registrarFalhaLogin).toHaveBeenCalledTimes(2)
+    // contadas antes de conferir a senha, e não apagadas
+    expect(reservarTentativaLogin).toHaveBeenCalledTimes(2)
     expect(limparFalhasLogin).not.toHaveBeenCalled()
   })
 
   it("bloqueado não chega nem a consultar o usuário", async () => {
-    vi.mocked(garantirLoginNaoBloqueado).mockRejectedValueOnce(new LoginBloqueadoError())
+    vi.mocked(reservarTentativaLogin).mockRejectedValueOnce(new LoginBloqueadoError())
 
     await expect(autenticarUsuario({ email: "ana@ritmo.com", senha: senhaCerta }, headers)).rejects.toThrow(/Muitas tentativas/)
     expect(prisma.usuario.findFirst).not.toHaveBeenCalled()
@@ -138,7 +138,7 @@ describe("autenticarMotorista (SEVA + PIN)", () => {
     const resultado = await autenticarMotorista({ seva: " 261 ", pin: pinCerto }, headers)
 
     expect(resultado).toEqual({ id: "m1", name: "JOSE SILVA", email: null, role: "MOTORISTA", filialId: 3, motoristaId: 42 })
-    expect(garantirLoginNaoBloqueado).toHaveBeenCalledWith("motorista:261", "200.1.1.1")
+    expect(reservarTentativaLogin).toHaveBeenCalledWith("motorista:261", "200.1.1.1")
     expect(limparFalhasLogin).toHaveBeenCalledWith("motorista:261")
   })
 
@@ -149,7 +149,8 @@ describe("autenticarMotorista (SEVA + PIN)", () => {
     vi.mocked(prisma.usuario.findMany).mockResolvedValue([] as never)
     await expect(autenticarMotorista({ seva: "999", pin: pinCerto }, headers)).rejects.toThrow(MENSAGEM_PIN_INVALIDO)
 
-    expect(registrarFalhaLogin).toHaveBeenCalledTimes(2)
+    expect(reservarTentativaLogin).toHaveBeenCalledTimes(2)
+    expect(limparFalhasLogin).not.toHaveBeenCalled()
   })
 
   it("mesma matrícula em duas filiais: entra no acesso cujo PIN bate", async () => {
@@ -176,8 +177,7 @@ describe("autenticarUsuario — sem @", () => {
 
   it("texto sem @ é recusado antes de contar tentativa (não dá pra travar o PIN de um motorista pelo login de e-mail)", async () => {
     await expect(autenticarUsuario({ email: "motorista:261", senha: "x" }, headers)).rejects.toThrow(MENSAGEM_CREDENCIAIS_INVALIDAS)
-    expect(garantirLoginNaoBloqueado).not.toHaveBeenCalled()
-    expect(registrarFalhaLogin).not.toHaveBeenCalled()
+    expect(reservarTentativaLogin).not.toHaveBeenCalled()
     expect(prisma.usuario.findFirst).not.toHaveBeenCalled()
   })
 })
