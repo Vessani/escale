@@ -17,9 +17,7 @@ function criarErroPrisma(code: string, meta?: Record<string, unknown>) {
 describe("errorToMessage", () => {
   it("erro de domínio (ErroDeDominio) devolve mensagemSegura", () => {
     expect(errorToMessage(new ViagemNaoEncontradaError(), FALLBACK)).toBe("Viagem não encontrada.")
-    expect(errorToMessage(new FrotaDuplicadaError(), FALLBACK)).toBe(
-      "Já existe um conjunto cadastrado com essa frota (cavalo/carreta).",
-    )
+    expect(errorToMessage(new FrotaDuplicadaError(), FALLBACK)).toBe("Já existe um conjunto cadastrado com essa frota (cavalo/carreta).")
   })
 
   it("NumViagemDuplicadaError (checagem própria do app, antes de chegar no banco) devolve a mesma mensagem do conflito P2002 — mesmo texto pelos dois caminhos", () => {
@@ -41,25 +39,15 @@ describe("errorToMessage", () => {
   })
 
   it("P2002 (unique constraint) mapeia pra mensagem amigável conforme a coluna do conflito", () => {
-    expect(errorToMessage(criarErroPrisma("P2002", { target: ["numViagem"] }), FALLBACK)).toBe(
-      "Já existe uma viagem com este número.",
-    )
-    expect(errorToMessage(criarErroPrisma("P2002", { target: ["email"] }), FALLBACK)).toBe(
-      "Já existe um usuário com este e-mail.",
-    )
-    expect(errorToMessage(criarErroPrisma("P2002", { target: ["cpf"] }), FALLBACK)).toBe(
-      "Já existe um motorista cadastrado com este CPF.",
-    )
-    expect(errorToMessage(criarErroPrisma("P2002", { target: ["outraColuna"] }), FALLBACK)).toBe(
-      "Já existe um registro com estes dados.",
-    )
+    expect(errorToMessage(criarErroPrisma("P2002", { target: ["numViagem"] }), FALLBACK)).toBe("Já existe uma viagem com este número.")
+    expect(errorToMessage(criarErroPrisma("P2002", { target: ["email"] }), FALLBACK)).toBe("Já existe um usuário com este e-mail.")
+    expect(errorToMessage(criarErroPrisma("P2002", { target: ["cpf"] }), FALLBACK)).toBe("Já existe um motorista cadastrado com este CPF.")
+    expect(errorToMessage(criarErroPrisma("P2002", { target: ["outraColuna"] }), FALLBACK)).toBe("Já existe um registro com estes dados.")
   })
 
   it("P2025 (registro não encontrado) e P2003 (violação de FK) mapeiam pra mensagem amigável", () => {
     expect(errorToMessage(criarErroPrisma("P2025"), FALLBACK)).toBe("O registro informado não foi encontrado.")
-    expect(errorToMessage(criarErroPrisma("P2003"), FALLBACK)).toBe(
-      "Não foi possível concluir a operação por vínculo com outros dados.",
-    )
+    expect(errorToMessage(criarErroPrisma("P2003"), FALLBACK)).toBe("Não foi possível concluir a operação por vínculo com outros dados.")
   })
 
   it("código Prisma não mapeado cai no fallback", () => {
@@ -72,4 +60,3 @@ describe("errorToMessage", () => {
     expect(errorToMessage(resultado.error, "Falhou.")).toBe("Data e hora inválidas.")
   })
 })
-

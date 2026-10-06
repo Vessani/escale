@@ -3,11 +3,7 @@ import type { StatusViagem } from "@prisma/client"
 
 vi.mock("@/lib/prisma", () => ({ prisma: {} }))
 
-import {
-  calcularAvisoDescanso,
-  fimEfetivoViagem,
-  motoristaEstaDisponivelNoPeriodo,
-} from "@/lib/services/alocacao.service"
+import { calcularAvisoDescanso, fimEfetivoViagem, motoristaEstaDisponivelNoPeriodo } from "@/lib/services/alocacao.service"
 import { recalcularAvisosInterjornada } from "@/lib/services/interjornada.service"
 
 type ViagemMock = {
@@ -32,11 +28,13 @@ function criarViagem(parcial: Partial<ViagemMock> = {}): ViagemMock {
 }
 
 /** Motorista com agenda — sem relatório importado por padrão, então o descanso vem só das viagens. */
-function criarMotorista(parcial: {
-  diasTrabalhados?: number
-  viagens?: ViagemMock[]
-  registrosJornada?: Array<{ data: Date; codigo: number; fimJornada?: Date | null }>
-} = {}) {
+function criarMotorista(
+  parcial: {
+    diasTrabalhados?: number
+    viagens?: ViagemMock[]
+    registrosJornada?: Array<{ data: Date; codigo: number; fimJornada?: Date | null }>
+  } = {},
+) {
   return {
     id: 1,
     nome: "Motorista Teste",
@@ -109,21 +107,19 @@ describe("finalizar a viagem libera o motorista (descanso conta da finalização
 
     it("finalizar não dispensa as 11h: uma viagem 6h depois da finalização continua bloqueada", () => {
       const motorista = criarMotorista({ viagens: [finalizadaCedo] })
-      expect(
-        motoristaEstaDisponivelNoPeriodo(motorista, new Date("2026-07-08T20:00:00"), new Date("2026-07-09T06:00:00"), hoje),
-      ).toBe(false)
+      expect(motoristaEstaDisponivelNoPeriodo(motorista, new Date("2026-07-08T20:00:00"), new Date("2026-07-09T06:00:00"), hoje)).toBe(
+        false,
+      )
     })
 
     it("no 6º dia exige 35h contadas da finalização", () => {
       const motorista = criarMotorista({ diasTrabalhados: 6, viagens: [finalizadaCedo] })
 
       // 14h (08/07) + 35h = 01h de 10/07.
-      expect(
-        motoristaEstaDisponivelNoPeriodo(motorista, new Date("2026-07-10T00:30:00"), new Date("2026-07-10T12:00:00"), hoje),
-      ).toBe(false)
-      expect(
-        motoristaEstaDisponivelNoPeriodo(motorista, new Date("2026-07-10T01:00:00"), new Date("2026-07-10T12:00:00"), hoje),
-      ).toBe(true)
+      expect(motoristaEstaDisponivelNoPeriodo(motorista, new Date("2026-07-10T00:30:00"), new Date("2026-07-10T12:00:00"), hoje)).toBe(
+        false,
+      )
+      expect(motoristaEstaDisponivelNoPeriodo(motorista, new Date("2026-07-10T01:00:00"), new Date("2026-07-10T12:00:00"), hoje)).toBe(true)
     })
   })
 
@@ -157,9 +153,7 @@ describe("finalizar a viagem libera o motorista (descanso conta da finalização
     it("o relatório importado (rastreador) vale quando mostra um fim real mais tarde que a finalização", () => {
       const motorista = criarMotorista({
         viagens: [finalizadaCedo],
-        registrosJornada: [
-          { data: new Date("2026-07-08T00:00:00"), codigo: 3, fimJornada: new Date("2026-07-08T18:00:00") },
-        ],
+        registrosJornada: [{ data: new Date("2026-07-08T00:00:00"), codigo: 3, fimJornada: new Date("2026-07-08T18:00:00") }],
       })
 
       expect(calcularAvisoDescanso(motorista, viagemAmanha, hoje)).toBe(

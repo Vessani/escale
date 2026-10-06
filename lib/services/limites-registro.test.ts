@@ -6,7 +6,9 @@ const h = (hora: string) => new Date(`2026-10-02T${hora}-03:00`)
 describe("limites-registro", () => {
   it("km: entre o inicial e +10.000; sem km inicial só confere o hodômetro", () => {
     expect(() => validarKmDoRegistro(152400, 152300, "Km da chegada")).not.toThrow()
-    expect(() => validarKmDoRegistro(152000, 152300, "Km da chegada")).toThrow("Km da chegada: não pode ser menor que o km inicial (152300).")
+    expect(() => validarKmDoRegistro(152000, 152300, "Km da chegada")).toThrow(
+      "Km da chegada: não pode ser menor que o km inicial (152300).",
+    )
     expect(() => validarKmDoRegistro(170000, 152300, "Km da troca")).toThrow("mais de 10.000 km")
     expect(() => validarKmDoRegistro(-1, null, "Km")).toThrow("só números")
     expect(() => validarKmDoRegistro(5, null, "Km")).not.toThrow()

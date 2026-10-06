@@ -144,7 +144,11 @@ export function PainelViagemMotorista({
         <Cartao titulo="Iniciar viagem" icone={Play}>
           {atrasada && (
             <Alert variant="warning">
-              Saída prevista às {formatarHoraLocal(viagem.inicioPrevisto)} — você está {Math.floor(minutosAtraso / 60) > 0 ? `${Math.floor(minutosAtraso / 60)}h${String(minutosAtraso % 60).padStart(2, "0")}` : `${minutosAtraso} min`} atrasado. Informe o motivo.
+              Saída prevista às {formatarHoraLocal(viagem.inicioPrevisto)} — você está{" "}
+              {Math.floor(minutosAtraso / 60) > 0
+                ? `${Math.floor(minutosAtraso / 60)}h${String(minutosAtraso % 60).padStart(2, "0")}`
+                : `${minutosAtraso} min`}{" "}
+              atrasado. Informe o motivo.
             </Alert>
           )}
           <label className="grid gap-1.5 text-sm font-medium">
@@ -216,7 +220,13 @@ export function PainelViagemMotorista({
 
           {viagem.entregas.length > 0 && (
             <Cartao titulo="Chegada nos clientes" icone={MapPinned}>
-              <ChegadasClientes salvar={(entregaId, dados) => registrarChegada(viagem.id, entregaId, dados)} entregas={viagem.entregas} produto={viagem.produto} kmInicial={viagem.kmInicial} agoraServidor={agoraServidor} />
+              <ChegadasClientes
+                salvar={(entregaId, dados) => registrarChegada(viagem.id, entregaId, dados)}
+                entregas={viagem.entregas}
+                produto={viagem.produto}
+                kmInicial={viagem.kmInicial}
+                agoraServidor={agoraServidor}
+              />
             </Cartao>
           )}
 
@@ -244,7 +254,10 @@ export function PainelViagemMotorista({
                 onClick={() => {
                   const centavos = parseReaisParaCentavos(valor)
                   if (centavos === null) return
-                  executar(() => lancarDespesa(viagem.id, { tipo: tipoDespesa, valorCentavos: centavos }), () => setValor(""))
+                  executar(
+                    () => lancarDespesa(viagem.id, { tipo: tipoDespesa, valorCentavos: centavos }),
+                    () => setValor(""),
+                  )
                 }}
               >
                 Lançar
@@ -255,7 +268,11 @@ export function PainelViagemMotorista({
                 {viagem.despesas.map((despesa) => (
                   <li key={despesa.id} className="flex items-center justify-between gap-3 px-3 py-2 text-sm">
                     <span className="flex items-center gap-2">
-                      {despesa.tipo === "PEDAGIO" ? <Ticket className="size-4 text-muted-foreground" aria-hidden /> : <BedDouble className="size-4 text-muted-foreground" aria-hidden />}
+                      {despesa.tipo === "PEDAGIO" ? (
+                        <Ticket className="size-4 text-muted-foreground" aria-hidden />
+                      ) : (
+                        <BedDouble className="size-4 text-muted-foreground" aria-hidden />
+                      )}
                       {ROTULO_DESPESA[despesa.tipo]}
                       <span className="text-xs text-muted-foreground">{formatarHoraLocal(despesa.registradoEm)}</span>
                     </span>
@@ -283,7 +300,13 @@ export function PainelViagemMotorista({
 
           <ProblemaMecanico viagemId={viagem.id} problema={viagem.problemaMecanico} informadoEm={viagem.problemaMecanicoEm} />
 
-          <TrocaMotoristaMotorista viagemId={viagem.id} numViagem={viagem.numViagem} substitutos={substitutos} kmInicial={viagem.kmInicial} agoraServidor={agoraServidor} />
+          <TrocaMotoristaMotorista
+            viagemId={viagem.id}
+            numViagem={viagem.numViagem}
+            substitutos={substitutos}
+            kmInicial={viagem.kmInicial}
+            agoraServidor={agoraServidor}
+          />
 
           <Cartao titulo="Encerrar viagem" icone={Flag}>
             <label className="grid gap-1.5 text-sm font-medium">
@@ -325,7 +348,12 @@ export function PainelViagemMotorista({
             destructive={false}
             confirming={pendente}
             erro={erro || null}
-            onConfirm={() => executar(() => encerrarViagem(viagem.id, { kmFinal: Number(kmFinal) }), () => setConfirmarEncerrar(false))}
+            onConfirm={() =>
+              executar(
+                () => encerrarViagem(viagem.id, { kmFinal: Number(kmFinal) }),
+                () => setConfirmarEncerrar(false),
+              )
+            }
           />
         </>
       )}

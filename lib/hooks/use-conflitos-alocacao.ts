@@ -26,10 +26,7 @@ type ItemParaConflitoAlocacao = {
  * components/viagem/confirmar-lote-viagens.tsx, que tinham essa mesma lógica
  * duplicada.
  */
-export function useConflitosAlocacao(
-  itens: ItemParaConflitoAlocacao[],
-  selecoes: Record<string, string>,
-) {
+export function useConflitosAlocacao(itens: ItemParaConflitoAlocacao[], selecoes: Record<string, string>) {
   const selecaoEfetivaPorViagem = useMemo(() => {
     const mapa: Record<string, string> = {}
     for (const item of itens) {

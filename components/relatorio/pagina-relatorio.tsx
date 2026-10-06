@@ -60,7 +60,11 @@ export function FiltroRelatorio({
         </>
       )}
       {children}
-      {(periodo || children) && <Button type="submit" size="sm" variant="outline">Filtrar</Button>}
+      {(periodo || children) && (
+        <Button type="submit" size="sm" variant="outline">
+          Filtrar
+        </Button>
+      )}
       <Button asChild size="sm" className="ml-auto">
         <a href={`/api/relatorios/exportar/${exportarTipo}${query ? `?${query}` : ""}`}>
           <Download className="size-4 mr-1.5" aria-hidden /> Baixar Excel
@@ -71,7 +75,15 @@ export function FiltroRelatorio({
 }
 
 /** Título de uma parte da tela de relatório. */
-export function SecaoRelatorio({ titulo, descricao, children }: { titulo: string; descricao?: React.ReactNode; children: React.ReactNode }) {
+export function SecaoRelatorio({
+  titulo,
+  descricao,
+  children,
+}: {
+  titulo: string
+  descricao?: React.ReactNode
+  children: React.ReactNode
+}) {
   return (
     <section className="space-y-3">
       <div>
@@ -100,7 +112,9 @@ export function BadgeAtividade({ atividade }: { atividade: "VIAGEM" | "INTERNO" 
   return atividade === "VIAGEM" ? (
     <Badge variant="outline">Viagem</Badge>
   ) : (
-    <Badge variant="outline" className="text-muted-foreground">Interno</Badge>
+    <Badge variant="outline" className="text-muted-foreground">
+      Interno
+    </Badge>
   )
 }
 

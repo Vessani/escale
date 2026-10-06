@@ -1,10 +1,5 @@
 import { encontrarFimJornadaAnterior } from "../jornada.service"
-import {
-  descansoMinimoNecessarioApos,
-  fimEfetivoViagem,
-  viagemBloqueiaAgenda,
-  viagemDesmentidaPeloRelatorio,
-} from "./disponibilidade"
+import { descansoMinimoNecessarioApos, fimEfetivoViagem, viagemBloqueiaAgenda, viagemDesmentidaPeloRelatorio } from "./disponibilidade"
 import type { MotoristaParaAlocacao, ViagemParaDisponibilidade } from "./tipos"
 
 /**
@@ -34,11 +29,7 @@ type DescansoAntesDaViagem = {
  * desmente (dias cobertos por ele sem o motorista trabalhar) não conta — o
  * relatório prevalece, ver viagemDesmentidaPeloRelatorio.
  */
-function encontrarFimTrabalhoAnterior(
-  motorista: MotoristaParaDescanso,
-  inicioViagem: Date,
-  viagemId?: number,
-): Date | null {
+function encontrarFimTrabalhoAnterior(motorista: MotoristaParaDescanso, inicioViagem: Date, viagemId?: number): Date | null {
   let maisRecente = encontrarFimJornadaAnterior(motorista.registrosJornada, inicioViagem)
 
   for (const viagem of motorista.viagens ?? []) {

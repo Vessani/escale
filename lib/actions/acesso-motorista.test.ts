@@ -9,14 +9,17 @@ vi.mock("@/lib/services/acesso-motorista.service", () => ({ gerarPinMotorista: v
 import { desativarAcessoMotorista, gerarPinMotorista } from "@/lib/services/acesso-motorista.service"
 import { desativarAcesso, gerarAcessoMotorista } from "./acesso-motorista"
 
-const sessao = (user: Record<string, unknown> | null) =>
-  vi.mocked(getServerSession).mockResolvedValue(user ? ({ user } as never) : null)
+const sessao = (user: Record<string, unknown> | null) => vi.mocked(getServerSession).mockResolvedValue(user ? ({ user } as never) : null)
 
 beforeEach(() => vi.clearAllMocks())
 
 describe("lib/actions/acesso-motorista", () => {
   it("só o escalador (admin/despachante) com filial gera ou desativa o acesso", async () => {
-    for (const user of [null, { id: "m", role: "MOTORISTA", filialId: 3, motoristaId: 7 }, { id: "s", role: "SUPERADMIN", filialId: null }]) {
+    for (const user of [
+      null,
+      { id: "m", role: "MOTORISTA", filialId: 3, motoristaId: 7 },
+      { id: "s", role: "SUPERADMIN", filialId: null },
+    ]) {
       sessao(user)
       expect(await gerarAcessoMotorista(7)).toEqual({ sucesso: false, erro: "Não autorizado." })
       expect(await desativarAcesso(7)).toEqual({ sucesso: false, erro: "Não autorizado." })

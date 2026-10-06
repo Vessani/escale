@@ -41,7 +41,9 @@ const frota = (codigo: string | null) => (codigo ? formatarCodigoFrota(codigo).r
 const textoPeriodo = (periodo: Periodo) => `Período ${formatarDiaCompleto(periodo.de)} a ${formatarDiaCompleto(periodo.ate)}`
 
 /** Colunas comuns a todo relatório de jornada: o que o motorista fazia (viagem ou interno) e com qual frota. */
-function colunasAtividade<T extends { atividade: "VIAGEM" | "INTERNO"; numViagem: string | null; cavalo: string | null; carreta: string | null }>(): Coluna<T>[] {
+function colunasAtividade<
+  T extends { atividade: "VIAGEM" | "INTERNO"; numViagem: string | null; cavalo: string | null; carreta: string | null },
+>(): Coluna<T>[] {
   return [
     { titulo: "Atividade", valor: (l) => atividade(l.atividade) },
     { titulo: "Nº Viagem", valor: (l) => l.numViagem ?? "", tipo: "codigo" },
@@ -88,7 +90,13 @@ function abaCircadiano(nomeAba: string, titulo: string, subtitulo: string, ocorr
   })
 }
 
-function abaGrupoPontualidade(nomeAba: string, rotulo: string, grupos: GrupoPontualidade[], subtitulo: string, formatar = (texto: string) => texto) {
+function abaGrupoPontualidade(
+  nomeAba: string,
+  rotulo: string,
+  grupos: GrupoPontualidade[],
+  subtitulo: string,
+  formatar = (texto: string) => texto,
+) {
   return aba<GrupoPontualidade>({
     nome: nomeAba,
     titulo: `Pontualidade por ${rotulo.toLowerCase()}`,
@@ -109,7 +117,13 @@ const reaisExcel = (centavos: number) => (centavos ? centavos / 100 : null)
 
 export const EXPORTADORES_RELATORIO: Record<string, Exportador> = {
   viagens: comPeriodo(PERIODO_PADRAO.viagens, "viagens", async (filialId, periodo, params) => {
-    const viagens = await buscarViagensKmCustos(filialId, periodo.de, periodo.ate, parseMotoristaFiltro(params.get("motorista")), STATUS_RELATORIO_VIAGENS)
+    const viagens = await buscarViagensKmCustos(
+      filialId,
+      periodo.de,
+      periodo.ate,
+      parseMotoristaFiltro(params.get("motorista")),
+      STATUS_RELATORIO_VIAGENS,
+    )
     const { linhas, totais } = relatorioViagens(viagens)
     type Linha = (typeof linhas)[number]
     return [
@@ -185,8 +199,18 @@ export const EXPORTADORES_RELATORIO: Record<string, Exportador> = {
     const relatorio = await buscarRelatorioCircadiano(filialId, periodo.de, periodo.ate)
     const regra = "Dia (início 04:00–15:59) passa das 22:00 · Noite (início 16:00–03:59) passa das 05:00"
     return [
-      abaCircadiano("Previsto", "Ciclo circadiano · previsto (viagens agendadas)", `${textoPeriodo(periodo)} · ${regra} · jornada estimada em até 12h`, relatorio.previstas),
-      abaCircadiano("Realizado", "Ciclo circadiano · realizado (relatório de jornada)", `${textoPeriodo(periodo)} · ${regra}`, relatorio.realizadas),
+      abaCircadiano(
+        "Previsto",
+        "Ciclo circadiano · previsto (viagens agendadas)",
+        `${textoPeriodo(periodo)} · ${regra} · jornada estimada em até 12h`,
+        relatorio.previstas,
+      ),
+      abaCircadiano(
+        "Realizado",
+        "Ciclo circadiano · realizado (relatório de jornada)",
+        `${textoPeriodo(periodo)} · ${regra}`,
+        relatorio.realizadas,
+      ),
     ]
   }),
 
@@ -294,7 +318,8 @@ export const EXPORTADORES_RELATORIO: Record<string, Exportador> = {
           { rotulo: "Com alerta", valor: linhas.filter((l) => l.totalAlertas > 0).length },
         ],
         linhas,
-        destaque: (l) => (l.totalAlertas >= 3 ? "perigo" : l.totalAlertas > 0 ? "alerta" : l.diasTrabalhados === 0 && l.viagens === 0 ? "apagado" : null),
+        destaque: (l) =>
+          l.totalAlertas >= 3 ? "perigo" : l.totalAlertas > 0 ? "alerta" : l.diasTrabalhados === 0 && l.viagens === 0 ? "apagado" : null,
         colunas: [
           { titulo: "Motorista", valor: (l) => nome(l.motorista) },
           { titulo: "Turno", valor: (l) => rotuloTurno(l.turno) },
@@ -408,7 +433,14 @@ export const EXPORTADORES_RELATORIO: Record<string, Exportador> = {
           { titulo: "Motorista", valor: (v) => nome(v.motorista?.nome) },
           { titulo: "Cavalo", valor: (v) => frota(v.cavalo), tipo: "codigo", largura: 9 },
           { titulo: "Carreta", valor: (v) => frota(v.carreta), tipo: "codigo", largura: 9 },
-          { titulo: "Avisos", valor: (v) => listarAvisos(v).map((a) => `${a.rotulo}: ${a.detalhe}`).join("\n"), largura: 60 },
+          {
+            titulo: "Avisos",
+            valor: (v) =>
+              listarAvisos(v)
+                .map((a) => `${a.rotulo}: ${a.detalhe}`)
+                .join("\n"),
+            largura: 60,
+          },
           { titulo: "Última alteração por", valor: (v) => v.alteradoPor ?? "" },
           { titulo: "Em", valor: (v) => v.alteradoEm, tipo: "dataHora" },
         ],
@@ -418,7 +450,15 @@ export const EXPORTADORES_RELATORIO: Record<string, Exportador> = {
 
   frota: comPeriodo(PERIODO_PADRAO.frota, "disponibilidade-da-frota", async (filialId, periodo) => {
     const dados = await buscarDadosDisponibilidade(filialId, periodo.de, periodo.ate)
-    const itens = disponibilidadeDaFrota(dados.veiculos, dados.viagens, dados.manutencoes, periodo.de, periodo.ate, new Date(), dados.ultimaViagemPorVeiculo)
+    const itens = disponibilidadeDaFrota(
+      dados.veiculos,
+      dados.viagens,
+      dados.manutencoes,
+      periodo.de,
+      periodo.ate,
+      new Date(),
+      dados.ultimaViagemPorVeiculo,
+    )
     const horas = (minutos: number) => Math.round((minutos / 60) * 10) / 10
     const abaDe = (veiculo: "CARRETA" | "CAVALO", nomeAba: string) => {
       const lista = itens.filter((item) => item.veiculo === veiculo)

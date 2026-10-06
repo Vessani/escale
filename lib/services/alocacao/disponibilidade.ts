@@ -111,8 +111,7 @@ export function periodosConflitamComDescanso(
   // intervalo entre elas é a diferença entre o fim da que veio antes e o
   // início da que veio depois (a ordem cronológica é confiável aqui, já que
   // periodoConflita já descartou qualquer sobreposição).
-  const gapMs =
-    inicioA <= inicioB ? inicioB.getTime() - fimA.getTime() : inicioA.getTime() - fimB.getTime()
+  const gapMs = inicioA <= inicioB ? inicioB.getTime() - fimA.getTime() : inicioA.getTime() - fimB.getTime()
 
   return gapMs < minimoHoras * 60 * 60 * 1000
 }
@@ -159,7 +158,9 @@ export function motivoIndisponivel(motorista: MotoristaComAgenda, inicioViagem: 
 
     const horas = minimoHoras === MINIMO_HORAS_ENTRE_FOLGAS ? ` (${MINIMO_HORAS_ENTRE_FOLGAS}h após o 6º dia)` : ""
     if (periodoConflita(inicioExistente, fimExistente, inicioViagem, fimViagem)) {
-      return inicioExistente <= inicioViagem ? `Em viagem até ${formatarDiaMesHora(fimExistente)}` : `Outra viagem às ${formatarDiaMesHora(inicioExistente)}`
+      return inicioExistente <= inicioViagem
+        ? `Em viagem até ${formatarDiaMesHora(fimExistente)}`
+        : `Outra viagem às ${formatarDiaMesHora(inicioExistente)}`
     }
     return inicioExistente <= inicioViagem
       ? `Descanso até ${formatarDiaMesHora(new Date(fimExistente.getTime() + minimoHoras * HORA_MS))}${horas}`
@@ -168,22 +169,10 @@ export function motivoIndisponivel(motorista: MotoristaComAgenda, inicioViagem: 
   return null
 }
 
-export function motoristaEstaDisponivelNoPeriodo(
-  motorista: MotoristaComAgenda,
-  inicioViagem: Date,
-  fimViagem: Date,
-  hoje: Date,
-) {
+export function motoristaEstaDisponivelNoPeriodo(motorista: MotoristaComAgenda, inicioViagem: Date, fimViagem: Date, hoje: Date) {
   return motivoIndisponivel(motorista, inicioViagem, fimViagem, hoje) === null
 }
 
-export function filtrarMotoristasDisponiveisNoPeriodo(
-  motoristas: MotoristaComAgenda[],
-  inicioViagem: Date,
-  fimViagem: Date,
-  hoje: Date,
-) {
-  return motoristas.filter((motorista) =>
-    motoristaEstaDisponivelNoPeriodo(motorista, inicioViagem, fimViagem, hoje),
-  )
+export function filtrarMotoristasDisponiveisNoPeriodo(motoristas: MotoristaComAgenda[], inicioViagem: Date, fimViagem: Date, hoje: Date) {
+  return motoristas.filter((motorista) => motoristaEstaDisponivelNoPeriodo(motorista, inicioViagem, fimViagem, hoje))
 }

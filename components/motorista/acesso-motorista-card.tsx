@@ -60,8 +60,8 @@ export function AcessoMotoristaCard({ motoristaId, seva, situacao }: { motorista
           </Badge>
         </CardTitle>
         <CardDescription>
-          Pelo celular ele vê as viagens dele, inicia (km e motivo do atraso), lança pedágio/pernoite e encerra. Entra com a
-          matrícula e um PIN.
+          Pelo celular ele vê as viagens dele, inicia (km e motivo do atraso), lança pedágio/pernoite e encerra. Entra com a matrícula e um
+          PIN.
         </CardDescription>
       </CardHeader>
       <CardContent className="pt-6 space-y-4">
@@ -83,7 +83,13 @@ export function AcessoMotoristaCard({ motoristaId, seva, situacao }: { motorista
         <div className="flex flex-wrap gap-2">
           <Button type="button" onClick={gerar} disabled={pendente}>
             <KeyRound className="size-4" aria-hidden />
-            {pendente ? "Gerando..." : situacao === "SEM_ACESSO" ? "Criar acesso" : situacao === "DESATIVADO" ? "Reativar com PIN novo" : "Gerar PIN novo"}
+            {pendente
+              ? "Gerando..."
+              : situacao === "SEM_ACESSO"
+                ? "Criar acesso"
+                : situacao === "DESATIVADO"
+                  ? "Reativar com PIN novo"
+                  : "Gerar PIN novo"}
           </Button>
           {situacao === "ATIVO" && (
             <Button type="button" variant="outline" onClick={() => setConfirmarDesativar(true)} disabled={pendente}>

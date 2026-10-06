@@ -17,8 +17,7 @@ import { revalidatePath } from "next/cache"
 import * as servico from "@/lib/services/correcao-registro.service"
 import { apagarChegada, corrigirKm, lancarDespesaEscalador, salvarChegadaEscalador } from "./correcao-registro"
 
-const sessao = (user: Record<string, unknown> | null) =>
-  vi.mocked(getServerSession).mockResolvedValue(user ? ({ user } as never) : null)
+const sessao = (user: Record<string, unknown> | null) => vi.mocked(getServerSession).mockResolvedValue(user ? ({ user } as never) : null)
 const ator = { usuarioId: "u1", usuarioNome: "Ana" }
 
 beforeEach(() => {
@@ -37,7 +36,12 @@ describe("lib/actions/correcao-registro", () => {
 
   it("corrige km na filial da sessão e atualiza edição, relatório e a área do motorista", async () => {
     expect(await corrigirKm(5, { kmInicial: 152200, kmFinal: 152900 })).toEqual({ sucesso: true })
-    expect(servico.corrigirKmPeloEscalador).toHaveBeenCalledWith(3, 5, expect.objectContaining({ kmInicial: 152200, kmFinal: 152900 }), ator)
+    expect(servico.corrigirKmPeloEscalador).toHaveBeenCalledWith(
+      3,
+      5,
+      expect.objectContaining({ kmInicial: 152200, kmFinal: 152900 }),
+      ator,
+    )
     expect(revalidatePath).toHaveBeenCalledWith("/viagens/editar/5")
     expect(revalidatePath).toHaveBeenCalledWith("/viagens/relatorio/5")
     expect(revalidatePath).toHaveBeenCalledWith("/minhas-viagens", "layout")

@@ -6,7 +6,15 @@ import { Alert } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
-import { JornadaRelatorioParser, SEM_EDICOES, registrosParaImportar, type EdicoesJornada, type LinhaJornadaBruta, type LinhaRevisaoJornada, type RegistroJornadaRelatorio } from "@/lib/parsers/jornada-relatorio-parser"
+import {
+  JornadaRelatorioParser,
+  SEM_EDICOES,
+  registrosParaImportar,
+  type EdicoesJornada,
+  type LinhaJornadaBruta,
+  type LinhaRevisaoJornada,
+  type RegistroJornadaRelatorio,
+} from "@/lib/parsers/jornada-relatorio-parser"
 import type { AjusteJornada } from "@/lib/validation/ajuste-jornada"
 import type { CoberturaImportacaoJornada } from "@/lib/services/jornada-relatorio.service"
 import { MAX_DIAS_SEM_FOLGA, folgaEstourada } from "@/lib/services/dias-sem-folga"
@@ -195,8 +203,8 @@ export function ConferenciaJornada({
       <div className="space-y-3 px-5 py-4">
         {setimosDias > 0 && (
           <Alert variant="error">
-            {setimosDias === 1 ? "1 jornada passou" : `${setimosDias} jornadas passaram`} de {MAX_DIAS_SEM_FOLGA} dias seguidos sem
-            folga (em vermelho).
+            {setimosDias === 1 ? "1 jornada passou" : `${setimosDias} jornadas passaram`} de {MAX_DIAS_SEM_FOLGA} dias seguidos sem folga
+            (em vermelho).
           </Alert>
         )}
 

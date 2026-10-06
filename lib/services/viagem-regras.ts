@@ -3,8 +3,8 @@ import { turnoPorHorario } from "./turno"
 
 /** Regras puras de status e turno da viagem, usadas na criação/edição e nas mudanças de status. */
 
-export function resolverStatusPorAlocacao(motoristaId: number | null) {
-  return motoristaId === null ? "CRIADA" : "ALOCADA";
+function resolverStatusPorAlocacao(motoristaId: number | null) {
+  return motoristaId === null ? "CRIADA" : "ALOCADA"
 }
 
 /**
@@ -12,18 +12,14 @@ export function resolverStatusPorAlocacao(motoristaId: number | null) {
  * acompanha o novo horário (ver turnoPorHorario). Se o turno foi trocado à
  * mão na edição, vale o escolhido.
  */
-export function turnoAposMudarHorario(
-  viagemAtual: { inicioPrevisto: Date; turno: Turno },
-  novoInicio: Date,
-  turnoEnviado: Turno,
-): Turno {
+export function turnoAposMudarHorario(viagemAtual: { inicioPrevisto: Date; turno: Turno }, novoInicio: Date, turnoEnviado: Turno): Turno {
   const inicioAnterior = viagemAtual.inicioPrevisto ? new Date(viagemAtual.inicioPrevisto).getTime() : null
   const inicioMudou = inicioAnterior !== null && novoInicio.getTime() !== inicioAnterior
   if (!inicioMudou || turnoEnviado !== viagemAtual.turno) return turnoEnviado
   return turnoPorHorario(novoInicio) ?? turnoEnviado
 }
 
-export function statusPermiteAutoAjuste(statusAtual: string) {
+function statusPermiteAutoAjuste(statusAtual: string) {
   return statusAtual === "CRIADA" || statusAtual === "ALOCADA"
 }
 

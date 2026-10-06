@@ -16,15 +16,7 @@ type OpcaoCodigoJornada = {
 }
 
 export type FiltroStatusJornada =
-  | "TODOS"
-  | "JORNADA_1_3"
-  | "JORNADA_4_5"
-  | "JORNADA_6"
-  | "FOLGA"
-  | "FERIAS"
-  | "EXAMES"
-  | "INTERNO"
-  | "MANUTENCAO"
+  "TODOS" | "JORNADA_1_3" | "JORNADA_4_5" | "JORNADA_6" | "FOLGA" | "FERIAS" | "EXAMES" | "INTERNO" | "MANUTENCAO"
 
 export const OPCOES_CODIGO_JORNADA: OpcaoCodigoJornada[] = [
   { valor: 1, label: "1º dia" },
@@ -52,10 +44,7 @@ export const OPCOES_FILTRO_STATUS: Array<{ valor: FiltroStatusJornada; label: st
   { valor: "MANUTENCAO", label: "11 Manutenção", classe: CLASSE_JORNADA_MANUTENCAO },
 ]
 
-export function statusJornadaCorrespondeAoFiltro(
-  diasTrabalhados: number,
-  filtro: FiltroStatusJornada,
-) {
+export function statusJornadaCorrespondeAoFiltro(diasTrabalhados: number, filtro: FiltroStatusJornada) {
   if (filtro === "TODOS") {
     return true
   }

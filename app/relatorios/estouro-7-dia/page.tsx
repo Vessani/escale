@@ -53,9 +53,9 @@ export default async function EstouroSetimoDiaPage({ searchParams }: { searchPar
   return (
     <div className="space-y-6">
       <CabecalhoRelatorio titulo="Estouro de 7º dia">
-        Pelo relatório de jornada: motorista que trabalhou o {MAX_DIAS_SEM_FOLGA + 1}º dia seguido (ou mais) sem folga, ou que
-        folgou menos de <strong>{MINIMO_HORAS_ENTRE_FOLGAS}h</strong> depois do {MAX_DIAS_SEM_FOLGA}º dia. Costuma acontecer
-        quando ele bate o ponto antes da hora na volta do descanso.
+        Pelo relatório de jornada: motorista que trabalhou o {MAX_DIAS_SEM_FOLGA + 1}º dia seguido (ou mais) sem folga, ou que folgou menos
+        de <strong>{MINIMO_HORAS_ENTRE_FOLGAS}h</strong> depois do {MAX_DIAS_SEM_FOLGA}º dia. Costuma acontecer quando ele bate o ponto
+        antes da hora na volta do descanso.
       </CabecalhoRelatorio>
 
       <FiltroRelatorio
@@ -96,14 +96,24 @@ export default async function EstouroSetimoDiaPage({ searchParams }: { searchPar
                 >
                   <TableCell className="tabular-nums">{formatarDiaCurto(estouro.dia)}</TableCell>
                   <TableCell className="font-medium">{formatarNomeProprio(estouro.motorista)}</TableCell>
-                  <TableCell><BadgeTurno turno={estouro.turno} /></TableCell>
-                  <TableCell><Ocorrencia estouro={estouro} /></TableCell>
+                  <TableCell>
+                    <BadgeTurno turno={estouro.turno} />
+                  </TableCell>
+                  <TableCell>
+                    <Ocorrencia estouro={estouro} />
+                  </TableCell>
                   <TableCell className="font-mono tabular-nums">
                     {estouro.fimAnterior ? formatarHorarioRelativo(estouro.fimAnterior, estouro.dia) : "—"}
                   </TableCell>
-                  <TableCell className="font-mono tabular-nums">{estouro.inicio ? formatarHorarioRelativo(estouro.inicio, estouro.dia) : "—"}</TableCell>
-                  <TableCell className="font-mono tabular-nums">{estouro.fim ? formatarHorarioRelativo(estouro.fim, estouro.dia) : "—"}</TableCell>
-                  <TableCell><BadgeAtividade atividade={estouro.atividade} /></TableCell>
+                  <TableCell className="font-mono tabular-nums">
+                    {estouro.inicio ? formatarHorarioRelativo(estouro.inicio, estouro.dia) : "—"}
+                  </TableCell>
+                  <TableCell className="font-mono tabular-nums">
+                    {estouro.fim ? formatarHorarioRelativo(estouro.fim, estouro.dia) : "—"}
+                  </TableCell>
+                  <TableCell>
+                    <BadgeAtividade atividade={estouro.atividade} />
+                  </TableCell>
                   <TableCell className="font-mono">{estouro.numViagem ?? "—"}</TableCell>
                   <TableCell className="font-mono tabular-nums">{textoFrota(estouro.cavalo, estouro.carreta)}</TableCell>
                 </TableRow>

@@ -3,17 +3,8 @@ import { descansoMinimoNecessarioApos, filtrarMotoristasDisponiveisNoPeriodo, pe
 import { filtrarMotoristasCompativeis } from "./priorizacao"
 import type { ContextoCompatibilidade, MotoristaComAgenda } from "./tipos"
 
-export function sugerirMotoristaAutomatico(
-  motoristas: MotoristaComAgenda[],
-  fimViagem: Date,
-  contexto: ContextoCompatibilidade,
-) {
-  const disponiveis = filtrarMotoristasDisponiveisNoPeriodo(
-    motoristas,
-    contexto.dataInicioViagem,
-    fimViagem,
-    contexto.hoje,
-  )
+export function sugerirMotoristaAutomatico(motoristas: MotoristaComAgenda[], fimViagem: Date, contexto: ContextoCompatibilidade) {
+  const disponiveis = filtrarMotoristasDisponiveisNoPeriodo(motoristas, contexto.dataInicioViagem, fimViagem, contexto.hoje)
   const compativeis = filtrarMotoristasCompativeis(disponiveis, contexto)
   return compativeis[0] ?? null
 }
@@ -66,12 +57,7 @@ export function sugerirAlocacoesEmLote(
       hoje,
     }
 
-    const motoristasDisponiveis = filtrarMotoristasDisponiveisNoPeriodo(
-      motoristas,
-      viagem.inicioPrevisto,
-      viagem.fimPrevisto,
-      hoje,
-    )
+    const motoristasDisponiveis = filtrarMotoristasDisponiveisNoPeriodo(motoristas, viagem.inicioPrevisto, viagem.fimPrevisto, hoje)
 
     const motoristasCompativeis = filtrarMotoristasCompativeis(motoristasDisponiveis, contexto).filter(
       (motorista) =>
@@ -79,13 +65,7 @@ export function sugerirAlocacoesEmLote(
           if (atribuicao.motoristaId !== motorista.id) return false
 
           const minimoHoras = descansoMinimoNecessarioApos(atribuicao.motorista, atribuicao.fim, hoje)
-          return periodosConflitamComDescanso(
-            viagem.inicioPrevisto,
-            viagem.fimPrevisto,
-            atribuicao.inicio,
-            atribuicao.fim,
-            minimoHoras,
-          )
+          return periodosConflitamComDescanso(viagem.inicioPrevisto, viagem.fimPrevisto, atribuicao.inicio, atribuicao.fim, minimoHoras)
         }),
     )
 

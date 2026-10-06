@@ -224,27 +224,27 @@ export function mesmoDiaEmBrasilia(a: Date, b: Date): boolean {
  * Suporta: DD.MM, DD.MM.YYYY, serial Excel, Date object
  */
 export function formatarDataExcel(data: string | Date, hora?: string): string {
-  if (!data) return ''
+  if (!data) return ""
 
   // Se já está em formato datetime-local
-  if (typeof data === 'string' && data.includes('T')) return data
+  if (typeof data === "string" && data.includes("T")) return data
 
   let date: Date | null = null
 
   if (data instanceof Date) {
     date = data
-  } else if (typeof data === 'string') {
+  } else if (typeof data === "string") {
     // Remove espaços e pontos finais (SAP às vezes adiciona "04.07." ao invés de "04.07")
-    const dataNormalizada = data.trim().replace(/\.$/, '')
-    
+    const dataNormalizada = data.trim().replace(/\.$/, "")
+
     // Formato DD.MM (ou DD.MM. do SAP) — a planilha não traz o ano, então
     // assumimos o ano corrente. Se o resultado cair muito no futuro (ex:
     // "30.12" importado em janeiro), a data quase certamente é do ano
     // anterior — planilhas de operação não chegam com meses de antecedência.
     if (dataNormalizada.match(/^\d{2}\.\d{2}$/)) {
-      const [dia, mes] = dataNormalizada.split('.')
+      const [dia, mes] = dataNormalizada.split(".")
       let ano = new Date().getFullYear()
-      let candidata = new Date(`${ano}-${mes}-${dia}T${hora || '00:00'}`)
+      let candidata = new Date(`${ano}-${mes}-${dia}T${hora || "00:00"}`)
 
       const LIMITE_DIAS_FUTURO = 60
       const limiteFuturo = new Date()
@@ -252,15 +252,15 @@ export function formatarDataExcel(data: string | Date, hora?: string): string {
 
       if (!isNaN(candidata.getTime()) && candidata > limiteFuturo) {
         ano -= 1
-        candidata = new Date(`${ano}-${mes}-${dia}T${hora || '00:00'}`)
+        candidata = new Date(`${ano}-${mes}-${dia}T${hora || "00:00"}`)
       }
 
       date = candidata
     }
     // Formato DD.MM.YYYY
     else if (dataNormalizada.match(/^\d{2}\.\d{2}\.\d{4}$/)) {
-      const [dia, mes, ano] = dataNormalizada.split('.')
-      date = new Date(`${ano}-${mes}-${dia}T${hora || '00:00'}`)
+      const [dia, mes, ano] = dataNormalizada.split(".")
+      date = new Date(`${ano}-${mes}-${dia}T${hora || "00:00"}`)
     }
     // Serial do Excel (número)
     else if (!isNaN(Number(dataNormalizada))) {
@@ -279,7 +279,7 @@ export function formatarDataExcel(data: string | Date, hora?: string): string {
   }
 
   if (!date || isNaN(date.getTime())) {
-    return ''
+    return ""
   }
 
   return formatarDateTimeLocal(date, hora)
@@ -289,17 +289,17 @@ export function formatarDataExcel(data: string | Date, hora?: string): string {
  * Normaliza string de hora para formato HH:MM
  */
 export function normalizarHora(hora: string): string {
-  if (!hora) return '00:00'
-  if (typeof hora !== 'string') return '00:00'
+  if (!hora) return "00:00"
+  if (typeof hora !== "string") return "00:00"
 
   const match = hora.match(/^(\d{1,2}):(\d{2})/)
   if (match) {
-    const h = String(match[1]).padStart(2, '0')
-    const m = String(match[2]).padStart(2, '0')
+    const h = String(match[1]).padStart(2, "0")
+    const m = String(match[2]).padStart(2, "0")
     return `${h}:${m}`
   }
 
-  return '00:00'
+  return "00:00"
 }
 
 /**
@@ -393,15 +393,15 @@ export function calcularDiasEntre(dataInicio: Date, dataFim: Date): number {
  */
 export function formatarDateTimeLocal(date: Date, hora?: string): string {
   const ano = date.getFullYear()
-  const mes = String(date.getMonth() + 1).padStart(2, '0')
-  const dia = String(date.getDate()).padStart(2, '0')
+  const mes = String(date.getMonth() + 1).padStart(2, "0")
+  const dia = String(date.getDate()).padStart(2, "0")
 
   if (hora) {
     return `${ano}-${mes}-${dia}T${hora}`
   }
 
-  const h = String(date.getHours()).padStart(2, '0')
-  const m = String(date.getMinutes()).padStart(2, '0')
+  const h = String(date.getHours()).padStart(2, "0")
+  const m = String(date.getMinutes()).padStart(2, "0")
 
   return `${ano}-${mes}-${dia}T${h}:${m}`
 }
@@ -410,7 +410,7 @@ export function formatarDateTimeLocal(date: Date, hora?: string): string {
  * Valida se um valor é um número válido e positivo
  */
 export function validarNumeroPositivo(valor: unknown, campoNome: string): number {
-  const num = typeof valor === 'string' ? parseFloat(valor) : typeof valor === 'number' ? valor : NaN
+  const num = typeof valor === "string" ? parseFloat(valor) : typeof valor === "number" ? valor : NaN
 
   if (isNaN(num)) {
     throw new Error(`${campoNome} inválido: deve ser um número`)

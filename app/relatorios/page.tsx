@@ -1,16 +1,4 @@
-import {
-  BedDouble,
-  CalendarX,
-  Clock,
-  ListOrdered,
-  MoonStar,
-  ShieldCheck,
-  Timer,
-  TriangleAlert,
-  Truck,
-  Users,
-  Wallet,
-} from "lucide-react"
+import { BedDouble, CalendarX, Clock, ListOrdered, MoonStar, ShieldCheck, Timer, TriangleAlert, Truck, Users, Wallet } from "lucide-react"
 import { requireSessaoPaginaComFilial } from "@/lib/auth-guard"
 import { buscarIndicadoresDashboard } from "@/lib/queries/dashboard"
 import { buscarRelatorioCircadiano } from "@/lib/queries/circadiano"
@@ -27,11 +15,7 @@ type SearchParamsInput = {
   ate?: string
 }
 
-export default async function RelatoriosPage({
-  searchParams,
-}: {
-  searchParams?: Promise<SearchParamsInput>
-}) {
+export default async function RelatoriosPage({ searchParams }: { searchParams?: Promise<SearchParamsInput> }) {
   const parametros = (await searchParams) ?? {}
   const periodoIndicadores = periodoOuPadrao(parametros.de, parametros.ate, { diasAntes: 30, diasDepois: 0 })
   const periodoCircadiano = periodoOuPadrao(undefined, undefined, PERIODO_PADRAO.circadiano)
@@ -49,9 +33,7 @@ export default async function RelatoriosPage({
     <div className="space-y-8">
       <div>
         <h1 className="text-2xl font-semibold tracking-tight text-foreground">Relatórios</h1>
-        <p className="text-muted-foreground mt-1">
-          Jornada dos motoristas, operação e indicadores das viagens — todos com tela e Excel.
-        </p>
+        <p className="text-muted-foreground mt-1">Jornada dos motoristas, operação e indicadores das viagens — todos com tela e Excel.</p>
       </div>
 
       <GradeRelatorios
@@ -60,7 +42,8 @@ export default async function RelatoriosPage({
           {
             href: "/relatorios/circadiano",
             titulo: "Ciclo circadiano",
-            descricao: "Jornada do dia passando das 22:00 e da noite passando das 05:00 (turno pelo início da jornada) — previsto e realizado.",
+            descricao:
+              "Jornada do dia passando das 22:00 e da noite passando das 05:00 (turno pelo início da jornada) — previsto e realizado.",
             icone: MoonStar,
             contagem: circadiano.previstas.length,
             contagemTexto: circadiano.previstas.length === 1 ? "viagem agendada vai passar" : "viagens agendadas vão passar",
@@ -142,7 +125,6 @@ export default async function RelatoriosPage({
         <h2 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">Indicadores das viagens</h2>
         <DashboardRelatorios indicadores={indicadores} de={periodoIndicadores.deTexto} ate={periodoIndicadores.ateTexto} />
       </section>
-
     </div>
   )
 }

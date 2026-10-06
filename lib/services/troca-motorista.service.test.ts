@@ -1,7 +1,12 @@
 import { beforeEach, describe, expect, it, vi } from "vitest"
 
 vi.mock("@/lib/prisma", () => ({
-  prisma: { $transaction: vi.fn(), viagem: { findFirst: vi.fn() }, motorista: { findFirst: vi.fn() }, trocaMotorista: { findFirst: vi.fn() } },
+  prisma: {
+    $transaction: vi.fn(),
+    viagem: { findFirst: vi.fn() },
+    motorista: { findFirst: vi.fn() },
+    trocaMotorista: { findFirst: vi.fn() },
+  },
 }))
 vi.mock("@/lib/services/auditoria.service", () => ({ registrarAuditoria: vi.fn() }))
 vi.mock("@/lib/services/folga.service", () => ({ reconciliarFolgaMotoristasNoDiaAtual: vi.fn() }))
@@ -26,13 +31,24 @@ const tx = {
 
 function viagem(parcial: Record<string, unknown> = {}) {
   return {
-    id: 1, status: "INICIADA", motoristaId: 7, motoristaAcompanhanteId: null, kmInicial: 152300,
-    horarioRealSaida: h("2026-10-02T07:00:00"), inicioPrevisto: h("2026-10-02T07:00:00"), fimPrevisto: h("2026-10-02T20:00:00"),
+    id: 1,
+    status: "INICIADA",
+    motoristaId: 7,
+    motoristaAcompanhanteId: null,
+    kmInicial: 152300,
+    horarioRealSaida: h("2026-10-02T07:00:00"),
+    inicioPrevisto: h("2026-10-02T07:00:00"),
+    fimPrevisto: h("2026-10-02T20:00:00"),
     ...parcial,
   }
 }
 const dados = (parcial: Record<string, unknown> = {}) => ({
-  motoristaNovoId: 4, km: 152600, trocadoEm: h("2026-10-02T12:00:00"), local: " Posto Graal, Curitiba ", motivo: " Estouro de jornada ", ...parcial,
+  motoristaNovoId: 4,
+  km: 152600,
+  trocadoEm: h("2026-10-02T12:00:00"),
+  local: " Posto Graal, Curitiba ",
+  motivo: " Estouro de jornada ",
+  ...parcial,
 })
 
 beforeEach(() => {
@@ -52,7 +68,16 @@ describe("trocarMotoristaDaViagem", () => {
       data: { motoristaId: 4 },
     })
     expect(tx.trocaMotorista.create).toHaveBeenCalledWith({
-      data: { viagemId: 1, motoristaAnteriorId: 7, motoristaNovoId: 4, km: 152600, trocadoEm: h("2026-10-02T12:00:00"), local: "Posto Graal, Curitiba", motivo: "Estouro de jornada", usuarioId: "u1" },
+      data: {
+        viagemId: 1,
+        motoristaAnteriorId: 7,
+        motoristaNovoId: 4,
+        km: 152600,
+        trocadoEm: h("2026-10-02T12:00:00"),
+        local: "Posto Graal, Curitiba",
+        motivo: "Estouro de jornada",
+        usuarioId: "u1",
+      },
     })
     expect(recalcularAvisosInterjornada).toHaveBeenCalledWith(tx, FILIAL, [7, 4])
   })
@@ -62,7 +87,9 @@ describe("trocarMotoristaDaViagem", () => {
     expect(prisma.viagem.findFirst).toHaveBeenCalledWith({ where: { id: 1, filialId: FILIAL, deletadoEm: null, motoristaId: 7 } })
 
     vi.mocked(prisma.viagem.findFirst).mockResolvedValue(null)
-    await expect(trocarMotoristaDaViagem(FILIAL, 1, dados(), ator, { exigirMotoristaAtual: 99 }, agora)).rejects.toThrow("Viagem não encontrada")
+    await expect(trocarMotoristaDaViagem(FILIAL, 1, dados(), ator, { exigirMotoristaAtual: 99 }, agora)).rejects.toThrow(
+      "Viagem não encontrada",
+    )
   })
 
   it("substituto que era o acompanhante vira principal e libera o lugar de acompanhante", async () => {
@@ -94,7 +121,11 @@ describe("trocarMotoristaDaViagem", () => {
   it("substituto passa pelas mesmas regras da alocação (tipo e produto); se não pode, nada é gravado", async () => {
     vi.mocked(prisma.viagem.findFirst).mockResolvedValue(viagem({ produto: "OXIGENIO", motoristaAcompanhanteId: 8 }) as never)
     await trocarMotoristaDaViagem(FILIAL, 1, dados(), ator, {}, agora)
-    expect(garantirMotoristasValidos).toHaveBeenCalledWith(FILIAL, { principalId: 4, produtoExigido: "OXIGENIO", atuais: { principalId: 7, acompanhanteId: 8 } })
+    expect(garantirMotoristasValidos).toHaveBeenCalledWith(FILIAL, {
+      principalId: 4,
+      produtoExigido: "OXIGENIO",
+      atuais: { principalId: 7, acompanhanteId: 8 },
+    })
 
     vi.mocked(garantirMotoristasValidos).mockRejectedValueOnce(new MotoristaEmTreinamentoError())
     tx.trocaMotorista.create.mockClear()
@@ -105,8 +136,11 @@ describe("trocarMotoristaDaViagem", () => {
   it("segunda troca não pode ter km nem hora menor que a troca anterior", async () => {
     vi.mocked(prisma.trocaMotorista.findFirst).mockResolvedValue({ km: 152700, trocadoEm: h("2026-10-02T13:00:00") } as never)
     await expect(trocarMotoristaDaViagem(FILIAL, 1, dados({ km: 152600 }), ator, {}, agora)).rejects.toThrow("troca anterior")
-    await expect(trocarMotoristaDaViagem(FILIAL, 1, dados({ km: 152800, trocadoEm: h("2026-10-02T12:30:00") }), ator, {}, agora)).rejects.toThrow("antes da troca anterior")
-    await expect(trocarMotoristaDaViagem(FILIAL, 1, dados({ km: 152800, trocadoEm: h("2026-10-02T14:00:00") }), ator, {}, agora)).resolves.toBeTruthy()
+    await expect(
+      trocarMotoristaDaViagem(FILIAL, 1, dados({ km: 152800, trocadoEm: h("2026-10-02T12:30:00") }), ator, {}, agora),
+    ).rejects.toThrow("antes da troca anterior")
+    await expect(
+      trocarMotoristaDaViagem(FILIAL, 1, dados({ km: 152800, trocadoEm: h("2026-10-02T14:00:00") }), ator, {}, agora),
+    ).resolves.toBeTruthy()
   })
 })
-

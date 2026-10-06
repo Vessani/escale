@@ -53,7 +53,10 @@ describe("lib/actions/manutencoes", () => {
   it("cria na filial da sessão, com o autor, e atualiza as telas de frota", async () => {
     sessao(despachante)
     expect(await criarManutencao(dados)).toEqual({ sucesso: true })
-    expect(servico.criarManutencaoService).toHaveBeenCalledWith(3, expect.objectContaining({ codigo: "908" }), { usuarioId: "u1", usuarioNome: "Ana" })
+    expect(servico.criarManutencaoService).toHaveBeenCalledWith(3, expect.objectContaining({ codigo: "908" }), {
+      usuarioId: "u1",
+      usuarioNome: "Ana",
+    })
     expect(revalidatePath).toHaveBeenCalledWith("/frotas/manutencoes")
   })
 
@@ -75,7 +78,9 @@ describe("lib/actions/manutencoes", () => {
     await concluirManutencao(5)
     expect(vi.mocked(servico.concluirManutencaoService).mock.calls[1][2]).toBeInstanceOf(Date)
 
-    vi.mocked(servico.concluirManutencaoService).mockRejectedValueOnce(new ManutencaoPeriodoInvalidoError("O fim real precisa ser depois do início."))
+    vi.mocked(servico.concluirManutencaoService).mockRejectedValueOnce(
+      new ManutencaoPeriodoInvalidoError("O fim real precisa ser depois do início."),
+    )
     expect(await concluirManutencao(5, "2026-10-06T07:00")).toEqual({ sucesso: false, erro: "O fim real precisa ser depois do início." })
   })
 })

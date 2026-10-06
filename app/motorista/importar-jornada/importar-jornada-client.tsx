@@ -1,4 +1,4 @@
-'use client'
+"use client"
 
 import { useState } from "react"
 import Link from "next/link"
@@ -7,11 +7,7 @@ import { ArrowLeft, Loader, Upload } from "lucide-react"
 import { Alert } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import {
-  JornadaRelatorioParser,
-  type LinhaJornadaBruta,
-  type RegistroJornadaRelatorio,
-} from "@/lib/parsers/jornada-relatorio-parser"
+import { JornadaRelatorioParser, type LinhaJornadaBruta, type RegistroJornadaRelatorio } from "@/lib/parsers/jornada-relatorio-parser"
 import { atualizarJornadaRelatorio, type RespostaImportacaoJornada } from "@/lib/actions/motoristas"
 import type { AjusteJornada } from "@/lib/validation/ajuste-jornada"
 import type { CoberturaImportacaoJornada } from "@/lib/services/jornada-relatorio.service"
@@ -23,9 +19,7 @@ export default function ImportarJornadaClient({ matriculasCadastradas }: { matri
   const [importando, setImportando] = useState(false)
   const [erro, setErro] = useState("")
   const [brutas, setBrutas] = useState<LinhaJornadaBruta[] | null>(null)
-  const [resultado, setResultado] = useState<Extract<RespostaImportacaoJornada, { sucesso: true }>["resultado"] | null>(
-    null,
-  )
+  const [resultado, setResultado] = useState<Extract<RespostaImportacaoJornada, { sucesso: true }>["resultado"] | null>(null)
 
   const handleFileChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0]
@@ -118,9 +112,7 @@ export default function ImportarJornadaClient({ matriculasCadastradas }: { matri
               htmlFor="jornada-upload"
               className={`flex items-center justify-center border-2 border-dashed rounded-lg cursor-pointer transition-colors ${
                 brutas ? "flex-row gap-2 p-3 [&>span]:mt-0" : "flex-col p-8"
-              } ${
-                carregando ? "bg-muted border-border" : "hover:border-primary hover:bg-primary/10 border-border"
-              }`}
+              } ${carregando ? "bg-muted border-border" : "hover:border-primary hover:bg-primary/10 border-border"}`}
             >
               {carregando ? (
                 <>
@@ -150,9 +142,7 @@ export default function ImportarJornadaClient({ matriculasCadastradas }: { matri
                   </p>
                 )}
                 {resultado.naoEncontrados.length > 0 && (
-                  <p className="mt-1 text-warning">
-                    Matrícula(s) sem motorista cadastrado: {resultado.naoEncontrados.join(", ")}
-                  </p>
+                  <p className="mt-1 text-warning">Matrícula(s) sem motorista cadastrado: {resultado.naoEncontrados.join(", ")}</p>
                 )}
                 {resultado.duplicados.length > 0 && (
                   <p className="mt-1 text-warning">
@@ -165,13 +155,15 @@ export default function ImportarJornadaClient({ matriculasCadastradas }: { matri
         </CardContent>
       </Card>
 
-      {brutas && <ConferenciaJornada
+      {brutas && (
+        <ConferenciaJornada
           key={brutas.length + (brutas[0]?.inicio ?? "")}
           brutas={brutas}
           matriculasCadastradas={matriculasCadastradas}
           importando={importando}
           onConfirmar={confirmarImportacao}
-        />}
+        />
+      )}
 
       <Link href="/motorista">
         <Button variant="outline">Voltar pra Motoristas</Button>

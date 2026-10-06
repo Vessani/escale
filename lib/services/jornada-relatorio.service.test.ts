@@ -41,8 +41,7 @@ function criarTx() {
 
 /** Faz `prisma.$transaction(callback)` invocar `callback(tx)` toda vez que for chamado — um registro por transação. */
 function usarTransacaoCom(tx: ReturnType<typeof criarTx>) {
-  vi.mocked(prisma.$transaction).mockImplementation(((callback: (tx: unknown) => unknown) =>
-    Promise.resolve(callback(tx))) as never)
+  vi.mocked(prisma.$transaction).mockImplementation(((callback: (tx: unknown) => unknown) => Promise.resolve(callback(tx))) as never)
 }
 
 describe("atualizarJornadaRelatorioDosMotoristas", () => {
@@ -173,9 +172,24 @@ describe("atualizarJornadaRelatorioDosMotoristas", () => {
     vi.mocked(prisma.motorista.findMany).mockResolvedValue([{ id: 42, seva: 815, diasTrabalhados: 2 }] as never)
 
     const resultado = await atualizarJornadaRelatorioDosMotoristas(FILIAL_ID, [
-      criarRegistro({ dia: "2026-07-08T00:00:00.000Z", inicioJornada: "2026-07-08T08:00:00.000Z", fimJornada: "2026-07-08T18:00:00.000Z", diasSemFolga: 2 }),
-      criarRegistro({ dia: "2026-07-09T00:00:00.000Z", inicioJornada: "2026-07-09T08:00:00.000Z", fimJornada: "2026-07-09T18:00:00.000Z", diasSemFolga: 3 }),
-      criarRegistro({ dia: "2026-07-10T00:00:00.000Z", inicioJornada: "2026-07-10T08:00:00.000Z", fimJornada: "2026-07-10T18:00:00.000Z", diasSemFolga: 4 }),
+      criarRegistro({
+        dia: "2026-07-08T00:00:00.000Z",
+        inicioJornada: "2026-07-08T08:00:00.000Z",
+        fimJornada: "2026-07-08T18:00:00.000Z",
+        diasSemFolga: 2,
+      }),
+      criarRegistro({
+        dia: "2026-07-09T00:00:00.000Z",
+        inicioJornada: "2026-07-09T08:00:00.000Z",
+        fimJornada: "2026-07-09T18:00:00.000Z",
+        diasSemFolga: 3,
+      }),
+      criarRegistro({
+        dia: "2026-07-10T00:00:00.000Z",
+        inicioJornada: "2026-07-10T08:00:00.000Z",
+        fimJornada: "2026-07-10T18:00:00.000Z",
+        diasSemFolga: 4,
+      }),
     ])
 
     expect(resultado.atualizados).toBe(1)
@@ -274,9 +288,7 @@ describe("atualizarJornadaRelatorioDosMotoristas", () => {
       criarRegistro({ dia: "2026-07-09T00:00:00.000Z", inicioJornada: "2026-07-09T20:00:00.000Z", fimJornada: "2026-07-10T04:00:00.000Z" }),
     ])
 
-    const chamadas = vi.mocked(tx.registroJornada.upsert).mock.calls as Array<
-      [{ create: { inicioJornada: Date; fimJornada: Date } }]
-    >
+    const chamadas = vi.mocked(tx.registroJornada.upsert).mock.calls as Array<[{ create: { inicioJornada: Date; fimJornada: Date } }]>
     expect(chamadas[0][0].create.inicioJornada).toEqual(new Date("2026-07-08T06:00:00.000Z"))
     expect(chamadas[1][0].create.inicioJornada).toEqual(new Date("2026-07-09T20:00:00.000Z"))
   })
@@ -291,7 +303,15 @@ describe("registrarAjustesJornada", () => {
 
     await registrarAjustesJornada(
       FILIAL_ID,
-      [{ matricula: 101, dia: "2026-09-17T03:00:00.000Z", contexto: "Importação do relatório · MOTORISTA (101)", antes: { "Dias sem folga": 5 }, depois: { "Dias sem folga": 4 } }],
+      [
+        {
+          matricula: 101,
+          dia: "2026-09-17T03:00:00.000Z",
+          contexto: "Importação do relatório · MOTORISTA (101)",
+          antes: { "Dias sem folga": 5 },
+          depois: { "Dias sem folga": 4 },
+        },
+      ],
       { usuarioId: "u1", usuarioNome: "Alan" },
     )
 

@@ -16,10 +16,7 @@ export function calcularHorarioIdealChegada(dataInicioViagem: Date): Date {
  * ideal, 1h antes da viagem pro checklist. Sem trabalho anterior conhecido,
  * chega.
  */
-export function motoristaChegaATempo<T extends MotoristaParaDescanso>(
-  motorista: T,
-  contexto: ContextoCompatibilidade,
-): boolean {
+export function motoristaChegaATempo<T extends MotoristaParaDescanso>(motorista: T, contexto: ContextoCompatibilidade): boolean {
   const descanso = calcularDescansoAntesDaViagem(motorista, contexto.dataInicioViagem, contexto.hoje)
   const horarioIdeal = calcularHorarioIdealChegada(contexto.dataInicioViagem)
 
@@ -34,10 +31,7 @@ export function motoristaChegaATempo<T extends MotoristaParaDescanso>(
  * <  0: só começaria depois do ideal — viola o descanso, fica por último.
  * null: sem jornada importada — sem base pra ordenar, vai pro fim.
  */
-export function calcularFolgaAteIdeal(
-  proximoInicioDisponivel: Date | string | null,
-  horarioIdeal: Date,
-): number | null {
+export function calcularFolgaAteIdeal(proximoInicioDisponivel: Date | string | null, horarioIdeal: Date): number | null {
   if (!proximoInicioDisponivel) {
     return null
   }

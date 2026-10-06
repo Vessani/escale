@@ -55,7 +55,14 @@ describe("montarOpcoesMotoristaPorViagem", () => {
 
   it("laranja diz até quando vai o descanso (11h, ou 35h depois do 6º dia)", () => {
     const ontem = motorista({
-      viagens: [{ id: 98, status: "FINALIZADA", inicioPrevisto: new Date("2026-09-29T14:00:00-03:00"), fimPrevisto: new Date("2026-09-30T00:00:00-03:00") }],
+      viagens: [
+        {
+          id: 98,
+          status: "FINALIZADA",
+          inicioPrevisto: new Date("2026-09-29T14:00:00-03:00"),
+          fimPrevisto: new Date("2026-09-30T00:00:00-03:00"),
+        },
+      ],
     })
     const opcoes = montarOpcoesMotoristaPorViagem([ontem], [VIAGEM], HOJE).get(10)
     expect(opcoes?.[0]).toMatchObject({ situacao: "SEM_DESCANSO", motivo: "Descanso até 30/09 11:00" })

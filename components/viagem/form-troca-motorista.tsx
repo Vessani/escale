@@ -85,7 +85,9 @@ export function FormTrocaMotorista({
         >
           <option value="">Escolha o motorista</option>
           {substitutos.map((s) => (
-            <option key={s.id} value={s.id}>{formatarNomeProprio(s.nome)}</option>
+            <option key={s.id} value={s.id}>
+              {formatarNomeProprio(s.nome)}
+            </option>
           ))}
         </select>
       </label>

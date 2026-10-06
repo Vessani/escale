@@ -19,7 +19,7 @@ function mockFindMany(
 ) {
   vi.mocked(tx.motorista.findMany).mockImplementation((args: never) => {
     const condicao = (args as { where: { diasTrabalhados: unknown } }).where.diasTrabalhados
-    return Promise.resolve(typeof condicao === "number" ? respostas.saindoDaFolga ?? [] : respostas.paraFolga ?? [])
+    return Promise.resolve(typeof condicao === "number" ? (respostas.saindoDaFolga ?? []) : (respostas.paraFolga ?? []))
   })
 }
 
@@ -42,43 +42,42 @@ type FiltroViagem = { status: { notIn: string[] }; inicioPrevisto: { lte: Date }
  * Considera atividade tanto em `viagens` (principal) quanto `viagensComoAcompanhante`.
  */
 function criarFindManyFielAJanela(motoristas: MotoristaFake[]) {
-  return vi.fn((args: {
-    where: {
-      id: { in: number[] }
-      diasTrabalhados: number | { gte: number; lte: number }
-      AND?: Array<{ viagens?: { none: FiltroViagem }; viagensComoAcompanhante?: { none: FiltroViagem } }>
-      OR?: Array<{ viagens?: { some: FiltroViagem }; viagensComoAcompanhante?: { some: FiltroViagem } }>
-    }
-  }) => {
-    const { where } = args
-    const exigeAtividade = Boolean(where.OR)
-    const condicaoViagens = exigeAtividade ? where.OR![0].viagens!.some : where.AND![0].viagens!.none
+  return vi.fn(
+    (args: {
+      where: {
+        id: { in: number[] }
+        diasTrabalhados: number | { gte: number; lte: number }
+        AND?: Array<{ viagens?: { none: FiltroViagem }; viagensComoAcompanhante?: { none: FiltroViagem } }>
+        OR?: Array<{ viagens?: { some: FiltroViagem }; viagensComoAcompanhante?: { some: FiltroViagem } }>
+      }
+    }) => {
+      const { where } = args
+      const exigeAtividade = Boolean(where.OR)
+      const condicaoViagens = exigeAtividade ? where.OR![0].viagens!.some : where.AND![0].viagens!.none
 
-    const temViagemNaJanela = (m: MotoristaFake) =>
-      [...m.viagens, ...(m.viagensComoAcompanhante ?? [])].some(
-        (v) =>
-          v.deletadoEm === null &&
-          !condicaoViagens.status.notIn.includes(v.status) &&
-          v.inicioPrevisto.getTime() <= condicaoViagens.inicioPrevisto.lte.getTime() &&
-          v.fimPrevisto.getTime() >= condicaoViagens.fimPrevisto.gte.getTime(),
-      )
+      const temViagemNaJanela = (m: MotoristaFake) =>
+        [...m.viagens, ...(m.viagensComoAcompanhante ?? [])].some(
+          (v) =>
+            v.deletadoEm === null &&
+            !condicaoViagens.status.notIn.includes(v.status) &&
+            v.inicioPrevisto.getTime() <= condicaoViagens.inicioPrevisto.lte.getTime() &&
+            v.fimPrevisto.getTime() >= condicaoViagens.fimPrevisto.gte.getTime(),
+        )
 
-    const resultado = motoristas.filter((m) => {
-      const diasOk =
-        typeof where.diasTrabalhados === "number"
-          ? m.diasTrabalhados === where.diasTrabalhados
-          : m.diasTrabalhados >= where.diasTrabalhados.gte && m.diasTrabalhados <= where.diasTrabalhados.lte
+      const resultado = motoristas.filter((m) => {
+        const diasOk =
+          typeof where.diasTrabalhados === "number"
+            ? m.diasTrabalhados === where.diasTrabalhados
+            : m.diasTrabalhados >= where.diasTrabalhados.gte && m.diasTrabalhados <= where.diasTrabalhados.lte
 
-      return (
-        where.id.in.includes(m.id) &&
-        m.deletadoEm === null &&
-        diasOk &&
-        (exigeAtividade ? temViagemNaJanela(m) : !temViagemNaJanela(m))
-      )
-    })
+        return (
+          where.id.in.includes(m.id) && m.deletadoEm === null && diasOk && (exigeAtividade ? temViagemNaJanela(m) : !temViagemNaJanela(m))
+        )
+      })
 
-    return Promise.resolve(resultado.map((m) => ({ id: m.id })))
-  })
+      return Promise.resolve(resultado.map((m) => ({ id: m.id })))
+    },
+  )
 }
 
 describe("folga.service", () => {

@@ -95,29 +95,33 @@ describe("alocacao.service", () => {
     })
 
     it("retorna o SAP Code da primeira entrega que bate com um cliente que exige integração", () => {
-      const resultado = calcularIntegracaoExigida(
-        [
-          { sapcode: "0" },
-          { sapcode: "4521087" },
-          { sapcode: "9981234" },
-        ],
-        SAP_CODES_TESTE,
-      )
+      const resultado = calcularIntegracaoExigida([{ sapcode: "0" }, { sapcode: "4521087" }, { sapcode: "9981234" }], SAP_CODES_TESTE)
       expect(resultado).toBe("4521087")
     })
   })
 
   describe("motivoForaDaRegra (texto ao lado do nome no seletor)", () => {
     const hoje = new Date("2026-07-08T00:00:00-03:00")
-    const contexto = (parcial = {}) => ({ turnoViagem: "MANHA" as const, diasViagem: 1, dataInicioViagem: hoje, integracaoExigida: null, hoje, ...parcial })
+    const contexto = (parcial = {}) => ({
+      turnoViagem: "MANHA" as const,
+      diasViagem: 1,
+      dataInicioViagem: hoje,
+      integracaoExigida: null,
+      hoje,
+      ...parcial,
+    })
 
     it("diz o motivo de cada regra; null quando cabe", () => {
       expect(motivoForaDaRegra(criarMotorista({ diasTrabalhados: 3 }), contexto())).toBeNull()
       expect(motivoForaDaRegra(criarMotorista({ turno: "NOITE" }), contexto())).toBe("Turno Noite")
       expect(motivoForaDaRegra(criarMotorista({ tipo: "ENCHEDOR" }), contexto())).toBe("Não vai como principal")
       expect(motivoForaDaRegra(criarMotorista({ diasTrabalhados: 7 }), contexto())).toBe("Folga em 08/07")
-      expect(motivoForaDaRegra(criarMotorista({ diasTrabalhados: 5 }), contexto({ diasViagem: 3 }))).toBe("5º dia: não cabem 3 dias de viagem")
-      expect(motivoForaDaRegra(criarMotorista({ produtosAutorizados: [] }), contexto({ produtoExigido: "NITROGENIO" }))).toBe("Produto não autorizado")
+      expect(motivoForaDaRegra(criarMotorista({ diasTrabalhados: 5 }), contexto({ diasViagem: 3 }))).toBe(
+        "5º dia: não cabem 3 dias de viagem",
+      )
+      expect(motivoForaDaRegra(criarMotorista({ produtosAutorizados: [] }), contexto({ produtoExigido: "NITROGENIO" }))).toBe(
+        "Produto não autorizado",
+      )
       expect(motivoForaDaRegra(criarMotorista({}), contexto({ integracaoExigida: "2001" }))).toBe("Sem integração válida")
     })
   })
@@ -313,15 +317,9 @@ describe("alocacao.service", () => {
 
       const contextoBase = { turnoViagem: "MANHA" as Turno, diasViagem: 1, integracaoExigida: null, hoje }
 
-      expect(
-        motoristaEhCompativel(motorista, { ...contextoBase, dataInicioViagem: new Date("2026-07-11T00:00:00") }),
-      ).toBe(false) // no meio das férias
-      expect(
-        motoristaEhCompativel(motorista, { ...contextoBase, dataInicioViagem: new Date("2026-07-15T00:00:00") }),
-      ).toBe(false) // férias não rotacionam sozinhas, continua bloqueado
-      expect(
-        motoristaEhCompativel(motorista, { ...contextoBase, dataInicioViagem: new Date("2026-07-20T00:00:00") }),
-      ).toBe(true) // registro explícito de volta ao trabalho
+      expect(motoristaEhCompativel(motorista, { ...contextoBase, dataInicioViagem: new Date("2026-07-11T00:00:00") })).toBe(false) // no meio das férias
+      expect(motoristaEhCompativel(motorista, { ...contextoBase, dataInicioViagem: new Date("2026-07-15T00:00:00") })).toBe(false) // férias não rotacionam sozinhas, continua bloqueado
+      expect(motoristaEhCompativel(motorista, { ...contextoBase, dataInicioViagem: new Date("2026-07-20T00:00:00") })).toBe(true) // registro explícito de volta ao trabalho
     })
 
     it("usa o fim real da viagem para bloquear a invasão da folga ao cruzar para o dia seguinte", () => {
@@ -465,16 +463,12 @@ describe("alocacao.service", () => {
 
     it("bloqueia (não é só aviso) quando o motorista não está autorizado pro produto exigido", () => {
       const motorista = criarMotorista({ diasTrabalhados: 1, produtosAutorizados: ["NITROGENIO"] })
-      expect(
-        motoristaEhCompativel(motorista, { ...contextoBase, produtoExigido: "CO2" }),
-      ).toBe(false)
+      expect(motoristaEhCompativel(motorista, { ...contextoBase, produtoExigido: "CO2" })).toBe(false)
     })
 
     it("aceita quando o produto exigido está entre os autorizados do motorista", () => {
       const motorista = criarMotorista({ diasTrabalhados: 1, produtosAutorizados: ["CO2"] })
-      expect(
-        motoristaEhCompativel(motorista, { ...contextoBase, produtoExigido: "CO2" }),
-      ).toBe(true)
+      expect(motoristaEhCompativel(motorista, { ...contextoBase, produtoExigido: "CO2" })).toBe(true)
     })
 
     it("o exemplo literal do pedido: motorista autorizado só pra CO2 não pode ir numa viagem de Nitrogênio, mas pode numa de CO2", () => {
@@ -493,9 +487,7 @@ describe("alocacao.service", () => {
 
     it("motorista sem nenhum produto autorizado (ex: cadastrado antes desse campo existir) não é compatível com nenhuma viagem que exija produto", () => {
       const motorista = criarMotorista({ diasTrabalhados: 1, produtosAutorizados: [] })
-      expect(
-        motoristaEhCompativel(motorista, { ...contextoBase, produtoExigido: "CO2" }),
-      ).toBe(false)
+      expect(motoristaEhCompativel(motorista, { ...contextoBase, produtoExigido: "CO2" })).toBe(false)
     })
 
     it("viagem sem produto definido (histórico anterior a esse campo) não restringe — undefined/null se comporta como integracaoExigida", () => {
@@ -532,10 +524,10 @@ describe("alocacao.service", () => {
       const semProduto = criarMotorista({ id: 3, nome: "Sem Produto", diasTrabalhados: 1, produtosAutorizados: [] })
       const outroProduto = criarMotorista({ id: 4, nome: "Outro Produto", diasTrabalhados: 1, produtosAutorizados: ["ARGONIO"] })
 
-      const resultado = filtrarMotoristasCompativeis(
-        [soCO2, multiProduto, semProduto, outroProduto],
-        { ...contexto, produtoExigido: "CO2" },
-      )
+      const resultado = filtrarMotoristasCompativeis([soCO2, multiProduto, semProduto, outroProduto], {
+        ...contexto,
+        produtoExigido: "CO2",
+      })
 
       expect(resultado.map((m) => m.id).sort()).toEqual([1, 2])
     })
@@ -751,9 +743,7 @@ describe("alocacao.service", () => {
       const inicioB = new Date("2026-07-09T09:00:00")
       const fimB = new Date("2026-07-10T03:00:00")
 
-      expect(periodosConflitamComDescanso(inicioA, fimA, inicioB, fimB)).toBe(
-        periodosConflitamComDescanso(inicioB, fimB, inicioA, fimA),
-      )
+      expect(periodosConflitamComDescanso(inicioA, fimA, inicioB, fimB)).toBe(periodosConflitamComDescanso(inicioB, fimB, inicioA, fimA))
     })
   })
 
@@ -850,24 +840,12 @@ describe("alocacao.service", () => {
 
       // 19h (08/07) + 24h de Folga + 11h de interjornada = 35h → só libera 06h do dia 10/07.
       // Uma viagem pouco depois da virada do dia 10 (~29h de intervalo) ainda viola.
-      expect(
-        motoristaEstaDisponivelNoPeriodo(
-          motorista,
-          new Date("2026-07-10T00:30:00"),
-          new Date("2026-07-10T12:00:00"),
-          hoje,
-        ),
-      ).toBe(false)
+      expect(motoristaEstaDisponivelNoPeriodo(motorista, new Date("2026-07-10T00:30:00"), new Date("2026-07-10T12:00:00"), hoje)).toBe(
+        false,
+      )
 
       // Exatamente 35h depois (06h do dia 10/07): respeita o descanso.
-      expect(
-        motoristaEstaDisponivelNoPeriodo(
-          motorista,
-          new Date("2026-07-10T06:00:00"),
-          new Date("2026-07-10T18:00:00"),
-          hoje,
-        ),
-      ).toBe(true)
+      expect(motoristaEstaDisponivelNoPeriodo(motorista, new Date("2026-07-10T06:00:00"), new Date("2026-07-10T18:00:00"), hoje)).toBe(true)
     })
   })
 
@@ -1097,20 +1075,23 @@ describe("alocacao.service", () => {
     it("usa o mais tarde entre o relatório e as viagens do Escale que começaram antes", () => {
       const motorista = {
         ...criarMotorista({ registrosJornada: comFimJornadaAnterior(new Date("2026-07-20T10:00:00-03:00")) }),
-        viagens: [{
-          id: 50,
-          status: "ALOCADA" as const,
-          inicioPrevisto: new Date("2026-07-20T18:00:00-03:00"),
-          fimPrevisto: new Date("2026-07-21T04:00:00-03:00"),
-        }],
+        viagens: [
+          {
+            id: 50,
+            status: "ALOCADA" as const,
+            inicioPrevisto: new Date("2026-07-20T18:00:00-03:00"),
+            fimPrevisto: new Date("2026-07-21T04:00:00-03:00"),
+          },
+        ],
       }
 
       const descanso = calcularDescansoAntesDaViagem(motorista, inicioViagem, hojeDescanso)
 
       expect(descanso?.fimTrabalhoAnterior).toEqual(new Date("2026-07-21T04:00:00-03:00"))
       // Ignorando a própria viagem, sobra só o relatório.
-      expect(calcularDescansoAntesDaViagem(motorista, inicioViagem, hojeDescanso, 50)?.fimTrabalhoAnterior)
-        .toEqual(new Date("2026-07-20T10:00:00-03:00"))
+      expect(calcularDescansoAntesDaViagem(motorista, inicioViagem, hojeDescanso, 50)?.fimTrabalhoAnterior).toEqual(
+        new Date("2026-07-20T10:00:00-03:00"),
+      )
     })
 
     it("retorna null sem nenhum trabalho anterior conhecido", () => {
@@ -1135,12 +1116,14 @@ describe("alocacao.service", () => {
       const relatorioAntigo = comFimJornadaAnterior(new Date("2026-07-19T20:00:00-03:00"))
       const ana = {
         ...criarMotorista({ id: 1, nome: "Ana", turno: "NOITE", registrosJornada: relatorioAntigo }),
-        viagens: [{
-          id: 60,
-          status: "ALOCADA" as const,
-          inicioPrevisto: new Date("2026-07-20T18:00:00-03:00"),
-          fimPrevisto: new Date("2026-07-21T04:00:00-03:00"),
-        }],
+        viagens: [
+          {
+            id: 60,
+            status: "ALOCADA" as const,
+            inicioPrevisto: new Date("2026-07-20T18:00:00-03:00"),
+            fimPrevisto: new Date("2026-07-21T04:00:00-03:00"),
+          },
+        ],
       }
       const bruno = { ...criarMotorista({ id: 2, nome: "Bruno", turno: "NOITE", registrosJornada: relatorioAntigo }), viagens: [] }
 

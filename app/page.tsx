@@ -4,7 +4,12 @@ import { Button } from "@/components/ui/button"
 import { EmptyState } from "@/components/ui/empty-state"
 import { Input } from "@/components/ui/input"
 import { AlarmClock, CalendarDays, Download, Info, PlusCircle, Route } from "lucide-react"
-import { STATUS_ATIVOS_DASHBOARD, STATUS_ENCERRADOS_DASHBOARD, organizarViagensDoDashboard, resumoPorTurno } from "@/lib/services/dashboard.service"
+import {
+  STATUS_ATIVOS_DASHBOARD,
+  STATUS_ENCERRADOS_DASHBOARD,
+  organizarViagensDoDashboard,
+  resumoPorTurno,
+} from "@/lib/services/dashboard.service"
 import { cn } from "@/lib/utils"
 import { fimDoDia, formatarHoraLocal, inicioDoDia, parseDataLocal } from "@/lib/utils/date-format"
 import QuadroDeObservacoes, { ID_SLOT_QUADRO } from "./quadro-de-observacoes"
@@ -31,16 +36,17 @@ function dataLocalParaInput(data: Date): string {
 
 /** "hoje · quinta-feira, 01/10" — no fuso de Brasília. */
 function descreverDia(data: Date) {
-  const texto = new Intl.DateTimeFormat("pt-BR", { timeZone: "America/Sao_Paulo", weekday: "long", day: "2-digit", month: "2-digit" }).format(data)
+  const texto = new Intl.DateTimeFormat("pt-BR", {
+    timeZone: "America/Sao_Paulo",
+    weekday: "long",
+    day: "2-digit",
+    month: "2-digit",
+  }).format(data)
   const dia = texto.charAt(0).toUpperCase() + texto.slice(1)
   return diaParaTexto(data) === diaParaTexto(new Date()) ? `Hoje · ${texto}` : dia
 }
 
-export default async function DashboardPage({
-  searchParams,
-}: {
-  searchParams?: Promise<SearchParamsInput>
-}) {
+export default async function DashboardPage({ searchParams }: { searchParams?: Promise<SearchParamsInput> }) {
   const parametros = (await searchParams) ?? {}
   const dataSelecionada = parametros.data ? parseDataLocal(parametros.data) : new Date()
   const dataTextoInput = parametros.data ?? dataLocalParaInput(new Date())
@@ -62,7 +68,9 @@ export default async function DashboardPage({
 
   const explicacaoDashboard =
     "Painel de acompanhamento: na lista, só o que ainda está ativo (criadas, alocadas, iniciadas, retornando e postergadas). De dias anteriores aparecem as que saíram e não encerraram (“desde 01/10”) e as que não saíram quando deviam (“não saiu”, até 30 dias). Finalizadas e canceladas no dia ficam só no contador. Aqui só se registra a saída real e o status — editar, alocar e criar é na Gestão de Viagens." +
-    (vendoOutroDia ? " Status mostrado é o atual da viagem, não uma foto de como estava naquele dia — pra ver a mudança em si, use o Histórico." : "")
+    (vendoOutroDia
+      ? " Status mostrado é o atual da viagem, não uma foto de como estava naquele dia — pra ver a mudança em si, use o Histórico."
+      : "")
 
   const saidas = todosDoDia.filter((item) => item.viagem.horarioRealSaida)
   const saidasAtrasadas = saidas.filter((item) =>
@@ -99,12 +107,17 @@ export default async function DashboardPage({
             </Button>
             {vendoOutroDia && (
               <Link href="/">
-                <Button type="button" variant="ghost" size="sm">Voltar pra hoje</Button>
+                <Button type="button" variant="ghost" size="sm">
+                  Voltar pra hoje
+                </Button>
               </Link>
             )}
           </form>
           <Button asChild variant="outline" size="sm" className="fora-do-modo-tv">
-            <a href={`/api/relatorios/programacao?data=${dataTexto}`} title="Excel com todas as viagens do dia: horários, motorista, acompanhante, frota e entregas.">
+            <a
+              href={`/api/relatorios/programacao?data=${dataTexto}`}
+              title="Excel com todas as viagens do dia: horários, motorista, acompanhante, frota e entregas."
+            >
               <Download className="mr-2 size-4" aria-hidden />
               Programação do dia
             </a>
@@ -180,7 +193,6 @@ export default async function DashboardPage({
           </>
         )}
       </section>
-
     </div>
   )
 }

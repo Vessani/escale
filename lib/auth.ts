@@ -1,9 +1,9 @@
-import { NextAuthOptions } from "next-auth";
-import CredentialsProvider from "next-auth/providers/credentials";
-import { PrismaAdapter } from "@auth/prisma-adapter";
-import { prisma } from "@/lib/prisma";
-import { Adapter } from "next-auth/adapters";
-import { autenticarMotorista, autenticarUsuario, DURACAO_SESSAO_SEGUNDOS, revalidarToken } from "@/lib/services/auth.service";
+import { NextAuthOptions } from "next-auth"
+import CredentialsProvider from "next-auth/providers/credentials"
+import { PrismaAdapter } from "@auth/prisma-adapter"
+import { prisma } from "@/lib/prisma"
+import { Adapter } from "next-auth/adapters"
+import { autenticarMotorista, autenticarUsuario, DURACAO_SESSAO_SEGUNDOS, revalidarToken } from "@/lib/services/auth.service"
 
 export const authOptions: NextAuthOptions = {
   adapter: PrismaAdapter(prisma) as Adapter,
@@ -12,11 +12,11 @@ export const authOptions: NextAuthOptions = {
       name: "Credenciais",
       credentials: {
         email: { label: "E-mail", type: "email" },
-        senha: { label: "Senha", type: "password" }
+        senha: { label: "Senha", type: "password" },
       },
       async authorize(credentials, req) {
-        return autenticarUsuario(credentials, req?.headers);
-      }
+        return autenticarUsuario(credentials, req?.headers)
+      },
     }),
     // Acesso do motorista (área "Minhas viagens"): matrícula + PIN.
     CredentialsProvider({
@@ -24,12 +24,12 @@ export const authOptions: NextAuthOptions = {
       name: "Motorista",
       credentials: {
         seva: { label: "Matrícula (SEVA)", type: "text" },
-        pin: { label: "PIN", type: "password" }
+        pin: { label: "PIN", type: "password" },
       },
       async authorize(credentials, req) {
-        return autenticarMotorista(credentials, req?.headers);
-      }
-    })
+        return autenticarMotorista(credentials, req?.headers)
+      },
+    }),
   ],
   session: {
     strategy: "jwt",
@@ -38,43 +38,43 @@ export const authOptions: NextAuthOptions = {
     maxAge: DURACAO_SESSAO_SEGUNDOS,
   },
   pages: {
-    signIn: '/login',
+    signIn: "/login",
   },
   // Sessão derrubada de propósito (expirou, usuário desativado) não é erro do
   // sistema: uma linha de aviso em vez do stack trace do next-auth.
   logger: {
     error(code, metadata) {
-      const erro = (metadata instanceof Error ? metadata : (metadata as { error?: unknown })?.error) as Error | undefined;
+      const erro = (metadata instanceof Error ? metadata : (metadata as { error?: unknown })?.error) as Error | undefined
       if (code === "JWT_SESSION_ERROR" && erro?.name === "SessaoInvalidaError") {
-        console.warn(`[auth] sessão encerrada: ${erro.message}`);
-        return;
+        console.warn(`[auth] sessão encerrada: ${erro.message}`)
+        return
       }
-      console.error(`[next-auth][error][${code}]`, metadata);
+      console.error(`[next-auth][error][${code}]`, metadata)
     },
   },
   callbacks: {
     async jwt({ token, user }) {
       if (user) {
-        token.id = user.id;
-        token.role = user.role;
-        token.filialId = user.filialId;
-        token.motoristaId = user.motoristaId ?? null;
-        token.versaoSessao = user.versaoSessao ?? 0;
-        token.loginEm = Date.now();
-        return token;
+        token.id = user.id
+        token.role = user.role
+        token.filialId = user.filialId
+        token.motoristaId = user.motoristaId ?? null
+        token.versaoSessao = user.versaoSessao ?? 0
+        token.loginEm = Date.now()
+        return token
       }
       // Confere no banco a cada acesso: usuário desativado ou com papel
       // alterado passa a valer na hora (lançar aqui derruba a sessão).
-      return revalidarToken(token);
+      return revalidarToken(token)
     },
     async session({ session, token }) {
       if (token && session.user) {
-        session.user.id = token.id;
-        session.user.role = token.role;
-        session.user.filialId = token.filialId;
-        session.user.motoristaId = token.motoristaId ?? null;
+        session.user.id = token.id
+        session.user.role = token.role
+        session.user.filialId = token.filialId
+        session.user.motoristaId = token.motoristaId ?? null
       }
-      return session;
-    }
-  }
-};
+      return session
+    },
+  },
+}

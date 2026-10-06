@@ -47,9 +47,7 @@ export async function reconciliarFolgaMotoristasNoDiaAtual(
   const inicioHoje = inicioDoDia(dataReferencia)
   const fimHoje = fimDoDia(dataReferencia)
 
-  const algumaJanelaTocaHoje = janelasRelevantes.some(
-    (janela) => janela.inicioPrevisto <= fimHoje && janela.fimPrevisto >= inicioHoje,
-  )
+  const algumaJanelaTocaHoje = janelasRelevantes.some((janela) => janela.inicioPrevisto <= fimHoje && janela.fimPrevisto >= inicioHoje)
   if (!algumaJanelaTocaHoje) {
     return
   }
@@ -62,16 +60,10 @@ export async function reconciliarFolgaMotoristasNoDiaAtual(
   }
   // Conta como "atividade hoje" tanto como motorista principal quanto acompanhante.
   const semAtividadeHoje = {
-    AND: [
-      { viagens: { none: filtroAtividadeHoje } },
-      { viagensComoAcompanhante: { none: filtroAtividadeHoje } },
-    ],
+    AND: [{ viagens: { none: filtroAtividadeHoje } }, { viagensComoAcompanhante: { none: filtroAtividadeHoje } }],
   }
   const comAtividadeHoje = {
-    OR: [
-      { viagens: { some: filtroAtividadeHoje } },
-      { viagensComoAcompanhante: { some: filtroAtividadeHoje } },
-    ],
+    OR: [{ viagens: { some: filtroAtividadeHoje } }, { viagensComoAcompanhante: { some: filtroAtividadeHoje } }],
   }
 
   const paraFolga = await tx.motorista.findMany({

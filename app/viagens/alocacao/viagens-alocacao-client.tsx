@@ -25,9 +25,7 @@ export default function AlocacaoViagensClient({ viagens }: Props) {
   const router = useRouter()
   const [isPending, startTransition] = useTransition()
   const [selecoes, setSelecoes] = useState<Record<number, string>>(() =>
-    Object.fromEntries(
-      viagens.map((viagem) => [viagem.id, viagem.motoristaSugerido ? String(viagem.motoristaSugerido.id) : ""])
-    )
+    Object.fromEntries(viagens.map((viagem) => [viagem.id, viagem.motoristaSugerido ? String(viagem.motoristaSugerido.id) : ""])),
   )
   const [salvandoId, setSalvandoId] = useState<number | null>(null)
   const [mensagem, setMensagem] = useState<string>("")
@@ -159,7 +157,9 @@ export default function AlocacaoViagensClient({ viagens }: Props) {
           const semCompatibilidade = viagem.motoristasCompativeis.length === 0
           const avisos = [
             ...(viagem.avisoFrotaIndisponivel ? [{ rotulo: "Frota indisponível no horário", detalhe: viagem.avisoFrotaIndisponivel }] : []),
-            ...(viagem.avisoFrotaProdutoIncompativel ? [{ rotulo: "Frota de outro produto", detalhe: viagem.avisoFrotaProdutoIncompativel }] : []),
+            ...(viagem.avisoFrotaProdutoIncompativel
+              ? [{ rotulo: "Frota de outro produto", detalhe: viagem.avisoFrotaProdutoIncompativel }]
+              : []),
           ]
 
           return (
@@ -203,10 +203,15 @@ export default function AlocacaoViagensClient({ viagens }: Props) {
               }
             >
               <p className="mb-2 text-sm font-medium text-foreground">
-                Motorista <span className="font-normal text-muted-foreground">· {viagem.motoristasCompativeis.length} compatíve{viagem.motoristasCompativeis.length === 1 ? "l" : "is"}</span>
+                Motorista{" "}
+                <span className="font-normal text-muted-foreground">
+                  · {viagem.motoristasCompativeis.length} compatíve{viagem.motoristasCompativeis.length === 1 ? "l" : "is"}
+                </span>
               </p>
               {semCompatibilidade ? (
-                <Alert variant="warning">Nenhum motorista compatível (turno, dias, produto e integração). Use &quot;Editar viagem&quot; pra escolher manualmente.</Alert>
+                <Alert variant="warning">
+                  Nenhum motorista compatível (turno, dias, produto e integração). Use &quot;Editar viagem&quot; pra escolher manualmente.
+                </Alert>
               ) : (
                 <EscolhaMotorista
                   compativeis={viagem.motoristasCompativeis}

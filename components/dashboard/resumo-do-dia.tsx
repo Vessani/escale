@@ -28,10 +28,7 @@ export function ContadorStatus({ status, valor }: { status: StatusViagem; valor:
   const encerrado = viagemEncerrada(status)
   const alerta = status === "CRIADA" && valor > 0
   return (
-    <div
-      title={DICA_CONTADOR[status]}
-      className={cn("rounded-lg border p-3 shadow-sm", encerrado ? "bg-muted/50 shadow-none" : "bg-card")}
-    >
+    <div title={DICA_CONTADOR[status]} className={cn("rounded-lg border p-3 shadow-sm", encerrado ? "bg-muted/50 shadow-none" : "bg-card")}>
       <p className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
         <span aria-hidden className={cn("size-2 rounded-full", classePontoStatusViagem(status))} />
         {ROTULO_CONTADOR[status]}

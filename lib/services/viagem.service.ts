@@ -1,21 +1,29 @@
-import { prisma } from "@/lib/prisma";
-import { NovaViagemInput, EditarViagemInput } from "@/lib/types/types";
-import { buscarMotoristasParaSelect } from "@/lib/queries/motoristas";
-import { buscarNumerosSapQueExigemIntegracao } from "@/lib/queries/clientes";
-import { calcularIntegracaoExigida, motoristaAutorizadoParaProduto, sugerirMotoristaAutomatico } from "./alocacao.service";
-import type { TipoProduto } from "@prisma/client";
-import { reconciliarFolgaMotoristasNoDiaAtual } from "./folga.service";
-import { registrarAuditoria, type Ator } from "./auditoria.service";
-import { camposTravadosAlterados } from "./trava-chegada";
-import { ErroDeDominio, MotoristaProdutoNaoAutorizadoError, MotoristaNaoEncontradoError, MotoristaEmTreinamentoError, MotoristaNaoViajaError, ViagemNaoEncontradaError, NumViagemDuplicadaError } from "@/lib/errors";
-import { calcularAvisoFrotaIndisponivel, calcularAvisoFrotaProduto, sincronizarDisponibilidadeFrota } from "./frota.service";
-import { converterEditarViagemParaBD, converterNovaViagemParaBD } from "./viagem-data-converter.service";
-import { recalcularAvisosInterjornada } from "./interjornada.service";
-import { podeSerAcompanhante, podeSerPrincipal } from "./tipo-motorista";
-import { inicioDoDia } from "@/lib/utils/date-format";
-import { prepararJornadaDoMotorista } from "./jornada.service";
-import { STATUS_EM_ANDAMENTO } from "./viagem-status.service";
-import { calcularCanceladoEm, calcularFinalizadoEm, normalizarStatusPorAlocacao, turnoAposMudarHorario } from "./viagem-regras";
+import { prisma } from "@/lib/prisma"
+import { NovaViagemInput, EditarViagemInput } from "@/lib/types/types"
+import { buscarMotoristasParaSelect } from "@/lib/queries/motoristas"
+import { buscarNumerosSapQueExigemIntegracao } from "@/lib/queries/clientes"
+import { calcularIntegracaoExigida, motoristaAutorizadoParaProduto, sugerirMotoristaAutomatico } from "./alocacao.service"
+import type { TipoProduto } from "@prisma/client"
+import { reconciliarFolgaMotoristasNoDiaAtual } from "./folga.service"
+import { registrarAuditoria, type Ator } from "./auditoria.service"
+import { camposTravadosAlterados } from "./trava-chegada"
+import {
+  ErroDeDominio,
+  MotoristaProdutoNaoAutorizadoError,
+  MotoristaNaoEncontradoError,
+  MotoristaEmTreinamentoError,
+  MotoristaNaoViajaError,
+  ViagemNaoEncontradaError,
+  NumViagemDuplicadaError,
+} from "@/lib/errors"
+import { calcularAvisoFrotaIndisponivel, calcularAvisoFrotaProduto, sincronizarDisponibilidadeFrota } from "./frota.service"
+import { converterEditarViagemParaBD, converterNovaViagemParaBD } from "./viagem-data-converter.service"
+import { recalcularAvisosInterjornada } from "./interjornada.service"
+import { podeSerAcompanhante, podeSerPrincipal } from "./tipo-motorista"
+import { inicioDoDia } from "@/lib/utils/date-format"
+import { prepararJornadaDoMotorista } from "./jornada.service"
+import { STATUS_EM_ANDAMENTO } from "./viagem-status.service"
+import { calcularCanceladoEm, calcularFinalizadoEm, normalizarStatusPorAlocacao, turnoAposMudarHorario } from "./viagem-regras"
 
 /**
  * Sem @unique em numViagem no schema (ver comentário no model Viagem) — a
@@ -172,9 +180,11 @@ async function inserirViagem(
     })
 
     await sincronizarDisponibilidadeFrota(tx, filialId, dados.cavalo, dados.carreta)
-    await reconciliarFolgaMotoristasNoDiaAtual(tx, [viagemCriada.motoristaId], [
-      { inicioPrevisto: viagemCriada.inicioPrevisto, fimPrevisto: viagemCriada.fimPrevisto },
-    ])
+    await reconciliarFolgaMotoristasNoDiaAtual(
+      tx,
+      [viagemCriada.motoristaId],
+      [{ inicioPrevisto: viagemCriada.inicioPrevisto, fimPrevisto: viagemCriada.fimPrevisto }],
+    )
     await recalcularAvisosInterjornada(tx, filialId, [viagemCriada.motoristaId])
     await registrarAuditoria(tx, {
       entidade: "Viagem",
@@ -190,18 +200,18 @@ async function inserirViagem(
 }
 
 export async function criarViagemAvulsaService(filialId: number, dadosRecebidos: NovaViagemInput, ator: Ator | null) {
-  const dados = converterNovaViagemParaBD(dadosRecebidos);
-  const numerosSapQueExigemIntegracao = await buscarNumerosSapQueExigemIntegracao();
-  const integracaoNecessaria = calcularIntegracaoExigida(dados.entregas, numerosSapQueExigemIntegracao);
-  const inicioPrevisto = dados.inicioPrevisto as Date;
-  const fimPrevisto = dados.fimPrevisto as Date;
+  const dados = converterNovaViagemParaBD(dadosRecebidos)
+  const numerosSapQueExigemIntegracao = await buscarNumerosSapQueExigemIntegracao()
+  const integracaoNecessaria = calcularIntegracaoExigida(dados.entregas, numerosSapQueExigemIntegracao)
+  const inicioPrevisto = dados.inicioPrevisto as Date
+  const fimPrevisto = dados.fimPrevisto as Date
 
-  const motoristasBrutos = await buscarMotoristasParaSelect(filialId);
+  const motoristasBrutos = await buscarMotoristasParaSelect(filialId)
   const motoristas = motoristasBrutos.map((motorista) => ({
     ...motorista,
     ...prepararJornadaDoMotorista(motorista),
-  }));
-  const hoje = inicioDoDia(new Date());
+  }))
+  const hoje = inicioDoDia(new Date())
 
   const motoristaSugeridoDisponivel = sugerirMotoristaAutomatico(motoristas, fimPrevisto, {
     turnoViagem: dados.turno,
@@ -210,10 +220,10 @@ export async function criarViagemAvulsaService(filialId: number, dadosRecebidos:
     integracaoExigida: integracaoNecessaria,
     produtoExigido: dados.produto,
     hoje,
-  });
-  const motoristaEscolhidoId = motoristaSugeridoDisponivel?.id ?? null;
+  })
+  const motoristaEscolhidoId = motoristaSugeridoDisponivel?.id ?? null
 
-  return inserirViagem(filialId, dados, integracaoNecessaria, motoristaEscolhidoId, dados.status, ator);
+  return inserirViagem(filialId, dados, integracaoNecessaria, motoristaEscolhidoId, dados.status, ator)
 }
 
 /**
@@ -222,23 +232,27 @@ export async function criarViagemAvulsaService(filialId: number, dadosRecebidos:
  * lote, depois que o usuário já revisou e confirmou a alocação sugerida para
  * cada viagem do arquivo.
  */
-export async function criarViagemComAlocacaoService(filialId: number, dadosRecebidos: NovaViagemInput, motoristaId: number | null, ator: Ator | null) {
-  const dados = converterNovaViagemParaBD(dadosRecebidos);
-  const numerosSapQueExigemIntegracao = await buscarNumerosSapQueExigemIntegracao();
-  const integracaoNecessaria = calcularIntegracaoExigida(dados.entregas, numerosSapQueExigemIntegracao);
+export async function criarViagemComAlocacaoService(
+  filialId: number,
+  dadosRecebidos: NovaViagemInput,
+  motoristaId: number | null,
+  ator: Ator | null,
+) {
+  const dados = converterNovaViagemParaBD(dadosRecebidos)
+  const numerosSapQueExigemIntegracao = await buscarNumerosSapQueExigemIntegracao()
+  const integracaoNecessaria = calcularIntegracaoExigida(dados.entregas, numerosSapQueExigemIntegracao)
 
-  return inserirViagem(filialId, dados, integracaoNecessaria, motoristaId, dados.status, ator);
+  return inserirViagem(filialId, dados, integracaoNecessaria, motoristaId, dados.status, ator)
 }
 
-
 export async function editarViagemService(filialId: number, idViagem: number, dadosRecebidos: EditarViagemInput, ator: Ator | null) {
-  const dados = converterEditarViagemParaBD(dadosRecebidos);
-  const numerosSapQueExigemIntegracao = await buscarNumerosSapQueExigemIntegracao();
-  const integracaoNecessaria = calcularIntegracaoExigida(dados.entregas, numerosSapQueExigemIntegracao);
+  const dados = converterEditarViagemParaBD(dadosRecebidos)
+  const numerosSapQueExigemIntegracao = await buscarNumerosSapQueExigemIntegracao()
+  const integracaoNecessaria = calcularIntegracaoExigida(dados.entregas, numerosSapQueExigemIntegracao)
 
-  const entregasExistentes = dados.entregas.filter(e => e.id);
-  const entregasNovas = dados.entregas.filter(e => !e.id);
-  const manterEntregas = entregasExistentes.map(e => e.id as number);
+  const entregasExistentes = dados.entregas.filter((e) => e.id)
+  const entregasNovas = dados.entregas.filter((e) => !e.id)
+  const manterEntregas = entregasExistentes.map((e) => e.id as number)
   // Linha completa (não um select estreito) — vira o snapshot "antes" da
   // auditoria, além de alimentar a lógica de negócio abaixo.
   const viagemAtual = await prisma.viagem.findUnique({
@@ -276,7 +290,10 @@ export async function editarViagemService(filialId: number, idViagem: number, da
   // quem dirigiu até onde — a troca tem tela própria (km, local, motivo).
   const emAndamento = STATUS_EM_ANDAMENTO.includes(viagemAtual.status)
   if (emAndamento && viagemAtual.motoristaId !== null && motoristaIdFinal !== viagemAtual.motoristaId) {
-    throw new ErroDeDominio("USAR_TROCA_DE_MOTORISTA", "A viagem já saiu: pra trocar o motorista, use \"Trocar motorista\" no fim desta tela.")
+    throw new ErroDeDominio(
+      "USAR_TROCA_DE_MOTORISTA",
+      'A viagem já saiu: pra trocar o motorista, use "Trocar motorista" no fim desta tela.',
+    )
   }
   return await prisma.$transaction(async (tx) => {
     // Entrega com chegada registrada pelo motorista (medição do descarregado)
@@ -290,7 +307,10 @@ export async function editarViagemService(filialId: number, idViagem: number, da
     })
     if (removidasComChegada.length > 0) {
       const clientes = removidasComChegada.map((entrega) => entrega.cliente).join(", ")
-      throw new ErroDeDominio("ENTREGA_COM_CHEGADA", `Não dá pra remover ${clientes}: o motorista já registrou a chegada e a medição nessa entrega.`)
+      throw new ErroDeDominio(
+        "ENTREGA_COM_CHEGADA",
+        `Não dá pra remover ${clientes}: o motorista já registrou a chegada e a medição nessa entrega.`,
+      )
     }
     // E também não muda de cliente/lugar: a medição ficaria ligada a um
     // cliente onde ela não aconteceu (ver trava-chegada.ts).
@@ -335,7 +355,7 @@ export async function editarViagemService(filialId: number, idViagem: number, da
         avisoFrotaProdutoIncompativel,
         entregas: {
           deleteMany: {
-            id: { notIn: manterEntregas }
+            id: { notIn: manterEntregas },
           },
           update: entregasExistentes.map((entrega) => ({
             where: { id: entrega.id },
@@ -349,7 +369,7 @@ export async function editarViagemService(filialId: number, idViagem: number, da
               obs: entrega.obs,
               sapcode: entrega.sapcode,
               codewhite: entrega.codewhite,
-            }
+            },
           })),
           create: entregasNovas.map((entrega) => ({
             dataEntrega: entrega.dataEntrega as Date,
@@ -361,9 +381,9 @@ export async function editarViagemService(filialId: number, idViagem: number, da
             obs: entrega.obs,
             sapcode: entrega.sapcode,
             codewhite: entrega.codewhite,
-          }))
-        }
-      }
+          })),
+        },
+      },
     })
 
     await sincronizarDisponibilidadeFrota(tx, filialId, dados.cavalo, dados.carreta)
@@ -416,7 +436,7 @@ export async function deletarViagemService(filialId: number, id: number, ator: A
       where: { id: id, filialId },
       data: {
         deletadoEm: new Date(),
-      }
+      },
     })
 
     await sincronizarDisponibilidadeFrota(tx, filialId, viagemDeletada.cavalo, viagemDeletada.carreta)

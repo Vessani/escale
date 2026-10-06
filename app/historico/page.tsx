@@ -51,11 +51,7 @@ function ontemParaInput() {
   return dataLocalParaInput(ontem)
 }
 
-export default async function HistoricoPage({
-  searchParams,
-}: {
-  searchParams?: Promise<SearchParamsInput>
-}) {
+export default async function HistoricoPage({ searchParams }: { searchParams?: Promise<SearchParamsInput> }) {
   const parametros = (await searchParams) ?? {}
   const padrao = ontemParaInput()
   const deTexto = parametros.de ?? padrao
@@ -72,9 +68,7 @@ export default async function HistoricoPage({
     <div className="space-y-6">
       <div>
         <h1 className="text-2xl font-semibold tracking-tight text-foreground">Histórico</h1>
-        <p className="text-muted-foreground mt-1">
-          Quem mudou o quê (viagens, motoristas, frotas, clientes...) no período.
-        </p>
+        <p className="text-muted-foreground mt-1">Quem mudou o quê (viagens, motoristas, frotas, clientes...) no período.</p>
       </div>
 
       <Card className="shadow-sm border-border">

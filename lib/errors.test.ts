@@ -54,12 +54,7 @@ describe("subclasses — código estável e mensagem segura de cada uma", () => 
       "MOTORISTA_EM_TREINAMENTO",
       "Motorista em treinamento só pode ser alocado como acompanhante.",
     ],
-    [
-      "MotoristaNaoViajaError",
-      () => new MotoristaNaoViajaError(),
-      "MOTORISTA_NAO_VIAJA",
-      "Enchedor não faz viagem.",
-    ],
+    ["MotoristaNaoViajaError", () => new MotoristaNaoViajaError(), "MOTORISTA_NAO_VIAJA", "Enchedor não faz viagem."],
     [
       "FrotaDuplicadaError",
       () => new FrotaDuplicadaError(),
@@ -67,12 +62,7 @@ describe("subclasses — código estável e mensagem segura de cada uma", () => 
       "Já existe um conjunto cadastrado com essa frota (cavalo/carreta).",
     ],
     ["DataInvalidaError", () => new DataInvalidaError(), "DATA_INVALIDA", "Data inválida."],
-    [
-      "NumViagemDuplicadaError",
-      () => new NumViagemDuplicadaError(),
-      "NUM_VIAGEM_DUPLICADA",
-      "Já existe uma viagem com este número.",
-    ],
+    ["NumViagemDuplicadaError", () => new NumViagemDuplicadaError(), "NUM_VIAGEM_DUPLICADA", "Já existe uma viagem com este número."],
   ]
 
   it.each(casos)("%s", (_nome, criar, codigoEsperado, mensagemEsperada) => {

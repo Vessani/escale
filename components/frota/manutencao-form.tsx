@@ -101,8 +101,8 @@ export default function ManutencaoForm({ manutencaoId, valoresIniciais, conjunto
             <Wrench className="size-5" aria-hidden /> {manutencaoId ? "Editar manutenção" : "Agendar manutenção"}
           </CardTitle>
           <CardDescription>
-            A manutenção é do cavalo <strong>ou</strong> da carreta — o conjunto fica indisponível se qualquer um dos dois
-            estiver parado. Viagens que caírem no período ganham aviso.
+            A manutenção é do cavalo <strong>ou</strong> da carreta — o conjunto fica indisponível se qualquer um dos dois estiver parado.
+            Viagens que caírem no período ganham aviso.
           </CardDescription>
         </CardHeader>
         <CardContent className="pt-6 space-y-6">
@@ -140,9 +140,7 @@ export default function ManutencaoForm({ manutencaoId, valoresIniciais, conjunto
                   ))}
                 </datalist>
                 <span className="text-xs font-normal text-muted-foreground">
-                  {conjunto
-                    ? `Conjunto ${conjunto.cavalo} / ${conjunto.carreta}`
-                    : "Pode ser um veículo sem conjunto cadastrado."}
+                  {conjunto ? `Conjunto ${conjunto.cavalo} / ${conjunto.carreta}` : "Pode ser um veículo sem conjunto cadastrado."}
                 </span>
               </label>
             </div>

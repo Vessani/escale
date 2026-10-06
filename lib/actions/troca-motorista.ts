@@ -1,4 +1,4 @@
-'use server'
+"use server"
 
 import { revalidatePath } from "next/cache"
 import { requireSessionComFilial } from "@/lib/auth-guard"
@@ -10,13 +10,17 @@ import { converterEntradaDeDataHora } from "@/lib/utils/date-format"
 import { esquemaTroca, type EntradaTroca } from "@/lib/validation/troca-motorista"
 import type { RespostaAcao } from "@/lib/types/types"
 
-
 /** Escalador troca o motorista de uma viagem em andamento. */
 export async function trocarMotorista(viagemId: number, dados: EntradaTroca): Promise<RespostaAcao> {
   try {
     const { session, filialId } = await requireSessionComFilial(PAPEIS_ESCALADOR)
     const entrada = esquemaTroca.parse({ ...dados, viagemId })
-    await trocarMotoristaDaViagem(filialId, entrada.viagemId, { ...entrada, trocadoEm: converterEntradaDeDataHora(entrada.trocadoEm) }, atorDaSessao(session))
+    await trocarMotoristaDaViagem(
+      filialId,
+      entrada.viagemId,
+      { ...entrada, trocadoEm: converterEntradaDeDataHora(entrada.trocadoEm) },
+      atorDaSessao(session),
+    )
     revalidatePath("/")
     revalidatePath("/viagens")
     revalidatePath(`/viagens/editar/${entrada.viagemId}`)

@@ -1,11 +1,11 @@
-import { Prisma } from "@prisma/client";
-import { prisma } from "@/lib/prisma";
-import { NovoMotoristaInput, EditarMotoristaInput } from "@/lib/types/types";
-import { dataParaColunaDate, inicioDoDia } from "@/lib/utils/date-format";
-import { registrarAuditoria, type Ator } from "./auditoria.service";
+import { Prisma } from "@prisma/client"
+import { prisma } from "@/lib/prisma"
+import { NovoMotoristaInput, EditarMotoristaInput } from "@/lib/types/types"
+import { dataParaColunaDate, inicioDoDia } from "@/lib/utils/date-format"
+import { registrarAuditoria, type Ator } from "./auditoria.service"
 
 export async function criarMotoristaService(filialId: number, dados: NovoMotoristaInput, ator: Ator | null) {
-  const hoje = inicioDoDia(new Date());
+  const hoje = inicioDoDia(new Date())
 
   return await prisma.$transaction(async (tx) => {
     const motoristaCriado = await tx.motorista.create({
@@ -29,10 +29,10 @@ export async function criarMotoristaService(filialId: number, dados: NovoMotoris
       include: {
         integracao: true,
       },
-    });
+    })
 
     // Âncora inicial do histórico de jornada
-    await registrarJornadaNoDia(tx, motoristaCriado.id, hoje, dados.diasTrabalhados);
+    await registrarJornadaNoDia(tx, motoristaCriado.id, hoje, dados.diasTrabalhados)
 
     await registrarAuditoria(tx, {
       entidade: "Motorista",
@@ -41,18 +41,18 @@ export async function criarMotoristaService(filialId: number, dados: NovoMotoris
       depois: motoristaCriado,
       ator,
       filialId,
-    });
+    })
 
-    return motoristaCriado;
-  });
+    return motoristaCriado
+  })
 }
 
 export async function editarMotoristaService(filialId: number, idMotorista: number, dados: EditarMotoristaInput, ator: Ator | null) {
-  const integracaoExistentes = dados.integracao.filter(i => i.id);
-  const integracaoNovas = dados.integracao.filter(i => !i.id);
-  const manterIntegracao = integracaoExistentes.map(i => i.id as number);
+  const integracaoExistentes = dados.integracao.filter((i) => i.id)
+  const integracaoNovas = dados.integracao.filter((i) => !i.id)
+  const manterIntegracao = integracaoExistentes.map((i) => i.id as number)
 
-  const motoristaAntes = await prisma.motorista.findUniqueOrThrow({ where: { id: idMotorista, filialId } });
+  const motoristaAntes = await prisma.motorista.findUniqueOrThrow({ where: { id: idMotorista, filialId } })
 
   return await prisma.$transaction(async (tx) => {
     const motoristaAtualizado = await tx.motorista.update({
@@ -67,7 +67,7 @@ export async function editarMotoristaService(filialId: number, idMotorista: numb
         produtosAutorizados: dados.produtosAutorizados,
         integracao: {
           deleteMany: {
-            id: { notIn: manterIntegracao }
+            id: { notIn: manterIntegracao },
           },
           update: integracaoExistentes.map((integracao) => ({
             where: { id: integracao.id },
@@ -75,22 +75,22 @@ export async function editarMotoristaService(filialId: number, idMotorista: numb
               dataValidade: new Date(integracao.dataValidade),
               cliente: integracao.cliente,
               status: integracao.status,
-            }
+            },
           })),
           create: integracaoNovas.map((integracao) => ({
             dataValidade: new Date(integracao.dataValidade),
             cliente: integracao.cliente,
             status: integracao.status,
-          }))
-        }
-      }
-    });
+          })),
+        },
+      },
+    })
 
     // O campo "Dias Trabalhados" no formulário representa a jornada de hoje —
     // mantém isso registrado no histórico também. Inline (não
     // registrarJornadaNoDiaService, que abriria uma segunda transação) pra
     // ficar atômico com o update acima.
-    await registrarJornadaNoDia(tx, idMotorista, inicioDoDia(new Date()), dados.diasTrabalhados);
+    await registrarJornadaNoDia(tx, idMotorista, inicioDoDia(new Date()), dados.diasTrabalhados)
 
     await registrarAuditoria(tx, {
       entidade: "Motorista",
@@ -100,22 +100,22 @@ export async function editarMotoristaService(filialId: number, idMotorista: numb
       depois: motoristaAtualizado,
       ator,
       filialId,
-    });
+    })
 
-    return motoristaAtualizado;
-  });
+    return motoristaAtualizado
+  })
 }
 
 export async function deletarMotoristaService(filialId: number, id: number, ator: Ator | null) {
-  const motoristaAntes = await prisma.motorista.findUniqueOrThrow({ where: { id, filialId } });
+  const motoristaAntes = await prisma.motorista.findUniqueOrThrow({ where: { id, filialId } })
 
   return await prisma.$transaction(async (tx) => {
     const motoristaDeletado = await tx.motorista.update({
       where: { id: id, filialId },
       data: {
         deletadoEm: new Date(),
-      }
-    });
+      },
+    })
 
     await registrarAuditoria(tx, {
       entidade: "Motorista",
@@ -125,10 +125,10 @@ export async function deletarMotoristaService(filialId: number, id: number, ator
       depois: motoristaDeletado,
       ator,
       filialId,
-    });
+    })
 
-    return motoristaDeletado;
-  });
+    return motoristaDeletado
+  })
 }
 
 /**
@@ -153,11 +153,11 @@ export async function registrarJornadaNoDia(
   codigo: number,
   horas?: { inicioJornada: Date; fimJornada: Date; diasSemFolga?: number },
 ) {
-  const diaRegistro = inicioDoDia(data);
-  const hoje = inicioDoDia(new Date());
-  const ehHoje = diaRegistro.getTime() === hoje.getTime();
+  const diaRegistro = inicioDoDia(data)
+  const hoje = inicioDoDia(new Date())
+  const ehHoje = diaRegistro.getTime() === hoje.getTime()
 
-  const dataColuna = dataParaColunaDate(diaRegistro);
+  const dataColuna = dataParaColunaDate(diaRegistro)
 
   const registro = await tx.registroJornada.upsert({
     where: { motoristaId_data: { motoristaId: idMotorista, data: dataColuna } },
@@ -171,20 +171,18 @@ export async function registrarJornadaNoDia(
     },
     update: {
       codigo,
-      ...(horas
-        ? { inicioJornada: horas.inicioJornada, fimJornada: horas.fimJornada, diasSemFolga: horas.diasSemFolga ?? null }
-        : {}),
+      ...(horas ? { inicioJornada: horas.inicioJornada, fimJornada: horas.fimJornada, diasSemFolga: horas.diasSemFolga ?? null } : {}),
     },
-  });
+  })
 
   if (ehHoje) {
     await tx.motorista.update({
       where: { id: idMotorista },
       data: { diasTrabalhados: codigo },
-    });
+    })
   }
 
-  return registro;
+  return registro
 }
 
 /**
@@ -206,8 +204,8 @@ export async function registrarJornadaNoDiaService(filialId: number, idMotorista
       depois: registro,
       ator,
       filialId,
-    });
+    })
 
     return registro
-  });
+  })
 }

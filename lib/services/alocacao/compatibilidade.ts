@@ -42,10 +42,7 @@ export function calcularDiasDisponiveis(diasTrabalhados: number) {
  * O valor retornado — gravado em Viagem.integracaoExigida — é o próprio SAP
  * Code encontrado.
  */
-export function calcularIntegracaoExigida(
-  entregas: Array<{ sapcode: string }>,
-  numerosSapQueExigemIntegracao: Set<string>,
-) {
+export function calcularIntegracaoExigida(entregas: Array<{ sapcode: string }>, numerosSapQueExigemIntegracao: Set<string>) {
   for (const entrega of entregas) {
     const sapCode = entrega.sapcode.trim()
     if (sapCode && numerosSapQueExigemIntegracao.has(sapCode)) {
@@ -56,11 +53,7 @@ export function calcularIntegracaoExigida(
   return null
 }
 
-function temIntegracaoValida(
-  motorista: MotoristaParaAlocacao,
-  cliente: string,
-  dataInicioViagem: Date,
-) {
+function temIntegracaoValida(motorista: MotoristaParaAlocacao, cliente: string, dataInicioViagem: Date) {
   const clienteNormalizado = normalizarCliente(cliente)
 
   return motorista.integracao.some((integracao) => {
@@ -81,12 +74,7 @@ function temIntegracaoValida(
  * precisa dela pra desempatar por dias disponíveis (ver filtrarMotoristasCompativeis).
  */
 export function codigoJornadaNaViagem(motorista: MotoristaParaAlocacao, contexto: ContextoCompatibilidade) {
-  return projetarCodigoNoDia(
-    motorista.registrosJornada,
-    contexto.dataInicioViagem,
-    contexto.hoje,
-    motorista.diasTrabalhados,
-  )
+  return projetarCodigoNoDia(motorista.registrosJornada, contexto.dataInicioViagem, contexto.hoje, motorista.diasTrabalhados)
 }
 
 /**
@@ -98,10 +86,7 @@ export function codigoJornadaNaViagem(motorista: MotoristaParaAlocacao, contexto
  * sugestão — sem isso, dava pra contornar o bloqueio editando a viagem ou
  * alocando manualmente um motorista que a tela de sugestão nunca ofereceria.
  */
-export function motoristaAutorizadoParaProduto(
-  produtosAutorizados: TipoProduto[],
-  produtoExigido?: TipoProduto | null,
-): boolean {
+export function motoristaAutorizadoParaProduto(produtosAutorizados: TipoProduto[], produtoExigido?: TipoProduto | null): boolean {
   return !produtoExigido || produtosAutorizados.includes(produtoExigido)
 }
 
@@ -136,15 +121,9 @@ export function motivoForaDaRegra(motorista: MotoristaParaAlocacao, contexto: Co
   // (ou o fim estimado desde a data de início) para projetar o código de
   // jornada no último dia calendário coberto — o motorista pode iniciar no 6º
   // dia, mas nunca terminar no 7º (folga obrigatória).
-  const fimViagem = contexto.fimViagem ?? new Date(
-    contexto.dataInicioViagem.getTime() + Math.max(contexto.diasViagem - 1, 0) * 24 * 60 * 60 * 1000,
-  )
-  const codigoNoUltimoDia = projetarCodigoNoDia(
-    motorista.registrosJornada,
-    fimViagem,
-    contexto.hoje,
-    motorista.diasTrabalhados,
-  )
+  const fimViagem =
+    contexto.fimViagem ?? new Date(contexto.dataInicioViagem.getTime() + Math.max(contexto.diasViagem - 1, 0) * 24 * 60 * 60 * 1000)
+  const codigoNoUltimoDia = projetarCodigoNoDia(motorista.registrosJornada, fimViagem, contexto.hoje, motorista.diasTrabalhados)
   if (codigoNoUltimoDia > MAX_DIAS_CONSECUTIVOS) {
     return `${ROTULO_CODIGO_PARADO[codigoNoUltimoDia] ?? "Folga"} em ${formatarDiaMes(fimViagem)} (fim da viagem)`
   }

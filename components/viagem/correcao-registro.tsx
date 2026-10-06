@@ -87,12 +87,22 @@ export function CorrigirKm({
       <div className="flex flex-wrap items-end gap-2">
         <label className="grid gap-1 text-xs text-muted-foreground">
           Km inicial
-          <Input inputMode="numeric" value={inicial} onChange={(e) => setInicial(apenasDigitos(e.target.value))} className="h-9 w-36 tabular-nums" />
+          <Input
+            inputMode="numeric"
+            value={inicial}
+            onChange={(e) => setInicial(apenasDigitos(e.target.value))}
+            className="h-9 w-36 tabular-nums"
+          />
         </label>
         {encerrada && (
           <label className="grid gap-1 text-xs text-muted-foreground">
             Km final
-            <Input inputMode="numeric" value={final} onChange={(e) => setFinal(apenasDigitos(e.target.value))} className="h-9 w-36 tabular-nums" />
+            <Input
+              inputMode="numeric"
+              value={final}
+              onChange={(e) => setFinal(apenasDigitos(e.target.value))}
+              className="h-9 w-36 tabular-nums"
+            />
           </label>
         )}
         <Button type="button" variant="ghost" size="sm" onClick={fechar} disabled={pendente}>
@@ -102,7 +112,12 @@ export function CorrigirKm({
           type="button"
           size="sm"
           disabled={pendente || !inicial || (encerrada && !final)}
-          onClick={() => executar(() => corrigirKm(viagemId, { kmInicial: Number(inicial), kmFinal: encerrada ? Number(final) : null }), () => setAberto(false))}
+          onClick={() =>
+            executar(
+              () => corrigirKm(viagemId, { kmInicial: Number(inicial), kmFinal: encerrada ? Number(final) : null }),
+              () => setAberto(false),
+            )
+          }
         >
           {pendente ? "Salvando..." : "Salvar km"}
         </Button>
@@ -138,12 +153,23 @@ function FormDespesa({
       />
       <label className="grid gap-1 text-xs text-muted-foreground">
         Valor (R$)
-        <Input inputMode="decimal" value={valor} onChange={(e) => setValor(e.target.value)} placeholder="0,00" className="h-9 w-32 tabular-nums" />
+        <Input
+          inputMode="decimal"
+          value={valor}
+          onChange={(e) => setValor(e.target.value)}
+          placeholder="0,00"
+          className="h-9 w-32 tabular-nums"
+        />
       </label>
       <Button type="button" variant="ghost" size="sm" onClick={aoCancelar} disabled={pendente}>
         Cancelar
       </Button>
-      <Button type="button" size="sm" disabled={pendente || centavos === null} onClick={() => centavos !== null && aoSalvar({ tipo, valorCentavos: centavos })}>
+      <Button
+        type="button"
+        size="sm"
+        disabled={pendente || centavos === null}
+        onClick={() => centavos !== null && aoSalvar({ tipo, valorCentavos: centavos })}
+      >
         {pendente ? "Salvando..." : rotuloSalvar}
       </Button>
     </div>
@@ -161,7 +187,9 @@ export function DespesasEditaveis({ viagemId, despesas }: { viagemId: number; de
     <div className="space-y-2">
       {erro && !apagar && <Alert variant="error">{erro}</Alert>}
       <ul className="divide-y rounded-lg border text-sm">
-        {despesas.length === 0 && editando !== "nova" && <li className="px-3 py-2 text-muted-foreground">Nenhum pedágio ou pernoite lançado.</li>}
+        {despesas.length === 0 && editando !== "nova" && (
+          <li className="px-3 py-2 text-muted-foreground">Nenhum pedágio ou pernoite lançado.</li>
+        )}
         {despesas.map((despesa) =>
           editando === despesa.id ? (
             <li key={despesa.id}>
@@ -170,20 +198,44 @@ export function DespesasEditaveis({ viagemId, despesas }: { viagemId: number; de
                 pendente={pendente}
                 rotuloSalvar="Salvar correção"
                 aoCancelar={() => setEditando(null)}
-                aoSalvar={(dados) => executar(() => corrigirDespesa(despesa.id, dados), () => setEditando(null))}
+                aoSalvar={(dados) =>
+                  executar(
+                    () => corrigirDespesa(despesa.id, dados),
+                    () => setEditando(null),
+                  )
+                }
               />
             </li>
           ) : (
             <li key={despesa.id} className="flex items-center justify-between gap-2 px-3 py-1.5">
               <span className="flex items-center gap-2">
-                {despesa.tipo === "PEDAGIO" ? <Ticket className="size-4 text-muted-foreground" aria-hidden /> : <BedDouble className="size-4 text-muted-foreground" aria-hidden />}
+                {despesa.tipo === "PEDAGIO" ? (
+                  <Ticket className="size-4 text-muted-foreground" aria-hidden />
+                ) : (
+                  <BedDouble className="size-4 text-muted-foreground" aria-hidden />
+                )}
                 {ROTULO_DESPESA[despesa.tipo]}
                 <span className="text-xs text-muted-foreground">{formatarDataHoraPtBr(despesa.registradoEm)}</span>
               </span>
               <span className="flex items-center gap-1">
                 <span className="mr-1 font-medium tabular-nums">{formatarReais(despesa.valorCentavos)}</span>
-                <BotaoIcone rotulo={`Corrigir ${ROTULO_DESPESA[despesa.tipo].toLowerCase()}`} icone={Pencil} onClick={() => { setErro(""); setEditando(despesa.id) }} />
-                <BotaoIcone rotulo={`Apagar ${ROTULO_DESPESA[despesa.tipo].toLowerCase()}`} icone={Trash2} perigo onClick={() => { setErro(""); setApagar(despesa) }} />
+                <BotaoIcone
+                  rotulo={`Corrigir ${ROTULO_DESPESA[despesa.tipo].toLowerCase()}`}
+                  icone={Pencil}
+                  onClick={() => {
+                    setErro("")
+                    setEditando(despesa.id)
+                  }}
+                />
+                <BotaoIcone
+                  rotulo={`Apagar ${ROTULO_DESPESA[despesa.tipo].toLowerCase()}`}
+                  icone={Trash2}
+                  perigo
+                  onClick={() => {
+                    setErro("")
+                    setApagar(despesa)
+                  }}
+                />
               </span>
             </li>
           ),
@@ -194,13 +246,26 @@ export function DespesasEditaveis({ viagemId, despesas }: { viagemId: number; de
               pendente={pendente}
               rotuloSalvar="Lançar"
               aoCancelar={() => setEditando(null)}
-              aoSalvar={(dados) => executar(() => lancarDespesaEscalador(viagemId, dados), () => setEditando(null))}
+              aoSalvar={(dados) =>
+                executar(
+                  () => lancarDespesaEscalador(viagemId, dados),
+                  () => setEditando(null),
+                )
+              }
             />
           </li>
         )}
       </ul>
       {editando === null && (
-        <Button type="button" variant="outline" size="sm" onClick={() => { setErro(""); setEditando("nova") }}>
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          onClick={() => {
+            setErro("")
+            setEditando("nova")
+          }}
+        >
           <Plus className="mr-1.5 size-3.5" aria-hidden /> Lançar pedágio ou pernoite
         </Button>
       )}
@@ -213,7 +278,13 @@ export function DespesasEditaveis({ viagemId, despesas }: { viagemId: number; de
         confirmingLabel="Apagando..."
         confirming={pendente}
         erro={apagar ? erro || null : null}
-        onConfirm={() => apagar && executar(() => removerDespesaEscalador(apagar.id), () => setApagar(null))}
+        onConfirm={() =>
+          apagar &&
+          executar(
+            () => removerDespesaEscalador(apagar.id),
+            () => setApagar(null),
+          )
+        }
       />
     </div>
   )
@@ -232,7 +303,8 @@ export function ChegadasEditaveis({
   kmInicial: number | null
   agoraServidor: string
 }) {
-  if (entregas.length === 0) return <p className="text-sm text-muted-foreground">Nenhum cliente com SAP code e número white nesta viagem.</p>
+  if (entregas.length === 0)
+    return <p className="text-sm text-muted-foreground">Nenhum cliente com SAP code e número white nesta viagem.</p>
   return (
     <div className="[&>ol]:grid [&>ol]:gap-2 [&>ol]:space-y-0 md:[&>ol]:grid-cols-2">
       <ChegadasClientes

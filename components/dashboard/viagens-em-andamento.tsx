@@ -119,7 +119,9 @@ function PendenciaDeOutroDia({ pendencia }: { pendencia: ItemDashboard["pendenci
       Desde {dia}
     </Alert>
   ) : (
-    <p className="text-[11px] text-muted-foreground" title="Saiu num dia anterior e ainda está em andamento.">Desde {dia}</p>
+    <p className="text-[11px] text-muted-foreground" title="Saiu num dia anterior e ainda está em andamento.">
+      Desde {dia}
+    </p>
   )
 }
 
@@ -174,7 +176,9 @@ export function ViagensEmAndamentoTabela({ itens, diaMostrado }: { itens: ItemDa
             <TableHead>Início</TableHead>
             <TableHead>Saída real</TableHead>
             <TableHead>Destinos</TableHead>
-            <TableHead className="fora-do-modo-tv"><span className="sr-only">Ordem de viagem</span></TableHead>
+            <TableHead className="fora-do-modo-tv">
+              <span className="sr-only">Ordem de viagem</span>
+            </TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
@@ -214,14 +218,14 @@ export function ViagensEmAndamentoCards({ itens }: { itens: ItemDashboard[] }) {
   return (
     <div className="space-y-3 md:hidden">
       {itens.map((item) => (
-        <div
-          key={item.viagem.id}
-          className="space-y-3 rounded-lg border bg-card shadow-sm p-4"
-        >
+        <div key={item.viagem.id} className="space-y-3 rounded-lg border bg-card shadow-sm p-4">
           <div className="flex items-start justify-between gap-2">
             <div>
               <p className="text-xs text-muted-foreground">
-                Viagem <span className="font-mono tabular-nums">{item.viagem.numViagem}</span> · <span className="font-mono tabular-nums">{formatarCodigoFrota(item.viagem.cavalo)} / {formatarCodigoFrota(item.viagem.carreta)}</span>
+                Viagem <span className="font-mono tabular-nums">{item.viagem.numViagem}</span> ·{" "}
+                <span className="font-mono tabular-nums">
+                  {formatarCodigoFrota(item.viagem.cavalo)} / {formatarCodigoFrota(item.viagem.carreta)}
+                </span>
               </p>
               {item.viagem.avisoFrotaIndisponivel && (
                 <Alert variant="warning" inline className="mt-1" title={item.viagem.avisoFrotaIndisponivel}>

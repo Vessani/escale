@@ -6,10 +6,7 @@ import { gerarExcelViagem, sanitizarNomeArquivo } from "@/lib/services/excel-exp
 import { respostaExcel } from "@/lib/excel/resposta"
 
 /** Ordem de viagem em Excel — uma viagem, pra imprimir ou mandar pro motorista. */
-export async function GET(
-  _request: Request,
-  { params }: { params: Promise<{ id: string }> },
-) {
+export async function GET(_request: Request, { params }: { params: Promise<{ id: string }> }) {
   // Mesma checagem de todas as rotas (sessão, filial, motorista não entra) — lib/api-auth.ts.
   let filialId: number
   try {
@@ -24,10 +21,7 @@ export async function GET(
     return new Response("ID de viagem inválido.", { status: 400 })
   }
 
-  const [viagem, filial] = await Promise.all([
-    buscarViagemPorId(filialId, viagemId),
-    buscarNomeFilial(filialId),
-  ])
+  const [viagem, filial] = await Promise.all([buscarViagemPorId(filialId, viagemId), buscarNomeFilial(filialId)])
   if (!viagem) {
     return new Response("Viagem não encontrada.", { status: 404 })
   }

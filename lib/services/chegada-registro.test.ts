@@ -33,7 +33,9 @@ describe("montarRegistroChegada", () => {
 
   it("recusa km abaixo do inicial, hora antes da saída ou no futuro e leitura impossível", () => {
     expect(() => montarRegistroChegada({ ...manometro, km: 152000 }, viagem, null, agora)).toThrow("menor que o km inicial")
-    expect(() => montarRegistroChegada({ ...manometro, chegadaEm: h("2026-10-02T06:00:00") }, viagem, null, agora)).toThrow("antes da saída")
+    expect(() => montarRegistroChegada({ ...manometro, chegadaEm: h("2026-10-02T06:00:00") }, viagem, null, agora)).toThrow(
+      "antes da saída",
+    )
     expect(() => montarRegistroChegada({ ...manometro, chegadaEm: h("2026-10-03T09:00:00") }, viagem, null, agora)).toThrow("no futuro")
     expect(() => montarRegistroChegada({ ...manometro, fatorCliente: null }, viagem, null, agora)).toThrow()
   })

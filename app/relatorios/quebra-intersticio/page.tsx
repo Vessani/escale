@@ -47,7 +47,11 @@ export default async function QuebraIntersticioPage({ searchParams }: { searchPa
       />
 
       {ocorrencias.length === 0 ? (
-        <EmptyState icone={BedDouble} titulo={`Todos descansaram as ${MINIMO_HORAS_ENTRE_JORNADAS}h`} descricao="Nenhuma jornada do período começou antes do descanso mínimo." />
+        <EmptyState
+          icone={BedDouble}
+          titulo={`Todos descansaram as ${MINIMO_HORAS_ENTRE_JORNADAS}h`}
+          descricao="Nenhuma jornada do período começou antes do descanso mínimo."
+        />
       ) : (
         <MolduraTabela>
           <Table>
@@ -70,12 +74,18 @@ export default async function QuebraIntersticioPage({ searchParams }: { searchPa
                 <TableRow key={`${item.motoristaId}-${item.inicioSeguinte.toISOString()}`}>
                   <TableCell className="tabular-nums">{formatarDiaCurto(item.inicioSeguinte)}</TableCell>
                   <TableCell className="font-medium">{formatarNomeProprio(item.motorista)}</TableCell>
-                  <TableCell><BadgeTurno turno={item.turno} /></TableCell>
+                  <TableCell>
+                    <BadgeTurno turno={item.turno} />
+                  </TableCell>
                   <TableCell className="font-mono tabular-nums">{formatarHorarioRelativo(item.fimAnterior, item.inicioSeguinte)}</TableCell>
-                  <TableCell className="font-mono tabular-nums">{formatarHorarioRelativo(item.inicioSeguinte, item.inicioSeguinte)}</TableCell>
+                  <TableCell className="font-mono tabular-nums">
+                    {formatarHorarioRelativo(item.inicioSeguinte, item.inicioSeguinte)}
+                  </TableCell>
                   <TableCell className="tabular-nums">{formatarDuracao(item.descansoMinutos)}</TableCell>
                   <TableCell className="tabular-nums font-medium text-destructive">{formatarDuracao(item.faltaramMinutos)}</TableCell>
-                  <TableCell><BadgeAtividade atividade={item.atividade} /></TableCell>
+                  <TableCell>
+                    <BadgeAtividade atividade={item.atividade} />
+                  </TableCell>
                   <TableCell className="font-mono">{item.numViagem ?? "—"}</TableCell>
                   <TableCell className="font-mono tabular-nums">{textoFrota(item.cavalo, item.carreta)}</TableCell>
                 </TableRow>

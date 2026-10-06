@@ -19,12 +19,7 @@ vi.mock("@/lib/services/login.service", async (importOriginal) => {
 })
 
 import { prisma } from "@/lib/prisma"
-import {
-  garantirLoginNaoBloqueado,
-  LoginBloqueadoError,
-  limparFalhasLogin,
-  registrarFalhaLogin,
-} from "@/lib/services/login.service"
+import { garantirLoginNaoBloqueado, LoginBloqueadoError, limparFalhasLogin, registrarFalhaLogin } from "@/lib/services/login.service"
 import {
   autenticarMotorista,
   autenticarUsuario,
@@ -63,14 +58,10 @@ describe("autenticarUsuario", () => {
 
   it("senha errada registra falha e dá a mesma mensagem de e-mail inexistente", async () => {
     vi.mocked(prisma.usuario.findFirst).mockResolvedValue(usuario() as never)
-    await expect(autenticarUsuario({ email: "ana@ritmo.com", senha: "errada" }, headers)).rejects.toThrow(
-      MENSAGEM_CREDENCIAIS_INVALIDAS,
-    )
+    await expect(autenticarUsuario({ email: "ana@ritmo.com", senha: "errada" }, headers)).rejects.toThrow(MENSAGEM_CREDENCIAIS_INVALIDAS)
 
     vi.mocked(prisma.usuario.findFirst).mockResolvedValue(null)
-    await expect(autenticarUsuario({ email: "nao@existe.com", senha: "x" }, headers)).rejects.toThrow(
-      MENSAGEM_CREDENCIAIS_INVALIDAS,
-    )
+    await expect(autenticarUsuario({ email: "nao@existe.com", senha: "x" }, headers)).rejects.toThrow(MENSAGEM_CREDENCIAIS_INVALIDAS)
 
     expect(registrarFalhaLogin).toHaveBeenCalledTimes(2)
     expect(limparFalhasLogin).not.toHaveBeenCalled()
@@ -79,18 +70,14 @@ describe("autenticarUsuario", () => {
   it("bloqueado não chega nem a consultar o usuário", async () => {
     vi.mocked(garantirLoginNaoBloqueado).mockRejectedValueOnce(new LoginBloqueadoError())
 
-    await expect(autenticarUsuario({ email: "ana@ritmo.com", senha: senhaCerta }, headers)).rejects.toThrow(
-      /Muitas tentativas/,
-    )
+    await expect(autenticarUsuario({ email: "ana@ritmo.com", senha: senhaCerta }, headers)).rejects.toThrow(/Muitas tentativas/)
     expect(prisma.usuario.findFirst).not.toHaveBeenCalled()
   })
 
   it("usuário desativado não entra, mesmo com a senha certa", async () => {
     vi.mocked(prisma.usuario.findFirst).mockResolvedValue(usuario({ ativo: false }) as never)
 
-    await expect(autenticarUsuario({ email: "ana@ritmo.com", senha: senhaCerta }, headers)).rejects.toThrow(
-      MENSAGEM_USUARIO_DESATIVADO,
-    )
+    await expect(autenticarUsuario({ email: "ana@ritmo.com", senha: senhaCerta }, headers)).rejects.toThrow(MENSAGEM_USUARIO_DESATIVADO)
     expect(limparFalhasLogin).not.toHaveBeenCalled()
   })
 
@@ -124,12 +111,8 @@ describe("revalidarToken", () => {
     vi.mocked(prisma.usuario.findUnique).mockResolvedValue({ ativo: true, role: "ADMIN", filialId: 1, versaoSessao: 0 } as never)
     const limite = DURACAO_SESSAO_SEGUNDOS * 1000
 
-    await expect(
-      revalidarToken({ id: "u1", role: "ADMIN", filialId: 1, loginEm: agora - limite + 60_000 }, agora),
-    ).resolves.toBeTruthy()
-    await expect(
-      revalidarToken({ id: "u1", role: "ADMIN", filialId: 1, loginEm: agora - limite - 1 }, agora),
-    ).rejects.toThrow(/expirada/)
+    await expect(revalidarToken({ id: "u1", role: "ADMIN", filialId: 1, loginEm: agora - limite + 60_000 }, agora)).resolves.toBeTruthy()
+    await expect(revalidarToken({ id: "u1", role: "ADMIN", filialId: 1, loginEm: agora - limite - 1 }, agora)).rejects.toThrow(/expirada/)
   })
 
   it("token antigo, sem loginEm, é tratado como expirado", async () => {
@@ -205,11 +188,20 @@ describe("revalidarToken — versão da sessão", () => {
   it("PIN novo (versão subiu) derruba a sessão antiga; token antigo sem versão vale como 0", async () => {
     const agora = Date.now()
     vi.mocked(prisma.usuario.findUnique).mockResolvedValue({
-      ativo: true, role: "MOTORISTA", filialId: 3, motoristaId: 42, versaoSessao: 1, motorista: { deletadoEm: null },
+      ativo: true,
+      role: "MOTORISTA",
+      filialId: 3,
+      motoristaId: 42,
+      versaoSessao: 1,
+      motorista: { deletadoEm: null },
     } as never)
-    await expect(revalidarToken({ id: "m1", role: "MOTORISTA", filialId: 3, loginEm: agora, versaoSessao: 0 }, agora)).rejects.toThrow("PIN novo")
+    await expect(revalidarToken({ id: "m1", role: "MOTORISTA", filialId: 3, loginEm: agora, versaoSessao: 0 }, agora)).rejects.toThrow(
+      "PIN novo",
+    )
     await expect(revalidarToken({ id: "m1", role: "MOTORISTA", filialId: 3, loginEm: agora }, agora)).rejects.toThrow("PIN novo")
-    await expect(revalidarToken({ id: "m1", role: "MOTORISTA", filialId: 3, loginEm: agora, versaoSessao: 1 }, agora)).resolves.toMatchObject({ motoristaId: 42 })
+    await expect(
+      revalidarToken({ id: "m1", role: "MOTORISTA", filialId: 3, loginEm: agora, versaoSessao: 1 }, agora),
+    ).resolves.toMatchObject({ motoristaId: 42 })
   })
 })
 
@@ -219,16 +211,25 @@ describe("revalidarToken — motorista", () => {
 
   it("motorista excluído do cadastro perde a sessão na hora", async () => {
     vi.mocked(prisma.usuario.findUnique).mockResolvedValue({
-      ativo: true, role: "MOTORISTA", filialId: 3, motoristaId: 42, versaoSessao: 0, motorista: { deletadoEm: new Date() },
+      ativo: true,
+      role: "MOTORISTA",
+      filialId: 3,
+      motoristaId: 42,
+      versaoSessao: 0,
+      motorista: { deletadoEm: new Date() },
     } as never)
     await expect(revalidarToken({ ...token })).rejects.toThrow("Motorista excluído")
   })
 
   it("mantém o motoristaId no token", async () => {
     vi.mocked(prisma.usuario.findUnique).mockResolvedValue({
-      ativo: true, role: "MOTORISTA", filialId: 3, motoristaId: 42, versaoSessao: 0, motorista: { deletadoEm: null },
+      ativo: true,
+      role: "MOTORISTA",
+      filialId: 3,
+      motoristaId: 42,
+      versaoSessao: 0,
+      motorista: { deletadoEm: null },
     } as never)
     expect(await revalidarToken({ ...token })).toMatchObject({ motoristaId: 42 })
   })
 })
-

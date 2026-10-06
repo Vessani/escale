@@ -41,7 +41,9 @@ export function IconeTipoMotorista({ tipo, className }: { tipo: TipoMotorista; c
 export function NomeMotorista({ nome, tipo, className }: { nome: string; tipo: TipoMotorista; className?: string }) {
   return (
     <span className={cn("inline-flex min-w-0 items-center gap-1.5", className)}>
-      <span className="truncate" title={nome}>{formatarNomeProprio(nome)}</span>
+      <span className="truncate" title={nome}>
+        {formatarNomeProprio(nome)}
+      </span>
       <IconeTipoMotorista tipo={tipo} />
     </span>
   )

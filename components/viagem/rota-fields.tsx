@@ -47,82 +47,110 @@ export default function RotaFields<TFieldValues extends FieldValues>({ control }
 
   return (
     <>
-      <FormField control={control} name={nome("numViagem")} render={({ field }) => (
-        <FormItem>
-          <FormLabel>Nº Viagem</FormLabel>
-          <FormControl>
-            <Input placeholder="Ex: 10045" {...field} value={normalizeFormValue(field.value)} />
-          </FormControl>
-          <FormMessage />
-        </FormItem>
-      )} />
+      <FormField
+        control={control}
+        name={nome("numViagem")}
+        render={({ field }) => (
+          <FormItem>
+            <FormLabel>Nº Viagem</FormLabel>
+            <FormControl>
+              <Input placeholder="Ex: 10045" {...field} value={normalizeFormValue(field.value)} />
+            </FormControl>
+            <FormMessage />
+          </FormItem>
+        )}
+      />
 
-      <FormField control={control} name={nome("diasViagem")} render={({ field }) => (
-        <FormItem>
-          <FormLabel>Duração (Dias)</FormLabel>
-          <FormControl>
-            <Input
-              type="number"
-              readOnly
-              disabled
-              className="bg-muted text-foreground/80"
-              value={normalizeFormValue(duracaoCalculada ?? field.value)}
-            />
-          </FormControl>
-          <FormDescription>Calculada automaticamente a partir do início e fim previstos.</FormDescription>
-          <FormMessage />
-        </FormItem>
-      )} />
+      <FormField
+        control={control}
+        name={nome("diasViagem")}
+        render={({ field }) => (
+          <FormItem>
+            <FormLabel>Duração (Dias)</FormLabel>
+            <FormControl>
+              <Input
+                type="number"
+                readOnly
+                disabled
+                className="bg-muted text-foreground/80"
+                value={normalizeFormValue(duracaoCalculada ?? field.value)}
+              />
+            </FormControl>
+            <FormDescription>Calculada automaticamente a partir do início e fim previstos.</FormDescription>
+            <FormMessage />
+          </FormItem>
+        )}
+      />
 
-      <FormField control={control} name={nome("cavalo")} render={({ field }) => (
-        <FormItem>
-          <FormLabel>Frota (Cavalo)</FormLabel>
-          <FormControl>
-            <Input placeholder="Ex: 2024 ou 75" {...field} value={normalizeFormValue(field.value)} />
-          </FormControl>
-          <FormMessage />
-        </FormItem>
-      )} />
+      <FormField
+        control={control}
+        name={nome("cavalo")}
+        render={({ field }) => (
+          <FormItem>
+            <FormLabel>Frota (Cavalo)</FormLabel>
+            <FormControl>
+              <Input placeholder="Ex: 2024 ou 75" {...field} value={normalizeFormValue(field.value)} />
+            </FormControl>
+            <FormMessage />
+          </FormItem>
+        )}
+      />
 
-      <FormField control={control} name={nome("carreta")} render={({ field }) => (
-        <FormItem>
-          <FormLabel>Frota (Carreta)</FormLabel>
-          <FormControl>
-            <Input placeholder="0000 se for Truck" {...field} value={normalizeFormValue(field.value)} />
-          </FormControl>
-          <FormMessage />
-        </FormItem>
-      )} />
+      <FormField
+        control={control}
+        name={nome("carreta")}
+        render={({ field }) => (
+          <FormItem>
+            <FormLabel>Frota (Carreta)</FormLabel>
+            <FormControl>
+              <Input placeholder="0000 se for Truck" {...field} value={normalizeFormValue(field.value)} />
+            </FormControl>
+            <FormMessage />
+          </FormItem>
+        )}
+      />
 
-      <FormField control={control} name={nome("tanque")} render={({ field }) => (
-        <FormItem>
-          <FormLabel>Tanque</FormLabel>
-          <FormControl>
-            <Input placeholder="Num. Tanque" {...field} value={normalizeFormValue(field.value)} />
-          </FormControl>
-          <FormMessage />
-        </FormItem>
-      )} />
+      <FormField
+        control={control}
+        name={nome("tanque")}
+        render={({ field }) => (
+          <FormItem>
+            <FormLabel>Tanque</FormLabel>
+            <FormControl>
+              <Input placeholder="Num. Tanque" {...field} value={normalizeFormValue(field.value)} />
+            </FormControl>
+            <FormMessage />
+          </FormItem>
+        )}
+      />
 
-      <FormField control={control} name={nome("inicioPrevisto")} render={({ field }) => (
-        <FormItem>
-          <FormLabel>Início Previsto</FormLabel>
-          <FormControl>
-            <Input type="datetime-local" {...field} value={normalizeFormValue(field.value)} />
-          </FormControl>
-          <FormMessage />
-        </FormItem>
-      )} />
+      <FormField
+        control={control}
+        name={nome("inicioPrevisto")}
+        render={({ field }) => (
+          <FormItem>
+            <FormLabel>Início Previsto</FormLabel>
+            <FormControl>
+              <Input type="datetime-local" {...field} value={normalizeFormValue(field.value)} />
+            </FormControl>
+            <FormMessage />
+          </FormItem>
+        )}
+      />
 
-      <FormField control={control} name={nome("fimPrevisto")} render={({ field }) => (
-        <FormItem>
-          <FormLabel>Fim Previsto</FormLabel>
-          <FormControl>
-            <Input type="datetime-local" {...field} value={normalizeFormValue(field.value)} />
-          </FormControl>
-          <FormMessage />
-        </FormItem>
-      )} />
+      <FormField
+        control={control}
+        name={nome("fimPrevisto")}
+        render={({ field }) => (
+          <FormItem>
+            <FormLabel>Fim Previsto</FormLabel>
+            <FormControl>
+              <Input type="datetime-local" {...field} value={normalizeFormValue(field.value)} />
+            </FormControl>
+            <FormMessage />
+          </FormItem>
+        )}
+      />
     </>
   )
 }

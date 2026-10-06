@@ -35,8 +35,7 @@ type Tx = ReturnType<typeof criarTx>
 
 /** Faz `prisma.$transaction(callback)` invocar `callback(tx)` — o cast contorna a assinatura real (sobrecarregada) do Prisma, que não importa aqui. */
 function usarTransacaoCom(tx: Tx) {
-  vi.mocked(prisma.$transaction).mockImplementation(((callback: (tx: Tx) => unknown) =>
-    Promise.resolve(callback(tx))) as never)
+  vi.mocked(prisma.$transaction).mockImplementation(((callback: (tx: Tx) => unknown) => Promise.resolve(callback(tx))) as never)
 }
 
 describe("motorista.service", () => {
@@ -89,16 +88,20 @@ describe("motorista.service", () => {
       vi.mocked(tx.registroJornada.upsert).mockResolvedValue({})
       usarTransacaoCom(tx)
 
-      await criarMotoristaService(FILIAL_ID, {
-        nome: "Bruno",
-        cpf: "52998224725",
-        seva: 2,
-        diasTrabalhados: 1,
-        turno: "MANHA",
-        tipo: "TREINAMENTO" as const,
-        produtosAutorizados: [],
-        integracao: [],
-      }, ATOR)
+      await criarMotoristaService(
+        FILIAL_ID,
+        {
+          nome: "Bruno",
+          cpf: "52998224725",
+          seva: 2,
+          diasTrabalhados: 1,
+          turno: "MANHA",
+          tipo: "TREINAMENTO" as const,
+          produtosAutorizados: [],
+          integracao: [],
+        },
+        ATOR,
+      )
 
       const dadosCriados = vi.mocked(tx.motorista.create).mock.calls[0][0].data
       expect(dadosCriados.tipo).toBe("TREINAMENTO")
@@ -157,7 +160,10 @@ describe("motorista.service", () => {
 
       await deletarMotoristaService(FILIAL_ID, 9, ATOR)
 
-      const chamada = vi.mocked(tx.motorista.update).mock.calls[0][0] as { where: { id: number; filialId: number }; data: { deletadoEm: Date } }
+      const chamada = vi.mocked(tx.motorista.update).mock.calls[0][0] as {
+        where: { id: number; filialId: number }
+        data: { deletadoEm: Date }
+      }
       expect(chamada.where).toEqual({ id: 9, filialId: FILIAL_ID })
       expect(chamada.data.deletadoEm).toBeInstanceOf(Date)
       expect(tx.registroAuditoria.create).toHaveBeenCalledTimes(1)

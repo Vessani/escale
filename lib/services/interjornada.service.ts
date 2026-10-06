@@ -72,8 +72,7 @@ export async function recalcularAvisosInterjornada(
     for (const viagem of motorista.viagens) {
       // Vale também pra finalizada: se o relatório não mostra o motorista
       // trabalhando nos dias dela, alguém precisa conferir.
-      const avisoRelatorio =
-        viagemBloqueiaAgenda(viagem) && viagemDesmentidaPeloRelatorio(agenda, viagem) ? AVISO_VIAGEM_DESMENTIDA : null
+      const avisoRelatorio = viagemBloqueiaAgenda(viagem) && viagemDesmentidaPeloRelatorio(agenda, viagem) ? AVISO_VIAGEM_DESMENTIDA : null
       if (avisoRelatorio !== (viagem.avisoRelatorioJornada ?? null)) {
         await tx.viagem.update({ where: { id: viagem.id }, data: { avisoRelatorioJornada: avisoRelatorio } })
       }

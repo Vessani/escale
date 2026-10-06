@@ -1,16 +1,16 @@
 /**
  * Converter centralizado para dados de viagem
  * Responsabilidade única: converter strings para Date objects para o Prisma
- * 
+ *
  * SOLID Principles:
  * - Single Responsibility: Apenas converte tipos
  * - Open/Closed: Fácil estender para novos tipos
  * - DRY: Uma única fonte de verdade para conversão
  */
 
-import { NovaViagemInput, EditarViagemInput } from "@/lib/types/types";
-import { calcularDiasEntre, converterEntradaDeDataHora } from "@/lib/utils/date-format";
-import { DataInvalidaError } from "@/lib/errors";
+import { NovaViagemInput, EditarViagemInput } from "@/lib/types/types"
+import { calcularDiasEntre, converterEntradaDeDataHora } from "@/lib/utils/date-format"
+import { DataInvalidaError } from "@/lib/errors"
 
 /**
  * Converte strings de data (datetime-local) para Date objects, interpretando
@@ -24,26 +24,24 @@ import { DataInvalidaError } from "@/lib/errors";
  */
 function converterDataParaDate(data: string | Date): Date {
   if (!data) {
-    console.error("[viagem-data-converter] Data inválida: valor vazio");
-    throw new DataInvalidaError();
+    console.error("[viagem-data-converter] Data inválida: valor vazio")
+    throw new DataInvalidaError()
   }
 
-  const date = converterEntradaDeDataHora(data);
+  const date = converterEntradaDeDataHora(data)
   if (isNaN(date.getTime())) {
-    console.error(`[viagem-data-converter] Data inválida: ${data}`);
-    throw new DataInvalidaError();
+    console.error(`[viagem-data-converter] Data inválida: ${data}`)
+    throw new DataInvalidaError()
   }
-  return date;
+  return date
 }
 
 /**
  * Converte NovaViagemInput: strings → Dates para Prisma
  */
-export function converterNovaViagemParaBD(
-  dados: NovaViagemInput
-): NovaViagemInput {
-  const inicioPrevisto = converterDataParaDate(dados.inicioPrevisto);
-  const fimPrevisto = converterDataParaDate(dados.fimPrevisto);
+export function converterNovaViagemParaBD(dados: NovaViagemInput): NovaViagemInput {
+  const inicioPrevisto = converterDataParaDate(dados.inicioPrevisto)
+  const fimPrevisto = converterDataParaDate(dados.fimPrevisto)
 
   return {
     ...dados,
@@ -52,30 +50,28 @@ export function converterNovaViagemParaBD(
     // Fonte de verdade é o intervalo de datas, não o número enviado pelo
     // formulário — evita desincronia entre "duração" e o intervalo real.
     diasViagem: calcularDiasEntre(inicioPrevisto, fimPrevisto),
-    entregas: dados.entregas.map(entrega => ({
+    entregas: dados.entregas.map((entrega) => ({
       ...entrega,
       dataEntrega: converterDataParaDate(entrega.dataEntrega),
     })),
-  };
+  }
 }
 
 /**
  * Converte EditarViagemInput: strings → Dates para Prisma
  */
-export function converterEditarViagemParaBD(
-  dados: EditarViagemInput
-): EditarViagemInput {
-  const inicioPrevisto = converterDataParaDate(dados.inicioPrevisto);
-  const fimPrevisto = converterDataParaDate(dados.fimPrevisto);
+export function converterEditarViagemParaBD(dados: EditarViagemInput): EditarViagemInput {
+  const inicioPrevisto = converterDataParaDate(dados.inicioPrevisto)
+  const fimPrevisto = converterDataParaDate(dados.fimPrevisto)
 
   return {
     ...dados,
     inicioPrevisto,
     fimPrevisto,
     diasViagem: calcularDiasEntre(inicioPrevisto, fimPrevisto),
-    entregas: dados.entregas.map(entrega => ({
+    entregas: dados.entregas.map((entrega) => ({
       ...entrega,
       dataEntrega: converterDataParaDate(entrega.dataEntrega),
     })),
-  };
+  }
 }

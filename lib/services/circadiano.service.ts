@@ -89,12 +89,7 @@ function envolveMotorista(viagem: ViagemCircadiano, motoristaId: number) {
 }
 
 /** Viagem do motorista que mais se sobrepõe à jornada (null = estava interno). */
-export function viagemDaJornada(
-  viagens: ViagemCircadiano[],
-  motoristaId: number,
-  inicio: Date,
-  fim: Date,
-): ViagemCircadiano | null {
+export function viagemDaJornada(viagens: ViagemCircadiano[], motoristaId: number, inicio: Date, fim: Date): ViagemCircadiano | null {
   let melhor: ViagemCircadiano | null = null
   let melhorSobreposicao = 0
 
@@ -102,8 +97,7 @@ export function viagemDaJornada(
     if (!viagemConta(viagem) || !envolveMotorista(viagem, motoristaId)) continue
     const inicioViagem = new Date(viagem.inicioPrevisto)
     const fimViagem = fimEfetivoViagem(viagem)
-    const sobreposicao =
-      Math.min(fim.getTime(), fimViagem.getTime()) - Math.max(inicio.getTime(), inicioViagem.getTime())
+    const sobreposicao = Math.min(fim.getTime(), fimViagem.getTime()) - Math.max(inicio.getTime(), inicioViagem.getTime())
     if (sobreposicao > melhorSobreposicao) {
       melhor = viagem
       melhorSobreposicao = sobreposicao
@@ -217,10 +211,7 @@ export function ordenarOcorrencias(
   ordem: "recentes" | "proximas" = "recentes",
 ): OcorrenciaCircadiano[] {
   const sentido = ordem === "recentes" ? -1 : 1
-  return [...ocorrencias].sort(
-    (a, b) =>
-      sentido * (a.dia.getTime() - b.dia.getTime()) || a.motorista.localeCompare(b.motorista, "pt-BR"),
-  )
+  return [...ocorrencias].sort((a, b) => sentido * (a.dia.getTime() - b.dia.getTime()) || a.motorista.localeCompare(b.motorista, "pt-BR"))
 }
 
 export function formatarExcedente(minutos: number): string {

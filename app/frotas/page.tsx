@@ -19,14 +19,7 @@ import { formatarProduto } from "@/lib/services/produto.service"
 import { formatarDataHoraPtBr } from "@/lib/utils/date-format"
 import ExcluirFrotaButton from "./excluir-frota-button"
 import { AcoesLinha, BotaoIcone } from "@/components/ui/botao-icone"
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table"
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 
 type Frota = Awaited<ReturnType<typeof buscarFrotas>>[number]
 
@@ -67,7 +60,9 @@ function StatusFrotaBadge({ frota, agora, manutencoes }: { frota: Frota; agora: 
           {ROTULO_VEICULO[atual.veiculo]} em manutenção · {textoFimManutencao(atual, agora)}
         </Badge>
       ) : status === "EM_VIAGEM" ? (
-        <Badge variant="info" className="tabular-nums">Em viagem até {formatarDataHoraPtBr(frota.disponivelEm as Date)}</Badge>
+        <Badge variant="info" className="tabular-nums">
+          Em viagem até {formatarDataHoraPtBr(frota.disponivelEm as Date)}
+        </Badge>
       ) : (
         <Badge variant="success">Disponível</Badge>
       )}
@@ -96,7 +91,17 @@ function AcoesFrota({ frota, podeExcluir }: { frota: Frota; podeExcluir: boolean
 }
 
 /** Tabela para telas a partir de md; em telas menores vira lista de cards (ver FrotasCards). */
-function FrotasTabela({ frotas, agora, podeExcluir, manutencoes }: { frotas: Frota[]; agora: Date; podeExcluir: boolean; manutencoes: ManutencaoBase[] }) {
+function FrotasTabela({
+  frotas,
+  agora,
+  podeExcluir,
+  manutencoes,
+}: {
+  frotas: Frota[]
+  agora: Date
+  podeExcluir: boolean
+  manutencoes: ManutencaoBase[]
+}) {
   return (
     <div className="hidden rounded-lg border bg-card shadow-sm overflow-hidden md:block">
       <Table>
@@ -130,14 +135,26 @@ function FrotasTabela({ frotas, agora, podeExcluir, manutencoes }: { frotas: Fro
 }
 
 /** Lista em cards para telas abaixo de md; substitui a tabela (ver FrotasTabela). */
-function FrotasCards({ frotas, agora, podeExcluir, manutencoes }: { frotas: Frota[]; agora: Date; podeExcluir: boolean; manutencoes: ManutencaoBase[] }) {
+function FrotasCards({
+  frotas,
+  agora,
+  podeExcluir,
+  manutencoes,
+}: {
+  frotas: Frota[]
+  agora: Date
+  podeExcluir: boolean
+  manutencoes: ManutencaoBase[]
+}) {
   return (
     <div className="space-y-3 md:hidden">
       {frotas.map((frota) => (
         <div key={frota.id} className="space-y-3 rounded-lg border bg-card shadow-sm p-4">
           <div className="flex items-start justify-between gap-2">
             <div>
-              <p className="font-mono font-semibold tabular-nums text-foreground">{frota.cavalo} / {frota.carreta}</p>
+              <p className="font-mono font-semibold tabular-nums text-foreground">
+                {frota.cavalo} / {frota.carreta}
+              </p>
               <p className="text-xs text-muted-foreground">{formatarProduto(frota.tipoProduto)}</p>
             </div>
             <StatusFrotaBadge frota={frota} agora={agora} manutencoes={manutencoes} />
@@ -160,9 +177,7 @@ export default async function FrotasPage() {
       <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
         <div>
           <h1 className="text-2xl font-semibold tracking-tight text-foreground">Frotas</h1>
-          <p className="text-muted-foreground mt-1">
-            Cadastro dos conjuntos (cavalo/carreta) e a disponibilidade de cada um.
-          </p>
+          <p className="text-muted-foreground mt-1">Cadastro dos conjuntos (cavalo/carreta) e a disponibilidade de cada um.</p>
         </div>
         <div className="flex flex-wrap gap-2">
           <Link href="/frotas/manutencoes">

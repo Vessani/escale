@@ -29,7 +29,10 @@ import { atualizarObservacoes } from "@/lib/actions/quadro"
 function criarTx() {
   return {
     // o "antes" é lido dentro da transação; delega pro mock do prisma que os testes configuram
-    quadroObservacao: { upsert: vi.fn(), findUnique: vi.fn((...a: unknown[]) => (prisma.quadroObservacao.findUnique as (...x: unknown[]) => unknown)(...a)) },
+    quadroObservacao: {
+      upsert: vi.fn(),
+      findUnique: vi.fn((...a: unknown[]) => (prisma.quadroObservacao.findUnique as (...x: unknown[]) => unknown)(...a)),
+    },
     registroAuditoria: { create: vi.fn() },
   }
 }
@@ -38,8 +41,7 @@ type Tx = ReturnType<typeof criarTx>
 
 /** Faz `prisma.$transaction(callback)` invocar `callback(tx)` — o cast contorna a assinatura real (sobrecarregada) do Prisma, que não importa aqui. */
 function usarTransacaoCom(tx: Tx) {
-  vi.mocked(prisma.$transaction).mockImplementation(((callback: (tx: Tx) => unknown) =>
-    Promise.resolve(callback(tx))) as never)
+  vi.mocked(prisma.$transaction).mockImplementation(((callback: (tx: Tx) => unknown) => Promise.resolve(callback(tx))) as never)
 }
 
 describe("lib/actions/quadro — atualizarObservacoes", () => {

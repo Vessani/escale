@@ -48,7 +48,6 @@ const data = (valor: Date | string | null | undefined) => (valor ? new Date(valo
 const turno = (valor: string) => (valor === "NOITE" ? "Noite" : "Dia")
 const frota = (codigo: string) => formatarCodigoFrota(codigo).replace("—", "")
 
-
 /** Só as entregas de cliente (SAP code + número white) — a origem/base não entra em rota, contagem nem peso. */
 function entregasDe(viagem: ViagemExcel) {
   return soEntregasDeCliente(viagem.entregas ?? [])
@@ -59,7 +58,13 @@ function rota(viagem: ViagemExcel): string {
 }
 
 function clientes(viagem: ViagemExcel): string {
-  return [...new Set(entregasDe(viagem).map((entrega) => nome(entrega.cliente)).filter(Boolean))].join(", ")
+  return [
+    ...new Set(
+      entregasDe(viagem)
+        .map((entrega) => nome(entrega.cliente))
+        .filter(Boolean),
+    ),
+  ].join(", ")
 }
 
 function pesoTotal(viagem: ViagemExcel): number {
@@ -337,7 +342,11 @@ export async function excelOrdemDeViagem(viagem: ViagemExcel & { entregas: Entre
       celula.value = valor
       celula.font = { size: 10, color: { argb: CORES.texto } }
       celula.border = BORDA_FINA
-      celula.alignment = { vertical: "middle", wrapText: coluna === 2 || coluna === 9, horizontal: coluna >= 5 && coluna <= 6 ? "right" : "left" }
+      celula.alignment = {
+        vertical: "middle",
+        wrapText: coluna === 2 || coluna === 9,
+        horizontal: coluna >= 5 && coluna <= 6 ? "right" : "left",
+      }
       if (coluna === 1) celula.numFmt = "dd/mm hh:mm"
       if (coluna === 5) celula.numFmt = "#,##0"
       if (coluna === 6) celula.numFmt = "#,##0.00"

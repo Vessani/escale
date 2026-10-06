@@ -1,4 +1,4 @@
-'use client'
+"use client"
 
 import { useState } from "react"
 import { useRouter } from "next/navigation"
@@ -43,9 +43,7 @@ export default function NovaViagemPage() {
       turno: "MANHA",
       status: "CRIADA",
       viagemExtra: false,
-      entregas: [
-        { dataEntrega: "", cliente: "", cidade: "", uf: "", kg: 0, m3: 0, sapcode: "", codewhite: "", obs: "" }
-      ]
+      entregas: [{ dataEntrega: "", cliente: "", cidade: "", uf: "", kg: 0, m3: 0, sapcode: "", codewhite: "", obs: "" }],
     },
   })
 
@@ -115,10 +113,16 @@ export default function NovaViagemPage() {
     <div className="max-w-5xl mx-auto space-y-6 pb-20">
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-semibold tracking-tight text-foreground">Nova Viagem</h1>
-        <Button variant="outline" type="button" onClick={() => router.back()}>Cancelar</Button>
+        <Button variant="outline" type="button" onClick={() => router.back()}>
+          Cancelar
+        </Button>
       </div>
 
-      {erroGlobal && <Alert variant="error" className="font-medium">{erroGlobal}</Alert>}
+      {erroGlobal && (
+        <Alert variant="error" className="font-medium">
+          {erroGlobal}
+        </Alert>
+      )}
 
       {resumoLote && (
         <Alert variant={resumoLote.falhas.length > 0 ? "warning" : "success"}>
@@ -141,18 +145,10 @@ export default function NovaViagemPage() {
       )}
 
       {revisandoLote ? (
-        <ConfirmarLoteViagens
-          viagens={revisandoLote}
-          onConcluido={handleConcluidoLote}
-          onCancelar={() => setRevisandoLote(null)}
-        />
+        <ConfirmarLoteViagens viagens={revisandoLote} onConcluido={handleConcluidoLote} onCancelar={() => setRevisandoLote(null)} />
       ) : (
         <>
-          <UploadXLSXViagem
-            onDataLoaded={handleDataLoaded}
-            onError={setErroGlobal}
-            onImportarLote={handleImportarLote}
-          />
+          <UploadXLSXViagem onDataLoaded={handleDataLoaded} onError={setErroGlobal} onImportarLote={handleImportarLote} />
 
           {carregandoRevisao && (
             <p className="text-sm text-muted-foreground">Calculando a alocação sugerida para as viagens do arquivo...</p>
@@ -166,7 +162,6 @@ export default function NovaViagemPage() {
           ) : (
             <Form {...form}>
               <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
-
                 <Card className="shadow-sm border-border">
                   <CardHeader className="bg-muted border-b">
                     <CardTitle className="text-lg">Informações do Veículo e Rota</CardTitle>
@@ -174,75 +169,95 @@ export default function NovaViagemPage() {
                   <CardContent className="pt-6 grid grid-cols-1 md:grid-cols-4 gap-6">
                     <RotaFields control={form.control} />
 
-                    <FormField control={form.control} name="turno" render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Turno Operacional</FormLabel>
-                        <Select value={field.value} onValueChange={field.onChange}>
-                          <FormControl>
-                            <SelectTrigger><SelectValue/></SelectTrigger>
-                          </FormControl>
-                          <SelectContent>
-                            <SelectItem value="MANHA">Manhã</SelectItem>
-                            <SelectItem value="NOITE">Noite</SelectItem>
-                          </SelectContent>
-                        </Select>
-                        <FormMessage/>
-                      </FormItem>
-                    )} />
+                    <FormField
+                      control={form.control}
+                      name="turno"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Turno Operacional</FormLabel>
+                          <Select value={field.value} onValueChange={field.onChange}>
+                            <FormControl>
+                              <SelectTrigger>
+                                <SelectValue />
+                              </SelectTrigger>
+                            </FormControl>
+                            <SelectContent>
+                              <SelectItem value="MANHA">Manhã</SelectItem>
+                              <SelectItem value="NOITE">Noite</SelectItem>
+                            </SelectContent>
+                          </Select>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
 
-                    <FormField control={form.control} name="produto" render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Produto</FormLabel>
-                        <Select value={field.value ?? ""} onValueChange={field.onChange}>
-                          <FormControl>
-                            <SelectTrigger><SelectValue placeholder="Selecione o produto" /></SelectTrigger>
-                          </FormControl>
-                          <SelectContent>
-                            {PRODUTO_OPCOES.map((opcao) => (
-                              <SelectItem key={opcao.valor} value={opcao.valor}>
-                                {opcao.label}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                        <FormMessage/>
-                      </FormItem>
-                    )} />
+                    <FormField
+                      control={form.control}
+                      name="produto"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Produto</FormLabel>
+                          <Select value={field.value ?? ""} onValueChange={field.onChange}>
+                            <FormControl>
+                              <SelectTrigger>
+                                <SelectValue placeholder="Selecione o produto" />
+                              </SelectTrigger>
+                            </FormControl>
+                            <SelectContent>
+                              {PRODUTO_OPCOES.map((opcao) => (
+                                <SelectItem key={opcao.valor} value={opcao.valor}>
+                                  {opcao.label}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
 
-                    <FormField control={form.control} name="status" render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Status</FormLabel>
-                        <Select value={field.value} onValueChange={field.onChange}>
-                          <FormControl>
-                            <SelectTrigger><SelectValue placeholder="Selecione o status" /></SelectTrigger>
-                          </FormControl>
-                          <SelectContent>
-                            {STATUS_VIAGEM_OPCOES.map((opcao) => (
-                              <SelectItem key={opcao.valor} value={opcao.valor}>
-                                {opcao.label}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                        <FormMessage/>
-                      </FormItem>
-                    )} />
+                    <FormField
+                      control={form.control}
+                      name="status"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Status</FormLabel>
+                          <Select value={field.value} onValueChange={field.onChange}>
+                            <FormControl>
+                              <SelectTrigger>
+                                <SelectValue placeholder="Selecione o status" />
+                              </SelectTrigger>
+                            </FormControl>
+                            <SelectContent>
+                              {STATUS_VIAGEM_OPCOES.map((opcao) => (
+                                <SelectItem key={opcao.valor} value={opcao.valor}>
+                                  {opcao.label}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
 
-                    <FormField control={form.control} name="viagemExtra" render={({ field }) => (
-                      <FormItem className="flex flex-row items-center gap-2 space-y-0 self-end pb-2">
-                        <FormControl>
-                          <input
-                            type="checkbox"
-                            checked={field.value ?? false}
-                            onChange={(e) => field.onChange(e.target.checked)}
-                            className="h-4 w-4 rounded border-border"
-                          />
-                        </FormControl>
-                        <FormLabel className="cursor-pointer font-normal">
-                          Viagem extra (fora da programação)
-                        </FormLabel>
-                      </FormItem>
-                    )} />
+                    <FormField
+                      control={form.control}
+                      name="viagemExtra"
+                      render={({ field }) => (
+                        <FormItem className="flex flex-row items-center gap-2 space-y-0 self-end pb-2">
+                          <FormControl>
+                            <input
+                              type="checkbox"
+                              checked={field.value ?? false}
+                              onChange={(e) => field.onChange(e.target.checked)}
+                              className="h-4 w-4 rounded border-border"
+                            />
+                          </FormControl>
+                          <FormLabel className="cursor-pointer font-normal">Viagem extra (fora da programação)</FormLabel>
+                        </FormItem>
+                      )}
+                    />
                   </CardContent>
                 </Card>
 

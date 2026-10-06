@@ -69,9 +69,7 @@ export async function buscarRelatorioCircadiano(filialId: number, de: Date, ate:
       ? [{ motoristaId: jornada.motoristaId, inicioJornada: jornada.inicioJornada, fimJornada: jornada.fimJornada }]
       : [],
   )
-  const viagensNoPeriodo = viagens.filter(
-    (viagem) => viagem.inicioPrevisto >= de && viagem.inicioPrevisto <= ate,
-  )
+  const viagensNoPeriodo = viagens.filter((viagem) => viagem.inicioPrevisto >= de && viagem.inicioPrevisto <= ate)
 
   return {
     realizadas: ordenarOcorrencias(ocorrenciasRealizadas(motoristas, jornadasValidas, viagens)),

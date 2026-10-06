@@ -20,8 +20,7 @@ import { trocarMotoristaDaViagem } from "@/lib/services/troca-motorista.service"
 import { ErroDeDominio } from "@/lib/errors"
 import { encerrarViagem, iniciarViagem, informarProblema, lancarDespesa, passarViagem } from "./minhas-viagens"
 
-const sessao = (user: Record<string, unknown> | null) =>
-  vi.mocked(getServerSession).mockResolvedValue(user ? ({ user } as never) : null)
+const sessao = (user: Record<string, unknown> | null) => vi.mocked(getServerSession).mockResolvedValue(user ? ({ user } as never) : null)
 const motorista = { id: "u9", name: "João", role: "MOTORISTA", filialId: 3, motoristaId: 7 }
 const ator = { usuarioId: "u9", usuarioNome: "João" }
 
@@ -41,7 +40,13 @@ describe("lib/actions/minhas-viagens", () => {
 
   it("inicia com o motorista e a filial da sessão (nunca do cliente) e atualiza Dashboard e viagens", async () => {
     expect(await iniciarViagem(5, { kmInicial: 152300, motivoAtraso: "Fila no carregamento" })).toEqual({ sucesso: true })
-    expect(servico.iniciarMinhaViagem).toHaveBeenCalledWith(3, 7, 5, expect.objectContaining({ kmInicial: 152300, motivoAtraso: "Fila no carregamento" }), ator)
+    expect(servico.iniciarMinhaViagem).toHaveBeenCalledWith(
+      3,
+      7,
+      5,
+      expect.objectContaining({ kmInicial: 152300, motivoAtraso: "Fila no carregamento" }),
+      ator,
+    )
     for (const caminho of ["/minhas-viagens", "/minhas-viagens/5", "/", "/viagens"]) expect(revalidatePath).toHaveBeenCalledWith(caminho)
   })
 
@@ -64,7 +69,13 @@ describe("lib/actions/minhas-viagens", () => {
   })
 
   it("passar a viagem: só se ele for o motorista atual, com o horário em Brasília", async () => {
-    const resposta = await passarViagem(5, { motoristaNovoId: 8, km: 152500, trocadoEm: "2026-10-02T14:00", local: "Posto BR-101", motivo: "Fim da jornada" })
+    const resposta = await passarViagem(5, {
+      motoristaNovoId: 8,
+      km: 152500,
+      trocadoEm: "2026-10-02T14:00",
+      local: "Posto BR-101",
+      motivo: "Fim da jornada",
+    })
     expect(resposta).toEqual({ sucesso: true })
     const [filialId, viagemId, dados, , opcoes] = vi.mocked(trocarMotoristaDaViagem).mock.calls[0]
     expect([filialId, viagemId]).toEqual([3, 5])

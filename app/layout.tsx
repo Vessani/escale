@@ -15,11 +15,7 @@ export const metadata: Metadata = {
   description: "Sistema de Alocação e Gestão de Frotas",
 }
 
-export default async function RootLayout({
-  children,
-}: {
-  children: React.ReactNode
-}) {
+export default async function RootLayout({ children }: { children: React.ReactNode }) {
   // Pega a sessão do usuário direto do servidor
   const session = await getServerSession(authOptions)
 
@@ -31,9 +27,7 @@ export default async function RootLayout({
         {session && ehMotorista(session.user.role) ? (
           <LayoutMotorista nome={session.user.name}>{children}</LayoutMotorista>
         ) : session ? (
-          <LayoutWrapper usuario={session.user}>
-            {children}
-          </LayoutWrapper>
+          <LayoutWrapper usuario={session.user}>{children}</LayoutWrapper>
         ) : (
           children
         )}

@@ -68,7 +68,10 @@ describe("avisoManutencaoNaViagem", () => {
   const agora = h("2026-09-29T12:00:00")
 
   it("avisa pela carreta ou pelo cavalo da viagem no período", () => {
-    const lista = [manutencao(), manutencao({ id: 2, veiculo: "CAVALO", codigo: "75", tipo: "CORRETIVA", nivel: null, responsavel: "RITMO" })]
+    const lista = [
+      manutencao(),
+      manutencao({ id: 2, veiculo: "CAVALO", codigo: "75", tipo: "CORRETIVA", nivel: null, responsavel: "RITMO" }),
+    ]
 
     expect(avisoManutencaoNaViagem(lista, "99", "908", h("2026-09-30T15:00:00"), h("2026-09-30T23:00:00"), agora)).toBe(
       "Carreta 908 em manutenção (Preventiva B, White Martins) de 30/09/2026, 08:00 a 30/09/2026, 18:00.",

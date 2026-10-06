@@ -46,50 +46,57 @@ export async function atualizarStatusViagemService(
   }
 
   return await prisma.$transaction(async (tx) => {
-  // Linha completa e travada — vira o snapshot "antes" da auditoria, e
-  // ninguém muda a viagem entre a leitura e a gravação.
-  await tx.$queryRaw`SELECT id FROM "Viagem" WHERE id = ${idViagem} AND "filialId" = ${filialId} FOR UPDATE`
-  const viagemAtual = await tx.viagem.findUnique({
-    where: { id: idViagem, filialId },
-  })
+    // Linha completa e travada — vira o snapshot "antes" da auditoria, e
+    // ninguém muda a viagem entre a leitura e a gravação.
+    await tx.$queryRaw`SELECT id FROM "Viagem" WHERE id = ${idViagem} AND "filialId" = ${filialId} FOR UPDATE`
+    const viagemAtual = await tx.viagem.findUnique({
+      where: { id: idViagem, filialId },
+    })
 
-  if (!viagemAtual) {
-    throw new ViagemNaoEncontradaError()
-  }
+    if (!viagemAtual) {
+      throw new ViagemNaoEncontradaError()
+    }
 
-  // Postergar muda a data — os avisos de frota gravados na criação/última
-  // edição são recalculados pra essa data nova, senão ficam "presos" no valor
-  // de quando a viagem foi criada/editada pela última vez (ex: aviso de frota
-  // indisponível que não valia mais pro horário novo). O de interjornada é
-  // recalculado dentro da transação, pra qualquer mudança de status.
-  const avisosRecalculados = novaData
-    ? {
-        avisoFrotaIndisponivel: await calcularAvisoFrotaIndisponivel(
-          filialId,
-          viagemAtual.cavalo,
-          viagemAtual.carreta,
-          novaData.inicioPrevisto,
-          novaData.fimPrevisto,
-          idViagem,
-        ),
-        avisoFrotaProdutoIncompativel: await calcularAvisoFrotaProduto(filialId, viagemAtual.cavalo, viagemAtual.carreta, viagemAtual.produto),
-      }
-    : {}
+    // Postergar muda a data — os avisos de frota gravados na criação/última
+    // edição são recalculados pra essa data nova, senão ficam "presos" no valor
+    // de quando a viagem foi criada/editada pela última vez (ex: aviso de frota
+    // indisponível que não valia mais pro horário novo). O de interjornada é
+    // recalculado dentro da transação, pra qualquer mudança de status.
+    const avisosRecalculados = novaData
+      ? {
+          avisoFrotaIndisponivel: await calcularAvisoFrotaIndisponivel(
+            filialId,
+            viagemAtual.cavalo,
+            viagemAtual.carreta,
+            novaData.inicioPrevisto,
+            novaData.fimPrevisto,
+            idViagem,
+          ),
+          avisoFrotaProdutoIncompativel: await calcularAvisoFrotaProduto(
+            filialId,
+            viagemAtual.cavalo,
+            viagemAtual.carreta,
+            viagemAtual.produto,
+          ),
+        }
+      : {}
 
-  const statusFinal = normalizarStatusPorAlocacao(status, viagemAtual.motoristaId)
+    const statusFinal = normalizarStatusPorAlocacao(status, viagemAtual.motoristaId)
 
     const dados = {
       status: statusFinal,
       canceladoEm: calcularCanceladoEm(statusFinal, viagemAtual.status),
       finalizadoEm: calcularFinalizadoEm(statusFinal, viagemAtual.status),
-      ...(novaData ? {
-        inicioPrevisto: novaData.inicioPrevisto,
-        fimPrevisto: novaData.fimPrevisto,
-        diasViagem: calcularDiasEntre(novaData.inicioPrevisto, novaData.fimPrevisto),
-        // Postergar da noite pro dia (ou o contrário) troca o turno — senão a
-        // alocação procura motorista do turno errado.
-        turno: turnoPorHorario(novaData.inicioPrevisto) ?? viagemAtual.turno,
-      } : {}),
+      ...(novaData
+        ? {
+            inicioPrevisto: novaData.inicioPrevisto,
+            fimPrevisto: novaData.fimPrevisto,
+            diasViagem: calcularDiasEntre(novaData.inicioPrevisto, novaData.fimPrevisto),
+            // Postergar da noite pro dia (ou o contrário) troca o turno — senão a
+            // alocação procura motorista do turno errado.
+            turno: turnoPorHorario(novaData.inicioPrevisto) ?? viagemAtual.turno,
+          }
+        : {}),
       ...avisosRecalculados,
     }
     let viagemAtualizada

@@ -67,7 +67,9 @@ function TabelaManutencoes({
             <TableHead>Responsável</TableHead>
             <TableHead>Período</TableHead>
             <TableHead>Situação</TableHead>
-            <TableHead className="w-36"><span className="sr-only">Ações</span></TableHead>
+            <TableHead className="w-36">
+              <span className="sr-only">Ações</span>
+            </TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
@@ -78,19 +80,27 @@ function TabelaManutencoes({
             return (
               <TableRow key={manutencao.id} className={cn(situacao === "CONCLUIDA" && "text-muted-foreground")}>
                 <TableCell>
-                  <div className="font-mono font-medium">{ROTULO_VEICULO[manutencao.veiculo]} {manutencao.codigo}</div>
+                  <div className="font-mono font-medium">
+                    {ROTULO_VEICULO[manutencao.veiculo]} {manutencao.codigo}
+                  </div>
                   {conjunto && <div className="text-xs text-muted-foreground">Conjunto {conjunto}</div>}
                 </TableCell>
                 <TableCell className="max-w-72">
                   <div className="font-medium">{descreverTipo(manutencao)}</div>
                   {manutencao.descricao && (
-                    <div className="truncate text-xs text-muted-foreground" title={manutencao.descricao}>{manutencao.descricao}</div>
+                    <div className="truncate text-xs text-muted-foreground" title={manutencao.descricao}>
+                      {manutencao.descricao}
+                    </div>
                   )}
                 </TableCell>
                 <TableCell>{ROTULO_RESPONSAVEL[manutencao.responsavel]}</TableCell>
-                <TableCell className="text-sm"><Periodo manutencao={manutencao} agora={agora} /></TableCell>
+                <TableCell className="text-sm">
+                  <Periodo manutencao={manutencao} agora={agora} />
+                </TableCell>
                 <TableCell>
-                  <Badge variant="outline" className={CLASSE_SITUACAO[situacao]}>{ROTULO_SITUACAO[situacao]}</Badge>
+                  <Badge variant="outline" className={CLASSE_SITUACAO[situacao]}>
+                    {ROTULO_SITUACAO[situacao]}
+                  </Badge>
                 </TableCell>
                 <TableCell>
                   <AcoesManutencao
@@ -118,8 +128,7 @@ export default async function ManutencoesPage() {
     const conjunto = conjuntos.find((c) => (manutencao.veiculo === "CAVALO" ? c.cavalo : c.carreta) === manutencao.codigo)
     return conjunto ? `${conjunto.cavalo} / ${conjunto.carreta}` : null
   }
-  const porSituacao = (...situacoes: SituacaoManutencao[]) =>
-    manutencoes.filter((m) => situacoes.includes(situacaoManutencao(m, agora)))
+  const porSituacao = (...situacoes: SituacaoManutencao[]) => manutencoes.filter((m) => situacoes.includes(situacaoManutencao(m, agora)))
   const emAndamento = porSituacao("ATRASADA", "EM_ANDAMENTO")
   const agendadas = porSituacao("AGENDADA")
   const concluidas = porSituacao("CONCLUIDA").sort(
@@ -135,8 +144,8 @@ export default async function ManutencoesPage() {
           </Link>
           <h1 className="text-2xl font-semibold tracking-tight text-foreground">Manutenções</h1>
           <p className="text-muted-foreground">
-            Agenda de manutenção dos cavalos e carretas. O veículo fica indisponível do início até a conclusão — se passar
-            da previsão sem concluir, continua parado e aparece em vermelho.
+            Agenda de manutenção dos cavalos e carretas. O veículo fica indisponível do início até a conclusão — se passar da previsão sem
+            concluir, continua parado e aparece em vermelho.
           </p>
         </div>
         <Link href="/frotas/manutencoes/nova">
@@ -157,12 +166,16 @@ export default async function ManutencoesPage() {
         <>
           {emAndamento.length > 0 && (
             <section className="space-y-3">
-              <h2 className="text-lg font-semibold">Parados agora <span className="text-muted-foreground font-normal">· {emAndamento.length}</span></h2>
+              <h2 className="text-lg font-semibold">
+                Parados agora <span className="text-muted-foreground font-normal">· {emAndamento.length}</span>
+              </h2>
               <TabelaManutencoes manutencoes={emAndamento} agora={agora} conjuntoDe={conjuntoDe} />
             </section>
           )}
           <section className="space-y-3">
-            <h2 className="text-lg font-semibold">Agendadas <span className="text-muted-foreground font-normal">· {agendadas.length}</span></h2>
+            <h2 className="text-lg font-semibold">
+              Agendadas <span className="text-muted-foreground font-normal">· {agendadas.length}</span>
+            </h2>
             {agendadas.length === 0 ? (
               <p className="text-sm text-muted-foreground">Nenhuma manutenção agendada.</p>
             ) : (
@@ -171,7 +184,9 @@ export default async function ManutencoesPage() {
           </section>
           {concluidas.length > 0 && (
             <section className="space-y-3">
-              <h2 className="text-lg font-semibold">Concluídas nos últimos 30 dias <span className="text-muted-foreground font-normal">· {concluidas.length}</span></h2>
+              <h2 className="text-lg font-semibold">
+                Concluídas nos últimos 30 dias <span className="text-muted-foreground font-normal">· {concluidas.length}</span>
+              </h2>
               <TabelaManutencoes manutencoes={concluidas} agora={agora} conjuntoDe={conjuntoDe} />
             </section>
           )}

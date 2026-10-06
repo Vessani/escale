@@ -1,68 +1,63 @@
-'use server'
-import { revalidatePath } from "next/cache";
-import { buscarProdutoPorCarreta } from "@/lib/queries/frotas";
-import { montarMotoristaCompativel } from "@/lib/services/motorista-compativel.service";
+"use server"
+import { revalidatePath } from "next/cache"
+import { buscarProdutoPorCarreta } from "@/lib/queries/frotas"
+import { montarMotoristaCompativel } from "@/lib/services/motorista-compativel.service"
 import {
   NovaViagemInput,
   EditarViagemInput,
   type FalhaImportacaoViagem,
   type ResultadoImportacaoLote,
   type RespostaAcao,
-} from "@/lib/types/types";
-import type { SugestaoAlocacaoPendente } from "@/lib/types/alocacao";
-import { errorToMessage } from "@/lib/action-error";
-import { requireSessionComFilial } from "@/lib/auth-guard";
-import { atorDaSessao } from "@/lib/services/auditoria.service";
-import { ehStatusViagem, type StatusViagemSelecionavel } from "@/lib/services/viagem-status.service";
-import { novaViagemSchema, editarViagemServerSchema, type NovaViagemFormValues } from "@/lib/validation/viagens";
+} from "@/lib/types/types"
+import type { SugestaoAlocacaoPendente } from "@/lib/types/alocacao"
+import { errorToMessage } from "@/lib/action-error"
+import { requireSessionComFilial } from "@/lib/auth-guard"
+import { atorDaSessao } from "@/lib/services/auditoria.service"
+import { ehStatusViagem, type StatusViagemSelecionavel } from "@/lib/services/viagem-status.service"
+import { novaViagemSchema, editarViagemServerSchema, type NovaViagemFormValues } from "@/lib/validation/viagens"
 import {
   criarViagemAvulsaService,
   criarViagemComAlocacaoService,
   editarViagemService,
   deletarViagemService,
-} from "@/lib/services/viagem.service";
-import { atualizarSaidaRealService, atualizarStatusViagemService } from "@/lib/services/viagem-andamento.service";
-import { buscarMotoristasParaSelect } from "@/lib/queries/motoristas";
-import { buscarNumerosSapQueExigemIntegracao } from "@/lib/queries/clientes";
-import {
-  calcularAvisoDescanso,
-  calcularIntegracaoExigida,
-  sugerirAlocacoesEmLote,
-} from "@/lib/services/alocacao.service";
-import { calcularAvisoFrotaIndisponivel, calcularAvisoFrotaProduto } from "@/lib/services/frota.service";
-import { prepararJornadaDoMotorista } from "@/lib/services/jornada.service";
-import { converterEntradaDeDataHora, inicioDoDia } from "@/lib/utils/date-format";
-import { ErroDeDominio } from "@/lib/errors";
-import { TAMANHO_MAXIMO_MOTIVO } from "@/lib/services/motivos-atraso";
-import { DATA_HORA_DO_CAMPO } from "@/lib/validation/troca-motorista";
-import { z } from "@/lib/validation/zod";
+} from "@/lib/services/viagem.service"
+import { atualizarSaidaRealService, atualizarStatusViagemService } from "@/lib/services/viagem-andamento.service"
+import { buscarMotoristasParaSelect } from "@/lib/queries/motoristas"
+import { buscarNumerosSapQueExigemIntegracao } from "@/lib/queries/clientes"
+import { calcularAvisoDescanso, calcularIntegracaoExigida, sugerirAlocacoesEmLote } from "@/lib/services/alocacao.service"
+import { calcularAvisoFrotaIndisponivel, calcularAvisoFrotaProduto } from "@/lib/services/frota.service"
+import { prepararJornadaDoMotorista } from "@/lib/services/jornada.service"
+import { converterEntradaDeDataHora, inicioDoDia } from "@/lib/utils/date-format"
+import { ErroDeDominio } from "@/lib/errors"
+import { TAMANHO_MAXIMO_MOTIVO } from "@/lib/services/motivos-atraso"
+import { DATA_HORA_DO_CAMPO } from "@/lib/validation/troca-motorista"
+import { z } from "@/lib/validation/zod"
 
 /** Teto de uma importação de planilha — acima disso é arquivo errado. */
-const MAX_VIAGENS_POR_LOTE = 500;
+const MAX_VIAGENS_POR_LOTE = 500
 /** Quantas viagens do lote calculam aviso de frota ao mesmo tempo (2 consultas cada). */
-const CONSULTAS_POR_BLOCO = 10;
+const CONSULTAS_POR_BLOCO = 10
 /** "YYYY-MM-DDTHH:MM" (campo datetime-local) ou ISO completo. */
-const dataHoraDoCampo = z.string().max(40).refine(
-  (texto) => DATA_HORA_DO_CAMPO.test(texto) || !Number.isNaN(new Date(texto).getTime()),
-  "Data e hora inválidas.",
-);
+const dataHoraDoCampo = z
+  .string()
+  .max(40)
+  .refine((texto) => DATA_HORA_DO_CAMPO.test(texto) || !Number.isNaN(new Date(texto).getTime()), "Data e hora inválidas.")
 
 export async function criarViagemAvulsa(dados: NovaViagemInput): Promise<RespostaAcao> {
   try {
-    const { session, filialId } = await requireSessionComFilial();
+    const { session, filialId } = await requireSessionComFilial()
 
-    const dadosValidados = novaViagemSchema.parse(dados);
+    const dadosValidados = novaViagemSchema.parse(dados)
 
-    await criarViagemAvulsaService(filialId, dadosValidados, atorDaSessao(session));
+    await criarViagemAvulsaService(filialId, dadosValidados, atorDaSessao(session))
 
-    revalidatePath("/viagens");
-    revalidatePath("/motorista");
-    return { sucesso: true };
-
+    revalidatePath("/viagens")
+    revalidatePath("/motorista")
+    return { sucesso: true }
   } catch (erro) {
-    const mensagem = errorToMessage(erro, "Ocorreu um erro desconhecido ao salvar.");
+    const mensagem = errorToMessage(erro, "Ocorreu um erro desconhecido ao salvar.")
 
-    return { sucesso: false, erro: mensagem };
+    return { sucesso: false, erro: mensagem }
   }
 }
 
@@ -71,12 +66,10 @@ export async function criarViagemAvulsa(dados: NovaViagemInput): Promise<Respost
  * lote ainda não criado (ex: acabou de sair do parser de XLSX) — usado na
  * tela de revisão antes de confirmar a criação em lote.
  */
-export async function sugerirAlocacaoParaViagens(
-  viagens: NovaViagemFormValues[],
-): Promise<SugestaoAlocacaoPendente[]> {
-  const { filialId } = await requireSessionComFilial();
+export async function sugerirAlocacaoParaViagens(viagens: NovaViagemFormValues[]): Promise<SugestaoAlocacaoPendente[]> {
+  const { filialId } = await requireSessionComFilial()
   if (!Array.isArray(viagens) || viagens.length > MAX_VIAGENS_POR_LOTE) {
-    throw new ErroDeDominio("LOTE_GRANDE", `Importe no máximo ${MAX_VIAGENS_POR_LOTE} viagens por vez.`);
+    throw new ErroDeDominio("LOTE_GRANDE", `Importe no máximo ${MAX_VIAGENS_POR_LOTE} viagens por vez.`)
   }
 
   const [motoristasBrutos, numerosSapQueExigemIntegracao, produtoPorCarreta] = await Promise.all([
@@ -84,16 +77,19 @@ export async function sugerirAlocacaoParaViagens(
     buscarNumerosSapQueExigemIntegracao(),
     // Produto de cada carreta cadastrada — preenche o produto da viagem na
     // revisão do import, pra não precisar escolher viagem por viagem.
-    buscarProdutoPorCarreta(filialId, viagens.map((viagem) => viagem.carreta)),
-  ]);
+    buscarProdutoPorCarreta(
+      filialId,
+      viagens.map((viagem) => viagem.carreta),
+    ),
+  ])
   const motoristas = motoristasBrutos.map((motorista) => ({
     ...motorista,
     ...prepararJornadaDoMotorista(motorista),
-  }));
-  const hoje = inicioDoDia(new Date());
+  }))
+  const hoje = inicioDoDia(new Date())
   // Viagem do import ainda sem produto: usa o da carreta cadastrada, então a
   // primeira sugestão já sai filtrada pelo produto certo.
-  const produtoEfetivo = (viagem: NovaViagemFormValues) => viagem.produto || produtoPorCarreta.get(viagem.carreta) || null;
+  const produtoEfetivo = (viagem: NovaViagemFormValues) => viagem.produto || produtoPorCarreta.get(viagem.carreta) || null
 
   const viagensParaSugestao = viagens.map((viagem, indice) => ({
     id: indice,
@@ -103,41 +99,39 @@ export async function sugerirAlocacaoParaViagens(
     fimPrevisto: new Date(viagem.fimPrevisto),
     integracaoExigida: calcularIntegracaoExigida(viagem.entregas, numerosSapQueExigemIntegracao),
     produtoExigido: produtoEfetivo(viagem),
-  }));
+  }))
 
-  const sugestoes = sugerirAlocacoesEmLote(viagensParaSugestao, motoristas, hoje);
+  const sugestoes = sugerirAlocacoesEmLote(viagensParaSugestao, motoristas, hoje)
 
   // Avisos de frota em blocos: um Promise.all do lote inteiro abria centenas
   // de consultas ao mesmo tempo (2 por viagem) e esgotava o pool do banco.
-  const resultado: SugestaoAlocacaoPendente[] = [];
+  const resultado: SugestaoAlocacaoPendente[] = []
   for (let inicio = 0; inicio < sugestoes.length; inicio += CONSULTAS_POR_BLOCO) {
-    const bloco = sugestoes.slice(inicio, inicio + CONSULTAS_POR_BLOCO);
-    resultado.push(...(await Promise.all(bloco.map((sugestao, posicao) => montarSugestao(sugestao, inicio + posicao)))));
+    const bloco = sugestoes.slice(inicio, inicio + CONSULTAS_POR_BLOCO)
+    resultado.push(...(await Promise.all(bloco.map((sugestao, posicao) => montarSugestao(sugestao, inicio + posicao)))))
   }
-  return resultado;
+  return resultado
 
   async function montarSugestao(sugestao: (typeof sugestoes)[number], indice: number): Promise<SugestaoAlocacaoPendente> {
-    const dataInicioViagem = new Date(viagens[indice].inicioPrevisto);
+    const dataInicioViagem = new Date(viagens[indice].inicioPrevisto)
     const avisoFrotaIndisponivel = await calcularAvisoFrotaIndisponivel(
       filialId,
       viagens[indice].cavalo,
       viagens[indice].carreta,
       dataInicioViagem,
       new Date(viagens[indice].fimPrevisto),
-    );
+    )
     const avisoFrotaProdutoIncompativel = await calcularAvisoFrotaProduto(
       filialId,
       viagens[indice].cavalo,
       viagens[indice].carreta,
       produtoEfetivo(viagens[indice]),
-    );
+    )
 
     return {
       numViagem: viagens[indice].numViagem,
       produtoDaFrota: produtoPorCarreta.get(viagens[indice].carreta) ?? null,
-      motoristaSugerido: sugestao.motoristaSugerido
-        ? { id: sugestao.motoristaSugerido.id, nome: sugestao.motoristaSugerido.nome }
-        : null,
+      motoristaSugerido: sugestao.motoristaSugerido ? { id: sugestao.motoristaSugerido.id, nome: sugestao.motoristaSugerido.nome } : null,
       // Mesma regra do aviso gravado na viagem (relatório + viagens, finalizada
       // contando da finalização, 11h/35h) — ver calcularAvisoDescanso.
       avisoInterjornada: sugestao.motoristaSugerido
@@ -148,7 +142,7 @@ export async function sugerirAlocacaoParaViagens(
       motoristasCompativeis: sugestao.motoristasCompativeis.map((motorista) =>
         montarMotoristaCompativel(motorista, { inicioPrevisto: dataInicioViagem }, hoje),
       ),
-    };
+    }
   }
 }
 
@@ -162,7 +156,7 @@ export async function criarViagensEmLoteComAlocacao(
   let filialId: number
   let ator: ReturnType<typeof atorDaSessao>
   try {
-    const resultado = await requireSessionComFilial();
+    const resultado = await requireSessionComFilial()
     filialId = resultado.filialId
     ator = atorDaSessao(resultado.session)
   } catch (erro) {
@@ -203,38 +197,36 @@ export async function criarViagensEmLoteComAlocacao(
 
 export async function editarViagem(idViagem: number, dados: EditarViagemInput): Promise<RespostaAcao> {
   try {
-    const { session, filialId } = await requireSessionComFilial();
+    const { session, filialId } = await requireSessionComFilial()
 
-    const dadosValidados = editarViagemServerSchema.parse(dados);
+    const dadosValidados = editarViagemServerSchema.parse(dados)
 
-    await editarViagemService(filialId, idViagem, dadosValidados, atorDaSessao(session));
+    await editarViagemService(filialId, idViagem, dadosValidados, atorDaSessao(session))
 
-    revalidatePath("/viagens");
-    revalidatePath("/motorista");
-    revalidatePath("/");
-    return { sucesso: true };
-
+    revalidatePath("/viagens")
+    revalidatePath("/motorista")
+    revalidatePath("/")
+    return { sucesso: true }
   } catch (erro) {
-    const mensagem = errorToMessage(erro, "Ocorreu um erro desconhecido ao editar.");
+    const mensagem = errorToMessage(erro, "Ocorreu um erro desconhecido ao editar.")
 
-    return { sucesso: false, erro: mensagem };
+    return { sucesso: false, erro: mensagem }
   }
 }
 
 export async function deletarViagem(id: number): Promise<RespostaAcao> {
   try {
-    const { session, filialId } = await requireSessionComFilial(["ADMIN"]);
-    await deletarViagemService(filialId, id, atorDaSessao(session));
+    const { session, filialId } = await requireSessionComFilial(["ADMIN"])
+    await deletarViagemService(filialId, id, atorDaSessao(session))
 
-    revalidatePath("/viagens");
-    revalidatePath("/motorista");
-    revalidatePath("/");
-    return { sucesso: true };
-
+    revalidatePath("/viagens")
+    revalidatePath("/motorista")
+    revalidatePath("/")
+    return { sucesso: true }
   } catch (erro) {
-    const mensagem = errorToMessage(erro, "Não foi possível apagar a viagem.");
+    const mensagem = errorToMessage(erro, "Não foi possível apagar a viagem.")
 
-    return { sucesso: false, erro: mensagem };
+    return { sucesso: false, erro: mensagem }
   }
 }
 
@@ -244,7 +236,7 @@ export async function atualizarStatusViagem(
   novaData?: { inicioPrevisto: string; fimPrevisto: string },
 ): Promise<RespostaAcao> {
   try {
-    const { session, filialId } = await requireSessionComFilial();
+    const { session, filialId } = await requireSessionComFilial()
 
     if (!ehStatusViagem(status)) {
       return { sucesso: false, erro: "Status inválido." }
@@ -287,7 +279,7 @@ export async function atualizarSaidaReal(
   dados: { horarioRealSaida: string | null; motivoAtraso: string | null },
 ): Promise<RespostaAcao> {
   try {
-    const { session, filialId } = await requireSessionComFilial();
+    const { session, filialId } = await requireSessionComFilial()
     z.object({
       horarioRealSaida: dataHoraDoCampo.nullable(),
       motivoAtraso: z.string().max(TAMANHO_MAXIMO_MOTIVO, `O motivo aceita até ${TAMANHO_MAXIMO_MOTIVO} caracteres.`).nullable(),

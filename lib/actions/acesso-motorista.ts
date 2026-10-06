@@ -1,4 +1,4 @@
-'use server'
+"use server"
 
 import { PAPEIS_ESCALADOR } from "@/lib/papeis"
 import { revalidatePath } from "next/cache"

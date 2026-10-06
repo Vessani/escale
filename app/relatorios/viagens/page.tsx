@@ -19,7 +19,6 @@ export const metadata = { title: "Viagens" }
 
 type SearchParamsInput = { de?: string; ate?: string; motorista?: string }
 
-
 /** Todas as viagens do período, uma por linha — o resumo pra conferir km, despesas e por onde passou. */
 export default async function RelatorioViagensPage({ searchParams }: { searchParams?: Promise<SearchParamsInput> }) {
   const parametros = (await searchParams) ?? {}
@@ -35,8 +34,8 @@ export default async function RelatorioViagensPage({ searchParams }: { searchPar
   return (
     <div className="space-y-6">
       <CabecalhoRelatorio titulo="Viagens">
-        Todas as viagens do período (menos canceladas), uma por linha. Km, pedágio e pernoite vêm do que o motorista
-        registrou no celular. Cidades = clientes com SAP code e número white, na ordem da rota.
+        Todas as viagens do período (menos canceladas), uma por linha. Km, pedágio e pernoite vêm do que o motorista registrou no celular.
+        Cidades = clientes com SAP code e número white, na ordem da rota.
       </CabecalhoRelatorio>
 
       <FiltroRelatorio
@@ -54,7 +53,9 @@ export default async function RelatorioViagensPage({ searchParams }: { searchPar
           >
             <option value="">Todos</option>
             {motoristas.map((motorista) => (
-              <option key={motorista.id} value={motorista.id}>{formatarNomeProprio(motorista.nome)}</option>
+              <option key={motorista.id} value={motorista.id}>
+                {formatarNomeProprio(motorista.nome)}
+              </option>
             ))}
           </select>
         </label>
@@ -95,9 +96,14 @@ export default async function RelatorioViagensPage({ searchParams }: { searchPar
               {linhas.map((linha) => (
                 <TableRow key={linha.id} className="whitespace-nowrap">
                   <TableCell>
-                    <Link href={`/viagens/editar/${linha.id}`} className="font-mono font-medium hover:underline">{linha.numViagem}</Link>
+                    <Link href={`/viagens/editar/${linha.id}`} className="font-mono font-medium hover:underline">
+                      {linha.numViagem}
+                    </Link>
                   </TableCell>
-                  <TableCell className="tabular-nums" title={linha.inicioEhPrevisto ? "Início previsto (ainda sem saída real)" : "Saída real"}>
+                  <TableCell
+                    className="tabular-nums"
+                    title={linha.inicioEhPrevisto ? "Início previsto (ainda sem saída real)" : "Saída real"}
+                  >
                     {formatarDataHoraPtBr(linha.inicio)}
                   </TableCell>
                   <TableCell className="text-muted-foreground">{formatarStatusViagem(linha.status)}</TableCell>

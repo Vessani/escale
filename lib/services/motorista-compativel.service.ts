@@ -1,11 +1,6 @@
 import type { MotoristaCompativel } from "@/lib/types/alocacao"
 import { formatarHoraLocal } from "@/lib/utils/date-format"
-import {
-  calcularAvisoDescanso,
-  calcularDescansoAntesDaViagem,
-  calcularDiasDisponiveis,
-  type MotoristaComAgenda,
-} from "./alocacao.service"
+import { calcularAvisoDescanso, calcularDescansoAntesDaViagem, calcularDiasDisponiveis, type MotoristaComAgenda } from "./alocacao.service"
 import { projetarCodigoNoDia } from "./jornada.service"
 
 /**

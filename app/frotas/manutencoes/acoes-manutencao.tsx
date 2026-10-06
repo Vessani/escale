@@ -51,16 +51,39 @@ function RegistrarHorario({
       }}
     >
       <Popover.Trigger asChild>
-        <Button type="button" variant="ghost" size="icon-sm" title={rotulo} aria-label={rotulo} className="text-muted-foreground hover:text-foreground">
+        <Button
+          type="button"
+          variant="ghost"
+          size="icon-sm"
+          title={rotulo}
+          aria-label={rotulo}
+          className="text-muted-foreground hover:text-foreground"
+        >
           <Icone aria-hidden />
         </Button>
       </Popover.Trigger>
       <Popover.Portal>
-        <Popover.Content align="end" sideOffset={6} className="z-50 w-72 space-y-3 rounded-lg border bg-popover p-3 text-popover-foreground shadow-md">
+        <Popover.Content
+          align="end"
+          sideOffset={6}
+          className="z-50 w-72 space-y-3 rounded-lg border bg-popover p-3 text-popover-foreground shadow-md"
+        >
           <p className="text-sm font-medium">{rotulo}</p>
           <div className="flex gap-2">
-            <Input type="datetime-local" value={horario} onChange={(e) => setHorario(e.target.value)} className="h-8 text-xs" disabled={pendente} />
-            <Button type="button" variant="outline" size="sm" disabled={pendente} onClick={() => setHorario(formatDateTimeForInput(new Date()))}>
+            <Input
+              type="datetime-local"
+              value={horario}
+              onChange={(e) => setHorario(e.target.value)}
+              className="h-8 text-xs"
+              disabled={pendente}
+            />
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              disabled={pendente}
+              onClick={() => setHorario(formatDateTimeForInput(new Date()))}
+            >
               Agora
             </Button>
           </div>
@@ -102,10 +125,20 @@ export default function AcoesManutencao({ id, descricaoCurta, situacao, sugestao
   return (
     <AcoesLinha>
       {situacao === "AGENDADA" && (
-        <RegistrarHorario rotulo="Registrar início" icone={Play} sugestao={null} onConfirmar={(h) => executar(() => iniciarManutencao(id, h))} />
+        <RegistrarHorario
+          rotulo="Registrar início"
+          icone={Play}
+          sugestao={null}
+          onConfirmar={(h) => executar(() => iniciarManutencao(id, h))}
+        />
       )}
       {situacao !== "CONCLUIDA" && (
-        <RegistrarHorario rotulo="Concluir (veículo liberado)" icone={CheckCircle2} sugestao={sugestaoFim} onConfirmar={(h) => executar(() => concluirManutencao(id, h))} />
+        <RegistrarHorario
+          rotulo="Concluir (veículo liberado)"
+          icone={CheckCircle2}
+          sugestao={sugestaoFim}
+          onConfirmar={(h) => executar(() => concluirManutencao(id, h))}
+        />
       )}
       {situacao === "CONCLUIDA" && (
         <BotaoIcone
@@ -116,7 +149,15 @@ export default function AcoesManutencao({ id, descricaoCurta, situacao, sugestao
         />
       )}
       <BotaoIcone href={`/frotas/manutencoes/editar/${id}`} rotulo="Editar manutenção" icone={Pencil} />
-      <BotaoIcone rotulo="Excluir manutenção" icone={Trash2} perigo onClick={() => { setErroExcluir(null); setExcluindo(true) }} />
+      <BotaoIcone
+        rotulo="Excluir manutenção"
+        icone={Trash2}
+        perigo
+        onClick={() => {
+          setErroExcluir(null)
+          setExcluindo(true)
+        }}
+      />
       <ConfirmDialog
         open={excluindo}
         onOpenChange={setExcluindo}

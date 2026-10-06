@@ -22,7 +22,6 @@ export const metadata = { title: "Km e custos por viagem" }
 
 type SearchParamsInput = { de?: string; ate?: string; motorista?: string; registro?: string }
 
-
 export default async function KmCustosPage({ searchParams }: { searchParams?: Promise<SearchParamsInput> }) {
   const parametros = (await searchParams) ?? {}
   const { filialId } = await requireSessaoPaginaComFilial()
@@ -38,16 +37,20 @@ export default async function KmCustosPage({ searchParams }: { searchParams?: Pr
   return (
     <div className="space-y-6">
       <CabecalhoRelatorio titulo="Km e custos por viagem">
-        O que o motorista registrou no celular: km inicial e final, pedágios e pernoites. Entram as viagens iniciadas,
-        retornando e finalizadas cujo início previsto cai no período. Região = cidades dos clientes com SAP code e número
-        white.
+        O que o motorista registrou no celular: km inicial e final, pedágios e pernoites. Entram as viagens iniciadas, retornando e
+        finalizadas cujo início previsto cai no período. Região = cidades dos clientes com SAP code e número white.
       </CabecalhoRelatorio>
 
       <FiltroRelatorio
         action="/relatorios/km-custos"
         periodo={periodo}
         exportarTipo="km-custos"
-        exportarQuery={{ de: periodo.deTexto, ate: periodo.ateTexto, motorista: motoristaId, registro: registro === "todas" ? "todas" : undefined }}
+        exportarQuery={{
+          de: periodo.deTexto,
+          ate: periodo.ateTexto,
+          motorista: motoristaId,
+          registro: registro === "todas" ? "todas" : undefined,
+        }}
       >
         <label className="grid gap-1 text-xs text-muted-foreground">
           Viagens
@@ -60,7 +63,10 @@ export default async function KmCustosPage({ searchParams }: { searchParams?: Pr
             <option value="todas">Todas (inclui sem registro)</option>
           </select>
         </label>
-        <label className="grid gap-1 text-xs text-muted-foreground" title="Com troca de motorista, a viagem aparece pra todos que estiveram nela (km e custos da viagem inteira).">
+        <label
+          className="grid gap-1 text-xs text-muted-foreground"
+          title="Com troca de motorista, a viagem aparece pra todos que estiveram nela (km e custos da viagem inteira)."
+        >
           Motorista
           <select
             name="motorista"
@@ -69,7 +75,9 @@ export default async function KmCustosPage({ searchParams }: { searchParams?: Pr
           >
             <option value="">Todos</option>
             {motoristas.map((motorista) => (
-              <option key={motorista.id} value={motorista.id}>{formatarNomeProprio(motorista.nome)}</option>
+              <option key={motorista.id} value={motorista.id}>
+                {formatarNomeProprio(motorista.nome)}
+              </option>
             ))}
           </select>
         </label>
@@ -83,8 +91,16 @@ export default async function KmCustosPage({ searchParams }: { searchParams?: Pr
           icone={Gauge}
         />
         <StatCard rotulo="Custo total" valor={formatarReais(totais.custoCentavos)} icone={Wallet} />
-        <StatCard rotulo="Custo médio por viagem" valor={totais.viagens ? formatarReais(totais.custoMedioPorViagemCentavos) : "—"} icone={Receipt} />
-        <StatCard rotulo="Custo por km" valor={totais.custoPorKmCentavos === null ? "—" : formatarReais(totais.custoPorKmCentavos)} icone={Coins} />
+        <StatCard
+          rotulo="Custo médio por viagem"
+          valor={totais.viagens ? formatarReais(totais.custoMedioPorViagemCentavos) : "—"}
+          icone={Receipt}
+        />
+        <StatCard
+          rotulo="Custo por km"
+          valor={totais.custoPorKmCentavos === null ? "—" : formatarReais(totais.custoPorKmCentavos)}
+          icone={Coins}
+        />
       </div>
 
       {linhas.length === 0 ? (
@@ -115,17 +131,24 @@ export default async function KmCustosPage({ searchParams }: { searchParams?: Pr
               {linhas.map((linha) => (
                 <TableRow key={linha.id}>
                   <TableCell>
-                    <Link href={`/viagens/editar/${linha.id}`} className="font-mono font-medium hover:underline">{linha.numViagem}</Link>
+                    <Link href={`/viagens/editar/${linha.id}`} className="font-mono font-medium hover:underline">
+                      {linha.numViagem}
+                    </Link>
                     <p className="font-mono text-[11px] text-muted-foreground">{textoFrota(linha.cavalo, linha.carreta)}</p>
                     {!linha.temRegistro && <p className="text-[11px] text-muted-foreground">sem registro do motorista</p>}
                     {linha.status !== "FINALIZADA" && (
-                      <Badge variant="outline" className={cn("mt-1", classeBadgeStatusViagem(linha.status))}>{formatarStatusViagem(linha.status)}</Badge>
+                      <Badge variant="outline" className={cn("mt-1", classeBadgeStatusViagem(linha.status))}>
+                        {formatarStatusViagem(linha.status)}
+                      </Badge>
                     )}
                   </TableCell>
                   <TableCell>
                     {linha.motorista ? formatarNomeProprio(linha.motorista) : "—"}
                     {linha.teveTroca && (
-                      <span className="block text-[11px] text-muted-foreground" title="Km e custos são da viagem inteira, somando todos os trechos.">
+                      <span
+                        className="block text-[11px] text-muted-foreground"
+                        title="Km e custos são da viagem inteira, somando todos os trechos."
+                      >
                         com troca de motorista
                       </span>
                     )}

@@ -5,11 +5,7 @@ import { buscarMotoristas } from "@/lib/queries/motoristas"
 import { buscarViagensSemMotorista } from "@/lib/queries/viagens"
 import { buscarNumerosSapQueExigemIntegracao } from "@/lib/queries/clientes"
 import type { ViagemAlocacao } from "@/lib/types/alocacao"
-import {
-  calcularAvisoDescanso,
-  calcularIntegracaoExigida,
-  sugerirAlocacoesEmLote,
-} from "@/lib/services/alocacao.service"
+import { calcularAvisoDescanso, calcularIntegracaoExigida, sugerirAlocacoesEmLote } from "@/lib/services/alocacao.service"
 import { prepararJornadaDoMotorista } from "@/lib/services/jornada.service"
 import { inicioDoDia } from "@/lib/utils/date-format"
 import { Button } from "@/components/ui/button"
@@ -116,9 +112,7 @@ export default async function PaginaAlocacaoViagens() {
       <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
         <div>
           <h1 className="text-2xl font-semibold tracking-tight text-foreground">Alocação de Viagens</h1>
-          <p className="mt-1 text-muted-foreground">
-            Viagens pendentes e os motoristas compatíveis com cada uma.
-          </p>
+          <p className="mt-1 text-muted-foreground">Viagens pendentes e os motoristas compatíveis com cada uma.</p>
         </div>
 
         <div className="flex flex-wrap items-center gap-2">
@@ -141,7 +135,8 @@ export default async function PaginaAlocacaoViagens() {
             <CardTitle className="text-lg">Viagens sem motorista</CardTitle>
           </div>
           <CardDescription>
-            Motoristas compatíveis são calculados por turno, dias disponíveis da jornada (até 6 consecutivos), integração ativa válida e disponibilidade real (sem outra viagem no mesmo período — inclusive entre viagens desta mesma lista).
+            Motoristas compatíveis são calculados por turno, dias disponíveis da jornada (até 6 consecutivos), integração ativa válida e
+            disponibilidade real (sem outra viagem no mesmo período — inclusive entre viagens desta mesma lista).
           </CardDescription>
         </CardHeader>
         <CardContent className="pt-6">

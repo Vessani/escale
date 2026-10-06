@@ -195,14 +195,17 @@ export async function atualizarJornadaRelatorioDosMotoristas(
       })
       // Férias/Exames/Interno marcados à mão naquele dia não são sobrescritos
       // nem apagados — só aquele dia, não o mês inteiro do motorista.
-      const diasEspeciais = new Set(existentes.filter((registro) => ehStatusEspecial(registro.codigo)).map((registro) => registro.data.getTime()))
+      const diasEspeciais = new Set(
+        existentes.filter((registro) => ehStatusEspecial(registro.codigo)).map((registro) => registro.data.getTime()),
+      )
       const diasDoMotorista = new Set(registrosDoMotorista.map((registro) => diaColuna(registro.dia).getTime()))
 
       // Dia que veio de importação anterior (tem horário) e não está mais no
       // arquivo — ex: a linha foi excluída na conferência. Lançamento manual
       // do calendário (sem horário) fica.
       const remover = existentes.filter(
-        (registro) => registro.inicioJornada !== null && !diasDoMotorista.has(registro.data.getTime()) && !ehStatusEspecial(registro.codigo),
+        (registro) =>
+          registro.inicioJornada !== null && !diasDoMotorista.has(registro.data.getTime()) && !ehStatusEspecial(registro.codigo),
       )
       if (remover.length > 0) {
         await tx.registroJornada.deleteMany({ where: { id: { in: remover.map((registro) => registro.id) } } })

@@ -46,15 +46,19 @@ export default function CriarFilialForm() {
         <Form {...form}>
           <form onSubmit={form.handleSubmit(handleSubmit)} className="flex flex-col gap-4">
             <div className="flex flex-col gap-4 sm:flex-row sm:items-end">
-              <FormField control={form.control} name="nome" render={({ field }) => (
-                <FormItem className="flex-1">
-                  <FormLabel>Nome da filial</FormLabel>
-                  <FormControl>
-                    <Input placeholder="Ex: Filial Joinville" {...field} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )} />
+              <FormField
+                control={form.control}
+                name="nome"
+                render={({ field }) => (
+                  <FormItem className="flex-1">
+                    <FormLabel>Nome da filial</FormLabel>
+                    <FormControl>
+                      <Input placeholder="Ex: Filial Joinville" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
               <Button type="submit" disabled={form.formState.isSubmitting}>
                 <PlusCircle className="w-4 h-4 mr-2" />
                 {form.formState.isSubmitting ? "Criando..." : "Criar filial"}

@@ -37,10 +37,7 @@ describe("lib/queries/clientes", () => {
   })
 
   it("buscarNumerosSapQueExigemIntegracao retorna o conjunto de numeroSap dos clientes que exigem integração, filtrando só exigeIntegracao: true", async () => {
-    vi.mocked(prisma.cliente.findMany).mockResolvedValue([
-      { numeroSap: "4521087" },
-      { numeroSap: "9981234" },
-    ] as never)
+    vi.mocked(prisma.cliente.findMany).mockResolvedValue([{ numeroSap: "4521087" }, { numeroSap: "9981234" }] as never)
 
     const resultado = await buscarNumerosSapQueExigemIntegracao()
 

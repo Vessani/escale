@@ -14,15 +14,16 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { editarViagem } from "@/lib/actions/viagens"
 import type { EditarViagemInput } from "@/lib/types/types"
-import {
-  STATUS_VIAGEM_OPCOES,
-  formatarStatusViagem,
-  normalizarStatusViagem,
-} from "@/lib/services/viagem-status.service"
+import { STATUS_VIAGEM_OPCOES, formatarStatusViagem, normalizarStatusViagem } from "@/lib/services/viagem-status.service"
 import { classeBadgeStatusViagem } from "../../badge-styles"
 import { Save, UserCheck } from "lucide-react"
 import { formatDateTimeForInput } from "@/lib/utils/date-format"
-import { OpcoesMotoristaAcompanhante, OpcoesMotoristaPrincipal, ValorMotoristaSelecionado, type OpcaoMotorista } from "@/components/motorista/opcoes-motorista"
+import {
+  OpcoesMotoristaAcompanhante,
+  OpcoesMotoristaPrincipal,
+  ValorMotoristaSelecionado,
+  type OpcaoMotorista,
+} from "@/components/motorista/opcoes-motorista"
 import { PRODUTO_OPCOES } from "@/lib/services/produto.service"
 import { editarViagemSchema, type EditarViagemFormValues } from "@/lib/validation/viagens"
 import RotaFields from "@/components/viagem/rota-fields"
@@ -41,7 +42,6 @@ type EntregaFormModel = {
   codewhite: string | null
   obs: string | null
 }
-
 
 type ViagemComRelacionamentos = {
   id: number
@@ -139,7 +139,11 @@ export default function FormEditarViagem({ viagem, opcoesMotorista, entregasComC
   return (
     <Form {...form}>
       <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
-        {erroGlobal && <Alert variant="error" className="font-medium">{erroGlobal}</Alert>}
+        {erroGlobal && (
+          <Alert variant="error" className="font-medium">
+            {erroGlobal}
+          </Alert>
+        )}
 
         <Card className="border-primary/20 bg-primary/5 shadow-sm">
           <CardHeader className="flex flex-col gap-3 border-b border-primary/20 bg-primary/10 py-4 sm:flex-row sm:items-center sm:justify-between">
@@ -171,7 +175,12 @@ export default function FormEditarViagem({ viagem, opcoesMotorista, entregasComC
                   >
                     <FormControl>
                       <SelectTrigger className="bg-card">
-                        <ValorMotoristaSelecionado opcoes={opcoesMotorista} selecionadoId={field.value ?? null} mostrarSituacao placeholder="Selecione um motorista..." />
+                        <ValorMotoristaSelecionado
+                          opcoes={opcoesMotorista}
+                          selecionadoId={field.value ?? null}
+                          mostrarSituacao
+                          placeholder="Selecione um motorista..."
+                        />
                       </SelectTrigger>
                     </FormControl>
                     <SelectContent>
@@ -179,7 +188,8 @@ export default function FormEditarViagem({ viagem, opcoesMotorista, entregasComC
                     </SelectContent>
                   </Select>
                   <p className="text-xs text-muted-foreground">
-                  O ponto indica a situação: verde livre, amarelo sem descanso, vazio fora da regra, vermelho os dois. Exceções são aceitas — confira antes de confirmar.
+                    O ponto indica a situação: verde livre, amarelo sem descanso, vazio fora da regra, vermelho os dois. Exceções são
+                    aceitas — confira antes de confirmar.
                   </p>
                   <FormMessage />
                 </FormItem>
@@ -198,7 +208,12 @@ export default function FormEditarViagem({ viagem, opcoesMotorista, entregasComC
                   >
                     <FormControl>
                       <SelectTrigger className="bg-card">
-                        <ValorMotoristaSelecionado opcoes={opcoesMotorista} selecionadoId={field.value ?? null} mostrarSituacao={false} placeholder="Nenhum acompanhante" />
+                        <ValorMotoristaSelecionado
+                          opcoes={opcoesMotorista}
+                          selecionadoId={field.value ?? null}
+                          mostrarSituacao={false}
+                          placeholder="Nenhum acompanhante"
+                        />
                       </SelectTrigger>
                     </FormControl>
                     <SelectContent>
@@ -286,9 +301,7 @@ export default function FormEditarViagem({ viagem, opcoesMotorista, entregasComC
                       className="h-4 w-4 rounded border-border"
                     />
                   </FormControl>
-                  <FormLabel className="cursor-pointer font-normal">
-                    Viagem extra (fora da programação)
-                  </FormLabel>
+                  <FormLabel className="cursor-pointer font-normal">Viagem extra (fora da programação)</FormLabel>
                 </FormItem>
               )}
             />

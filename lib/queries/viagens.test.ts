@@ -11,12 +11,7 @@ vi.mock("@/lib/prisma", () => ({
 }))
 
 import { prisma } from "@/lib/prisma"
-import {
-  buscarViagensPaginadas,
-  buscarViagemPorId,
-  buscarViagensSemMotorista,
-  buscarViagensDoDashboard,
-} from "@/lib/queries/viagens"
+import { buscarViagensPaginadas, buscarViagemPorId, buscarViagensSemMotorista, buscarViagensDoDashboard } from "@/lib/queries/viagens"
 
 const FILIAL_ID = 3
 const OUTRA_FILIAL_ID = 7
@@ -82,7 +77,9 @@ describe("lib/queries/viagens — isolamento por filial", () => {
   it("buscarViagensDoDashboard filtra por filialId e traz todos os status (inclusive Finalizadas do dia)", async () => {
     await buscarViagensDoDashboard(FILIAL_ID, new Date("2026-08-13T12:00:00"))
 
-    const chamada = vi.mocked(prisma.viagem.findMany).mock.calls[0][0] as { where: Record<string, unknown> & { OR: Array<Record<string, unknown>> } }
+    const chamada = vi.mocked(prisma.viagem.findMany).mock.calls[0][0] as {
+      where: Record<string, unknown> & { OR: Array<Record<string, unknown>> }
+    }
     expect(chamada.where).toMatchObject({ filialId: FILIAL_ID, deletadoEm: null })
     // Sem filtro de status no banco — o filtro e as contagens saem da mesma lista, na página.
     expect(chamada.where).not.toHaveProperty("status")

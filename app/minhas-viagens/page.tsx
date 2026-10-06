@@ -71,7 +71,11 @@ export default async function MinhasViagensPage() {
       <AtualizacaoAutomatica segundos={60} />
       <h1 className="text-xl font-semibold tracking-tight">Minhas viagens</h1>
       {grupos.length === 0 ? (
-        <EmptyState icone={Truck} titulo="Nenhuma viagem pra você agora" descricao="Quando o escalador alocar uma viagem pra você, ela aparece aqui." />
+        <EmptyState
+          icone={Truck}
+          titulo="Nenhuma viagem pra você agora"
+          descricao="Quando o escalador alocar uma viagem pra você, ela aparece aqui."
+        />
       ) : (
         grupos.map((grupo) => (
           <section key={grupo.titulo} className="space-y-2">

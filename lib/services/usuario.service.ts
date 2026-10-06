@@ -79,11 +79,7 @@ export async function alterarUsuarioAtivoService(usuarioId: string, ativo: boole
 }
 
 /** Troca da própria senha, mediante a senha atual. */
-export async function trocarSenhaPropriaService(
-  ator: Ator,
-  filialId: number | null,
-  dados: { senhaAtual: string; novaSenha: string },
-) {
+export async function trocarSenhaPropriaService(ator: Ator, filialId: number | null, dados: { senhaAtual: string; novaSenha: string }) {
   const usuario = await prisma.usuario.findUnique({ where: { id: ator.usuarioId }, select: { senha: true } })
   if (!usuario?.senha) throw new ErroDeDominio("USUARIO_INVALIDO", "Usuário inválido.")
 

@@ -42,10 +42,7 @@ async function recalcularViagensDosVeiculos(tx: Prisma.TransactionClient, filial
       filialId,
       deletadoEm: null,
       status: { notIn: ["CANCELADA", "FINALIZADA"] },
-      OR: [
-        ...(cavalos.length ? [{ cavalo: { in: cavalos } }] : []),
-        ...(carretas.length ? [{ carreta: { in: carretas } }] : []),
-      ],
+      OR: [...(cavalos.length ? [{ cavalo: { in: cavalos } }] : []), ...(carretas.length ? [{ carreta: { in: carretas } }] : [])],
     },
     select: { cavalo: true, carreta: true },
   })

@@ -45,4 +45,3 @@ describe("requireSessaoApi", () => {
     await expect(requireSessaoApi()).rejects.toBeInstanceOf(NaoAutorizadoError)
   })
 })
-

@@ -39,7 +39,15 @@ export type DadosDescarga = {
 }
 
 type ResultadoDescarga =
-  | { ok: true; total: number; fator: number | null; unidade: string; medicao: TipoMedicao | null; nivelInicial: number; nivelFinal: number }
+  | {
+      ok: true
+      total: number
+      fator: number | null
+      unidade: string
+      medicao: TipoMedicao | null
+      nivelInicial: number
+      nivelFinal: number
+    }
   | { ok: false; erro: string }
 
 const arredondar = (valor: number) => Math.round(valor * 1000) / 1000
@@ -62,7 +70,14 @@ export function calcularDescarga(dados: DadosDescarga): ResultadoDescarga {
     if (typeof fator !== "number" || !Number.isFinite(fator) || fator <= 0 || fator > FATOR_MAXIMO) {
       return { ok: false, erro: "Informe a conversão do cliente (número maior que zero)." }
     }
-    return { ok: true, total: arredondar((dados.nivelFinal - dados.nivelInicial) * fator), fator, unidade: "", medicao: "MANOMETRO", ...niveis }
+    return {
+      ok: true,
+      total: arredondar((dados.nivelFinal - dados.nivelInicial) * fator),
+      fator,
+      unidade: "",
+      medicao: "MANOMETRO",
+      ...niveis,
+    }
   }
 
   // Balança e biometano medem o caminhão: o nível DESCE enquanto descarrega.
@@ -83,7 +98,14 @@ export function calcularDescarga(dados: DadosDescarga): ResultadoDescarga {
 
   if (dados.medicao === "BALANCA") {
     const fator = FATOR_BALANCA[dados.produto]
-    return { ok: true, total: arredondar(diferenca * fator), fator, unidade: dados.produto === "CO2" ? "kg" : "m³", medicao: "BALANCA", ...niveis }
+    return {
+      ok: true,
+      total: arredondar(diferenca * fator),
+      fator,
+      unidade: dados.produto === "CO2" ? "kg" : "m³",
+      medicao: "BALANCA",
+      ...niveis,
+    }
   }
 
   return { ok: false, erro: "Escolha o tipo de medida: manômetro ou balança." }
@@ -99,11 +121,7 @@ export function parseNumeroDecimal(texto: string, opcoes: { pontoDecimal?: boole
   // campo é de fator de conversão (`pontoDecimal`) — teclado de celular que
   // só tem ponto não pode virar um fator mil vezes maior.
   const ehMilhar = !opcoes.pontoDecimal && /^[1-9]\d{0,2}(\.\d{3})+$/.test(limpo)
-  const normalizado = limpo.includes(",")
-    ? limpo.replace(/\./g, "").replace(",", ".")
-    : ehMilhar
-      ? limpo.replace(/\./g, "")
-      : limpo
+  const normalizado = limpo.includes(",") ? limpo.replace(/\./g, "").replace(",", ".") : ehMilhar ? limpo.replace(/\./g, "") : limpo
   if (!/^\d+(\.\d+)?$/.test(normalizado)) return null
   return Number(normalizado)
 }
@@ -148,9 +166,16 @@ const numero = (valor: unknown) => Number(valor)
 const numeroOuNulo = (valor: unknown) => (valor === null || valor === undefined ? null : Number(valor))
 
 /** ChegadaEntrega do banco (campos Decimal) com os números prontos pra conta e pra tela — um lugar só. */
-export function chegadaEmNumeros<T extends { nivelInicial: unknown; nivelFinal: unknown; polInicial: unknown; polFinal: unknown; fator: unknown; totalDescarregado: unknown }>(
-  chegada: T,
-) {
+export function chegadaEmNumeros<
+  T extends {
+    nivelInicial: unknown
+    nivelFinal: unknown
+    polInicial: unknown
+    polFinal: unknown
+    fator: unknown
+    totalDescarregado: unknown
+  },
+>(chegada: T) {
   return {
     ...chegada,
     nivelInicial: numero(chegada.nivelInicial),
@@ -161,4 +186,3 @@ export function chegadaEmNumeros<T extends { nivelInicial: unknown; nivelFinal: 
     totalDescarregado: numero(chegada.totalDescarregado),
   }
 }
-

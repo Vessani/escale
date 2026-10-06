@@ -23,7 +23,10 @@ export default async function MeuRelatorioViagemPage({ params }: { params: Promi
   const r = minha ? await carregarRelatorioViagem(filialId, id, { comLinhaDoTempo: false }) : null
 
   const voltar = (
-    <Link href={minha ? `${AREA_MOTORISTA}/${id}` : AREA_MOTORISTA} className="inline-flex items-center gap-1.5 text-sm text-muted-foreground print:hidden">
+    <Link
+      href={minha ? `${AREA_MOTORISTA}/${id}` : AREA_MOTORISTA}
+      className="inline-flex items-center gap-1.5 text-sm text-muted-foreground print:hidden"
+    >
       <ArrowLeft className="size-4" aria-hidden /> {minha ? "Voltar para a viagem" : "Minhas viagens"}
     </Link>
   )

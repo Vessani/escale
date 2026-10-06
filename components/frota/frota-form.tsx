@@ -52,7 +52,11 @@ export default function FrotaForm({ defaultValues, onSubmit, submitLabel, submit
   return (
     <Form {...form}>
       <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-6">
-        {erroGlobal && <Alert variant="error" className="font-medium">{erroGlobal}</Alert>}
+        {erroGlobal && (
+          <Alert variant="error" className="font-medium">
+            {erroGlobal}
+          </Alert>
+        )}
 
         <Card className="shadow-sm border-border">
           <CardHeader className="bg-muted border-b">
@@ -63,64 +67,79 @@ export default function FrotaForm({ defaultValues, onSubmit, submitLabel, submit
           </CardHeader>
           <CardContent className="pt-6 space-y-4">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <FormField control={form.control} name="cavalo" render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Frota (Cavalo)</FormLabel>
-                  <FormControl>
-                    <Input placeholder="Ex: 2024" {...field} value={normalizeFormValue(field.value)} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )} />
+              <FormField
+                control={form.control}
+                name="cavalo"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Frota (Cavalo)</FormLabel>
+                    <FormControl>
+                      <Input placeholder="Ex: 2024" {...field} value={normalizeFormValue(field.value)} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
 
-              <FormField control={form.control} name="carreta" render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Frota (Carreta)</FormLabel>
-                  <FormControl>
-                    <Input placeholder="Ex: 274" {...field} value={normalizeFormValue(field.value)} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )} />
+              <FormField
+                control={form.control}
+                name="carreta"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Frota (Carreta)</FormLabel>
+                    <FormControl>
+                      <Input placeholder="Ex: 274" {...field} value={normalizeFormValue(field.value)} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
             </div>
 
-            <FormField control={form.control} name="tipoProduto" render={({ field }) => (
-              <FormItem>
-                <FormLabel>Produto</FormLabel>
-                <Select
-                  value={field.value ?? ""}
-                  onValueChange={(value) => field.onChange(value || null)}
-                >
-                  <FormControl>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Não definido" />
-                    </SelectTrigger>
-                  </FormControl>
-                  <SelectContent>
-                    {PRODUTO_OPCOES.map((opcao) => (
-                      <SelectItem key={opcao.valor} value={opcao.valor}>
-                        {opcao.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                <FormDescription>
-                  Produto que este conjunto é dedicado a transportar. Deixe em branco se ainda não definido.
-                </FormDescription>
-                <FormMessage />
-              </FormItem>
-            )} />
+            <FormField
+              control={form.control}
+              name="tipoProduto"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Produto</FormLabel>
+                  <Select value={field.value ?? ""} onValueChange={(value) => field.onChange(value || null)}>
+                    <FormControl>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Não definido" />
+                      </SelectTrigger>
+                    </FormControl>
+                    <SelectContent>
+                      {PRODUTO_OPCOES.map((opcao) => (
+                        <SelectItem key={opcao.valor} value={opcao.valor}>
+                          {opcao.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <FormDescription>
+                    Produto que este conjunto é dedicado a transportar. Deixe em branco se ainda não definido.
+                  </FormDescription>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
 
-            <FormField control={form.control} name="disponivelEm" render={({ field }) => (
-              <FormItem>
-                <FormLabel>Disponível a partir de</FormLabel>
-                <FormControl>
-                  <Input type="datetime-local" {...field} value={normalizeFormValue(field.value)} />
-                </FormControl>
-                <FormDescription>Deixe em branco se já está disponível agora. Também é preenchido sozinho quando a frota é alocada numa viagem.</FormDescription>
-                <FormMessage />
-              </FormItem>
-            )} />
+            <FormField
+              control={form.control}
+              name="disponivelEm"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Disponível a partir de</FormLabel>
+                  <FormControl>
+                    <Input type="datetime-local" {...field} value={normalizeFormValue(field.value)} />
+                  </FormControl>
+                  <FormDescription>
+                    Deixe em branco se já está disponível agora. Também é preenchido sozinho quando a frota é alocada numa viagem.
+                  </FormDescription>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
           </CardContent>
         </Card>
 

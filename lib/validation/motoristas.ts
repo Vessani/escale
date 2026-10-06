@@ -17,12 +17,7 @@ const motoristaBaseSchema = z.object({
   nome: z.string().min(2, "O nome deve ter pelo menos 2 caracteres"),
   cpf: cpfSchema,
   seva: z.coerce.number().int().min(1, "O número SEVA deve ser maior que 0"),
-  diasTrabalhados: z
-    .coerce
-    .number()
-    .int()
-    .min(1, "Informe um código de 1 a 11")
-    .max(11, "Informe um código de 1 a 11"),
+  diasTrabalhados: z.coerce.number().int().min(1, "Informe um código de 1 a 11").max(11, "Informe um código de 1 a 11"),
   turno: turnoSchema,
   tipo: z.enum(TIPO_MOTORISTA_VALORES),
   produtosAutorizados: z.array(produtoSchema).default([]),

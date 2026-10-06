@@ -1,65 +1,65 @@
-'use server'
-import { revalidatePath } from "next/cache";
-import { NovoMotoristaInput, EditarMotoristaInput, type RespostaAcao } from "@/lib/types/types";
-import { errorToMessage } from "@/lib/action-error";
-import { requireSessionComFilial } from "@/lib/auth-guard";
-import { atorDaSessao } from "@/lib/services/auditoria.service";
-import { parseDataLocal } from "@/lib/utils/date-format";
-import { motoristaComIntegracoesServerSchema } from "@/lib/validation/motoristas";
+"use server"
+import { revalidatePath } from "next/cache"
+import { NovoMotoristaInput, EditarMotoristaInput, type RespostaAcao } from "@/lib/types/types"
+import { errorToMessage } from "@/lib/action-error"
+import { requireSessionComFilial } from "@/lib/auth-guard"
+import { atorDaSessao } from "@/lib/services/auditoria.service"
+import { parseDataLocal } from "@/lib/utils/date-format"
+import { motoristaComIntegracoesServerSchema } from "@/lib/validation/motoristas"
 import {
   criarMotoristaService,
   editarMotoristaService,
   deletarMotoristaService,
   registrarJornadaNoDiaService,
-} from "@/lib/services/motorista.service";
+} from "@/lib/services/motorista.service"
 import {
   atualizarJornadaRelatorioDosMotoristas,
   registrarAjustesJornada,
   type CoberturaImportacaoJornada,
   type ResultadoImportacaoJornada,
-} from "@/lib/services/jornada-relatorio.service";
-import { ajustesJornadaSchema, coberturaJornadaSchema, type AjusteJornada, registrosJornadaSchema } from "@/lib/validation/ajuste-jornada";
-import type { RegistroJornadaRelatorio } from "@/lib/parsers/jornada-relatorio-parser";
+} from "@/lib/services/jornada-relatorio.service"
+import { ajustesJornadaSchema, coberturaJornadaSchema, type AjusteJornada, registrosJornadaSchema } from "@/lib/validation/ajuste-jornada"
+import type { RegistroJornadaRelatorio } from "@/lib/parsers/jornada-relatorio-parser"
 
 export async function criarMotorista(dados: NovoMotoristaInput): Promise<RespostaAcao> {
   try {
-    const { session, filialId } = await requireSessionComFilial();
+    const { session, filialId } = await requireSessionComFilial()
 
-    const dadosValidados = motoristaComIntegracoesServerSchema.parse(dados);
+    const dadosValidados = motoristaComIntegracoesServerSchema.parse(dados)
 
-    await criarMotoristaService(filialId, dadosValidados, atorDaSessao(session));
+    await criarMotoristaService(filialId, dadosValidados, atorDaSessao(session))
 
-    revalidatePath("/motorista");
-    return { sucesso: true };
+    revalidatePath("/motorista")
+    return { sucesso: true }
   } catch (error) {
-    return { sucesso: false, erro: errorToMessage(error, "Erro ao criar motorista.") };
+    return { sucesso: false, erro: errorToMessage(error, "Erro ao criar motorista.") }
   }
 }
 
 export async function editarMotorista(idMotorista: number, dados: EditarMotoristaInput): Promise<RespostaAcao> {
   try {
-    const { session, filialId } = await requireSessionComFilial();
+    const { session, filialId } = await requireSessionComFilial()
 
-    const dadosValidados = motoristaComIntegracoesServerSchema.parse(dados);
+    const dadosValidados = motoristaComIntegracoesServerSchema.parse(dados)
 
-    await editarMotoristaService(filialId, idMotorista, dadosValidados, atorDaSessao(session));
+    await editarMotoristaService(filialId, idMotorista, dadosValidados, atorDaSessao(session))
 
-    revalidatePath("/motorista");
-    return { sucesso: true };
+    revalidatePath("/motorista")
+    return { sucesso: true }
   } catch (error) {
-    return { sucesso: false, erro: errorToMessage(error, "Erro ao editar motorista.") };
+    return { sucesso: false, erro: errorToMessage(error, "Erro ao editar motorista.") }
   }
 }
 
 export async function deletarMotorista(id: number): Promise<RespostaAcao> {
   try {
-    const { session, filialId } = await requireSessionComFilial(["ADMIN"]);
-    await deletarMotoristaService(filialId, id, atorDaSessao(session));
+    const { session, filialId } = await requireSessionComFilial(["ADMIN"])
+    await deletarMotoristaService(filialId, id, atorDaSessao(session))
 
-    revalidatePath("/motorista");
-    return { sucesso: true };
+    revalidatePath("/motorista")
+    return { sucesso: true }
   } catch (error) {
-    return { sucesso: false, erro: errorToMessage(error, "Erro ao deletar motorista.") };
+    return { sucesso: false, erro: errorToMessage(error, "Erro ao deletar motorista.") }
   }
 }
 
@@ -69,7 +69,7 @@ export async function atualizarJornadaMotoristaNoCalendario(
   codigoNoDia: number,
 ): Promise<RespostaAcao> {
   try {
-    const { session, filialId } = await requireSessionComFilial();
+    const { session, filialId } = await requireSessionComFilial()
 
     if (!Number.isInteger(codigoNoDia) || codigoNoDia < 1 || codigoNoDia > 11) {
       return { sucesso: false, erro: "Código de jornada inválido." }
@@ -86,9 +86,7 @@ export async function atualizarJornadaMotoristaNoCalendario(
   }
 }
 
-export type RespostaImportacaoJornada =
-  | { sucesso: true; resultado: ResultadoImportacaoJornada }
-  | { sucesso: false; erro: string }
+export type RespostaImportacaoJornada = { sucesso: true; resultado: ResultadoImportacaoJornada } | { sucesso: false; erro: string }
 
 /**
  * Importa o Relatório Sintético de Jornada (upload recorrente — ver
@@ -101,19 +99,19 @@ export async function atualizarJornadaRelatorio(
   cobertura?: CoberturaImportacaoJornada,
 ): Promise<RespostaImportacaoJornada> {
   try {
-    const { session, filialId } = await requireSessionComFilial();
-    const validacaoRegistros = registrosJornadaSchema.safeParse(registros);
-    const validacaoAjustes = ajustesJornadaSchema.safeParse(ajustes);
-    const validacaoCobertura = cobertura === undefined ? null : coberturaJornadaSchema.safeParse(cobertura);
+    const { session, filialId } = await requireSessionComFilial()
+    const validacaoRegistros = registrosJornadaSchema.safeParse(registros)
+    const validacaoAjustes = ajustesJornadaSchema.safeParse(ajustes)
+    const validacaoCobertura = cobertura === undefined ? null : coberturaJornadaSchema.safeParse(cobertura)
     if (!validacaoRegistros.success || !validacaoAjustes.success || (validacaoCobertura && !validacaoCobertura.success)) {
-      return { sucesso: false, erro: "Dados da conferência inválidos." };
+      return { sucesso: false, erro: "Dados da conferência inválidos." }
     }
-    const resultado = await atualizarJornadaRelatorioDosMotoristas(filialId, validacaoRegistros.data, validacaoCobertura?.data);
-    await registrarAjustesJornada(filialId, validacaoAjustes.data, atorDaSessao(session));
+    const resultado = await atualizarJornadaRelatorioDosMotoristas(filialId, validacaoRegistros.data, validacaoCobertura?.data)
+    await registrarAjustesJornada(filialId, validacaoAjustes.data, atorDaSessao(session))
 
-    revalidatePath("/motorista");
-    return { sucesso: true, resultado };
+    revalidatePath("/motorista")
+    return { sucesso: true, resultado }
   } catch (error) {
-    return { sucesso: false, erro: errorToMessage(error, "Não foi possível importar o relatório de jornada.") };
+    return { sucesso: false, erro: errorToMessage(error, "Não foi possível importar o relatório de jornada.") }
   }
 }

@@ -27,7 +27,8 @@ type EntregasFieldArrayProps<TFieldValues extends FieldValues> = {
   entregasComChegada?: number[]
 }
 
-const TEXTO_TRAVADA = "O motorista já registrou a chegada aqui. Pra mudar cliente ou lugar, apague a chegada em \"Registro do motorista\" (mais abaixo)."
+const TEXTO_TRAVADA =
+  'O motorista já registrou a chegada aqui. Pra mudar cliente ou lugar, apague a chegada em "Registro do motorista" (mais abaixo).'
 
 export default function EntregasFieldArray<TFieldValues extends FieldValues>({
   control,
@@ -54,13 +55,7 @@ export default function EntregasFieldArray<TFieldValues extends FieldValues>({
           <CardTitle className="text-lg">Pontos de Entrega</CardTitle>
           <CardDescription>Adicione todas as paradas planejadas</CardDescription>
         </div>
-        <Button
-          type="button"
-          variant="outline"
-          size="sm"
-          onClick={() => append(NOVA_ENTREGA_VAZIA as never)}
-          className="bg-card"
-        >
+        <Button type="button" variant="outline" size="sm" onClick={() => append(NOVA_ENTREGA_VAZIA as never)} className="bg-card">
           <PlusCircle className="w-4 h-4 mr-2" /> Nova Parada
         </Button>
       </CardHeader>
@@ -92,97 +87,159 @@ export default function EntregasFieldArray<TFieldValues extends FieldValues>({
             )}
 
             <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mt-2">
-              <FormField control={control} name={nomeCampo(index, "cliente")} render={({ field }) => (
-                <FormItem className="col-span-2">
-                  <FormLabel>Cliente</FormLabel>
-                  <FormControl>
-                    <Input placeholder="Nome do cliente" {...field} value={normalizeFormValue(field.value)} readOnly={travada(index)} title={travada(index) ? TEXTO_TRAVADA : undefined} className={travada(index) ? "bg-muted text-muted-foreground" : undefined} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )} />
+              <FormField
+                control={control}
+                name={nomeCampo(index, "cliente")}
+                render={({ field }) => (
+                  <FormItem className="col-span-2">
+                    <FormLabel>Cliente</FormLabel>
+                    <FormControl>
+                      <Input
+                        placeholder="Nome do cliente"
+                        {...field}
+                        value={normalizeFormValue(field.value)}
+                        readOnly={travada(index)}
+                        title={travada(index) ? TEXTO_TRAVADA : undefined}
+                        className={travada(index) ? "bg-muted text-muted-foreground" : undefined}
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
 
-              <FormField control={control} name={nomeCampo(index, "cidade")} render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Cidade</FormLabel>
-                  <FormControl>
-                    <Input placeholder="Cidade" {...field} value={normalizeFormValue(field.value)} readOnly={travada(index)} title={travada(index) ? TEXTO_TRAVADA : undefined} className={travada(index) ? "bg-muted text-muted-foreground" : undefined} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )} />
+              <FormField
+                control={control}
+                name={nomeCampo(index, "cidade")}
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Cidade</FormLabel>
+                    <FormControl>
+                      <Input
+                        placeholder="Cidade"
+                        {...field}
+                        value={normalizeFormValue(field.value)}
+                        readOnly={travada(index)}
+                        title={travada(index) ? TEXTO_TRAVADA : undefined}
+                        className={travada(index) ? "bg-muted text-muted-foreground" : undefined}
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
 
-              <FormField control={control} name={nomeCampo(index, "uf")} render={({ field }) => (
-                <FormItem>
-                  <FormLabel>UF</FormLabel>
-                  <FormControl>
-                    <Input maxLength={2} placeholder="Ex: SC" {...field} value={normalizeFormValue(field.value)} readOnly={travada(index)} title={travada(index) ? TEXTO_TRAVADA : undefined} className={travada(index) ? "bg-muted text-muted-foreground" : undefined} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )} />
+              <FormField
+                control={control}
+                name={nomeCampo(index, "uf")}
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>UF</FormLabel>
+                    <FormControl>
+                      <Input
+                        maxLength={2}
+                        placeholder="Ex: SC"
+                        {...field}
+                        value={normalizeFormValue(field.value)}
+                        readOnly={travada(index)}
+                        title={travada(index) ? TEXTO_TRAVADA : undefined}
+                        className={travada(index) ? "bg-muted text-muted-foreground" : undefined}
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
 
-              <FormField control={control} name={nomeCampo(index, "dataEntrega")} render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Data da Entrega</FormLabel>
-                  <FormControl>
-                    <Input type="datetime-local" {...field} value={normalizeFormValue(field.value)} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )} />
+              <FormField
+                control={control}
+                name={nomeCampo(index, "dataEntrega")}
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Data da Entrega</FormLabel>
+                    <FormControl>
+                      <Input type="datetime-local" {...field} value={normalizeFormValue(field.value)} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
 
-              <FormField control={control} name={nomeCampo(index, "kg")} render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Peso (Kg)</FormLabel>
-                  <FormControl>
-                    <Input type="number" {...field} value={normalizeFormValue(field.value)} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )} />
+              <FormField
+                control={control}
+                name={nomeCampo(index, "kg")}
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Peso (Kg)</FormLabel>
+                    <FormControl>
+                      <Input type="number" {...field} value={normalizeFormValue(field.value)} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
 
-              <FormField control={control} name={nomeCampo(index, "m3")} render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Cubagem (m³)</FormLabel>
-                  <FormControl>
-                    <Input type="number" {...field} value={normalizeFormValue(field.value)} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )} />
+              <FormField
+                control={control}
+                name={nomeCampo(index, "m3")}
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Cubagem (m³)</FormLabel>
+                    <FormControl>
+                      <Input type="number" {...field} value={normalizeFormValue(field.value)} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
 
               {mostrarCamposComplementares && (
                 <>
-                  <FormField control={control} name={nomeCampo(index, "sapcode")} render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>SAP Code</FormLabel>
-                      <FormControl>
-                        <Input placeholder="Código SAP" {...field} value={normalizeFormValue(field.value)} readOnly={travada(index)} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )} />
+                  <FormField
+                    control={control}
+                    name={nomeCampo(index, "sapcode")}
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>SAP Code</FormLabel>
+                        <FormControl>
+                          <Input placeholder="Código SAP" {...field} value={normalizeFormValue(field.value)} readOnly={travada(index)} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
 
-                  <FormField control={control} name={nomeCampo(index, "codewhite")} render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Code White</FormLabel>
-                      <FormControl>
-                        <Input placeholder="Código CW" {...field} value={normalizeFormValue(field.value)} readOnly={travada(index)} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )} />
+                  <FormField
+                    control={control}
+                    name={nomeCampo(index, "codewhite")}
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Code White</FormLabel>
+                        <FormControl>
+                          <Input placeholder="Código CW" {...field} value={normalizeFormValue(field.value)} readOnly={travada(index)} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
 
-                  <FormField control={control} name={nomeCampo(index, "obs")} render={({ field }) => (
-                    <FormItem className="col-span-1 md:col-span-4">
-                      <FormLabel>Observações da Entrega</FormLabel>
-                      <FormControl>
-                        <Input placeholder="Instruções de descarga, restrições de horário, etc." {...field} value={normalizeFormValue(field.value)} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )} />
+                  <FormField
+                    control={control}
+                    name={nomeCampo(index, "obs")}
+                    render={({ field }) => (
+                      <FormItem className="col-span-1 md:col-span-4">
+                        <FormLabel>Observações da Entrega</FormLabel>
+                        <FormControl>
+                          <Input
+                            placeholder="Instruções de descarga, restrições de horário, etc."
+                            {...field}
+                            value={normalizeFormValue(field.value)}
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
                 </>
               )}
             </div>

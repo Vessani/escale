@@ -28,7 +28,10 @@ export const coberturaJornadaSchema = z.object({
 })
 
 /** Data/hora em texto ISO vinda do parser (ex: "2026-10-05T03:00:00.000Z") — tem que ser uma data de verdade. */
-const dataTexto = z.string().max(40).refine((texto) => !Number.isNaN(new Date(texto).getTime()), "Data inválida no relatório.")
+const dataTexto = z
+  .string()
+  .max(40)
+  .refine((texto) => !Number.isNaN(new Date(texto).getTime()), "Data inválida no relatório.")
 
 /** Uma jornada do Relatório de Jornada já conferida (ver RegistroJornadaRelatorio). */
 const registroJornadaSchema = z.object({

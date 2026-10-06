@@ -27,4 +27,3 @@ describe("turnoDaJornada (ciclo circadiano)", () => {
     expect(turnoDaJornada(bsb("00:30"))).toBe("NOITE")
   })
 })
-

@@ -94,9 +94,7 @@ describe("Relatório de Jornada prevalece sobre viagem do Escale", () => {
   })
 
   it("viagem desmentida também não ocupa a agenda na checagem de disponibilidade", () => {
-    expect(
-      motoristaEstaDisponivelNoPeriodo(nunes(), viagemDeHoje.inicioPrevisto, viagemDeHoje.fimPrevisto, hoje),
-    ).toBe(true)
+    expect(motoristaEstaDisponivelNoPeriodo(nunes(), viagemDeHoje.inicioPrevisto, viagemDeHoje.fimPrevisto, hoje)).toBe(true)
     expect(
       motoristaEstaDisponivelNoPeriodo(
         nunes({ relatorioJornadaAte: dia("2026-09-28") }),
@@ -132,7 +130,11 @@ describe("Relatório de Jornada prevalece sobre viagem do Escale", () => {
             registrosJornada: registrosDoBanco,
             viagens: [
               { ...viagemFantasma, avisoInterjornada: null, avisoRelatorioJornada: null },
-              { ...viagemDeHoje, avisoInterjornada: "Interjornada: motorista teve apenas 9.0h de descanso (mínimo 11h).", avisoRelatorioJornada: null },
+              {
+                ...viagemDeHoje,
+                avisoInterjornada: "Interjornada: motorista teve apenas 9.0h de descanso (mínimo 11h).",
+                avisoRelatorioJornada: null,
+              },
             ],
             viagensComoAcompanhante: [],
           },

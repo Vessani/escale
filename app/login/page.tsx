@@ -1,4 +1,4 @@
-'use client'
+"use client"
 
 import { useState } from "react"
 import { signIn } from "next-auth/react"
@@ -20,12 +20,7 @@ function normalizarErroLogin(erro: string) {
     return "Credenciais inválidas."
   }
 
-  if (
-    /prisma/i.test(erro) ||
-    /invalid/i.test(erro) ||
-    /constraint/i.test(erro) ||
-    /P\d{4}/i.test(erro)
-  ) {
+  if (/prisma/i.test(erro) || /invalid/i.test(erro) || /constraint/i.test(erro) || /P\d{4}/i.test(erro)) {
     return "Não foi possível realizar o login no momento. Tente novamente."
   }
 
@@ -56,7 +51,6 @@ export default function LoginPage() {
     e.preventDefault()
     setErro("")
     setCarregando(true)
-
 
     // Sem conexão, o signIn do next-auth não lança: ele mesmo redireciona pra
     // uma página de erro (no celular vira a tela "sem internet" do navegador).
@@ -98,7 +92,9 @@ export default function LoginPage() {
           </div>
           <CardTitle className="text-2xl font-semibold tracking-tight">Entrar</CardTitle>
           <CardDescription>
-            {modo === "motorista" ? "Use sua matrícula (SEVA) e o PIN que o escalador te passou" : "Insira suas credenciais para acessar a operação"}
+            {modo === "motorista"
+              ? "Use sua matrícula (SEVA) e o PIN que o escalador te passou"
+              : "Insira suas credenciais para acessar a operação"}
           </CardDescription>
           <ControleSegmentado
             rotulo="Tipo de acesso"
@@ -114,7 +110,7 @@ export default function LoginPage() {
             }}
           />
         </CardHeader>
-        
+
         <form onSubmit={handleLogin}>
           <CardContent className="space-y-4 pb-4">
             {modo === "motorista" ? (
@@ -146,45 +142,31 @@ export default function LoginPage() {
                 </div>
               </>
             ) : (
-            <>
-            <div className="space-y-2">
-              <Label htmlFor="email">E-mail</Label>
-              <Input 
-                id="email" 
-                type="email" 
-                placeholder="seu e-mail aqui"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                required
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="senha">Senha</Label>
-              <Input 
-                id="senha" 
-                type="password"
-                value={senha}
-                onChange={(e) => setSenha(e.target.value)}
-                required
-              />
-            </div>
-            </>
+              <>
+                <div className="space-y-2">
+                  <Label htmlFor="email">E-mail</Label>
+                  <Input
+                    id="email"
+                    type="email"
+                    placeholder="seu e-mail aqui"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    required
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="senha">Senha</Label>
+                  <Input id="senha" type="password" value={senha} onChange={(e) => setSenha(e.target.value)} required />
+                </div>
+              </>
             )}
 
             {}
-            {erro && (
-              <div className="text-sm text-red-500 font-medium text-center">
-                {erro}
-              </div>
-            )}
+            {erro && <div className="text-sm text-red-500 font-medium text-center">{erro}</div>}
           </CardContent>
 
           <CardFooter>
-            <Button 
-              type="submit" 
-              className="w-full" 
-              disabled={carregando}
-            >
+            <Button type="submit" className="w-full" disabled={carregando}>
               {carregando ? "Autenticando..." : "Entrar no Sistema"}
             </Button>
           </CardFooter>

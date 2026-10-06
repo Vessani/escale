@@ -18,8 +18,7 @@ import { CAMPO_CONTEXTO_AUDITORIA } from "@/lib/utils/diff-auditoria"
 /** Viagens que já saíram: é aí que existe registro do motorista pra corrigir. */
 const STATUS_CORRIGIVEIS: StatusViagem[] = [...STATUS_EM_ANDAMENTO, "FINALIZADA"]
 
-const contexto = (numViagem: string, detalhe?: string) =>
-  `Correção do escalador (viagem ${numViagem})${detalhe ? ` · ${detalhe}` : ""}`
+const contexto = (numViagem: string, detalhe?: string) => `Correção do escalador (viagem ${numViagem})${detalhe ? ` · ${detalhe}` : ""}`
 
 const NAO_SAIU = () =>
   new ErroDeDominio("VIAGEM_NAO_INICIADA", "Só dá pra corrigir registros de viagem que já saiu (iniciada, retornando ou finalizada).")
@@ -155,7 +154,10 @@ export async function corrigirDespesaPeloEscalador(filialId: number, despesaId: 
     // Relido com a viagem travada: pode ter sido apagada no meio-tempo.
     const antes = await tx.despesaViagem.findFirst({ where: { id: despesaId, viagemId, deletadoEm: null } })
     if (!antes) throw new ErroDeDominio("DESPESA_NAO_ENCONTRADA", "Lançamento não encontrado.")
-    const depois = await tx.despesaViagem.update({ where: { id: despesaId }, data: { tipo: dados.tipo, valorCentavos: dados.valorCentavos } })
+    const depois = await tx.despesaViagem.update({
+      where: { id: despesaId },
+      data: { tipo: dados.tipo, valorCentavos: dados.valorCentavos },
+    })
     await registrarAuditoria(tx, {
       entidade: "DespesaViagem",
       entidadeId: despesaId,

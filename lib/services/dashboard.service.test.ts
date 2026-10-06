@@ -60,14 +60,22 @@ describe("pendenciaDeOutroDia", () => {
 
   it("saiu em 01/10 e não encerrou: desde a saída; atrasada quando o fim previsto passou", () => {
     expect(pendenciaDeOutroDia(v("INICIADA", "2026-10-01T13:00:00Z", "2026-10-01T23:00:00Z", "2026-10-01T13:15:00Z"), hoje)).toEqual({
-      tipo: "EM_ANDAMENTO", desde: new Date("2026-10-01T13:15:00Z"), atrasada: true,
+      tipo: "EM_ANDAMENTO",
+      desde: new Date("2026-10-01T13:15:00Z"),
+      atrasada: true,
     })
     // viagem longa planejada até amanhã: marca a data, sem atraso
-    expect(pendenciaDeOutroDia(v("RETORNANDO", "2026-10-04T13:00:00Z", "2026-10-06T13:00:00Z"), hoje)).toMatchObject({ tipo: "EM_ANDAMENTO", atrasada: false })
+    expect(pendenciaDeOutroDia(v("RETORNANDO", "2026-10-04T13:00:00Z", "2026-10-06T13:00:00Z"), hoje)).toMatchObject({
+      tipo: "EM_ANDAMENTO",
+      atrasada: false,
+    })
   })
 
   it("não saiu quando devia: Criada/Alocada/Postergada com início antes do dia", () => {
-    expect(pendenciaDeOutroDia(v("ALOCADA", "2026-10-01T13:00:00Z", "2026-10-01T23:00:00Z"), hoje)).toEqual({ tipo: "NAO_SAIU", desde: new Date("2026-10-01T13:00:00Z") })
+    expect(pendenciaDeOutroDia(v("ALOCADA", "2026-10-01T13:00:00Z", "2026-10-01T23:00:00Z"), hoje)).toEqual({
+      tipo: "NAO_SAIU",
+      desde: new Date("2026-10-01T13:00:00Z"),
+    })
     expect(pendenciaDeOutroDia(v("CRIADA", "2026-10-04T23:00:00Z", "2026-10-05T09:00:00Z"), hoje)).toMatchObject({ tipo: "NAO_SAIU" })
   })
 

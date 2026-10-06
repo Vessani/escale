@@ -1,8 +1,8 @@
-import { prisma } from "@/lib/prisma";
-import { colunaDateParaLocal } from "@/lib/utils/date-format";
+import { prisma } from "@/lib/prisma"
+import { colunaDateParaLocal } from "@/lib/utils/date-format"
 
 export async function buscarFiliais() {
-  return await prisma.filial.findMany({ orderBy: { nome: "asc" } });
+  return await prisma.filial.findMany({ orderBy: { nome: "asc" } })
 }
 
 /** Nome da filial, pro cabeçalho das planilhas. */

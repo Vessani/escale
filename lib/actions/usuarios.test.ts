@@ -37,7 +37,13 @@ import bcrypt from "bcrypt"
 import { prisma } from "@/lib/prisma"
 import { alterarUsuarioAtivo, criarUsuario, trocarSenhaPropria } from "@/lib/actions/usuarios"
 
-const usuarioValido = { nome: "Maria Souza", email: "maria@transportadora.com", senha: "12345678", role: "DESPACHANTE" as const, filialId: 1 }
+const usuarioValido = {
+  nome: "Maria Souza",
+  email: "maria@transportadora.com",
+  senha: "12345678",
+  role: "DESPACHANTE" as const,
+  filialId: 1,
+}
 
 function criarTx() {
   return {
@@ -58,8 +64,7 @@ type Tx = ReturnType<typeof criarTx>
 
 /** Faz `prisma.$transaction(callback)` invocar `callback(tx)` — o cast contorna a assinatura real (sobrecarregada) do Prisma, que não importa aqui. */
 function usarTransacaoCom(tx: Tx) {
-  vi.mocked(prisma.$transaction).mockImplementation(((callback: (tx: Tx) => unknown) =>
-    Promise.resolve(callback(tx))) as never)
+  vi.mocked(prisma.$transaction).mockImplementation(((callback: (tx: Tx) => unknown) => Promise.resolve(callback(tx))) as never)
 }
 
 describe("lib/actions/usuarios — criarUsuario (controle de acesso)", () => {
@@ -93,7 +98,13 @@ describe("lib/actions/usuarios — criarUsuario (controle de acesso)", () => {
     it("cria o usuário com a senha hasheada", async () => {
       vi.mocked(bcrypt.hash).mockResolvedValue("hash-fake" as never)
       const tx = criarTx()
-      vi.mocked(tx.usuario.create).mockResolvedValue({ id: "u2", nome: "Maria Souza", email: "maria@transportadora.com", role: "DESPACHANTE", filialId: 1 })
+      vi.mocked(tx.usuario.create).mockResolvedValue({
+        id: "u2",
+        nome: "Maria Souza",
+        email: "maria@transportadora.com",
+        role: "DESPACHANTE",
+        filialId: 1,
+      })
       usarTransacaoCom(tx)
 
       const resposta = await criarUsuario(usuarioValido)
@@ -117,7 +128,13 @@ describe("lib/actions/usuarios — criarUsuario (controle de acesso)", () => {
     it("grava filialId null para role SUPERADMIN, mesmo se filialId vier preenchido no formulário", async () => {
       vi.mocked(bcrypt.hash).mockResolvedValue("hash-fake" as never)
       const tx = criarTx()
-      vi.mocked(tx.usuario.create).mockResolvedValue({ id: "u3", nome: "Maria Souza", email: "maria@transportadora.com", role: "SUPERADMIN", filialId: null })
+      vi.mocked(tx.usuario.create).mockResolvedValue({
+        id: "u3",
+        nome: "Maria Souza",
+        email: "maria@transportadora.com",
+        role: "SUPERADMIN",
+        filialId: null,
+      })
       usarTransacaoCom(tx)
 
       await criarUsuario({ ...usuarioValido, role: "SUPERADMIN", filialId: 1 })
