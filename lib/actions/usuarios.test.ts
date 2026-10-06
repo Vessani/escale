@@ -219,7 +219,10 @@ describe("lib/actions/usuarios — trocarSenhaPropria", () => {
       expect(prisma.usuario.findUnique).toHaveBeenCalledWith(expect.objectContaining({ where: { id: "user-1" } }))
       expect(bcrypt.compare).toHaveBeenCalledWith("senhaAntiga1", "hash-salvo")
       expect(bcrypt.hash).toHaveBeenCalledWith("senhaNova123", 10)
-      expect(tx.usuario.update).toHaveBeenCalledWith({ where: { id: "user-1" }, data: { senha: "hash-novo" } })
+      expect(tx.usuario.update).toHaveBeenCalledWith({
+        where: { id: "user-1" },
+        data: { senha: "hash-novo", versaoSessao: { increment: 1 } },
+      })
       // A auditoria da troca de senha não carrega antes/depois nenhum — só o fato de ter mudado.
       const auditoria = vi.mocked(tx.registroAuditoria.create).mock.calls[0][0] as { data: { antes: unknown; depois: unknown } }
       expect(auditoria.data.antes).toBeUndefined()

@@ -4,12 +4,11 @@ import { prisma } from "@/lib/prisma"
 import { PAPEL_MOTORISTA, ehMotorista } from "@/lib/papeis"
 import {
   chaveLoginMotorista,
-  garantirLoginNaoBloqueado,
+  reservarTentativaLogin,
   garantirPinNaoBloqueado,
   ipDaRequisicao,
   limparFalhasLogin,
   normalizarEmail,
-  registrarFalhaLogin,
 } from "@/lib/services/login.service"
 
 /** Duração máxima de uma sessão, contada a partir do login (não renova com uso). */
@@ -50,7 +49,7 @@ export async function autenticarUsuario(credenciais: Credenciais, headers: Cabec
     throw new Error(MENSAGEM_CREDENCIAIS_INVALIDAS)
   }
 
-  await garantirLoginNaoBloqueado(email, ip)
+  await reservarTentativaLogin(email, ip)
 
   const usuario = await prisma.usuario.findFirst({
     where: { email: { equals: email, mode: "insensitive" } },
@@ -59,7 +58,6 @@ export async function autenticarUsuario(credenciais: Credenciais, headers: Cabec
   const senhaValida = usuario?.senha ? await bcrypt.compare(credenciais.senha, usuario.senha) : false
 
   if (!usuario || !senhaValida) {
-    await registrarFalhaLogin(email, ip)
     throw new Error(MENSAGEM_CREDENCIAIS_INVALIDAS)
   }
 
@@ -98,7 +96,7 @@ export async function autenticarMotorista(credenciais: CredenciaisMotorista, hea
   const seva = Number(sevaTexto)
   const chave = chaveLoginMotorista(seva)
   const ip = ipDaRequisicao(headers)
-  await garantirLoginNaoBloqueado(chave, ip)
+  await reservarTentativaLogin(chave, ip)
   await garantirPinNaoBloqueado(chave)
 
   const acessos = await prisma.usuario.findMany({
@@ -116,7 +114,6 @@ export async function autenticarMotorista(credenciais: CredenciaisMotorista, hea
   if (acessos.length === 0) await bcrypt.compare(pin, HASH_FALSO)
 
   if (!acesso?.motorista) {
-    await registrarFalhaLogin(chave, ip)
     throw new Error(MENSAGEM_PIN_INVALIDO)
   }
   if (!acesso.ativo) {

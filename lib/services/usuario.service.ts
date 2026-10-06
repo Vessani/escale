@@ -88,7 +88,9 @@ export async function trocarSenhaPropriaService(ator: Ator, filialId: number | n
 
   const senhaHash = await bcrypt.hash(dados.novaSenha, CUSTO_HASH_SENHA)
   await prisma.$transaction(async (tx) => {
-    await tx.usuario.update({ where: { id: ator.usuarioId }, data: { senha: senhaHash } })
+    // Nova versão da sessão: quem estava logado com a senha antiga (outro
+    // aparelho, sessão roubada) cai no próximo acesso — ver revalidarToken.
+    await tx.usuario.update({ where: { id: ator.usuarioId }, data: { senha: senhaHash, versaoSessao: { increment: 1 } } })
     // antes/depois de propósito vazios — só o fato de ter trocado importa.
     await registrarAuditoria(tx, { entidade: "Usuario", entidadeId: ator.usuarioId, acao: "ATUALIZACAO", ator, filialId })
   })

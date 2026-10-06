@@ -9,7 +9,7 @@ vi.mock("@/lib/prisma", () => ({
 
 import { prisma } from "@/lib/prisma"
 import {
-  garantirLoginNaoBloqueado,
+  reservarTentativaLogin,
   ipDaRequisicao,
   JANELA_BLOQUEIO_MINUTOS,
   LoginBloqueadoError,
@@ -33,10 +33,21 @@ describe("login.service", () => {
     expect(ipDaRequisicao(undefined)).toBeNull()
   })
 
-  it("libera abaixo do limite e conta só a janela", async () => {
-    vi.mocked(prisma.tentativaLogin.count).mockResolvedValue(MAX_FALHAS_POR_EMAIL - 1)
+  beforeEach(() => {
+    vi.mocked(prisma.$transaction).mockResolvedValue([] as never)
+  })
 
-    await expect(garantirLoginNaoBloqueado("ana@ritmo.com", "1.1.1.1", agora)).resolves.toBeUndefined()
+  it("grava a tentativa ANTES de contar (lote em paralelo não passa todo) e libera dentro do limite", async () => {
+    const ordem: string[] = []
+    vi.mocked(prisma.$transaction).mockImplementation((async () => ordem.push("grava")) as never)
+    vi.mocked(prisma.tentativaLogin.count).mockImplementation((async () => {
+      ordem.push("conta")
+      return MAX_FALHAS_POR_EMAIL // contando esta: a 5ª ainda passa
+    }) as never)
+
+    await expect(reservarTentativaLogin("ana@ritmo.com", "1.1.1.1", agora)).resolves.toBeUndefined()
+    expect(ordem[0]).toBe("grava")
+    expect(prisma.tentativaLogin.create).toHaveBeenCalledWith({ data: { email: "ana@ritmo.com", ip: "1.1.1.1", criadoEm: agora } })
 
     const desde = new Date(agora.getTime() - JANELA_BLOQUEIO_MINUTOS * 60_000)
     expect(prisma.tentativaLogin.count).toHaveBeenCalledWith({
@@ -44,24 +55,28 @@ describe("login.service", () => {
     })
   })
 
-  it("bloqueia pelo e-mail", async () => {
-    vi.mocked(prisma.tentativaLogin.count).mockResolvedValueOnce(MAX_FALHAS_POR_EMAIL).mockResolvedValueOnce(0)
-    await expect(garantirLoginNaoBloqueado("ana@ritmo.com", "1.1.1.1", agora)).rejects.toBeInstanceOf(LoginBloqueadoError)
+  it("bloqueia pelo e-mail (6ª tentativa na janela)", async () => {
+    vi.mocked(prisma.tentativaLogin.count)
+      .mockResolvedValueOnce(MAX_FALHAS_POR_EMAIL + 1)
+      .mockResolvedValueOnce(1)
+    await expect(reservarTentativaLogin("ana@ritmo.com", "1.1.1.1", agora)).rejects.toBeInstanceOf(LoginBloqueadoError)
   })
 
   it("bloqueia pelo IP mesmo trocando de e-mail", async () => {
-    vi.mocked(prisma.tentativaLogin.count).mockResolvedValueOnce(0).mockResolvedValueOnce(MAX_FALHAS_POR_IP)
-    await expect(garantirLoginNaoBloqueado("outro@ritmo.com", "1.1.1.1", agora)).rejects.toBeInstanceOf(LoginBloqueadoError)
+    vi.mocked(prisma.tentativaLogin.count)
+      .mockResolvedValueOnce(1)
+      .mockResolvedValueOnce(MAX_FALHAS_POR_IP + 1)
+    await expect(reservarTentativaLogin("outro@ritmo.com", "1.1.1.1", agora)).rejects.toBeInstanceOf(LoginBloqueadoError)
   })
 
-  it("PIN do motorista: trava em 10 erros nas últimas 24h, contando pela matrícula", async () => {
-    vi.mocked(prisma.tentativaLogin.count).mockResolvedValueOnce(MAX_FALHAS_MOTORISTA_24H - 1)
+  it("PIN do motorista: a 11ª tentativa nas últimas 24h trava, contando pela matrícula", async () => {
+    vi.mocked(prisma.tentativaLogin.count).mockResolvedValueOnce(MAX_FALHAS_MOTORISTA_24H)
     await expect(garantirPinNaoBloqueado(chaveLoginMotorista(261), agora)).resolves.toBeUndefined()
     expect(prisma.tentativaLogin.count).toHaveBeenCalledWith({
       where: { email: "motorista:261", criadoEm: { gte: new Date(agora.getTime() - 24 * 60 * 60 * 1000) } },
     })
 
-    vi.mocked(prisma.tentativaLogin.count).mockResolvedValueOnce(MAX_FALHAS_MOTORISTA_24H)
+    vi.mocked(prisma.tentativaLogin.count).mockResolvedValueOnce(MAX_FALHAS_MOTORISTA_24H + 1)
     await expect(garantirPinNaoBloqueado(chaveLoginMotorista(261), agora)).rejects.toBeInstanceOf(PinBloqueadoError)
   })
 })

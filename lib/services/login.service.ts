@@ -33,29 +33,31 @@ function inicioDaJanela(agora: Date): Date {
 }
 
 /**
- * Lança LoginBloqueadoError se o e-mail ou o IP passaram do limite de falhas
- * na janela — ANTES de conferir a senha, pra quem está tentando adivinhar
- * não ganhar nenhuma informação durante o bloqueio.
+ * Conta esta tentativa ANTES de conferir a senha/PIN e só então decide se
+ * está bloqueado. Gravar primeiro e contar depois fecha a brecha das
+ * requisições em paralelo: antes, um lote de tentativas simultâneas lia
+ * "0 falhas" em todas e só gravava depois do bcrypt — dava pra testar
+ * centenas de PINs de uma vez. Login certo apaga as tentativas da chave
+ * (limparFalhasLogin); errado, a linha já está gravada.
  */
-export async function garantirLoginNaoBloqueado(email: string, ip: string | null, agora = new Date()) {
-  const desde = inicioDaJanela(agora)
-  const [falhasEmail, falhasIp] = await Promise.all([
-    prisma.tentativaLogin.count({ where: { email, criadoEm: { gte: desde } } }),
-    ip ? prisma.tentativaLogin.count({ where: { ip, criadoEm: { gte: desde } } }) : Promise.resolve(0),
-  ])
-
-  if (falhasEmail >= MAX_FALHAS_POR_EMAIL || falhasIp >= MAX_FALHAS_POR_IP) {
-    throw new LoginBloqueadoError()
-  }
-}
-
-export async function registrarFalhaLogin(email: string, ip: string | null, agora = new Date()) {
+export async function reservarTentativaLogin(chave: string, ip: string | null, agora = new Date()) {
   await prisma.$transaction([
-    prisma.tentativaLogin.create({ data: { email, ip, criadoEm: agora } }),
+    prisma.tentativaLogin.create({ data: { email: chave, ip, criadoEm: agora } }),
     prisma.tentativaLogin.deleteMany({
       where: { criadoEm: { lt: new Date(agora.getTime() - HORAS_RETENCAO * 60 * 60 * 1000) } },
     }),
   ])
+
+  const desde = inicioDaJanela(agora)
+  const [tentativasChave, tentativasIp] = await Promise.all([
+    prisma.tentativaLogin.count({ where: { email: chave, criadoEm: { gte: desde } } }),
+    ip ? prisma.tentativaLogin.count({ where: { ip, criadoEm: { gte: desde } } }) : Promise.resolve(0),
+  ])
+
+  // Contagem inclui esta tentativa: a 6ª do e-mail (21ª do IP) na janela é bloqueada.
+  if (tentativasChave > MAX_FALHAS_POR_EMAIL || tentativasIp > MAX_FALHAS_POR_IP) {
+    throw new LoginBloqueadoError()
+  }
 }
 
 /** Login certo zera as falhas daquele e-mail. */
@@ -83,9 +85,10 @@ export class PinBloqueadoError extends Error {
   }
 }
 
+/** Mesmo esquema de reservarTentativaLogin: chame depois dela (a tentativa já está gravada e entra na conta). */
 export async function garantirPinNaoBloqueado(chave: string, agora = new Date()) {
-  const falhas = await prisma.tentativaLogin.count({
+  const tentativas = await prisma.tentativaLogin.count({
     where: { email: chave, criadoEm: { gte: new Date(agora.getTime() - HORAS_RETENCAO * 60 * 60 * 1000) } },
   })
-  if (falhas >= MAX_FALHAS_MOTORISTA_24H) throw new PinBloqueadoError()
+  if (tentativas > MAX_FALHAS_MOTORISTA_24H) throw new PinBloqueadoError()
 }

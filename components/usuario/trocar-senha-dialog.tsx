@@ -5,6 +5,7 @@ import { zodResolver } from "@hookform/resolvers/zod"
 import { useForm, type Resolver, type SubmitHandler } from "react-hook-form"
 import { Dialog } from "radix-ui"
 import { KeyRound } from "lucide-react"
+import { signOut } from "next-auth/react"
 import { Alert } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form"
@@ -67,11 +68,11 @@ export default function TrocarSenhaDialog({ colapsado = false }: { colapsado?: b
           {sucesso ? (
             <>
               <Alert variant="success" className="mt-4">
-                Senha atualizada com sucesso.
+                Senha atualizada. Por segurança, as sessões abertas foram encerradas — entre de novo com a nova senha.
               </Alert>
               <div className="mt-6 flex justify-end">
-                <Button type="button" onClick={() => fechar(false)}>
-                  Fechar
+                <Button type="button" onClick={() => signOut({ callbackUrl: "/login" })}>
+                  Entrar de novo
                 </Button>
               </div>
             </>
