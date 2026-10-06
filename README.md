@@ -32,7 +32,7 @@ Sistema de escala de viagens da Ritmo Logística: programação das viagens de g
 
 Só contam como entrega de cliente as paradas com **SAP code e número white** preenchidos; a origem (ex.: Joinville) não entra.
 
-**Gerência** (papel ADMIN): filiais, usuários e o histórico de alterações (auditoria de quem mudou o quê).
+**Gerência**: o Admin vê o histórico de alterações (quem mudou o quê); o Superadmin cadastra filiais e usuários.
 
 ## Regras de escala
 
@@ -42,12 +42,14 @@ Só contam como entrega de cliente as paradas com **SAP code e número white** p
 | Descanso mínimo entre jornadas (interjornada) | 11 h | `lib/services/alocacao/disponibilidade.ts` |
 | Descanso que caracteriza folga | 35 h | `lib/services/alocacao/disponibilidade.ts` |
 | Jornada prevista (estouro) | 12 h | `lib/services/relatorios/jornada-analise.ts` |
+| Turno pelo horário de início | Dia 04:00–15:59 · Noite 16:00–03:59 | `lib/services/turno.ts` |
 
 ## Papéis
 
 | Papel | Acesso |
 |---|---|
-| `ADMIN` | Tudo da filial + gerência (filiais, usuários, histórico) |
+| `SUPERADMIN` | Cadastro de filiais e usuários; sem tela operacional (não pertence a uma filial) |
+| `ADMIN` | Tudo da filial + gerência (histórico de alterações) |
 | `DESPACHANTE` | Operação da filial: viagens, alocação, motoristas, frotas, clientes, relatórios |
 | `MOTORISTA` | Só `/minhas-viagens`, com as viagens dele |
 
@@ -63,7 +65,7 @@ lib/actions (server action) ─► lib/services (regra de negócio) ─► Prism
                                   trava de linha (FOR UPDATE)
 ```
 
-- **Server actions são a porta de escrita.** Cada action:
+- **Server actions são a porta de escrita.** Nenhuma action fala com o Prisma direto. Cada action:
   - valida a sessão e a filial (`requireSessionComFilial` / `requireSessaoMotorista`);
   - valida o payload com Zod e chama um service;
   - devolve `RespostaAcao` (`{ sucesso, erro }`).
@@ -71,7 +73,7 @@ lib/actions (server action) ─► lib/services (regra de negócio) ─► Prism
   Os erros passam por `errorToMessage`, que traduz erro de validação, de domínio (`ErroDeDominio`) e do Prisma, e só registra no log o que é inesperado.
 - **Regra de negócio em `lib/services`**, em funções puras sempre que possível: compatibilidade, disponibilidade, jornada, descarga e relatórios. É a parte com mais testes.
 - **Multi-filial em duas camadas.** `filialId` vem sempre da sessão, nunca do cliente. Além disso, o Postgres tem Row Level Security nas tabelas operacionais.
-- **Concorrência**: escritas que dependem do estado atual (alocar, iniciar ou encerrar viagem, correções) travam a viagem com `SELECT … FOR UPDATE` dentro da transação.
+- **Concorrência**: escritas que dependem do estado atual (status, saída, exclusão e correções da viagem; manutenções; clientes; ativar/desativar usuário) leem e travam a linha com `SELECT … FOR UPDATE` dentro da própria transação. Assim o "antes" da auditoria é sempre o estado que de fato mudou.
 - **Auditoria**: toda criação, alteração ou exclusão grava antes/depois em `RegistroAuditoria` (`registrarAuditoria`), com um campo `_contexto` legível ("Correção do escalador (viagem 922087) · km").
 - **Soft delete** (`deletadoEm`). Um índice único parcial garante `numViagem` único só entre as viagens ativas da mesma filial.
 - **Fuso horário**: tudo é calculado em horário de Brasília com offset fixo (UTC−3), independente do fuso do servidor. Os helpers ficam em `lib/utils/date-format.ts`, e os testes rodam em UTC e em `America/Sao_Paulo`.
@@ -151,11 +153,12 @@ node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
 | `npm run build` / `npm start` | Build e servidor de produção |
 | `npm run vercel-build` | Build da Vercel: em produção aplica as migrations (`scripts/vercel-build.sh`) |
 | `npm run lint` | ESLint |
+| `npm run format` / `npm run format:check` | Prettier (sem ponto e vírgula, aspas duplas, 140 colunas) |
 | `npm test` | Testes em UTC (como na Vercel) |
 | `npm run test:br` | Testes em horário de Brasília |
 | `npm run knip` | Procura arquivos, exports e dependências sem uso |
 
-O CI (`.github/workflows/ci.yml`) roda tipos, lint, knip e as duas suítes de teste em todo PR.
+O CI (`.github/workflows/ci.yml`) roda tipos, lint, formatação, knip e as duas suítes de teste em todo PR.
 
 ## Deploy
 
