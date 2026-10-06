@@ -257,7 +257,6 @@ describe("tentarConverterEntradaDeDataHora", () => {
   })
 })
 
-
 describe("formatarDiaMes / formatarDiaMesHora / mesmoDiaEmBrasilia", () => {
   it("usa o dia de Brasília, não o do processo", async () => {
     const { formatarDiaMes, formatarDiaMesHora, mesmoDiaEmBrasilia } = await import("./date-format")

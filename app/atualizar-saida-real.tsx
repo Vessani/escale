@@ -35,12 +35,7 @@ function formatarAtraso(minutos: number): string {
  * campos de formulário sempre abertos em cada linha, que alargavam a tabela
  * e mostravam "dd/mm/aaaa --:--" nas viagens que ainda não saíram.
  */
-export default function AtualizarSaidaReal({
-  viagemId,
-  inicioPrevisto,
-  horarioRealSaidaInicial,
-  motivoAtrasoInicial,
-}: Props) {
+export default function AtualizarSaidaReal({ viagemId, inicioPrevisto, horarioRealSaidaInicial, motivoAtrasoInicial }: Props) {
   const router = useRouter()
   const [isPending, startTransition] = useTransition()
   const [aberto, setAberto] = useState(false)

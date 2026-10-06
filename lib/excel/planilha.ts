@@ -239,7 +239,13 @@ function adicionarAba<T>(workbook: ExcelJS.Workbook, aba: Aba<T>, meta: Metadado
         size: 10,
         color: {
           argb:
-            destaque === "perigo" ? CORES.perigoTexto : destaque === "alerta" ? CORES.alertaTexto : destaque === "apagado" ? CORES.apagado : CORES.texto,
+            destaque === "perigo"
+              ? CORES.perigoTexto
+              : destaque === "alerta"
+                ? CORES.alertaTexto
+                : destaque === "apagado"
+                  ? CORES.apagado
+                  : CORES.texto,
         },
         strike: false,
       }

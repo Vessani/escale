@@ -18,6 +18,9 @@ vi.mock("@/lib/services/viagem.service", () => ({
   criarViagemComAlocacaoService: vi.fn(),
   editarViagemService: vi.fn(),
   deletarViagemService: vi.fn(),
+}))
+
+vi.mock("@/lib/services/viagem-andamento.service", () => ({
   atualizarStatusViagemService: vi.fn(),
   atualizarSaidaRealService: vi.fn(),
 }))
@@ -40,6 +43,7 @@ vi.mock("@/lib/services/frota.service", () => ({
 }))
 
 import * as viagemService from "@/lib/services/viagem.service"
+import * as andamentoService from "@/lib/services/viagem-andamento.service"
 import * as motoristasQueries from "@/lib/queries/motoristas"
 import * as clientesQueries from "@/lib/queries/clientes"
 import * as frotasQueries from "@/lib/queries/frotas"
@@ -128,14 +132,14 @@ describe("lib/actions/viagens — controle de acesso", () => {
       const resposta = await atualizarStatusViagem(1, "INICIADA")
 
       expect(resposta).toEqual({ sucesso: false, erro: "Não autorizado." })
-      expect(viagemService.atualizarStatusViagemService).not.toHaveBeenCalled()
+      expect(andamentoService.atualizarStatusViagemService).not.toHaveBeenCalled()
     })
 
     it("atualizarSaidaReal recusa e não chama o service", async () => {
       const resposta = await atualizarSaidaReal(1, { horarioRealSaida: null, motivoAtraso: null })
 
       expect(resposta).toEqual({ sucesso: false, erro: "Não autorizado." })
-      expect(viagemService.atualizarSaidaRealService).not.toHaveBeenCalled()
+      expect(andamentoService.atualizarSaidaRealService).not.toHaveBeenCalled()
     })
   })
 
@@ -212,7 +216,7 @@ describe("lib/actions/viagens — controle de acesso", () => {
     })
 
     it("atualizarStatusViagem (POSTERGADA) interpreta a nova data como horário de Brasília, não do processo que executa o código", async () => {
-      vi.mocked(viagemService.atualizarStatusViagemService).mockResolvedValue({} as never)
+      vi.mocked(andamentoService.atualizarStatusViagemService).mockResolvedValue({} as never)
 
       const resposta = await atualizarStatusViagem(1, "POSTERGADA", {
         inicioPrevisto: "2026-08-12T08:00",
@@ -220,18 +224,18 @@ describe("lib/actions/viagens — controle de acesso", () => {
       })
 
       expect(resposta).toEqual({ sucesso: true })
-      const novaData = vi.mocked(viagemService.atualizarStatusViagemService).mock.calls[0][4]
+      const novaData = vi.mocked(andamentoService.atualizarStatusViagemService).mock.calls[0][4]
       expect(novaData?.inicioPrevisto.toISOString()).toBe("2026-08-12T11:00:00.000Z")
       expect(novaData?.fimPrevisto.toISOString()).toBe("2026-08-13T11:00:00.000Z")
     })
 
     it("atualizarSaidaReal interpreta o horário como Brasília, não do processo que executa o código", async () => {
-      vi.mocked(viagemService.atualizarSaidaRealService).mockResolvedValue({} as never)
+      vi.mocked(andamentoService.atualizarSaidaRealService).mockResolvedValue({} as never)
 
       const resposta = await atualizarSaidaReal(1, { horarioRealSaida: "2026-08-12T08:15", motivoAtraso: null })
 
       expect(resposta).toEqual({ sucesso: true })
-      const horarioRealSaida = vi.mocked(viagemService.atualizarSaidaRealService).mock.calls[0][2]
+      const horarioRealSaida = vi.mocked(andamentoService.atualizarSaidaRealService).mock.calls[0][2]
       expect(horarioRealSaida?.toISOString()).toBe("2026-08-12T11:15:00.000Z")
     })
   })

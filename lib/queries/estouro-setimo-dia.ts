@@ -92,9 +92,6 @@ async function buscarSetimosDiasTrabalhados(filialId: number, de: Date, ate: Dat
  * seguido (ou mais) e folgas depois do 6º dia menores que 35h.
  */
 export async function buscarEstourosSetimoDia(filialId: number, de: Date, ate: Date): Promise<EstouroSetimoDia[]> {
-  const [setimos, dados] = await Promise.all([
-    buscarSetimosDiasTrabalhados(filialId, de, ate),
-    carregarDadosJornada(filialId, de, ate),
-  ])
+  const [setimos, dados] = await Promise.all([buscarSetimosDiasTrabalhados(filialId, de, ate), carregarDadosJornada(filialId, de, ate)])
   return juntarEstourosSetimoDia(setimos, folgasSemanaisCurtas(dados.motoristas, dados.jornadas, dados.viagens, de, ate))
 }

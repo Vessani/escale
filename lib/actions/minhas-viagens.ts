@@ -1,4 +1,4 @@
-'use server'
+"use server"
 
 import { revalidatePath } from "next/cache"
 import { requireSessaoMotorista } from "@/lib/auth-guard"
@@ -43,74 +43,104 @@ async function executar(acao: () => Promise<unknown>, viagemId: number | undefin
 }
 
 export async function iniciarViagem(viagemId: number, dados: { kmInicial: number; motivoAtraso: string | null }): Promise<RespostaAcao> {
-  return executar(async () => {
-    const { session, filialId, motoristaId } = await requireSessaoMotorista()
-    const entrada = z.object({ viagemId: id, kmInicial: km, motivoAtraso: z.string().max(200).nullable() }).parse({ ...dados, viagemId })
-    await iniciarMinhaViagem(filialId, motoristaId, entrada.viagemId, entrada, atorDaSessao(session))
-  }, viagemId, "Não foi possível iniciar a viagem.")
+  return executar(
+    async () => {
+      const { session, filialId, motoristaId } = await requireSessaoMotorista()
+      const entrada = z.object({ viagemId: id, kmInicial: km, motivoAtraso: z.string().max(200).nullable() }).parse({ ...dados, viagemId })
+      await iniciarMinhaViagem(filialId, motoristaId, entrada.viagemId, entrada, atorDaSessao(session))
+    },
+    viagemId,
+    "Não foi possível iniciar a viagem.",
+  )
 }
 
-export async function lancarDespesa(viagemId: number, dados: { tipo: "PEDAGIO" | "PERNOITE"; valorCentavos: number }): Promise<RespostaAcao> {
-  return executar(async () => {
-    const { session, filialId, motoristaId } = await requireSessaoMotorista()
-    const entrada = z
-      .object({ viagemId: id, tipo: z.enum(["PEDAGIO", "PERNOITE"]), valorCentavos: z.number().int().positive() })
-      .parse({ ...dados, viagemId })
-    await adicionarMinhaDespesa(filialId, motoristaId, entrada.viagemId, entrada, atorDaSessao(session))
-  }, viagemId, "Não foi possível lançar.")
+export async function lancarDespesa(
+  viagemId: number,
+  dados: { tipo: "PEDAGIO" | "PERNOITE"; valorCentavos: number },
+): Promise<RespostaAcao> {
+  return executar(
+    async () => {
+      const { session, filialId, motoristaId } = await requireSessaoMotorista()
+      const entrada = z
+        .object({ viagemId: id, tipo: z.enum(["PEDAGIO", "PERNOITE"]), valorCentavos: z.number().int().positive() })
+        .parse({ ...dados, viagemId })
+      await adicionarMinhaDespesa(filialId, motoristaId, entrada.viagemId, entrada, atorDaSessao(session))
+    },
+    viagemId,
+    "Não foi possível lançar.",
+  )
 }
 
 export async function removerDespesa(viagemId: number, despesaId: number): Promise<RespostaAcao> {
-  return executar(async () => {
-    const { session, filialId, motoristaId } = await requireSessaoMotorista()
-    id.parse(viagemId)
-    await removerMinhaDespesa(filialId, motoristaId, id.parse(despesaId), atorDaSessao(session))
-  }, viagemId, "Não foi possível remover.")
+  return executar(
+    async () => {
+      const { session, filialId, motoristaId } = await requireSessaoMotorista()
+      id.parse(viagemId)
+      await removerMinhaDespesa(filialId, motoristaId, id.parse(despesaId), atorDaSessao(session))
+    },
+    viagemId,
+    "Não foi possível remover.",
+  )
 }
 
 export async function encerrarViagem(viagemId: number, dados: { kmFinal: number }): Promise<RespostaAcao> {
-  return executar(async () => {
-    const { session, filialId, motoristaId } = await requireSessaoMotorista()
-    const entrada = z.object({ viagemId: id, kmFinal: km }).parse({ ...dados, viagemId })
-    await encerrarMinhaViagem(filialId, motoristaId, entrada.viagemId, entrada, atorDaSessao(session))
-  }, viagemId, "Não foi possível encerrar a viagem.")
+  return executar(
+    async () => {
+      const { session, filialId, motoristaId } = await requireSessaoMotorista()
+      const entrada = z.object({ viagemId: id, kmFinal: km }).parse({ ...dados, viagemId })
+      await encerrarMinhaViagem(filialId, motoristaId, entrada.viagemId, entrada, atorDaSessao(session))
+    },
+    viagemId,
+    "Não foi possível encerrar a viagem.",
+  )
 }
 
 export async function registrarChegada(viagemId: number, entregaId: number, dados: EntradaChegada): Promise<RespostaAcao> {
-  return executar(async () => {
-    const { session, filialId, motoristaId } = await requireSessaoMotorista()
-    const entrada = esquemaChegada.extend({ viagemId: id, entregaId: id }).parse({ ...dados, entregaId, viagemId })
-    await registrarChegadaCliente(
-      filialId,
-      motoristaId,
-      entrada.viagemId,
-      entrada.entregaId,
-      { ...entrada, chegadaEm: converterEntradaDeDataHora(entrada.chegadaEm) },
-      atorDaSessao(session),
-    )
-  }, viagemId, "Não foi possível registrar a chegada.")
+  return executar(
+    async () => {
+      const { session, filialId, motoristaId } = await requireSessaoMotorista()
+      const entrada = esquemaChegada.extend({ viagemId: id, entregaId: id }).parse({ ...dados, entregaId, viagemId })
+      await registrarChegadaCliente(
+        filialId,
+        motoristaId,
+        entrada.viagemId,
+        entrada.entregaId,
+        { ...entrada, chegadaEm: converterEntradaDeDataHora(entrada.chegadaEm) },
+        atorDaSessao(session),
+      )
+    },
+    viagemId,
+    "Não foi possível registrar a chegada.",
+  )
 }
 
 export async function informarProblema(viagemId: number, texto: string): Promise<RespostaAcao> {
-  return executar(async () => {
-    const { session, filialId, motoristaId } = await requireSessaoMotorista()
-    const entrada = z.object({ viagemId: id, texto: z.string().max(TAMANHO_MAXIMO_PROBLEMA) }).parse({ texto, viagemId })
-    await informarProblemaMecanico(filialId, motoristaId, entrada.viagemId, entrada.texto, atorDaSessao(session))
-  }, viagemId, "Não foi possível salvar o problema.")
+  return executar(
+    async () => {
+      const { session, filialId, motoristaId } = await requireSessaoMotorista()
+      const entrada = z.object({ viagemId: id, texto: z.string().max(TAMANHO_MAXIMO_PROBLEMA) }).parse({ texto, viagemId })
+      await informarProblemaMecanico(filialId, motoristaId, entrada.viagemId, entrada.texto, atorDaSessao(session))
+    },
+    viagemId,
+    "Não foi possível salvar o problema.",
+  )
 }
 
 /** O motorista que está com a viagem passa ela pro substituto (que continua pelo celular dele). */
 export async function passarViagem(viagemId: number, dados: EntradaTroca): Promise<RespostaAcao> {
-  return executar(async () => {
-    const { session, filialId, motoristaId } = await requireSessaoMotorista()
-    const entrada = esquemaTroca.parse({ ...dados, viagemId })
-    await trocarMotoristaDaViagem(
-      filialId,
-      entrada.viagemId,
-      { ...entrada, trocadoEm: converterEntradaDeDataHora(entrada.trocadoEm) },
-      atorDaSessao(session),
-      { exigirMotoristaAtual: motoristaId },
-    )
-  }, viagemId, "Não foi possível passar a viagem.")
+  return executar(
+    async () => {
+      const { session, filialId, motoristaId } = await requireSessaoMotorista()
+      const entrada = esquemaTroca.parse({ ...dados, viagemId })
+      await trocarMotoristaDaViagem(
+        filialId,
+        entrada.viagemId,
+        { ...entrada, trocadoEm: converterEntradaDeDataHora(entrada.trocadoEm) },
+        atorDaSessao(session),
+        { exigirMotoristaAtual: motoristaId },
+      )
+    },
+    viagemId,
+    "Não foi possível passar a viagem.",
+  )
 }
-

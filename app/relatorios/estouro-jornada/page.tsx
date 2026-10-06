@@ -47,14 +47,20 @@ export default async function EstouroJornadaPage({ searchParams }: { searchParam
             className="h-8 w-28 rounded-md border border-input bg-background px-2 text-xs text-foreground"
           >
             {OPCOES_HORAS_ESTOURO_JORNADA.map((horas) => (
-              <option key={horas} value={horas}>{horas} horas</option>
+              <option key={horas} value={horas}>
+                {horas} horas
+              </option>
             ))}
           </select>
         </label>
       </FiltroRelatorio>
 
       {ocorrencias.length === 0 ? (
-        <EmptyState icone={Timer} titulo={`Nenhuma jornada passou de ${limite}h`} descricao="Nenhuma jornada do relatório nesse período passou do limite escolhido." />
+        <EmptyState
+          icone={Timer}
+          titulo={`Nenhuma jornada passou de ${limite}h`}
+          descricao="Nenhuma jornada do relatório nesse período passou do limite escolhido."
+        />
       ) : (
         <MolduraTabela>
           <Table>
@@ -77,12 +83,16 @@ export default async function EstouroJornadaPage({ searchParams }: { searchParam
                 <TableRow key={`${item.motoristaId}-${item.inicio.toISOString()}`}>
                   <TableCell className="tabular-nums">{formatarDiaCurto(item.inicio)}</TableCell>
                   <TableCell className="font-medium">{formatarNomeProprio(item.motorista)}</TableCell>
-                  <TableCell><BadgeTurno turno={item.turno} /></TableCell>
+                  <TableCell>
+                    <BadgeTurno turno={item.turno} />
+                  </TableCell>
                   <TableCell className="font-mono tabular-nums">{formatarHorarioRelativo(item.inicio, item.inicio)}</TableCell>
                   <TableCell className="font-mono tabular-nums">{formatarHorarioRelativo(item.fim, item.inicio)}</TableCell>
                   <TableCell className="tabular-nums font-medium">{formatarDuracao(item.duracaoMinutos)}</TableCell>
                   <TableCell className="tabular-nums text-destructive">+{formatarDuracao(item.excedenteMinutos)}</TableCell>
-                  <TableCell><BadgeAtividade atividade={item.atividade} /></TableCell>
+                  <TableCell>
+                    <BadgeAtividade atividade={item.atividade} />
+                  </TableCell>
                   <TableCell className="font-mono">{item.numViagem ?? "—"}</TableCell>
                   <TableCell className="font-mono tabular-nums">{textoFrota(item.cavalo, item.carreta)}</TableCell>
                 </TableRow>

@@ -1,22 +1,22 @@
-import type { Prisma, AcaoAuditoria } from "@prisma/client";
-import { serializeData } from "@/lib/serialization";
+import type { Prisma, AcaoAuditoria } from "@prisma/client"
+import { serializeData } from "@/lib/serialization"
 
-export type Ator = { usuarioId: string; usuarioNome: string | null };
+export type Ator = { usuarioId: string; usuarioNome: string | null }
 
 /** Converte session.user (ver lib/auth-guard.ts) num Ator. */
 export function atorDaSessao(session: { user: { id: string; name?: string | null } }): Ator {
-  return { usuarioId: session.user.id, usuarioNome: session.user.name ?? null };
+  return { usuarioId: session.user.id, usuarioNome: session.user.name ?? null }
 }
 
 type ParametrosAuditoria = {
-  entidade: string;
-  entidadeId: number | string;
-  acao: AcaoAuditoria;
-  antes?: unknown;
-  depois?: unknown;
-  ator: Ator | null;
-  filialId: number | null;
-};
+  entidade: string
+  entidadeId: number | string
+  acao: AcaoAuditoria
+  antes?: unknown
+  depois?: unknown
+  ator: Ator | null
+  filialId: number | null
+}
 
 /**
  * Grava uma linha de auditoria — sempre chamada de dentro da mesma
@@ -43,5 +43,5 @@ export async function registrarAuditoria(
       usuarioNome: ator?.usuarioNome ?? null,
       filialId,
     },
-  });
+  })
 }

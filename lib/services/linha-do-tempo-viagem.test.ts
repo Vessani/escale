@@ -58,4 +58,3 @@ describe("montarLinhaDoTempo", () => {
     expect(eventos.map((e) => e.tipo)).toEqual(["SAIDA", "CHEGADA"])
   })
 })
-

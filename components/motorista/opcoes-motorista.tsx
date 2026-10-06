@@ -47,13 +47,7 @@ function ItemMotorista({ motorista, mostrarSituacao }: { motorista: OpcaoMotoris
  * (em treinamento, enchedor) nem aparece, a não ser que já seja o escolhido
  * (viagem antiga), pra o select não ficar sem valor.
  */
-export function OpcoesMotoristaPrincipal({
-  motoristas,
-  selecionadoId,
-}: {
-  motoristas: OpcaoMotorista[]
-  selecionadoId: number | null
-}) {
+export function OpcoesMotoristaPrincipal({ motoristas, selecionadoId }: { motoristas: OpcaoMotorista[]; selecionadoId: number | null }) {
   const elegiveis = motoristas
     .filter((motorista) => podeSerPrincipal(motorista.tipo) || motorista.id === selecionadoId)
     .sort((a, b) => ORDEM_SITUACAO[a.situacao] - ORDEM_SITUACAO[b.situacao] || a.nome.localeCompare(b.nome))

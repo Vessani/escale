@@ -122,7 +122,12 @@ export default function ConfirmarLoteViagens({ viagens, onConcluido, onCancelar 
           (b) =>
             b.dados.numViagem !== a.dados.numViagem &&
             viagensCompartilhamFrota(a.dados.carreta, b.dados.carreta) &&
-            periodoConflita(new Date(a.dados.inicioPrevisto), new Date(a.dados.fimPrevisto), new Date(b.dados.inicioPrevisto), new Date(b.dados.fimPrevisto)),
+            periodoConflita(
+              new Date(a.dados.inicioPrevisto),
+              new Date(a.dados.fimPrevisto),
+              new Date(b.dados.inicioPrevisto),
+              new Date(b.dados.fimPrevisto),
+            ),
         )
         .map((b) => b.dados.numViagem)
       if (conflitantes.length > 0) mapa[a.dados.numViagem] = conflitantes
@@ -193,7 +198,12 @@ export default function ConfirmarLoteViagens({ viagens, onConcluido, onCancelar 
           <span className="text-sm font-medium text-foreground">Produto das viagens</span>
           <Select
             value={produtoDeTodas === VARIOS || produtoDeTodas === "" ? "" : produtoDeTodas}
-            onValueChange={(valor) => mudarProduto(viagens.map((viagem) => viagem.dados.numViagem), valor as TipoProduto)}
+            onValueChange={(valor) =>
+              mudarProduto(
+                viagens.map((viagem) => viagem.dados.numViagem),
+                valor as TipoProduto,
+              )
+            }
             disabled={criando}
           >
             <SelectTrigger className="h-8 w-48 bg-card text-xs">
@@ -226,10 +236,19 @@ export default function ConfirmarLoteViagens({ viagens, onConcluido, onCancelar 
           const produto = produtos[numViagem] ?? ""
           const ocupado = recalculando.has(numViagem)
           const avisos = [
-            ...(sugestao.avisoFrotaIndisponivel ? [{ rotulo: "Frota indisponível no horário", detalhe: sugestao.avisoFrotaIndisponivel }] : []),
-            ...(sugestao.avisoFrotaProdutoIncompativel ? [{ rotulo: "Frota de outro produto", detalhe: sugestao.avisoFrotaProdutoIncompativel }] : []),
+            ...(sugestao.avisoFrotaIndisponivel
+              ? [{ rotulo: "Frota indisponível no horário", detalhe: sugestao.avisoFrotaIndisponivel }]
+              : []),
+            ...(sugestao.avisoFrotaProdutoIncompativel
+              ? [{ rotulo: "Frota de outro produto", detalhe: sugestao.avisoFrotaProdutoIncompativel }]
+              : []),
             ...(conflitosFrotaPorViagem[numViagem]
-              ? [{ rotulo: `Mesma carreta na(s) viagem(ns) ${conflitosFrotaPorViagem[numViagem].join(", ")}`, detalhe: "No mesmo período, dentro desta planilha." }]
+              ? [
+                  {
+                    rotulo: `Mesma carreta na(s) viagem(ns) ${conflitosFrotaPorViagem[numViagem].join(", ")}`,
+                    detalhe: "No mesmo período, dentro desta planilha.",
+                  },
+                ]
               : []),
           ]
 

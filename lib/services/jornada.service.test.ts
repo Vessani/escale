@@ -96,10 +96,7 @@ describe("jornada.service", () => {
     })
 
     it("é indiferente à ordem dos registros na lista de entrada", () => {
-      const registrosEmOrdem = [
-        { fimJornada: new Date("2026-07-05T18:00:00") },
-        { fimJornada: new Date("2026-07-07T20:15:00") },
-      ]
+      const registrosEmOrdem = [{ fimJornada: new Date("2026-07-05T18:00:00") }, { fimJornada: new Date("2026-07-07T20:15:00") }]
       const registrosForaDeOrdem = [...registrosEmOrdem].reverse()
 
       expect(encontrarFimJornadaAnterior(registrosForaDeOrdem, inicioViagem)).toEqual(
@@ -264,9 +261,7 @@ describe("jornada.service", () => {
       const registrosForaDeOrdem = [...registrosEmOrdem].reverse()
 
       const dia = new Date("2026-07-10T00:00:00")
-      expect(projetarCodigoNoDia(registrosForaDeOrdem, dia, hoje, 1)).toBe(
-        projetarCodigoNoDia(registrosEmOrdem, dia, hoje, 1),
-      )
+      expect(projetarCodigoNoDia(registrosForaDeOrdem, dia, hoje, 1)).toBe(projetarCodigoNoDia(registrosEmOrdem, dia, hoje, 1))
     })
 
     it("de ponta a ponta com dados vindos do banco (@db.Date, via mapearRegistrosJornada) — não projeta um motorista de folga amanhã como se ele estivesse fresco (código 1), bug real em produção quando o processo roda em UTC", () => {
@@ -319,6 +314,8 @@ describe("completarFolgasDoRelatorio (dia coberto pelo relatório sem registro =
     expect(completarFolgasDoRelatorio([{ data: d("2026-10-01"), codigo: 8 }], d("2026-10-05"))).toHaveLength(1)
     const comFolgaManual = [trabalhou("2026-10-01", 5), { data: d("2026-10-03"), codigo: 7 }]
     const completos = completarFolgasDoRelatorio(comFolgaManual, d("2026-10-05"))
-    expect(completos.map((r) => r.data.getTime()).sort()).toEqual([d("2026-10-01"), d("2026-10-03"), d("2026-10-04")].map((x) => x.getTime()))
+    expect(completos.map((r) => r.data.getTime()).sort()).toEqual(
+      [d("2026-10-01"), d("2026-10-03"), d("2026-10-04")].map((x) => x.getTime()),
+    )
   })
 })

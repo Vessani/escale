@@ -48,96 +48,118 @@ export default function CriarUsuarioForm({ filiais }: Props) {
     <Card className="shadow-sm border-border">
       <CardHeader className="bg-muted border-b">
         <CardTitle className="text-lg">Novo usuário</CardTitle>
-        <CardDescription>ADMIN e DESPACHANTE pertencem a uma filial e só enxergam os dados dela. SUPERADMIN não pertence a nenhuma.</CardDescription>
+        <CardDescription>
+          ADMIN e DESPACHANTE pertencem a uma filial e só enxergam os dados dela. SUPERADMIN não pertence a nenhuma.
+        </CardDescription>
       </CardHeader>
       <CardContent className="pt-6">
         <Form {...form}>
           <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-4">
             <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-              <FormField control={form.control} name="nome" render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Nome</FormLabel>
-                  <FormControl>
-                    <Input placeholder="Ex: Maria Souza" {...field} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )} />
+              <FormField
+                control={form.control}
+                name="nome"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Nome</FormLabel>
+                    <FormControl>
+                      <Input placeholder="Ex: Maria Souza" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
 
-              <FormField control={form.control} name="email" render={({ field }) => (
-                <FormItem>
-                  <FormLabel>E-mail</FormLabel>
-                  <FormControl>
-                    <Input type="email" placeholder="maria@transportadora.com" {...field} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )} />
+              <FormField
+                control={form.control}
+                name="email"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>E-mail</FormLabel>
+                    <FormControl>
+                      <Input type="email" placeholder="maria@transportadora.com" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
             </div>
 
             <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
-              <FormField control={form.control} name="senha" render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Senha provisória</FormLabel>
-                  <FormControl>
-                    <Input type="text" placeholder="Mínimo de 8 caracteres" {...field} />
-                  </FormControl>
-                  <FormDescription>A pessoa pode trocar depois pelo próprio painel de usuário.</FormDescription>
-                  <FormMessage />
-                </FormItem>
-              )} />
-
-              <FormField control={form.control} name="role" render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Papel</FormLabel>
-                  <Select
-                    value={field.value}
-                    onValueChange={(value) => {
-                      field.onChange(value)
-                      if (value === "SUPERADMIN") {
-                        form.setValue("filialId", null)
-                      }
-                    }}
-                  >
+              <FormField
+                control={form.control}
+                name="senha"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Senha provisória</FormLabel>
                     <FormControl>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Selecione o papel" />
-                      </SelectTrigger>
+                      <Input type="text" placeholder="Mínimo de 8 caracteres" {...field} />
                     </FormControl>
-                    <SelectContent>
-                      <SelectItem value="DESPACHANTE">Despachante</SelectItem>
-                      <SelectItem value="ADMIN">Admin</SelectItem>
-                      <SelectItem value="SUPERADMIN">Superadmin (sem filial)</SelectItem>
-                    </SelectContent>
-                  </Select>
-                  <FormMessage />
-                </FormItem>
-              )} />
+                    <FormDescription>A pessoa pode trocar depois pelo próprio painel de usuário.</FormDescription>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
 
-              <FormField control={form.control} name="filialId" render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Filial</FormLabel>
-                  <Select
-                    disabled={ehSuperAdmin}
-                    value={field.value ? String(field.value) : ""}
-                    onValueChange={(value) => field.onChange(Number(value))}
-                  >
-                    <FormControl>
-                      <SelectTrigger>
-                        <SelectValue placeholder={ehSuperAdmin ? "Não se aplica" : "Selecione a filial"} />
-                      </SelectTrigger>
-                    </FormControl>
-                    <SelectContent>
-                      {filiais.map((filial) => (
-                        <SelectItem key={filial.id} value={String(filial.id)}>
-                          {filial.nome}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  <FormMessage />
-                </FormItem>
-              )} />
+              <FormField
+                control={form.control}
+                name="role"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Papel</FormLabel>
+                    <Select
+                      value={field.value}
+                      onValueChange={(value) => {
+                        field.onChange(value)
+                        if (value === "SUPERADMIN") {
+                          form.setValue("filialId", null)
+                        }
+                      }}
+                    >
+                      <FormControl>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Selecione o papel" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        <SelectItem value="DESPACHANTE">Despachante</SelectItem>
+                        <SelectItem value="ADMIN">Admin</SelectItem>
+                        <SelectItem value="SUPERADMIN">Superadmin (sem filial)</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="filialId"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Filial</FormLabel>
+                    <Select
+                      disabled={ehSuperAdmin}
+                      value={field.value ? String(field.value) : ""}
+                      onValueChange={(value) => field.onChange(Number(value))}
+                    >
+                      <FormControl>
+                        <SelectTrigger>
+                          <SelectValue placeholder={ehSuperAdmin ? "Não se aplica" : "Selecione a filial"} />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        {filiais.map((filial) => (
+                          <SelectItem key={filial.id} value={String(filial.id)}>
+                            {filial.nome}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
             </div>
 
             {erro && <Alert variant="error">{erro}</Alert>}

@@ -13,13 +13,13 @@ vi.mock("next/cache", () => ({
   revalidatePath: vi.fn(),
 }))
 
-vi.mock("@/lib/prisma", () => ({
-  prisma: {
-    filial: {
-      create: vi.fn(),
-    },
-  },
-}))
+vi.mock("@/lib/prisma", () => {
+  const filial = { create: vi.fn() }
+  const registroAuditoria = { create: vi.fn() }
+  // A transação recebe o mesmo cliente mockado (criação + auditoria juntas).
+  const $transaction = vi.fn((callback: (tx: unknown) => unknown) => Promise.resolve(callback({ filial, registroAuditoria })))
+  return { prisma: { filial, registroAuditoria, $transaction } }
+})
 
 import { prisma } from "@/lib/prisma"
 import { criarFilial } from "@/lib/actions/filiais"
@@ -64,12 +64,13 @@ describe("lib/actions/filiais — controle de acesso", () => {
     })
 
     it("cria a filial com o nome validado", async () => {
-      vi.mocked(prisma.filial.create).mockResolvedValue({} as never)
+      vi.mocked(prisma.filial.create).mockResolvedValue({ id: 4, nome: "Filial Joinville" } as never)
 
       const resposta = await criarFilial(filialValida)
 
       expect(resposta).toEqual({ sucesso: true })
       expect(prisma.filial.create).toHaveBeenCalledWith({ data: filialValida })
+      expect(prisma.registroAuditoria.create).toHaveBeenCalledTimes(1)
     })
 
     it("recusa nome vazio e não chama o prisma", async () => {

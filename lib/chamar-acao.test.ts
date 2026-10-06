@@ -4,12 +4,18 @@ import { MENSAGEM_ERRO_INESPERADO, MENSAGEM_SEM_CONEXAO, MENSAGEM_SISTEMA_ATUALI
 describe("chamarAcao", () => {
   it("devolve a resposta da action como veio (sucesso ou erro de negócio)", async () => {
     expect(await chamarAcao(async () => ({ sucesso: true as const, pin: "123456" }))).toEqual({ sucesso: true, pin: "123456" })
-    expect(await chamarAcao(async () => ({ sucesso: false as const, erro: "Km inválido." }))).toEqual({ sucesso: false, erro: "Km inválido." })
+    expect(await chamarAcao(async () => ({ sucesso: false as const, erro: "Km inválido." }))).toEqual({
+      sucesso: false,
+      erro: "Km inválido.",
+    })
   })
 
   it("se a chamada lança, vira mensagem na tela em vez de derrubar a página", async () => {
     vi.spyOn(console, "warn").mockImplementation(() => {})
-    expect(await chamarAcao(async () => Promise.reject(new TypeError("Failed to fetch")))).toEqual({ sucesso: false, erro: MENSAGEM_SEM_CONEXAO })
+    expect(await chamarAcao(async () => Promise.reject(new TypeError("Failed to fetch")))).toEqual({
+      sucesso: false,
+      erro: MENSAGEM_SEM_CONEXAO,
+    })
   })
 })
 
@@ -21,9 +27,9 @@ describe("mensagemDaFalha", () => {
   })
 
   it("tela aberta antes de um deploy → recarregar (não 'sem conexão')", () => {
-    expect(mensagemDaFalha(new Error('Failed to find Server Action "7f3a". This request might be from an older or newer deployment.'))).toBe(
-      MENSAGEM_SISTEMA_ATUALIZADO,
-    )
+    expect(
+      mensagemDaFalha(new Error('Failed to find Server Action "7f3a". This request might be from an older or newer deployment.')),
+    ).toBe(MENSAGEM_SISTEMA_ATUALIZADO)
   })
 
   it("qualquer outra falha (inclusive bug que também é TypeError) → recarregar", () => {

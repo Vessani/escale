@@ -64,23 +64,21 @@ export default async function EditarViagemPage({ params }: { params: Promise<{ i
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h1 className="text-2xl font-semibold tracking-tight text-foreground">Alocação e Edição</h1>
-          <p className="text-muted-foreground mt-1">
-            Revise os dados da viagem Nº {viagem.numViagem} e confirme o motorista alocado.
-          </p>
+          <p className="text-muted-foreground mt-1">Revise os dados da viagem Nº {viagem.numViagem} e confirme o motorista alocado.</p>
         </div>
         <div className="flex flex-wrap gap-2">
-        <Link href={`/viagens/relatorio/${viagem.id}`}>
-          <Button variant="outline">
-            <FileText className="h-4 w-4 mr-2" />
-            Relatório da viagem
-          </Button>
-        </Link>
-        <Link href={`/api/viagens/${viagem.id}/excel`}>
-          <Button variant="outline">
-            <Download className="h-4 w-4 mr-2" />
-            Download Excel
-          </Button>
-        </Link>
+          <Link href={`/viagens/relatorio/${viagem.id}`}>
+            <Button variant="outline">
+              <FileText className="h-4 w-4 mr-2" />
+              Relatório da viagem
+            </Button>
+          </Link>
+          <Link href={`/api/viagens/${viagem.id}/excel`}>
+            <Button variant="outline">
+              <Download className="h-4 w-4 mr-2" />
+              Download Excel
+            </Button>
+          </Link>
         </div>
       </div>
 
@@ -105,18 +103,20 @@ export default async function EditarViagemPage({ params }: { params: Promise<{ i
             cliente: entrega.cliente,
             cidade: entrega.cidade,
             uf: entrega.uf,
-            chegada: chegada ? {
-              id: chegada.id,
-              km: chegada.km,
-              chegadaEm: chegada.chegadaEm.toISOString(),
-              medicao: chegada.medicao,
-              nivelInicial: chegada.nivelInicial,
-              nivelFinal: chegada.nivelFinal,
-              polInicial: chegada.polInicial,
-              polFinal: chegada.polFinal,
-              fator: chegada.fator,
-              totalDescarregado: chegada.totalDescarregado,
-            } : null,
+            chegada: chegada
+              ? {
+                  id: chegada.id,
+                  km: chegada.km,
+                  chegadaEm: chegada.chegadaEm.toISOString(),
+                  medicao: chegada.medicao,
+                  nivelInicial: chegada.nivelInicial,
+                  nivelFinal: chegada.nivelFinal,
+                  polInicial: chegada.polInicial,
+                  polFinal: chegada.polFinal,
+                  fator: chegada.fator,
+                  totalDescarregado: chegada.totalDescarregado,
+                }
+              : null,
           }
         })}
         problemaMecanico={viagem.problemaMecanico}

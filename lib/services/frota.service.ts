@@ -7,8 +7,6 @@ import { avisoManutencaoNaViagem, type ManutencaoBase } from "./manutencao-regra
 import { registrarAuditoria, type Ator } from "./auditoria.service"
 import { FrotaDuplicadaError } from "@/lib/errors"
 
-
-
 type FrotaInput = {
   cavalo: string
   carreta: string
@@ -258,12 +256,7 @@ export async function sincronizarDisponibilidadeFrota(
     })
   }
   const frotaAtualizada = existente ? { disponivelEm: maiorFim } : null
-  const manutencoes = await buscarManutencoesDosVeiculos(
-    tx,
-    filialId,
-    [cavalo, ...viagensAtivas.map((viagem) => viagem.cavalo)],
-    [carreta],
-  )
+  const manutencoes = await buscarManutencoesDosVeiculos(tx, filialId, [cavalo, ...viagensAtivas.map((viagem) => viagem.cavalo)], [carreta])
 
   // Uma viagem cancelada/finalizada/movida libera (ou ocupa) a carreta pras
   // outras: recalcula o aviso gravado em todas as viagens ativas dela, senão

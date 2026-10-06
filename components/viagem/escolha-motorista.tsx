@@ -3,7 +3,16 @@
 import { Sparkles } from "lucide-react"
 import type { MotoristaCompativel } from "@/lib/types/alocacao"
 import { Alert } from "@/components/ui/alert"
-import { Select, SelectContent, SelectGroup, SelectItem, SelectLabel, SelectSeparator, SelectTrigger, SelectValue } from "@/components/ui/select"
+import {
+  Select,
+  SelectContent,
+  SelectGroup,
+  SelectItem,
+  SelectLabel,
+  SelectSeparator,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
 import { NomeMotorista } from "@/components/motorista/icone-tipo-motorista"
 import { IndicadorCompatibilidade } from "@/components/motorista/indicador-compatibilidade"
 import { formatarDiaMesHora, formatarHoraLocal, mesmoDiaEmBrasilia } from "@/lib/utils/date-format"
@@ -146,8 +155,8 @@ export function EscolhaMotorista({
       {escolhido?.avisoDescanso && <Alert variant="warning">{escolhido.avisoDescanso}</Alert>}
       {conflitoNoLote && conflitoNoLote.length > 0 && (
         <Alert variant="warning">
-          {formatarNomeProprio(escolhido?.nome ?? "Esse motorista")} também está escolhido na(s) viagem(ns) {conflitoNoLote.join(", ")}, sem 11h
-          de descanso entre elas.
+          {formatarNomeProprio(escolhido?.nome ?? "Esse motorista")} também está escolhido na(s) viagem(ns) {conflitoNoLote.join(", ")}, sem
+          11h de descanso entre elas.
         </Alert>
       )}
     </div>

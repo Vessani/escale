@@ -8,12 +8,12 @@ vi.mock("@/lib/prisma", () => ({
     entrega: { findFirst: vi.fn() },
   },
 }))
-vi.mock("@/lib/services/viagem.service", () => ({ atualizarStatusViagemService: vi.fn(), CODIGO_VIAGEM_MUDOU: "VIAGEM_MUDOU" }))
+vi.mock("@/lib/services/viagem-andamento.service", () => ({ atualizarStatusViagemService: vi.fn(), CODIGO_VIAGEM_MUDOU: "VIAGEM_MUDOU" }))
 vi.mock("@/lib/services/auditoria.service", () => ({ registrarAuditoria: vi.fn() }))
 
 import { prisma } from "@/lib/prisma"
 import { ErroDeDominio } from "@/lib/errors"
-import { atualizarStatusViagemService } from "@/lib/services/viagem.service"
+import { atualizarStatusViagemService } from "@/lib/services/viagem-andamento.service"
 import {
   adicionarMinhaDespesa,
   buscarMinhaViagem,
@@ -92,7 +92,9 @@ describe("iniciarMinhaViagem", () => {
     vi.mocked(prisma.viagem.findFirst).mockResolvedValue(viagem({ status: "CANCELADA" }) as never)
     await expect(iniciarMinhaViagem(FILIAL, ZE, 1, { kmInicial: 10, motivoAtraso: null }, ator)).rejects.toThrow("cancelada pelo escalador")
     // passada pra outro motorista (a busca do principal não acha; a explicação vê outro dono)
-    vi.mocked(prisma.viagem.findFirst).mockResolvedValueOnce(null).mockResolvedValueOnce(viagem({ motoristaId: 99 }) as never)
+    vi.mocked(prisma.viagem.findFirst)
+      .mockResolvedValueOnce(null)
+      .mockResolvedValueOnce(viagem({ motoristaId: 99 }) as never)
     await expect(iniciarMinhaViagem(FILIAL, ZE, 1, { kmInicial: 10, motivoAtraso: null }, ator)).rejects.toThrow("não está mais com você")
     // excluída / inexistente
     vi.mocked(prisma.viagem.findFirst).mockResolvedValue(null)
@@ -108,16 +110,16 @@ describe("iniciarMinhaViagem", () => {
       .mockResolvedValueOnce(viagem() as never) // leitura: ainda Alocada
       .mockResolvedValueOnce(viagem({ status: "CANCELADA" }) as never) // depois da escrita recusada
     despachoMudouAViagem()
-    await expect(
-      iniciarMinhaViagem(FILIAL, ZE, 1, { kmInicial: 10, motivoAtraso: null }, ator, h("2026-10-02T07:00:00")),
-    ).rejects.toThrow("cancelada pelo escalador")
+    await expect(iniciarMinhaViagem(FILIAL, ZE, 1, { kmInicial: 10, motivoAtraso: null }, ator, h("2026-10-02T07:00:00"))).rejects.toThrow(
+      "cancelada pelo escalador",
+    )
   })
 
   it("km inválido é recusado", async () => {
     vi.mocked(prisma.viagem.findFirst).mockResolvedValue(viagem() as never)
-    await expect(
-      iniciarMinhaViagem(FILIAL, ZE, 1, { kmInicial: -1, motivoAtraso: null }, ator, h("2026-10-02T07:00:00")),
-    ).rejects.toThrow("Km inicial")
+    await expect(iniciarMinhaViagem(FILIAL, ZE, 1, { kmInicial: -1, motivoAtraso: null }, ator, h("2026-10-02T07:00:00"))).rejects.toThrow(
+      "Km inicial",
+    )
   })
 })
 
@@ -137,7 +139,9 @@ describe("despesas", () => {
     vi.mocked(prisma.despesaViagem.findFirst).mockResolvedValue(null)
     await expect(removerMinhaDespesa(FILIAL, ZE, 9, ator)).rejects.toThrow("Lançamento não encontrado")
     expect(prisma.despesaViagem.findFirst).toHaveBeenCalledWith(
-      expect.objectContaining({ where: { id: 9, deletadoEm: null, usuarioId: "m1", viagem: { filialId: FILIAL, motoristaId: ZE, deletadoEm: null } } }),
+      expect.objectContaining({
+        where: { id: 9, deletadoEm: null, usuarioId: "m1", viagem: { filialId: FILIAL, motoristaId: ZE, deletadoEm: null } },
+      }),
     )
 
     vi.mocked(prisma.despesaViagem.findFirst).mockResolvedValue({ id: 9, viagemId: 1, viagem: { status: "FINALIZADA" } } as never)
@@ -252,12 +256,39 @@ describe("registrarChegadaCliente", () => {
 
   it("biometano: guarda polegadas e m³; manômetro usa a conversão informada", async () => {
     vi.mocked(prisma.entrega.findFirst).mockResolvedValue(entrega({ produto: "BIOMETANO" }) as never)
-    await registrarChegadaCliente(FILIAL, ZE, 1, 11, dados({ medicao: null, nivelInicial: 950, nivelFinal: 200, polInicial: 80, polFinal: 15 }), ator, agora)
-    expect(tx.chegadaEntrega.upsert.mock.calls[0][0].create).toMatchObject({ medicao: null, polInicial: 80, polFinal: 15, totalDescarregado: 750, fator: null })
+    await registrarChegadaCliente(
+      FILIAL,
+      ZE,
+      1,
+      11,
+      dados({ medicao: null, nivelInicial: 950, nivelFinal: 200, polInicial: 80, polFinal: 15 }),
+      ator,
+      agora,
+    )
+    expect(tx.chegadaEntrega.upsert.mock.calls[0][0].create).toMatchObject({
+      medicao: null,
+      polInicial: 80,
+      polFinal: 15,
+      totalDescarregado: 750,
+      fator: null,
+    })
 
     vi.mocked(prisma.entrega.findFirst).mockResolvedValue(entrega() as never)
-    await registrarChegadaCliente(FILIAL, ZE, 1, 11, dados({ medicao: "MANOMETRO", nivelInicial: 30, nivelFinal: 80, fatorCliente: 12.5 }), ator, agora)
-    expect(tx.chegadaEntrega.upsert.mock.calls[1][0].create).toMatchObject({ medicao: "MANOMETRO", fator: 12.5, totalDescarregado: 625, polInicial: null })
+    await registrarChegadaCliente(
+      FILIAL,
+      ZE,
+      1,
+      11,
+      dados({ medicao: "MANOMETRO", nivelInicial: 30, nivelFinal: 80, fatorCliente: 12.5 }),
+      ator,
+      agora,
+    )
+    expect(tx.chegadaEntrega.upsert.mock.calls[1][0].create).toMatchObject({
+      medicao: "MANOMETRO",
+      fator: 12.5,
+      totalDescarregado: 625,
+      polInicial: null,
+    })
   })
 
   it("recusa: entrega de outro motorista, viagem não iniciada, km menor que o inicial, hora no futuro ou antes da saída, leituras invertidas", async () => {
@@ -274,17 +305,25 @@ describe("registrarChegadaCliente", () => {
 
     vi.mocked(prisma.entrega.findFirst).mockResolvedValue(entrega() as never)
     await expect(registrarChegadaCliente(FILIAL, ZE, 1, 11, dados({ km: 152000 }), ator, agora)).rejects.toThrow("menor que o km inicial")
-    await expect(registrarChegadaCliente(FILIAL, ZE, 1, 11, dados({ chegadaEm: h("2026-10-02T11:00:00") }), ator, agora)).rejects.toThrow("no futuro")
-    await expect(registrarChegadaCliente(FILIAL, ZE, 1, 11, dados({ chegadaEm: h("2026-10-02T06:00:00") }), ator, agora)).rejects.toThrow("antes da saída")
+    await expect(registrarChegadaCliente(FILIAL, ZE, 1, 11, dados({ chegadaEm: h("2026-10-02T11:00:00") }), ator, agora)).rejects.toThrow(
+      "no futuro",
+    )
+    await expect(registrarChegadaCliente(FILIAL, ZE, 1, 11, dados({ chegadaEm: h("2026-10-02T06:00:00") }), ator, agora)).rejects.toThrow(
+      "antes da saída",
+    )
     expect(tx.chegadaEntrega.upsert).not.toHaveBeenCalled()
 
     // Mesmo minuto da saída (o campo não tem segundos): aceita.
-    vi.mocked(prisma.entrega.findFirst).mockResolvedValue(entrega({ horarioRealSaida: new Date(h("2026-10-02T09:30:00").getTime() + 40_000) }) as never)
+    vi.mocked(prisma.entrega.findFirst).mockResolvedValue(
+      entrega({ horarioRealSaida: new Date(h("2026-10-02T09:30:00").getTime() + 40_000) }) as never,
+    )
     await registrarChegadaCliente(FILIAL, ZE, 1, 11, dados({ chegadaEm: h("2026-10-02T09:30:00") }), ator, agora)
     expect(tx.chegadaEntrega.upsert).toHaveBeenCalledTimes(1)
     tx.chegadaEntrega.upsert.mockClear()
     vi.mocked(prisma.entrega.findFirst).mockResolvedValue(entrega() as never)
-    await expect(registrarChegadaCliente(FILIAL, ZE, 1, 11, dados({ nivelInicial: 100, nivelFinal: 400 }), ator, agora)).rejects.toThrow("maior que o inicial")
+    await expect(registrarChegadaCliente(FILIAL, ZE, 1, 11, dados({ nivelInicial: 100, nivelFinal: 400 }), ator, agora)).rejects.toThrow(
+      "maior que o inicial",
+    )
     expect(tx.chegadaEntrega.upsert).not.toHaveBeenCalled()
   })
 })
@@ -295,7 +334,13 @@ describe("informarProblemaMecanico", () => {
     vi.mocked(prisma.viagem.findFirst).mockResolvedValue(viagem({ status: "INICIADA" }) as never)
     await informarProblemaMecanico(FILIAL, ZE, 1, "  Pneu furado na BR-101  ", ator, agora)
     expect(tx.viagem.updateMany).toHaveBeenCalledWith({
-      where: { id: 1, filialId: FILIAL, motoristaId: ZE, deletadoEm: null, status: { in: ["CRIADA", "ALOCADA", "POSTERGADA", "INICIADA", "RETORNANDO"] } },
+      where: {
+        id: 1,
+        filialId: FILIAL,
+        motoristaId: ZE,
+        deletadoEm: null,
+        status: { in: ["CRIADA", "ALOCADA", "POSTERGADA", "INICIADA", "RETORNANDO"] },
+      },
       data: { problemaMecanico: "Pneu furado na BR-101", problemaMecanicoEm: agora },
     })
 
@@ -317,11 +362,22 @@ describe("gravações do motorista com a viagem travada", () => {
     expect(tx.despesaViagem.create).not.toHaveBeenCalled()
 
     vi.mocked(prisma.entrega.findFirst).mockResolvedValue({
-      id: 11, sapcode: "2001", codewhite: "W10", chegada: null, viagem: { id: 1, status: "INICIADA", produto: "OXIGENIO", kmInicial: 100, horarioRealSaida: null },
+      id: 11,
+      sapcode: "2001",
+      codewhite: "W10",
+      chegada: null,
+      viagem: { id: 1, status: "INICIADA", produto: "OXIGENIO", kmInicial: 100, horarioRealSaida: null },
     } as never)
     vi.mocked(prisma.viagem.findFirst).mockResolvedValueOnce(viagem({ motoristaId: 99 }) as never)
     await expect(
-      registrarChegadaCliente(FILIAL, ZE, 1, 11, { km: 150, chegadaEm: new Date(Date.now() - 60_000), medicao: "BALANCA", nivelInicial: 10, nivelFinal: 5 }, ator),
+      registrarChegadaCliente(
+        FILIAL,
+        ZE,
+        1,
+        11,
+        { km: 150, chegadaEm: new Date(Date.now() - 60_000), medicao: "BALANCA", nivelInicial: 10, nivelFinal: 5 },
+        ator,
+      ),
     ).rejects.toThrow("não está mais com você")
     expect(tx.chegadaEntrega.upsert).not.toHaveBeenCalled()
   })
@@ -335,4 +391,3 @@ describe("gravações do motorista com a viagem travada", () => {
     expect(tx.viagem.findUniqueOrThrow).not.toHaveBeenCalled()
   })
 })
-

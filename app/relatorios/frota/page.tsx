@@ -25,7 +25,10 @@ function BarraTempo({ item }: { item: DisponibilidadeVeiculo }) {
   return (
     <div
       className="flex h-2 w-full overflow-hidden rounded-full bg-muted"
-      title={partes.map((p) => `${p.rotulo}: ${formatarDuracao(p.minutos)}`).join(" · ") + ` · Disponível sem uso: ${formatarDuracao(item.minutosDisponivelParado)}`}
+      title={
+        partes.map((p) => `${p.rotulo}: ${formatarDuracao(p.minutos)}`).join(" · ") +
+        ` · Disponível sem uso: ${formatarDuracao(item.minutosDisponivelParado)}`
+      }
     >
       {partes.map((parte) => (
         <div key={parte.rotulo} className={parte.classe} style={{ width: `${(parte.minutos / total) * 100}%` }} />
@@ -59,7 +62,9 @@ function TabelaVeiculos({ itens }: { itens: DisponibilidadeVeiculo[] }) {
                 <div className="font-mono font-medium">{item.codigo}</div>
                 {item.conjunto && <div className="text-xs text-muted-foreground">Conjunto {item.conjunto}</div>}
               </TableCell>
-              <TableCell><BarraTempo item={item} /></TableCell>
+              <TableCell>
+                <BarraTempo item={item} />
+              </TableCell>
               <TableCell className="text-right tabular-nums">{formatarDuracao(item.minutosEmRota)}</TableCell>
               <TableCell className={cn("text-right tabular-nums", item.minutosManutencaoWhiteMartins > 0 && "text-destructive")}>
                 {item.minutosManutencaoWhiteMartins ? formatarDuracao(item.minutosManutencaoWhiteMartins) : "—"}
@@ -67,7 +72,9 @@ function TabelaVeiculos({ itens }: { itens: DisponibilidadeVeiculo[] }) {
               <TableCell className={cn("text-right tabular-nums", item.minutosManutencaoRitmo > 0 && "text-warning")}>
                 {item.minutosManutencaoRitmo ? formatarDuracao(item.minutosManutencaoRitmo) : "—"}
               </TableCell>
-              <TableCell className="text-right tabular-nums text-muted-foreground">{formatarDuracao(item.minutosDisponivelParado)}</TableCell>
+              <TableCell className="text-right tabular-nums text-muted-foreground">
+                {formatarDuracao(item.minutosDisponivelParado)}
+              </TableCell>
               <TableCell className={cn("text-right tabular-nums font-medium", item.disponibilidade < 0.9 && "text-destructive")}>
                 {formatarPercentual(item.disponibilidade)}
               </TableCell>
@@ -88,7 +95,15 @@ export default async function DisponibilidadeFrotaPage({ searchParams }: { searc
   const periodo = periodoOuPadrao(parametros.de, parametros.ate, PERIODO_PADRAO.frota)
   const agora = new Date()
   const dados = await buscarDadosDisponibilidade(filialId, periodo.de, periodo.ate)
-  const itens = disponibilidadeDaFrota(dados.veiculos, dados.viagens, dados.manutencoes, periodo.de, periodo.ate, agora, dados.ultimaViagemPorVeiculo)
+  const itens = disponibilidadeDaFrota(
+    dados.veiculos,
+    dados.viagens,
+    dados.manutencoes,
+    periodo.de,
+    periodo.ate,
+    agora,
+    dados.ultimaViagemPorVeiculo,
+  )
 
   const carretas = itens.filter((item) => item.veiculo === "CARRETA")
   const cavalos = itens.filter((item) => item.veiculo === "CAVALO")
@@ -99,9 +114,12 @@ export default async function DisponibilidadeFrotaPage({ searchParams }: { searc
   return (
     <div className="space-y-6">
       <CabecalhoRelatorio titulo="Disponibilidade da frota">
-        Como o tempo de cada carreta e cavalo se dividiu no período: em rota, parado em manutenção (por responsável) e
-        disponível sem uso. Conta só até agora. As manutenções vêm da agenda em{" "}
-        <Link href="/frotas/manutencoes" className="underline underline-offset-4">Frotas → Manutenções</Link>.
+        Como o tempo de cada carreta e cavalo se dividiu no período: em rota, parado em manutenção (por responsável) e disponível sem uso.
+        Conta só até agora. As manutenções vêm da agenda em{" "}
+        <Link href="/frotas/manutencoes" className="underline underline-offset-4">
+          Frotas → Manutenções
+        </Link>
+        .
       </CabecalhoRelatorio>
 
       <FiltroRelatorio
@@ -129,10 +147,18 @@ export default async function DisponibilidadeFrotaPage({ searchParams }: { searc
       </div>
 
       <div className="flex flex-wrap items-center gap-4 text-xs text-muted-foreground">
-        <span className="flex items-center gap-1.5"><span className="size-2.5 rounded-full bg-primary" /> Em rota</span>
-        <span className="flex items-center gap-1.5"><span className="size-2.5 rounded-full bg-destructive" /> Manutenção White Martins</span>
-        <span className="flex items-center gap-1.5"><span className="size-2.5 rounded-full bg-warning" /> Manutenção Ritmo</span>
-        <span className="flex items-center gap-1.5"><span className="size-2.5 rounded-full bg-muted ring-1 ring-border" /> Disponível sem uso</span>
+        <span className="flex items-center gap-1.5">
+          <span className="size-2.5 rounded-full bg-primary" /> Em rota
+        </span>
+        <span className="flex items-center gap-1.5">
+          <span className="size-2.5 rounded-full bg-destructive" /> Manutenção White Martins
+        </span>
+        <span className="flex items-center gap-1.5">
+          <span className="size-2.5 rounded-full bg-warning" /> Manutenção Ritmo
+        </span>
+        <span className="flex items-center gap-1.5">
+          <span className="size-2.5 rounded-full bg-muted ring-1 ring-border" /> Disponível sem uso
+        </span>
       </div>
 
       {itens.length === 0 ? (
@@ -143,7 +169,10 @@ export default async function DisponibilidadeFrotaPage({ searchParams }: { searc
             <TabelaVeiculos itens={carretas} />
           </SecaoRelatorio>
           {cavalos.length > 0 && (
-            <SecaoRelatorio titulo={`Cavalos · ${cavalos.length}`} descricao="Truck (cavalo e carreta com o mesmo número) aparece só em Carretas.">
+            <SecaoRelatorio
+              titulo={`Cavalos · ${cavalos.length}`}
+              descricao="Truck (cavalo e carreta com o mesmo número) aparece só em Carretas."
+            >
               <TabelaVeiculos itens={cavalos} />
             </SecaoRelatorio>
           )}

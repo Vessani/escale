@@ -44,7 +44,7 @@ function Alert({ className, variant = "info", inline = false, children, ...props
         "flex items-start gap-1.5 text-xs",
         ALERT_COLOR_CLASSES[variant],
         !inline && ["rounded-none border px-3 py-2", ALERT_CONTAINER_CLASSES[variant]],
-        className
+        className,
       )}
       {...props}
     >

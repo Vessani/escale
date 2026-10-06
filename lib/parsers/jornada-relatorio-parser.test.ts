@@ -314,9 +314,7 @@ describe("jornada-relatorio-parser — batidas e conferência", () => {
     expect(semPassagem.map((r) => r.diasSemFolga)).toEqual([4, 5, 6])
 
     // Sem a passagem e sem o dia 02 → 38h parado depois do dia 01 = folga; o dia 03 vira 1º dia.
-    const semDia02 = registrosParaImportar(
-      JornadaRelatorioParser.processar(brutas, { ...SEM_EDICOES, ignoradas: [passagem.id, dia02.id] }),
-    )
+    const semDia02 = registrosParaImportar(JornadaRelatorioParser.processar(brutas, { ...SEM_EDICOES, ignoradas: [passagem.id, dia02.id] }))
     expect(semDia02.map((r) => r.diasSemFolga)).toEqual([4, 1])
   })
 

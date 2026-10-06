@@ -58,9 +58,7 @@ function TabelaOcorrencias({ ocorrencias }: { ocorrencias: OcorrenciaCircadiano[
                 <BadgeAtividade atividade={ocorrencia.atividade} />
               </TableCell>
               <TableCell className="font-mono">{ocorrencia.numViagem ?? "—"}</TableCell>
-              <TableCell className="font-mono tabular-nums">
-                {textoFrota(ocorrencia.cavalo, ocorrencia.carreta)}
-              </TableCell>
+              <TableCell className="font-mono tabular-nums">{textoFrota(ocorrencia.cavalo, ocorrencia.carreta)}</TableCell>
             </TableRow>
           ))}
         </TableBody>
@@ -78,9 +76,9 @@ export default async function CircadianoPage({ searchParams }: { searchParams?: 
   return (
     <div className="space-y-6">
       <CabecalhoRelatorio titulo="Ciclo circadiano">
-        Jornada do dia que passa das <strong>22:00</strong> e da noite que passa das <strong>05:00</strong>. O turno é o de
-        cada jornada, pelo horário de início: <strong>dia</strong> se começa entre 04:00 e 15:59, <strong>noite</strong> a partir
-        das 16:00. Só entram motoristas cadastrados que aparecem no relatório de jornada.
+        Jornada do dia que passa das <strong>22:00</strong> e da noite que passa das <strong>05:00</strong>. O turno é o de cada jornada,
+        pelo horário de início: <strong>dia</strong> se começa entre 04:00 e 15:59, <strong>noite</strong> a partir das 16:00. Só entram
+        motoristas cadastrados que aparecem no relatório de jornada.
       </CabecalhoRelatorio>
 
       <FiltroRelatorio
@@ -93,11 +91,17 @@ export default async function CircadianoPage({ searchParams }: { searchParams?: 
       <SecaoRelatorio
         titulo="Previsto — viagens agendadas"
         descricao={`Jornada estimada em até 12h a partir do início da viagem (ou até o fim previsto, se terminar antes).${
-          relatorio.relatorioAte ? ` Só viagens depois de ${formatarDiaCompleto(relatorio.relatorioAte)}, último dia do relatório importado.` : ""
+          relatorio.relatorioAte
+            ? ` Só viagens depois de ${formatarDiaCompleto(relatorio.relatorioAte)}, último dia do relatório importado.`
+            : ""
         }`}
       >
         {relatorio.previstas.length === 0 ? (
-          <EmptyState icone={MoonStar} titulo="Nenhuma viagem agendada passa do horário" descricao="Nenhum motorista do relatório vai passar do limite do turno nas viagens desse período." />
+          <EmptyState
+            icone={MoonStar}
+            titulo="Nenhuma viagem agendada passa do horário"
+            descricao="Nenhum motorista do relatório vai passar do limite do turno nas viagens desse período."
+          />
         ) : (
           <TabelaOcorrencias ocorrencias={relatorio.previstas} />
         )}
@@ -108,7 +112,11 @@ export default async function CircadianoPage({ searchParams }: { searchParams?: 
         descricao="Início e fim reais do relatório importado, com a viagem do Escalador que o motorista fazia no horário (sem viagem = Interno)."
       >
         {relatorio.realizadas.length === 0 ? (
-          <EmptyState icone={MoonStar} titulo="Ninguém passou do horário" descricao="Nenhuma jornada do relatório nesse período terminou depois do limite do turno." />
+          <EmptyState
+            icone={MoonStar}
+            titulo="Ninguém passou do horário"
+            descricao="Nenhuma jornada do relatório nesse período terminou depois do limite do turno."
+          />
         ) : (
           <TabelaOcorrencias ocorrencias={relatorio.realizadas} />
         )}

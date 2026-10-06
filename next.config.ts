@@ -1,4 +1,4 @@
-import type { NextConfig } from "next";
+import type { NextConfig } from "next"
 
 const nextConfig: NextConfig = {
   // Indicador de dev (canto inferior esquerdo por padrão) sobrepõe o rodapé
@@ -24,7 +24,7 @@ const nextConfig: NextConfig = {
           { key: "Strict-Transport-Security", value: "max-age=63072000; includeSubDomains" },
         ],
       },
-    ];
+    ]
   },
   // Relatórios renomeados — links e favoritos antigos continuam funcionando.
   async redirects() {
@@ -33,8 +33,8 @@ const nextConfig: NextConfig = {
       { source: "/relatorios/interjornada", destination: "/relatorios/quebra-intersticio", permanent: true },
       { source: "/relatorios/jornadas-longas", destination: "/relatorios/estouro-jornada", permanent: true },
       { source: "/relatorios/nao-consta", destination: "/relatorios", permanent: true },
-    ];
+    ]
   },
-};
+}
 
-export default nextConfig;
+export default nextConfig

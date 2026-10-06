@@ -5,7 +5,8 @@ import { reconciliarFolgaMotoristasNoDiaAtual } from "@/lib/services/folga.servi
 import { recalcularAvisosInterjornada } from "@/lib/services/interjornada.service"
 import { STATUS_EM_ANDAMENTO } from "@/lib/services/viagem-status.service"
 import { validarHoraDoRegistro, validarKmDoRegistro } from "@/lib/services/limites-registro"
-import { CODIGO_VIAGEM_MUDOU, garantirMotoristasValidos } from "@/lib/services/viagem.service"
+import { garantirMotoristasValidos } from "@/lib/services/viagem.service"
+import { CODIGO_VIAGEM_MUDOU } from "@/lib/services/viagem-andamento.service"
 import { podeSerPrincipal } from "@/lib/services/tipo-motorista"
 import { motoristaAutorizadoParaProduto } from "@/lib/services/alocacao/compatibilidade"
 import type { TipoProduto } from "@prisma/client"
@@ -20,7 +21,6 @@ import { TAMANHO_MAXIMO_LOCAL, TAMANHO_MAXIMO_MOTIVO_TROCA } from "@/lib/validat
  * viagem (`exigirMotoristaAtual`). Só com a viagem em andamento — antes de
  * sair é só realocar na Gestão de Viagens.
  */
-
 
 type DadosTroca = {
   motoristaNovoId: number
@@ -48,7 +48,10 @@ export async function trocarMotoristaDaViagem(
   })
   if (!viagem) throw new ViagemNaoEncontradaError()
   if (!STATUS_EM_ANDAMENTO.includes(viagem.status)) {
-    throw new ErroDeDominio("TROCA_SO_EM_ANDAMENTO", "A troca de motorista é pra viagem em andamento. Antes de sair, é só realocar na Gestão de Viagens.")
+    throw new ErroDeDominio(
+      "TROCA_SO_EM_ANDAMENTO",
+      "A troca de motorista é pra viagem em andamento. Antes de sair, é só realocar na Gestão de Viagens.",
+    )
   }
   const anteriorId = viagem.motoristaId
   if (!anteriorId) throw new ErroDeDominio("VIAGEM_SEM_MOTORISTA", "A viagem está sem motorista.")
@@ -78,7 +81,10 @@ export async function trocarMotoristaDaViagem(
     select: { km: true, trocadoEm: true },
   })
   if (trocaAnterior && dados.km < trocaAnterior.km) {
-    throw new ErroDeDominio("KM_ANTES_TROCA_ANTERIOR", `O km da troca não pode ser menor que o da troca anterior (${trocaAnterior.km.toLocaleString("pt-BR")}).`)
+    throw new ErroDeDominio(
+      "KM_ANTES_TROCA_ANTERIOR",
+      `O km da troca não pode ser menor que o da troca anterior (${trocaAnterior.km.toLocaleString("pt-BR")}).`,
+    )
   }
   if (trocaAnterior && dados.trocadoEm < trocaAnterior.trocadoEm) {
     throw new ErroDeDominio("HORA_ANTES_TROCA_ANTERIOR", "A hora da troca é antes da troca anterior — confira a data e a hora.")
@@ -101,14 +107,27 @@ export async function trocarMotoristaDaViagem(
     if (count === 0) throw new ErroDeDominio(CODIGO_VIAGEM_MUDOU, "A viagem foi alterada nesse meio-tempo. Atualize a tela e confira.")
 
     const troca = await tx.trocaMotorista.create({
-      data: { viagemId, motoristaAnteriorId: anteriorId, motoristaNovoId: novo.id, km: dados.km, trocadoEm: dados.trocadoEm, local, motivo, usuarioId: ator.usuarioId },
+      data: {
+        viagemId,
+        motoristaAnteriorId: anteriorId,
+        motoristaNovoId: novo.id,
+        km: dados.km,
+        trocadoEm: dados.trocadoEm,
+        local,
+        motivo,
+        usuarioId: ator.usuarioId,
+      },
     })
     const depois = await tx.viagem.findUniqueOrThrow({ where: { id: viagemId } })
     await registrarAuditoria(tx, { entidade: "Viagem", entidadeId: viagemId, acao: "ATUALIZACAO", antes: viagem, depois, ator, filialId })
     await registrarAuditoria(tx, { entidade: "TrocaMotorista", entidadeId: troca.id, acao: "CRIACAO", depois: troca, ator, filialId })
 
     // Mudou quem está na estrada: folga e avisos de descanso dos dois.
-    await reconciliarFolgaMotoristasNoDiaAtual(tx, [anteriorId, novo.id], [{ inicioPrevisto: viagem.inicioPrevisto, fimPrevisto: viagem.fimPrevisto }])
+    await reconciliarFolgaMotoristasNoDiaAtual(
+      tx,
+      [anteriorId, novo.id],
+      [{ inicioPrevisto: viagem.inicioPrevisto, fimPrevisto: viagem.fimPrevisto }],
+    )
     await recalcularAvisosInterjornada(tx, filialId, [anteriorId, novo.id])
   })
 

@@ -85,7 +85,7 @@
   --chart-2: oklch(0.65 0.14 190); /* ciano */
   --chart-3: oklch(0.698 0.169 56.8); /* laranja Ritmo */
   --chart-4: oklch(0.62 0.15 150); /* verde */
-  --chart-5: oklch(0.60 0.20 330); /* rosa */
+  --chart-5: oklch(0.6 0.2 330); /* rosa */
   --radius: 0.75rem;
   /* Azul-marinho Ritmo (#003772) */
   --sidebar: oklch(0.343 0.114 255.4);
@@ -127,7 +127,7 @@
   --chart-2: oklch(0.65 0.14 190); /* ciano */
   --chart-3: oklch(0.698 0.169 56.8); /* laranja Ritmo */
   --chart-4: oklch(0.62 0.15 150); /* verde */
-  --chart-5: oklch(0.60 0.20 330); /* rosa */
+  --chart-5: oklch(0.6 0.2 330); /* rosa */
   --sidebar: oklch(0.26 0.08 255.4);
   --sidebar-foreground: oklch(0.985 0 0);
   --sidebar-primary: oklch(0.488 0.243 264.376);

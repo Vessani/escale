@@ -11,9 +11,7 @@ export function formatarCpf(valor: string): string {
 }
 
 function calcularDigitoVerificador(base: string, pesoInicial: number): number {
-  const soma = base
-    .split("")
-    .reduce((acc, digito, indice) => acc + Number(digito) * (pesoInicial - indice), 0)
+  const soma = base.split("").reduce((acc, digito, indice) => acc + Number(digito) * (pesoInicial - indice), 0)
   const resto = (soma * 10) % 11
   return resto === 10 ? 0 : resto
 }

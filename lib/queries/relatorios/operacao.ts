@@ -13,7 +13,11 @@ import { frotaEhValida } from "@/lib/services/frota-regras"
 const UM_DIA_MS = 24 * 60 * 60 * 1000
 
 /** 4. Integrações de motoristas ativos com validade até `dias` dias a partir de hoje (inclui vencidas). */
-export async function buscarIntegracoesParaRelatorio(filialId: number, dias: number, hoje = new Date()): Promise<IntegracaoParaRelatorio[]> {
+export async function buscarIntegracoesParaRelatorio(
+  filialId: number,
+  dias: number,
+  hoje = new Date(),
+): Promise<IntegracaoParaRelatorio[]> {
   const limite = new Date(inicioDoDia(hoje).getTime() + (dias + 1) * UM_DIA_MS)
   const integracoes = await prisma.integracao.findMany({
     where: { motorista: { filialId, deletadoEm: null }, dataValidade: { lt: limite } },
@@ -54,7 +58,13 @@ export async function buscarViagensPontualidade(filialId: number, de: Date, ate:
   return viagens.map(({ entregas, ...viagem }) => ({
     ...viagem,
     // Só clientes de verdade (SAP code + número white) — a origem não é cliente.
-    clientes: [...new Set(soEntregasDeCliente(entregas).map((entrega) => entrega.cliente.trim()).filter(Boolean))],
+    clientes: [
+      ...new Set(
+        soEntregasDeCliente(entregas)
+          .map((entrega) => entrega.cliente.trim())
+          .filter(Boolean),
+      ),
+    ],
   }))
 }
 
@@ -118,7 +128,16 @@ export async function buscarDadosDisponibilidade(filialId: number, de: Date, ate
     prisma.frota.findMany({ where: { filialId, deletadoEm: null }, select: { cavalo: true, carreta: true } }),
     prisma.viagem.findMany({
       where: { filialId, deletadoEm: null, status: { not: "CANCELADA" }, inicioPrevisto: { lte: ate }, fimPrevisto: { gte: de } },
-      select: { id: true, cavalo: true, carreta: true, status: true, inicioPrevisto: true, fimPrevisto: true, finalizadoEm: true, horarioRealSaida: true },
+      select: {
+        id: true,
+        cavalo: true,
+        carreta: true,
+        status: true,
+        inicioPrevisto: true,
+        fimPrevisto: true,
+        finalizadoEm: true,
+        horarioRealSaida: true,
+      },
     }),
     prisma.manutencao.findMany({
       where: { filialId, deletadoEm: null, inicioPrevisto: { lte: ate }, OR: [{ fimReal: null }, { fimReal: { gte: de } }] },

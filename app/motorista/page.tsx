@@ -21,11 +21,7 @@ type SearchParamsInput = {
   inicio?: string
 }
 
-export default async function MotoristasPage({
-  searchParams,
-}: {
-  searchParams?: Promise<SearchParamsInput>
-}) {
+export default async function MotoristasPage({ searchParams }: { searchParams?: Promise<SearchParamsInput> }) {
   const parametros = (await searchParams) ?? {}
   const hoje = new Date()
   const inicioPadrao = inicioDoDia(hoje)

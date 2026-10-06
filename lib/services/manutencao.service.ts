@@ -42,10 +42,7 @@ async function recalcularViagensDosVeiculos(tx: Prisma.TransactionClient, filial
       filialId,
       deletadoEm: null,
       status: { notIn: ["CANCELADA", "FINALIZADA"] },
-      OR: [
-        ...(cavalos.length ? [{ cavalo: { in: cavalos } }] : []),
-        ...(carretas.length ? [{ carreta: { in: carretas } }] : []),
-      ],
+      OR: [...(cavalos.length ? [{ cavalo: { in: cavalos } }] : []), ...(carretas.length ? [{ carreta: { in: carretas } }] : [])],
     },
     select: { cavalo: true, carreta: true },
   })
@@ -57,8 +54,14 @@ async function recalcularViagensDosVeiculos(tx: Prisma.TransactionClient, filial
   }
 }
 
-async function buscarOuFalhar(filialId: number, id: number) {
-  const manutencao = await prisma.manutencao.findFirst({ where: { id, filialId, deletadoEm: null } })
+/**
+ * Lê a manutenção já travada (SELECT … FOR UPDATE) dentro da transação — o
+ * "antes" da auditoria e as checagens de período valem pro estado que de
+ * fato vai ser alterado, mesmo com duas pessoas mexendo ao mesmo tempo.
+ */
+async function buscarTravadaOuFalhar(tx: Prisma.TransactionClient, filialId: number, id: number) {
+  await tx.$queryRaw`SELECT id FROM "Manutencao" WHERE id = ${id} AND "filialId" = ${filialId} FOR UPDATE`
+  const manutencao = await tx.manutencao.findFirst({ where: { id, filialId, deletadoEm: null } })
   if (!manutencao) throw new ManutencaoNaoEncontradaError()
   return manutencao
 }
@@ -73,10 +76,10 @@ export async function criarManutencaoService(filialId: number, dados: Manutencao
 }
 
 export async function editarManutencaoService(filialId: number, id: number, dados: ManutencaoDados, ator: Ator | null) {
-  const antes = await buscarOuFalhar(filialId, id)
   const novos = dadosParaBanco(dados)
 
   return prisma.$transaction(async (tx) => {
+    const antes = await buscarTravadaOuFalhar(tx, filialId, id)
     const depois = await tx.manutencao.update({ where: { id }, data: novos })
     // Trocar o veículo libera o antigo: recalcula os dois.
     await recalcularViagensDosVeiculos(tx, filialId, [antes, depois])
@@ -87,10 +90,9 @@ export async function editarManutencaoService(filialId: number, id: number, dado
 
 /** Registra o início real (padrão: agora). */
 export async function iniciarManutencaoService(filialId: number, id: number, quando: Date, ator: Ator | null) {
-  const antes = await buscarOuFalhar(filialId, id)
-  if (antes.fimReal) throw new ManutencaoPeriodoInvalidoError("Essa manutenção já foi concluída.")
-
   return prisma.$transaction(async (tx) => {
+    const antes = await buscarTravadaOuFalhar(tx, filialId, id)
+    if (antes.fimReal) throw new ManutencaoPeriodoInvalidoError("Essa manutenção já foi concluída.")
     const depois = await tx.manutencao.update({ where: { id }, data: { inicioReal: quando } })
     await recalcularViagensDosVeiculos(tx, filialId, [depois])
     await registrarAuditoria(tx, { entidade: "Manutencao", entidadeId: id, acao: "ATUALIZACAO", antes, depois, ator, filialId })
@@ -104,11 +106,10 @@ export async function iniciarManutencaoService(filialId: number, id: number, qua
  * `quando`, se ele for antes disso).
  */
 export async function concluirManutencaoService(filialId: number, id: number, quando: Date, ator: Ator | null) {
-  const antes = await buscarOuFalhar(filialId, id)
-  const inicio = antes.inicioReal ?? (antes.inicioPrevisto < quando ? antes.inicioPrevisto : quando)
-  if (quando < inicio) throw new ManutencaoPeriodoInvalidoError("O fim real precisa ser depois do início.")
-
   return prisma.$transaction(async (tx) => {
+    const antes = await buscarTravadaOuFalhar(tx, filialId, id)
+    const inicio = antes.inicioReal ?? (antes.inicioPrevisto < quando ? antes.inicioPrevisto : quando)
+    if (quando < inicio) throw new ManutencaoPeriodoInvalidoError("O fim real precisa ser depois do início.")
     const depois = await tx.manutencao.update({ where: { id }, data: { inicioReal: inicio, fimReal: quando } })
     await recalcularViagensDosVeiculos(tx, filialId, [depois])
     await registrarAuditoria(tx, { entidade: "Manutencao", entidadeId: id, acao: "ATUALIZACAO", antes, depois, ator, filialId })
@@ -118,9 +119,8 @@ export async function concluirManutencaoService(filialId: number, id: number, qu
 
 /** Desfaz a conclusão (concluiu por engano): volta a ficar em andamento. */
 export async function reabrirManutencaoService(filialId: number, id: number, ator: Ator | null) {
-  const antes = await buscarOuFalhar(filialId, id)
-
   return prisma.$transaction(async (tx) => {
+    const antes = await buscarTravadaOuFalhar(tx, filialId, id)
     const depois = await tx.manutencao.update({ where: { id }, data: { fimReal: null } })
     await recalcularViagensDosVeiculos(tx, filialId, [depois])
     await registrarAuditoria(tx, { entidade: "Manutencao", entidadeId: id, acao: "ATUALIZACAO", antes, depois, ator, filialId })
@@ -129,9 +129,8 @@ export async function reabrirManutencaoService(filialId: number, id: number, ato
 }
 
 export async function excluirManutencaoService(filialId: number, id: number, ator: Ator | null) {
-  const antes = await buscarOuFalhar(filialId, id)
-
   return prisma.$transaction(async (tx) => {
+    const antes = await buscarTravadaOuFalhar(tx, filialId, id)
     const depois = await tx.manutencao.update({ where: { id }, data: { deletadoEm: new Date() } })
     await recalcularViagensDosVeiculos(tx, filialId, [antes])
     await registrarAuditoria(tx, { entidade: "Manutencao", entidadeId: id, acao: "EXCLUSAO", antes, depois, ator, filialId })

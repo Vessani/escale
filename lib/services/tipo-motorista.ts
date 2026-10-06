@@ -29,12 +29,13 @@ const TIPO_MOTORISTA_DESCRICOES: Record<TipoMotorista, string> = {
   ENCHEDOR: "Não faz viagem.",
 }
 
-export const TIPO_MOTORISTA_OPCOES: Array<{ valor: TipoMotorista; label: string; descricao: string }> =
-  TIPO_MOTORISTA_VALORES.map((valor) => ({
+export const TIPO_MOTORISTA_OPCOES: Array<{ valor: TipoMotorista; label: string; descricao: string }> = TIPO_MOTORISTA_VALORES.map(
+  (valor) => ({
     valor,
     label: TIPO_MOTORISTA_LABELS[valor],
     descricao: TIPO_MOTORISTA_DESCRICOES[valor],
-  }))
+  }),
+)
 
 export function formatarTipoMotorista(tipo: TipoMotorista): string {
   return TIPO_MOTORISTA_LABELS[tipo]

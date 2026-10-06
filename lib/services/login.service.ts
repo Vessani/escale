@@ -89,4 +89,3 @@ export async function garantirPinNaoBloqueado(chave: string, agora = new Date())
   })
   if (falhas >= MAX_FALHAS_MOTORISTA_24H) throw new PinBloqueadoError()
 }
-

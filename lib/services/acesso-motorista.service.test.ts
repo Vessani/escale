@@ -75,11 +75,17 @@ describe("desativar e situação", () => {
   })
 
   it("situação: sem acesso, ativo, desativado", async () => {
-    vi.mocked(prisma.usuario.findFirst).mockResolvedValueOnce(null).mockResolvedValueOnce({ ativo: true } as never).mockResolvedValueOnce({ ativo: false } as never)
+    vi.mocked(prisma.usuario.findFirst)
+      .mockResolvedValueOnce(null)
+      .mockResolvedValueOnce({ ativo: true } as never)
+      .mockResolvedValueOnce({ ativo: false } as never)
     expect(await situacaoAcessoMotorista(3, 42)).toBe("SEM_ACESSO")
     expect(await situacaoAcessoMotorista(3, 42)).toBe("ATIVO")
     expect(await situacaoAcessoMotorista(3, 42)).toBe("DESATIVADO")
     // Escopo pela filial: motorista de outra filial não tem "acesso" aqui.
-    expect(prisma.usuario.findFirst).toHaveBeenCalledWith({ where: { motoristaId: 42, motorista: { filialId: 3 } }, select: { ativo: true } })
+    expect(prisma.usuario.findFirst).toHaveBeenCalledWith({
+      where: { motoristaId: 42, motorista: { filialId: 3 } },
+      select: { ativo: true },
+    })
   })
 })

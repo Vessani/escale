@@ -8,7 +8,14 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { ControleSegmentado } from "@/components/ui/controle-segmentado"
 import { chamarAcao } from "@/lib/chamar-acao"
-import { FATOR_BALANCA, calcularDescarga, formatarNumero, parseNumeroDecimal, unidadeDescarga, type TipoMedicao } from "@/lib/services/descarga"
+import {
+  FATOR_BALANCA,
+  calcularDescarga,
+  formatarNumero,
+  parseNumeroDecimal,
+  unidadeDescarga,
+  type TipoMedicao,
+} from "@/lib/services/descarga"
 import { formatDateTimeForInput, formatarDataHoraPtBr } from "@/lib/utils/date-format"
 import { cn } from "@/lib/utils"
 import type { RespostaAcao } from "@/lib/types/types"
@@ -31,13 +38,29 @@ export type ChegadaDoPainel = {
   totalDescarregado: number
 }
 
-export type EntregaDoPainel = { id: number; cliente: string; cidade: string; uf: string; chegada: (ChegadaDoPainel & { id?: number }) | null }
+export type EntregaDoPainel = {
+  id: number
+  cliente: string
+  cidade: string
+  uf: string
+  chegada: (ChegadaDoPainel & { id?: number }) | null
+}
 
 const ROTULO_MEDICAO: Record<TipoMedicao, string> = { MANOMETRO: "Manômetro", BALANCA: "Balança" }
 
 const numeroCampo = (valor: number | null | undefined) => (valor === null || valor === undefined ? "" : String(valor).replace(".", ","))
 
-function CampoNumero({ rotulo, valor, onChange, sufixo }: { rotulo: string; valor: string; onChange: (v: string) => void; sufixo?: string }) {
+function CampoNumero({
+  rotulo,
+  valor,
+  onChange,
+  sufixo,
+}: {
+  rotulo: string
+  valor: string
+  onChange: (v: string) => void
+  sufixo?: string
+}) {
   return (
     <label className="grid gap-1 text-xs font-medium text-muted-foreground">
       {rotulo}
@@ -49,7 +72,11 @@ function CampoNumero({ rotulo, valor, onChange, sufixo }: { rotulo: string; valo
           onChange={(e) => onChange(e.target.value.replace(/[^\d.,]/g, ""))}
           className={cn("h-11 text-base tabular-nums text-foreground", sufixo && "pr-12")}
         />
-        {sufixo && <span className="pointer-events-none absolute inset-y-0 right-3 grid place-items-center text-xs text-muted-foreground">{sufixo}</span>}
+        {sufixo && (
+          <span className="pointer-events-none absolute inset-y-0 right-3 grid place-items-center text-xs text-muted-foreground">
+            {sufixo}
+          </span>
+        )}
       </div>
     </label>
   )
@@ -101,9 +128,7 @@ function FormChegada({
   const enviar = () => {
     setErro("")
     iniciarTransicao(async () => {
-      const resposta = await chamarAcao(() =>
-        salvar(entrega.id, { km: Number(km), chegadaEm: quando, ...dados }),
-      )
+      const resposta = await chamarAcao(() => salvar(entrega.id, { km: Number(km), chegadaEm: quando, ...dados }))
       if (!resposta.sucesso) return setErro(resposta.erro)
       aoTerminar()
       router.refresh()
@@ -129,7 +154,12 @@ function FormChegada({
         </label>
         <label className="grid gap-1 text-xs font-medium text-muted-foreground">
           Data e hora
-          <Input type="datetime-local" value={quando} onChange={(e) => setQuando(e.target.value)} className="h-11 text-sm text-foreground" />
+          <Input
+            type="datetime-local"
+            value={quando}
+            onChange={(e) => setQuando(e.target.value)}
+            className="h-11 text-sm text-foreground"
+          />
         </label>
       </div>
 
@@ -157,7 +187,9 @@ function FormChegada({
           </div>
           {medicao === "MANOMETRO" && !biometano && (
             <>
-              <p className="text-xs text-muted-foreground">Manômetro do tanque do cliente: o nível sobe com a descarga (final maior que o inicial).</p>
+              <p className="text-xs text-muted-foreground">
+                Manômetro do tanque do cliente: o nível sobe com a descarga (final maior que o inicial).
+              </p>
               <CampoNumero rotulo="Conversão do cliente" valor={fator} onChange={setFator} />
             </>
           )}
@@ -166,7 +198,8 @@ function FormChegada({
           )}
           {medicao === "BALANCA" && produto && produto !== "BIOMETANO" && (
             <p className="text-xs text-muted-foreground">
-              Conversão do produto: {FATOR_BALANCA[produto] === 1 ? "sem conversão (fica em kg)" : `× ${formatarNumero(FATOR_BALANCA[produto], 4)}`}
+              Conversão do produto:{" "}
+              {FATOR_BALANCA[produto] === 1 ? "sem conversão (fica em kg)" : `× ${formatarNumero(FATOR_BALANCA[produto], 4)}`}
             </p>
           )}
 
@@ -205,7 +238,9 @@ function ResumoChegada({ chegada }: { chegada: ChegadaDoPainel }) {
     <dl className="grid grid-cols-3 gap-2 text-sm">
       <div className="rounded-lg bg-muted/60 px-3 py-2">
         <dt className="text-xs text-muted-foreground">Chegou</dt>
-        <dd className="font-semibold tabular-nums">{formatarDataHoraPtBr(chegada.chegadaEm).slice(0, 5)} {formatarDataHoraPtBr(chegada.chegadaEm).slice(-5)}</dd>
+        <dd className="font-semibold tabular-nums">
+          {formatarDataHoraPtBr(chegada.chegadaEm).slice(0, 5)} {formatarDataHoraPtBr(chegada.chegadaEm).slice(-5)}
+        </dd>
       </div>
       <div className="rounded-lg bg-muted/60 px-3 py-2">
         <dt className="text-xs text-muted-foreground">Km</dt>
@@ -213,7 +248,10 @@ function ResumoChegada({ chegada }: { chegada: ChegadaDoPainel }) {
       </div>
       <div className="rounded-lg bg-muted/60 px-3 py-2">
         <dt className="text-xs text-muted-foreground">{chegada.medicao ? ROTULO_MEDICAO[chegada.medicao] : "Descarregado"}</dt>
-        <dd className="font-semibold tabular-nums">{formatarNumero(chegada.totalDescarregado)}{unidade}</dd>
+        <dd className="font-semibold tabular-nums">
+          {formatarNumero(chegada.totalDescarregado)}
+          {unidade}
+        </dd>
       </div>
     </dl>
   )
@@ -259,7 +297,13 @@ export function ChegadasClientes({
             {entrega.chegada && aberta !== entrega.id && (
               <span className="flex shrink-0 items-center gap-1">
                 <CircleCheck className="size-4 text-success" aria-label="Chegada registrada" />
-                <Button type="button" variant="ghost" size="icon-sm" aria-label={`Corrigir chegada em ${entrega.cliente}`} onClick={() => setAberta(entrega.id)}>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon-sm"
+                  aria-label={`Corrigir chegada em ${entrega.cliente}`}
+                  onClick={() => setAberta(entrega.id)}
+                >
                   <Pencil className="size-4 text-muted-foreground" aria-hidden />
                 </Button>
                 {acoes?.(entrega)}
@@ -268,7 +312,14 @@ export function ChegadasClientes({
           </div>
 
           {aberta === entrega.id ? (
-            <FormChegada salvar={salvar} entrega={entrega} produto={produto} kmInicial={kmInicial} agoraServidor={agoraServidor} aoTerminar={() => setAberta(null)} />
+            <FormChegada
+              salvar={salvar}
+              entrega={entrega}
+              produto={produto}
+              kmInicial={kmInicial}
+              agoraServidor={agoraServidor}
+              aoTerminar={() => setAberta(null)}
+            />
           ) : entrega.chegada ? (
             <div className="mt-2">
               <ResumoChegada chegada={entrega.chegada} />

@@ -225,25 +225,23 @@ export function juntarEstourosSetimoDia(setimos: SetimoDiaTrabalhado[], folgasCu
   const vazio = { fimAnterior: null, folgaMinutos: null, faltaramMinutos: null }
   return [
     ...setimos.map((item): EstouroSetimoDia => ({ ...item, ...vazio, tipo: "SETIMO_DIA" })),
-    ...folgasCurtas.map(
-      (item): EstouroSetimoDia => ({
-        motoristaId: item.motoristaId,
-        motorista: item.motorista,
-        turno: item.turno,
-        dia: inicioDoDia(item.inicioSeguinte),
-        tipo: "FOLGA_CURTA",
-        diasSemFolga: null,
-        inicio: item.inicioSeguinte,
-        fim: item.fimSeguinte,
-        fimAnterior: item.fimAnterior,
-        folgaMinutos: item.folgaMinutos,
-        faltaramMinutos: item.faltaramMinutos,
-        atividade: item.atividade,
-        numViagem: item.numViagem,
-        cavalo: item.cavalo,
-        carreta: item.carreta,
-      }),
-    ),
+    ...folgasCurtas.map((item): EstouroSetimoDia => ({
+      motoristaId: item.motoristaId,
+      motorista: item.motorista,
+      turno: item.turno,
+      dia: inicioDoDia(item.inicioSeguinte),
+      tipo: "FOLGA_CURTA",
+      diasSemFolga: null,
+      inicio: item.inicioSeguinte,
+      fim: item.fimSeguinte,
+      fimAnterior: item.fimAnterior,
+      folgaMinutos: item.folgaMinutos,
+      faltaramMinutos: item.faltaramMinutos,
+      atividade: item.atividade,
+      numViagem: item.numViagem,
+      cavalo: item.cavalo,
+      carreta: item.carreta,
+    })),
   ].sort((a, b) => b.dia.getTime() - a.dia.getTime() || (b.inicio?.getTime() ?? 0) - (a.inicio?.getTime() ?? 0))
 }
 

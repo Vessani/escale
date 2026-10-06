@@ -5,7 +5,7 @@ import { inicioDoDia } from "@/lib/utils/date-format"
 import { minutosDeAtraso, saidaAtrasada } from "@/lib/services/pontualidade"
 import { TAMANHO_MAXIMO_MOTIVO } from "@/lib/services/motivos-atraso"
 import { registrarAuditoria, type Ator } from "@/lib/services/auditoria.service"
-import { atualizarStatusViagemService, CODIGO_VIAGEM_MUDOU } from "@/lib/services/viagem.service"
+import { atualizarStatusViagemService, CODIGO_VIAGEM_MUDOU } from "@/lib/services/viagem-andamento.service"
 import { montarRegistroChegada, type DadosChegada } from "@/lib/services/chegada-registro"
 import { ehEntregaDeCliente, soEntregasDeCliente } from "@/lib/services/entrega-cliente"
 import { STATUS_A_INICIAR, STATUS_EM_ANDAMENTO } from "@/lib/services/viagem-status.service"
@@ -21,8 +21,6 @@ import { KM_MAXIMO_HODOMETRO, KM_MAXIMO_POR_VIAGEM, TAMANHO_MAXIMO_PROBLEMA, VAL
  */
 
 const UM_DIA_MS = 24 * 60 * 60 * 1000
-
-
 
 const selecaoViagem = {
   id: true,
@@ -230,9 +228,14 @@ export async function iniciarMinhaViagem(
 
   // Km, saída real e status numa escrita só (e uma entrada no histórico).
   await mudarStatusComoMotorista(
-    filialId, motoristaId, viagemId, "INICIADA", STATUS_A_INICIAR,
+    filialId,
+    motoristaId,
+    viagemId,
+    "INICIADA",
+    STATUS_A_INICIAR,
     { kmInicial: dados.kmInicial, horarioRealSaida: agora, motivoAtraso: atrasada ? motivo : null },
-    ator, JA_INICIADA(),
+    ator,
+    JA_INICIADA(),
   )
 }
 
@@ -244,8 +247,13 @@ export async function adicionarMinhaDespesa(
   dados: { tipo: TipoDespesaViagem; valorCentavos: number },
   ator: Ator,
 ) {
-  await viagemDoPrincipalEm(filialId, motoristaId, viagemId, STATUS_EM_ANDAMENTO,
-    NAO_INICIADA("Inicie a viagem antes de lançar pedágio ou pernoite."))
+  await viagemDoPrincipalEm(
+    filialId,
+    motoristaId,
+    viagemId,
+    STATUS_EM_ANDAMENTO,
+    NAO_INICIADA("Inicie a viagem antes de lançar pedágio ou pernoite."),
+  )
   // (conferido de novo, com a viagem travada, na hora de gravar)
   if (!Number.isInteger(dados.valorCentavos) || dados.valorCentavos <= 0 || dados.valorCentavos > VALOR_MAXIMO_CENTAVOS) {
     throw new ErroDeDominio("VALOR_INVALIDO", "Informe um valor entre R$ 0,01 e R$ 10.000,00.")
@@ -285,18 +293,17 @@ export async function removerMinhaDespesa(filialId: number, motoristaId: number,
     return true
   })
   if (!removida) {
-    throw await explicarSituacao(filialId, motoristaId, despesa.viagemId, new ErroDeDominio("VIAGEM_ENCERRADA", "A viagem já foi encerrada — se o lançamento está errado, avise o escalador."))
+    throw await explicarSituacao(
+      filialId,
+      motoristaId,
+      despesa.viagemId,
+      new ErroDeDominio("VIAGEM_ENCERRADA", "A viagem já foi encerrada — se o lançamento está errado, avise o escalador."),
+    )
   }
 }
 
 /** Encerra: grava o km final e finaliza a viagem (o descanso dele passa a contar daqui). */
-export async function encerrarMinhaViagem(
-  filialId: number,
-  motoristaId: number,
-  viagemId: number,
-  dados: { kmFinal: number },
-  ator: Ator,
-) {
+export async function encerrarMinhaViagem(filialId: number, motoristaId: number, viagemId: number, dados: { kmFinal: number }, ator: Ator) {
   const naoIniciada = NAO_INICIADA("Só dá pra encerrar uma viagem em andamento.")
   const viagem = await viagemDoPrincipalEm(filialId, motoristaId, viagemId, STATUS_EM_ANDAMENTO, naoIniciada)
   validarKm(dados.kmFinal, "Km final")
@@ -310,11 +317,16 @@ export async function encerrarMinhaViagem(
   }
 
   await mudarStatusComoMotorista(
-    filialId, motoristaId, viagemId, "FINALIZADA", STATUS_EM_ANDAMENTO, { kmFinal: dados.kmFinal }, ator, naoIniciada,
+    filialId,
+    motoristaId,
+    viagemId,
+    "FINALIZADA",
+    STATUS_EM_ANDAMENTO,
+    { kmFinal: dados.kmFinal },
+    ator,
+    naoIniciada,
   )
 }
-
-
 
 /**
  * Chegada num cliente: km, hora e a medição do que ficou lá. Uma por
@@ -407,4 +419,3 @@ export async function informarProblemaMecanico(
   })
   if (!gravado) throw await explicarSituacao(filialId, motoristaId, viagemId, encerrada)
 }
-

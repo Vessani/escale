@@ -84,7 +84,16 @@ describe("GET /api/viagens/[id]/relatorio", () => {
     const buffer = Buffer.from(await resposta.arrayBuffer())
     expect(nomesDasAbas(buffer)).toEqual(["Viagem 922087"])
     const texto = textoDaAba(buffer, "Viagem 922087")
-    for (const trecho of ["Resumo", "Entregas e chegadas", "Despesas", "Trocas de motorista", "Linha do tempo", "HOSPITAL SANTA ISABEL", "Balança × 0,754", "Pedágio"]) {
+    for (const trecho of [
+      "Resumo",
+      "Entregas e chegadas",
+      "Despesas",
+      "Trocas de motorista",
+      "Linha do tempo",
+      "HOSPITAL SANTA ISABEL",
+      "Balança × 0,754",
+      "Pedágio",
+    ]) {
       expect(texto).toContain(trecho)
     }
     expect(carregarRelatorioViagem).toHaveBeenCalledWith(3, 5, { comLinhaDoTempo: true })

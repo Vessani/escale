@@ -15,7 +15,9 @@ export default async function FiliaisPage() {
     <div className="space-y-6">
       <div>
         <h1 className="text-2xl font-semibold tracking-tight text-foreground">Filiais</h1>
-        <p className="text-muted-foreground mt-1" title="Motoristas, viagens e frotas não são compartilhados entre filiais.">Cada filial opera isolada, sem dados compartilhados.</p>
+        <p className="text-muted-foreground mt-1" title="Motoristas, viagens e frotas não são compartilhados entre filiais.">
+          Cada filial opera isolada, sem dados compartilhados.
+        </p>
       </div>
 
       <CriarFilialForm />
@@ -36,7 +38,9 @@ export default async function FiliaisPage() {
                 <TableRow key={filial.id}>
                   <TableCell className="font-medium">{filial.nome}</TableCell>
                   <TableCell>
-                    <Badge variant="outline" className="tabular-nums">{formatarDataHoraPtBr(filial.criadoEm)}</Badge>
+                    <Badge variant="outline" className="tabular-nums">
+                      {formatarDataHoraPtBr(filial.criadoEm)}
+                    </Badge>
                   </TableCell>
                 </TableRow>
               ))}

@@ -78,7 +78,9 @@ export function CartaoViagemAlocacao({
             <span className="inline-flex min-w-0 items-center gap-1.5">
               <ArrowRight className="size-3.5 shrink-0" aria-hidden />
               <RotaDestinos entregas={entregas} className="px-0" />
-              <span className="whitespace-nowrap text-xs">({entregas.length} entrega{entregas.length === 1 ? "" : "s"})</span>
+              <span className="whitespace-nowrap text-xs">
+                ({entregas.length} entrega{entregas.length === 1 ? "" : "s"})
+              </span>
             </span>
           </div>
           {avisos && avisos.length > 0 && (

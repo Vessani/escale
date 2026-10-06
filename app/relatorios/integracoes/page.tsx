@@ -8,12 +8,7 @@ import { CabecalhoRelatorio, FiltroRelatorio, MolduraTabela } from "@/components
 import { buscarIntegracoesParaRelatorio } from "@/lib/queries/relatorios/operacao"
 import { OPCOES_DIAS_INTEGRACAO, parseDiasIntegracao } from "@/lib/relatorios/catalogo"
 import { formatarDiaCompleto } from "@/lib/relatorios/formato"
-import {
-  DIAS_INTEGRACAO_URGENTE,
-  integracoesVencendo,
-  textoVencimento,
-  type SituacaoIntegracao,
-} from "@/lib/services/relatorios/operacao"
+import { DIAS_INTEGRACAO_URGENTE, integracoesVencendo, textoVencimento, type SituacaoIntegracao } from "@/lib/services/relatorios/operacao"
 import { formatarNomeProprio } from "@/lib/utils/texto"
 
 type SearchParamsInput = { dias?: string }
@@ -36,8 +31,8 @@ export default async function IntegracoesPage({ searchParams }: { searchParams?:
   return (
     <div className="space-y-6">
       <CabecalhoRelatorio titulo="Integrações vencendo">
-        Integrações com clientes já vencidas ou que vencem nos próximos {dias} dias — pra renovar antes de o motorista ficar
-        bloqueado pro cliente. Em vermelho as vencidas; em amarelo as que vencem em até {DIAS_INTEGRACAO_URGENTE} dias.
+        Integrações com clientes já vencidas ou que vencem nos próximos {dias} dias — pra renovar antes de o motorista ficar bloqueado pro
+        cliente. Em vermelho as vencidas; em amarelo as que vencem em até {DIAS_INTEGRACAO_URGENTE} dias.
       </CabecalhoRelatorio>
 
       <FiltroRelatorio action="/relatorios/integracoes" exportarTipo="integracoes" exportarQuery={{ dias }}>
@@ -49,7 +44,9 @@ export default async function IntegracoesPage({ searchParams }: { searchParams?:
             className="h-8 w-32 rounded-md border border-input bg-background px-2 text-xs text-foreground"
           >
             {OPCOES_DIAS_INTEGRACAO.map((opcao) => (
-              <option key={opcao} value={opcao}>{opcao} dias</option>
+              <option key={opcao} value={opcao}>
+                {opcao} dias
+              </option>
             ))}
           </select>
         </label>
@@ -63,7 +60,11 @@ export default async function IntegracoesPage({ searchParams }: { searchParams?:
       )}
 
       {integracoes.length === 0 ? (
-        <EmptyState icone={ShieldCheck} titulo="Tudo em dia" descricao={`Nenhuma integração vencida ou vencendo nos próximos ${dias} dias.`} />
+        <EmptyState
+          icone={ShieldCheck}
+          titulo="Tudo em dia"
+          descricao={`Nenhuma integração vencida ou vencendo nos próximos ${dias} dias.`}
+        />
       ) : (
         <MolduraTabela>
           <Table>

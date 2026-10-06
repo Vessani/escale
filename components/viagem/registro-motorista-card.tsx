@@ -79,9 +79,13 @@ export function RegistroMotoristaCard({
       <CardContent className="pt-6 space-y-6">
         {problemaMecanico && (
           <Alert variant="error">
-            <span className="flex items-center gap-1.5 font-medium"><Wrench className="size-4" aria-hidden /> Problema mecânico</span>
+            <span className="flex items-center gap-1.5 font-medium">
+              <Wrench className="size-4" aria-hidden /> Problema mecânico
+            </span>
             {problemaMecanico}
-            {problemaMecanicoEm && <span className="block text-xs opacity-80">Informado em {formatarDataHoraPtBr(problemaMecanicoEm)}</span>}
+            {problemaMecanicoEm && (
+              <span className="block text-xs opacity-80">Informado em {formatarDataHoraPtBr(problemaMecanicoEm)}</span>
+            )}
           </Alert>
         )}
 
@@ -89,11 +93,16 @@ export function RegistroMotoristaCard({
           <dl className="grid grid-cols-2 gap-2 text-sm sm:grid-cols-5">
             <Numero rotulo="Km inicial" valor={kmInicial?.toLocaleString("pt-BR") ?? "—"} />
             <Numero rotulo="Km final" valor={kmFinal?.toLocaleString("pt-BR") ?? "—"} />
-            <Numero rotulo="Rodou" valor={kmInicial !== null && kmFinal !== null ? `${(kmFinal - kmInicial).toLocaleString("pt-BR")} km` : "—"} />
+            <Numero
+              rotulo="Rodou"
+              valor={kmInicial !== null && kmFinal !== null ? `${(kmFinal - kmInicial).toLocaleString("pt-BR")} km` : "—"}
+            />
             <Numero rotulo="Pedágio" valor={formatarReais(totais.pedagioCentavos)} />
             <Numero rotulo="Pernoite" valor={formatarReais(totais.pernoiteCentavos)} />
           </dl>
-          {podeCorrigir && <CorrigirKm key={`${kmInicial}-${kmFinal}`} viagemId={viagemId} kmInicial={kmInicial} kmFinal={kmFinal} encerrada={encerrada} />}
+          {podeCorrigir && (
+            <CorrigirKm key={`${kmInicial}-${kmFinal}`} viagemId={viagemId} kmInicial={kmInicial} kmFinal={kmFinal} encerrada={encerrada} />
+          )}
         </div>
 
         <Bloco titulo="Chegada nos clientes" icone={MapPinned}>

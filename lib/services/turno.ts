@@ -1,30 +1,48 @@
 import type { Turno } from "@prisma/client"
 
 /**
- * Turno da viagem pelo horário de início (Brasília): a partir das 16:00 é
- * da noite, antes disso é do dia — mesma regra do import da planilha. Sem
- * dependências, usado também nos formulários (navegador).
+ * Uma regra só de turno pelo horário de início (Brasília), usada na escala
+ * (viagem, import da planilha, formulários) e no ciclo circadiano:
+ * Dia de 04:00 a 15:59, Noite de 16:00 a 03:59 — quem sai de madrugada
+ * ainda é do turno da noite. Sem dependências, roda também no navegador.
  */
+export const HORA_INICIO_TURNO_DIA = 4
 const HORA_CORTE_TURNO_NOITE = 16
 
 const OFFSET_BRASILIA_MS = 3 * 60 * 60 * 1000
 
 export function turnoPorHora(hora: number): Turno {
-  return hora >= HORA_CORTE_TURNO_NOITE ? "NOITE" : "MANHA"
+  return hora >= HORA_INICIO_TURNO_DIA && hora < HORA_CORTE_TURNO_NOITE ? "MANHA" : "NOITE"
 }
 
-/** No ciclo circadiano, jornada que começa de madrugada (00:00–03:59) ainda é do turno da noite. */
-const HORA_INICIO_TURNO_DIA = 4
-
 /**
- * Turno de uma jornada pro ciclo circadiano, pelo horário de início
- * (Brasília): Dia de 04:00 a 15:59, Noite de 16:00 a 03:59. Vale pra cada
- * jornada, não pro motorista — quem é cadastrado no dia e faz uma viagem à
- * noite é cobrado pelo limite da noite, e vice-versa.
+ * Turno de uma jornada pro ciclo circadiano. Vale pra cada jornada, não pro
+ * motorista — quem é cadastrado no dia e faz uma viagem à noite é cobrado
+ * pelo limite da noite, e vice-versa.
  */
 export function turnoDaJornada(inicio: Date): Turno {
-  const hora = new Date(inicio.getTime() - OFFSET_BRASILIA_MS).getUTCHours()
-  return hora >= HORA_INICIO_TURNO_DIA && hora < HORA_CORTE_TURNO_NOITE ? "MANHA" : "NOITE"
+  return turnoPorHora(new Date(inicio.getTime() - OFFSET_BRASILIA_MS).getUTCHours())
+}
+
+const HORA_MS = 60 * 60 * 1000
+
+/**
+ * Instante que cai no último DIA DE JORNADA da viagem (pra projetar o código
+ * de jornada daquele dia). A jornada é do dia em que começou: quem sai à noite
+ * e chega de madrugada (antes das 04:00, mesma virada do turno) ainda está na
+ * jornada do dia anterior — a madrugada não é trabalho no dia seguinte (que
+ * pode ser folga). Chegar às 04:00 ou depois já entra no dia seguinte.
+ */
+export function instanteDoUltimoDiaDeJornada(inicio: Date, fim: Date): Date {
+  const local = (data: Date) => new Date(data.getTime() - OFFSET_BRASILIA_MS)
+  const fimLocal = local(fim)
+  const inicioLocal = local(inicio)
+  const outroDia = fimLocal.toISOString().slice(0, 10) !== inicioLocal.toISOString().slice(0, 10)
+  if (outroDia && fimLocal.getUTCHours() < HORA_INICIO_TURNO_DIA) {
+    // Qualquer instante antes das 04:00 menos 4h cai no dia anterior.
+    return new Date(fim.getTime() - HORA_INICIO_TURNO_DIA * HORA_MS)
+  }
+  return fim
 }
 
 /** Turno de um instante (Date, ISO ou "YYYY-MM-DDTHH:MM" do datetime-local, que já é horário de Brasília). */

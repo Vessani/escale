@@ -1,12 +1,6 @@
 import type { TipoProduto } from "@prisma/client"
 
-export const PRODUTO_VALORES = [
-  "CO2",
-  "NITROGENIO",
-  "ARGONIO",
-  "BIOMETANO",
-  "OXIGENIO",
-] as const satisfies readonly TipoProduto[]
+export const PRODUTO_VALORES = ["CO2", "NITROGENIO", "ARGONIO", "BIOMETANO", "OXIGENIO"] as const satisfies readonly TipoProduto[]
 
 const PRODUTO_LABELS: Record<TipoProduto, string> = {
   CO2: "Carbono",

@@ -4,19 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
 import { Filter } from "lucide-react"
-import {
-  ResponsiveContainer,
-  BarChart,
-  Bar,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip,
-  Cell,
-  PieChart,
-  Pie,
-  Legend,
-} from "recharts"
+import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Cell, PieChart, Pie, Legend } from "recharts"
 import type { IndicadoresDashboard } from "@/lib/queries/dashboard"
 import type { StatusViagem } from "@prisma/client"
 
@@ -66,7 +54,13 @@ function RankingBarras({ dados, cor, rotulo }: { dados: Array<{ nome: string; qu
 
 function KpiCard({ label, valor, destaque }: { label: string; valor: string | number; destaque?: "success" | "destructive" | "warning" }) {
   const corTexto =
-    destaque === "success" ? "text-success" : destaque === "destructive" ? "text-destructive" : destaque === "warning" ? "text-warning" : "text-foreground"
+    destaque === "success"
+      ? "text-success"
+      : destaque === "destructive"
+        ? "text-destructive"
+        : destaque === "warning"
+          ? "text-warning"
+          : "text-foreground"
 
   return (
     <Card className="shadow-sm border-border">
@@ -78,16 +72,19 @@ function KpiCard({ label, valor, destaque }: { label: string; valor: string | nu
   )
 }
 
-export default function DashboardRelatorios({
-  indicadores,
-  de,
-  ate,
-}: {
-  indicadores: IndicadoresDashboard
-  de: string
-  ate: string
-}) {
-  const { totalViagens, porStatus, porProduto, porDia, porTurno, comAviso, extras, topMotoristas, topClientesRotas, topClientesCancelamentos } = indicadores
+export default function DashboardRelatorios({ indicadores, de, ate }: { indicadores: IndicadoresDashboard; de: string; ate: string }) {
+  const {
+    totalViagens,
+    porStatus,
+    porProduto,
+    porDia,
+    porTurno,
+    comAviso,
+    extras,
+    topMotoristas,
+    topClientesRotas,
+    topClientesCancelamentos,
+  } = indicadores
   const viagensManha = porTurno.find((t) => t.turno === "MANHA")?.quantidade ?? 0
   const viagensNoite = porTurno.find((t) => t.turno === "NOITE")?.quantidade ?? 0
   const turnoComMais = viagensManha === viagensNoite ? "Empate" : viagensManha > viagensNoite ? "Manhã" : "Noite"
@@ -128,7 +125,11 @@ export default function DashboardRelatorios({
         <KpiCard label="Em andamento" valor={emAndamento} />
         <KpiCard label="Postergadas" valor={postergadas} destaque="warning" />
         <KpiCard label="Canceladas" valor={canceladas} destaque="destructive" />
-        <KpiCard label="Taxa de cancelamento" valor={`${taxaCancelamento}%`} destaque={Number(taxaCancelamento) > 15 ? "destructive" : undefined} />
+        <KpiCard
+          label="Taxa de cancelamento"
+          valor={`${taxaCancelamento}%`}
+          destaque={Number(taxaCancelamento) > 15 ? "destructive" : undefined}
+        />
         <KpiCard label="Extras (fora da programação)" valor={extras} destaque={extras > 0 ? "warning" : undefined} />
         <KpiCard label="Viagens de manhã" valor={viagensManha} />
         <KpiCard label="Viagens de noite" valor={viagensNoite} />

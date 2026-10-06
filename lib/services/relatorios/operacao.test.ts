@@ -146,7 +146,16 @@ describe("disponibilidadeDaFrota", () => {
         viagem("2026-09-05T16:00:00", "2026-09-05T22:00:00"),
         viagem("2026-09-07T08:00:00", "2026-09-07T18:00:00", { status: "CANCELADA" }),
       ],
-      [manutencao({}), manutencao({ id: 2, responsavel: "RITMO", inicioPrevisto: h("2026-09-08T00:00:00"), fimPrevisto: null, fimReal: h("2026-09-08T06:00:00") })],
+      [
+        manutencao({}),
+        manutencao({
+          id: 2,
+          responsavel: "RITMO",
+          inicioPrevisto: h("2026-09-08T00:00:00"),
+          fimPrevisto: null,
+          fimReal: h("2026-09-08T06:00:00"),
+        }),
+      ],
       de,
       ate,
       agora,

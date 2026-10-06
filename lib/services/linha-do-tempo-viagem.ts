@@ -47,14 +47,20 @@ export function montarLinhaDoTempo(dados: DadosLinhaDoTempo): EventoViagem[] {
       quem: m.quem,
     })),
     ...(dados.saida
-      ? [{
-          quando: dados.saida.quando,
-          tipo: "SAIDA" as const,
-          titulo: "Saída",
-          detalhe: [dados.saida.km !== null ? `km ${dados.saida.km.toLocaleString("pt-BR")}` : null, dados.saida.motivoAtraso ? `atraso: ${dados.saida.motivoAtraso}` : null]
-            .filter(Boolean)
-            .join(" · ") || undefined,
-        }]
+      ? [
+          {
+            quando: dados.saida.quando,
+            tipo: "SAIDA" as const,
+            titulo: "Saída",
+            detalhe:
+              [
+                dados.saida.km !== null ? `km ${dados.saida.km.toLocaleString("pt-BR")}` : null,
+                dados.saida.motivoAtraso ? `atraso: ${dados.saida.motivoAtraso}` : null,
+              ]
+                .filter(Boolean)
+                .join(" · ") || undefined,
+          },
+        ]
       : []),
     ...dados.chegadas.map((c) => ({
       quando: c.quando,
@@ -69,19 +75,26 @@ export function montarLinhaDoTempo(dados: DadosLinhaDoTempo): EventoViagem[] {
       titulo: `Troca de motorista: ${t.de} → ${t.para}`,
       detalhe: `km ${t.km.toLocaleString("pt-BR")} · ${t.local} · ${t.motivo}`,
     })),
-    ...(dados.problema ? [{ quando: dados.problema.quando, tipo: "PROBLEMA" as const, titulo: "Problema mecânico", detalhe: dados.problema.texto }] : []),
+    ...(dados.problema
+      ? [{ quando: dados.problema.quando, tipo: "PROBLEMA" as const, titulo: "Problema mecânico", detalhe: dados.problema.texto }]
+      : []),
     ...(dados.fim
-      ? [{
-          quando: dados.fim.quando,
-          tipo: "FIM" as const,
-          titulo: dados.fim.status === "FINALIZADA" ? "Viagem encerrada" : "Viagem cancelada",
-          detalhe: dados.fim.km !== null ? `km final ${dados.fim.km.toLocaleString("pt-BR")}` : undefined,
-        }]
+      ? [
+          {
+            quando: dados.fim.quando,
+            tipo: "FIM" as const,
+            titulo: dados.fim.status === "FINALIZADA" ? "Viagem encerrada" : "Viagem cancelada",
+            detalhe: dados.fim.km !== null ? `km final ${dados.fim.km.toLocaleString("pt-BR")}` : undefined,
+          },
+        ]
       : []),
   ]
   // Por minuto: chegada e troca vêm de um campo sem segundos (15:21:00) e a
   // saída é gravada com segundos (15:21:18) — no mesmo minuto vale a ordem
   // natural do que aconteceu (saída antes da chegada…), não os segundos.
   const ordem: Record<TipoEvento, number> = { STATUS: 0, SAIDA: 1, TROCA: 2, CHEGADA: 3, DESPESA: 4, PROBLEMA: 5, FIM: 6 }
-  return eventos.sort((a, b) => inicioDoMinuto(a.quando) - inicioDoMinuto(b.quando) || ordem[a.tipo] - ordem[b.tipo] || a.quando.getTime() - b.quando.getTime())
+  return eventos.sort(
+    (a, b) =>
+      inicioDoMinuto(a.quando) - inicioDoMinuto(b.quando) || ordem[a.tipo] - ordem[b.tipo] || a.quando.getTime() - b.quando.getTime(),
+  )
 }

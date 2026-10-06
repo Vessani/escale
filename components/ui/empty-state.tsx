@@ -22,10 +22,7 @@ function EmptyState({
   return (
     <div
       data-slot="empty-state"
-      className={cn(
-        "flex flex-col items-center justify-center gap-3 rounded-lg border bg-card p-12 text-center shadow-sm",
-        className,
-      )}
+      className={cn("flex flex-col items-center justify-center gap-3 rounded-lg border bg-card p-12 text-center shadow-sm", className)}
     >
       <div className="grid size-20 place-items-center rounded-full bg-muted">
         <Icone aria-hidden="true" className={cn("size-10 text-muted-foreground", classeIcone)} />

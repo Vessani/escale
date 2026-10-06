@@ -15,10 +15,7 @@ export default async function EditarClientePage({ params }: { params: Promise<{ 
     notFound()
   }
 
-  const [cliente, historico] = await Promise.all([
-    buscarClientePorId(clienteId),
-    buscarHistoricoDaEntidade("Cliente", clienteId),
-  ])
+  const [cliente, historico] = await Promise.all([buscarClientePorId(clienteId), buscarHistoricoDaEntidade("Cliente", clienteId)])
 
   if (!cliente) {
     notFound()

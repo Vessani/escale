@@ -9,10 +9,7 @@ import { ViagemNaoEncontradaError } from "@/lib/errors"
  * outra filial (ou inválido) devolve 404, nunca vaza que o registro existe
  * noutro lugar (mesmo comportamento de app/api/viagens/[id]/excel).
  */
-export async function GET(
-  _request: Request,
-  { params }: { params: Promise<{ id: string }> },
-) {
+export async function GET(_request: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
     const { filialId } = await requireSessaoApi()
     const { id } = await params

@@ -46,16 +46,12 @@ describe("login.service", () => {
 
   it("bloqueia pelo e-mail", async () => {
     vi.mocked(prisma.tentativaLogin.count).mockResolvedValueOnce(MAX_FALHAS_POR_EMAIL).mockResolvedValueOnce(0)
-    await expect(garantirLoginNaoBloqueado("ana@ritmo.com", "1.1.1.1", agora)).rejects.toBeInstanceOf(
-      LoginBloqueadoError,
-    )
+    await expect(garantirLoginNaoBloqueado("ana@ritmo.com", "1.1.1.1", agora)).rejects.toBeInstanceOf(LoginBloqueadoError)
   })
 
   it("bloqueia pelo IP mesmo trocando de e-mail", async () => {
     vi.mocked(prisma.tentativaLogin.count).mockResolvedValueOnce(0).mockResolvedValueOnce(MAX_FALHAS_POR_IP)
-    await expect(garantirLoginNaoBloqueado("outro@ritmo.com", "1.1.1.1", agora)).rejects.toBeInstanceOf(
-      LoginBloqueadoError,
-    )
+    await expect(garantirLoginNaoBloqueado("outro@ritmo.com", "1.1.1.1", agora)).rejects.toBeInstanceOf(LoginBloqueadoError)
   })
 
   it("PIN do motorista: trava em 10 erros nas últimas 24h, contando pela matrícula", async () => {

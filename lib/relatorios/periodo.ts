@@ -47,7 +47,12 @@ export function resolverPeriodo(
 }
 
 /** Como resolverPeriodo, mas cai no padrão quando a URL traz algo inválido. */
-export function periodoOuPadrao(deTexto: string | undefined, ateTexto: string | undefined, padrao: PeriodoPadrao, agora = new Date()): Periodo {
+export function periodoOuPadrao(
+  deTexto: string | undefined,
+  ateTexto: string | undefined,
+  padrao: PeriodoPadrao,
+  agora = new Date(),
+): Periodo {
   return resolverPeriodo(deTexto, ateTexto, padrao, agora) ?? resolverPeriodo(undefined, undefined, padrao, agora)!
 }
 

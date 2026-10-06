@@ -66,11 +66,7 @@ export default function MotoristaForm({ defaultValues, onSubmit, submitLabel, su
   return (
     <Form {...form}>
       <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-6">
-        {erroGlobal && (
-          <div className="p-4 bg-red-50 text-red-600 border border-red-200 rounded-md font-medium">
-            {erroGlobal}
-          </div>
-        )}
+        {erroGlobal && <div className="p-4 bg-red-50 text-red-600 border border-red-200 rounded-md font-medium">{erroGlobal}</div>}
 
         <Card className="shadow-sm border-border">
           <CardHeader className="bg-muted border-b">
@@ -78,143 +74,171 @@ export default function MotoristaForm({ defaultValues, onSubmit, submitLabel, su
             <CardDescription>Estes dados serão utilizados para as alocações de viagens.</CardDescription>
           </CardHeader>
           <CardContent className="pt-6 space-y-4">
-            <FormField control={form.control} name="nome" render={({ field }) => (
-              <FormItem>
-                <FormLabel>Nome Completo</FormLabel>
-                <FormControl>
-                  <Input placeholder="Ex: João da Silva" {...field} value={normalizeFormValue(field.value)} />
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )} />
+            <FormField
+              control={form.control}
+              name="nome"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Nome Completo</FormLabel>
+                  <FormControl>
+                    <Input placeholder="Ex: João da Silva" {...field} value={normalizeFormValue(field.value)} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
 
-            <FormField control={form.control} name="cpf" render={({ field }) => (
-              <FormItem>
-                <FormLabel>CPF</FormLabel>
-                <FormControl>
-                  <Input
-                    placeholder="000.000.000-00"
-                    maxLength={14}
-                    {...field}
-                    value={formatarCpf(field.value || "")}
-                    onChange={(evento) => field.onChange(somenteDigitosCpf(evento.target.value))}
-                  />
-                </FormControl>
-                <FormDescription>
-                  Motoristas cadastrados antes deste campo existir podem estar sem CPF — obrigatório para novos cadastros e edições.
-                </FormDescription>
-                <FormMessage />
-              </FormItem>
-            )} />
+            <FormField
+              control={form.control}
+              name="cpf"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>CPF</FormLabel>
+                  <FormControl>
+                    <Input
+                      placeholder="000.000.000-00"
+                      maxLength={14}
+                      {...field}
+                      value={formatarCpf(field.value || "")}
+                      onChange={(evento) => field.onChange(somenteDigitosCpf(evento.target.value))}
+                    />
+                  </FormControl>
+                  <FormDescription>
+                    Motoristas cadastrados antes deste campo existir podem estar sem CPF — obrigatório para novos cadastros e edições.
+                  </FormDescription>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <FormField control={form.control} name="seva" render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Número SEVA</FormLabel>
-                  <FormControl>
-                    <Input type="number" placeholder="Ex: 12345" {...field} value={normalizeFormValue(field.value)} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )} />
+              <FormField
+                control={form.control}
+                name="seva"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Número SEVA</FormLabel>
+                    <FormControl>
+                      <Input type="number" placeholder="Ex: 12345" {...field} value={normalizeFormValue(field.value)} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
 
-              <FormField control={form.control} name="diasTrabalhados" render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Código de Jornada Atual</FormLabel>
-                  <FormControl>
-                    <Input type="number" min={1} max={11} placeholder="Ex: 1 a 11" {...field} value={normalizeFormValue(field.value)} />
-                  </FormControl>
-                  <FormDescription>
-                    1–6 = dias seguidos trabalhados · 7 = Folga · 8 = Férias · 9 = Exames · 10 = Interno · 11 = Manutenção
-                  </FormDescription>
-                  <FormMessage />
-                </FormItem>
-              )} />
+              <FormField
+                control={form.control}
+                name="diasTrabalhados"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Código de Jornada Atual</FormLabel>
+                    <FormControl>
+                      <Input type="number" min={1} max={11} placeholder="Ex: 1 a 11" {...field} value={normalizeFormValue(field.value)} />
+                    </FormControl>
+                    <FormDescription>
+                      1–6 = dias seguidos trabalhados · 7 = Folga · 8 = Férias · 9 = Exames · 10 = Interno · 11 = Manutenção
+                    </FormDescription>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
             </div>
 
-            <FormField control={form.control} name="turno" render={({ field }) => (
-              <FormItem>
-                <FormLabel>Turno Operacional</FormLabel>
-                <Select value={field.value} onValueChange={field.onChange}>
-                  <FormControl>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Selecione o turno" />
-                    </SelectTrigger>
-                  </FormControl>
-                  <SelectContent>
-                    <SelectItem value="MANHA">Manhã</SelectItem>
-                    <SelectItem value="NOITE">Noite</SelectItem>
-                  </SelectContent>
-                </Select>
-                <FormMessage />
-              </FormItem>
-            )} />
-
-            <FormField control={form.control} name="tipo" render={({ field }) => (
-              <FormItem>
-                <FormLabel>Tipo</FormLabel>
-                <Select value={field.value} onValueChange={field.onChange}>
-                  <FormControl>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Selecione o tipo" />
-                    </SelectTrigger>
-                  </FormControl>
-                  <SelectContent>
-                    {TIPO_MOTORISTA_OPCOES.map((opcao) => (
-                      <SelectItem key={opcao.valor} value={opcao.valor}>
-                        <span className="flex items-center gap-2">
-                          {opcao.label}
-                          <IconeTipoMotorista tipo={opcao.valor} />
-                        </span>
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                <FormDescription>{field.value ? descreverTipoMotorista(field.value) : null}</FormDescription>
-                <FormMessage />
-              </FormItem>
-            )} />
-
-            <FormField control={form.control} name="produtosAutorizados" render={({ field }) => {
-              const selecionados: string[] = field.value ?? []
-
-              return (
+            <FormField
+              control={form.control}
+              name="turno"
+              render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Produtos Autorizados</FormLabel>
-                  <FormDescription>
-                    Gases que este motorista está certificado a transportar — a viagem só pode ser alocada a ele se o produto exigido estiver marcado aqui.
-                  </FormDescription>
-                  <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
-                    {PRODUTO_OPCOES.map((opcao) => {
-                      const marcado = selecionados.includes(opcao.valor)
-
-                      return (
-                        <label
-                          key={opcao.valor}
-                          className="flex items-center gap-2 rounded-md border border-border p-2 text-sm has-checked:border-primary has-checked:bg-primary/5"
-                        >
-                          <input
-                            type="checkbox"
-                            className="size-4"
-                            checked={marcado}
-                            onChange={(evento) => {
-                              field.onChange(
-                                evento.target.checked
-                                  ? [...selecionados, opcao.valor]
-                                  : selecionados.filter((valor) => valor !== opcao.valor),
-                              )
-                            }}
-                          />
-                          {opcao.label}
-                        </label>
-                      )
-                    })}
-                  </div>
+                  <FormLabel>Turno Operacional</FormLabel>
+                  <Select value={field.value} onValueChange={field.onChange}>
+                    <FormControl>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Selecione o turno" />
+                      </SelectTrigger>
+                    </FormControl>
+                    <SelectContent>
+                      <SelectItem value="MANHA">Manhã</SelectItem>
+                      <SelectItem value="NOITE">Noite</SelectItem>
+                    </SelectContent>
+                  </Select>
                   <FormMessage />
                 </FormItem>
-              )
-            }} />
+              )}
+            />
 
+            <FormField
+              control={form.control}
+              name="tipo"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Tipo</FormLabel>
+                  <Select value={field.value} onValueChange={field.onChange}>
+                    <FormControl>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Selecione o tipo" />
+                      </SelectTrigger>
+                    </FormControl>
+                    <SelectContent>
+                      {TIPO_MOTORISTA_OPCOES.map((opcao) => (
+                        <SelectItem key={opcao.valor} value={opcao.valor}>
+                          <span className="flex items-center gap-2">
+                            {opcao.label}
+                            <IconeTipoMotorista tipo={opcao.valor} />
+                          </span>
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <FormDescription>{field.value ? descreverTipoMotorista(field.value) : null}</FormDescription>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <FormField
+              control={form.control}
+              name="produtosAutorizados"
+              render={({ field }) => {
+                const selecionados: string[] = field.value ?? []
+
+                return (
+                  <FormItem>
+                    <FormLabel>Produtos Autorizados</FormLabel>
+                    <FormDescription>
+                      Gases que este motorista está certificado a transportar — a viagem só pode ser alocada a ele se o produto exigido
+                      estiver marcado aqui.
+                    </FormDescription>
+                    <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+                      {PRODUTO_OPCOES.map((opcao) => {
+                        const marcado = selecionados.includes(opcao.valor)
+
+                        return (
+                          <label
+                            key={opcao.valor}
+                            className="flex items-center gap-2 rounded-md border border-border p-2 text-sm has-checked:border-primary has-checked:bg-primary/5"
+                          >
+                            <input
+                              type="checkbox"
+                              className="size-4"
+                              checked={marcado}
+                              onChange={(evento) => {
+                                field.onChange(
+                                  evento.target.checked
+                                    ? [...selecionados, opcao.valor]
+                                    : selecionados.filter((valor) => valor !== opcao.valor),
+                                )
+                              }}
+                            />
+                            {opcao.label}
+                          </label>
+                        )
+                      })}
+                    </div>
+                    <FormMessage />
+                  </FormItem>
+                )
+              }}
+            />
           </CardContent>
         </Card>
 
@@ -263,10 +287,7 @@ export default function MotoristaForm({ defaultValues, onSubmit, submitLabel, su
                     render={({ field }) => (
                       <FormItem className="md:col-span-5">
                         <FormLabel>Cliente</FormLabel>
-                        <Select
-                          value={typeof field.value === "string" ? field.value : ""}
-                          onValueChange={field.onChange}
-                        >
+                        <Select value={typeof field.value === "string" ? field.value : ""} onValueChange={field.onChange}>
                           <FormControl>
                             <SelectTrigger>
                               <SelectValue placeholder="Selecione o cliente" />

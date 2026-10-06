@@ -1,78 +1,29 @@
-import { prisma } from "@/lib/prisma";
-import { turnoPorHorario } from "./turno";
-import { NovaViagemInput, EditarViagemInput } from "@/lib/types/types";
-import { buscarMotoristasParaSelect } from "@/lib/queries/motoristas";
-import { buscarNumerosSapQueExigemIntegracao } from "@/lib/queries/clientes";
+import { prisma } from "@/lib/prisma"
+import { NovaViagemInput, EditarViagemInput } from "@/lib/types/types"
+import { buscarMotoristasParaSelect } from "@/lib/queries/motoristas"
+import { buscarNumerosSapQueExigemIntegracao } from "@/lib/queries/clientes"
+import { calcularIntegracaoExigida, motoristaAutorizadoParaProduto, sugerirMotoristaAutomatico } from "./alocacao.service"
+import type { TipoProduto } from "@prisma/client"
+import { reconciliarFolgaMotoristasNoDiaAtual } from "./folga.service"
+import { registrarAuditoria, type Ator } from "./auditoria.service"
+import { camposTravadosAlterados } from "./trava-chegada"
 import {
-  calcularIntegracaoExigida,
-  motoristaAutorizadoParaProduto,
-  sugerirMotoristaAutomatico,
-} from "./alocacao.service";
-import type { Prisma, StatusViagem, TipoProduto, Turno } from "@prisma/client";
-import { reconciliarFolgaMotoristasNoDiaAtual } from "./folga.service";
-import { registrarAuditoria, type Ator } from "./auditoria.service";
-import { camposTravadosAlterados } from "./trava-chegada";
-import { ErroDeDominio, MotoristaProdutoNaoAutorizadoError, MotoristaNaoEncontradoError, MotoristaEmTreinamentoError, MotoristaNaoViajaError, ViagemNaoEncontradaError, StatusViagemObrigatorioError, NumViagemDuplicadaError } from "@/lib/errors";
-import { calcularAvisoFrotaIndisponivel, calcularAvisoFrotaProduto, sincronizarDisponibilidadeFrota } from "./frota.service";
-import { converterEditarViagemParaBD, converterNovaViagemParaBD } from "./viagem-data-converter.service";
-import { prepararJornadaDoMotorista } from "./jornada.service";
-import { recalcularAvisosInterjornada } from "./interjornada.service";
-import { podeSerAcompanhante, podeSerPrincipal } from "./tipo-motorista";
-import { calcularDiasEntre, inicioDoDia } from "@/lib/utils/date-format";
-import { STATUS_EM_ANDAMENTO } from "./viagem-status.service";
-
-function resolverStatusPorAlocacao(motoristaId: number | null) {
-  return motoristaId === null ? "CRIADA" : "ALOCADA";
-}
-
-/**
- * Turno ao editar: se o início mudou e quem editou não mexeu no turno, ele
- * acompanha o novo horário (ver turnoPorHorario). Se o turno foi trocado à
- * mão na edição, vale o escolhido.
- */
-function turnoAposMudarHorario(
-  viagemAtual: { inicioPrevisto: Date; turno: Turno },
-  novoInicio: Date,
-  turnoEnviado: Turno,
-): Turno {
-  const inicioAnterior = viagemAtual.inicioPrevisto ? new Date(viagemAtual.inicioPrevisto).getTime() : null
-  const inicioMudou = inicioAnterior !== null && novoInicio.getTime() !== inicioAnterior
-  if (!inicioMudou || turnoEnviado !== viagemAtual.turno) return turnoEnviado
-  return turnoPorHorario(novoInicio) ?? turnoEnviado
-}
-
-function statusPermiteAutoAjuste(statusAtual: string) {
-  return statusAtual === "CRIADA" || statusAtual === "ALOCADA"
-}
-
-/**
- * CRIADA e ALOCADA não são escolha de quem cadastra: dizem só se a viagem
- * tem motorista. Qualquer gravação passa por aqui pra "Criada com motorista"
- * (ou "Alocada sem motorista") nunca existir — antes, o formulário de nova
- * viagem mandava CRIADA mesmo com motorista escolhido. Os demais status
- * (EM_ANDAMENTO, CANCELADA...) passam intactos.
- */
-function normalizarStatusPorAlocacao<S extends string>(status: S, motoristaId: number | null): S | "CRIADA" | "ALOCADA" {
-  return statusPermiteAutoAjuste(status) ? resolverStatusPorAlocacao(motoristaId) : status
-}
-
-/** Marca o instante da transição para CANCELADA — usado pelo Dashboard pra decidir até quando a viagem cancelada ainda aparece. Não mexe se o status não mudou (evita renovar a janela de visibilidade a cada edição de uma viagem já cancelada). */
-function calcularCanceladoEm(statusNovo: string, statusAntigo: string): Date | undefined {
-  return statusNovo === "CANCELADA" && statusAntigo !== "CANCELADA" ? new Date() : undefined
-}
-
-/**
- * Marca o instante da transição para FINALIZADA — a partir dele o motorista
- * está livre (o descanso de 11h/35h conta daqui, ver fimEfetivoViagem). Não
- * mexe se já estava finalizada; limpa se a viagem for reaberta, pra não
- * deixar uma finalização antiga valendo.
- */
-function calcularFinalizadoEm(statusNovo: string, statusAntigo: string): Date | null | undefined {
-  if (statusNovo === "FINALIZADA") {
-    return statusAntigo !== "FINALIZADA" ? new Date() : undefined
-  }
-  return statusAntigo === "FINALIZADA" ? null : undefined
-}
+  ErroDeDominio,
+  MotoristaProdutoNaoAutorizadoError,
+  MotoristaNaoEncontradoError,
+  MotoristaEmTreinamentoError,
+  MotoristaNaoViajaError,
+  ViagemNaoEncontradaError,
+  NumViagemDuplicadaError,
+} from "@/lib/errors"
+import { calcularAvisoFrotaIndisponivel, calcularAvisoFrotaProduto, sincronizarDisponibilidadeFrota } from "./frota.service"
+import { converterEditarViagemParaBD, converterNovaViagemParaBD } from "./viagem-data-converter.service"
+import { recalcularAvisosInterjornada } from "./interjornada.service"
+import { podeSerAcompanhante, podeSerPrincipal } from "./tipo-motorista"
+import { inicioDoDia } from "@/lib/utils/date-format"
+import { prepararJornadaDoMotorista } from "./jornada.service"
+import { STATUS_EM_ANDAMENTO } from "./viagem-status.service"
+import { calcularCanceladoEm, calcularFinalizadoEm, normalizarStatusPorAlocacao, turnoAposMudarHorario } from "./viagem-regras"
 
 /**
  * Sem @unique em numViagem no schema (ver comentário no model Viagem) — a
@@ -229,9 +180,11 @@ async function inserirViagem(
     })
 
     await sincronizarDisponibilidadeFrota(tx, filialId, dados.cavalo, dados.carreta)
-    await reconciliarFolgaMotoristasNoDiaAtual(tx, [viagemCriada.motoristaId], [
-      { inicioPrevisto: viagemCriada.inicioPrevisto, fimPrevisto: viagemCriada.fimPrevisto },
-    ])
+    await reconciliarFolgaMotoristasNoDiaAtual(
+      tx,
+      [viagemCriada.motoristaId],
+      [{ inicioPrevisto: viagemCriada.inicioPrevisto, fimPrevisto: viagemCriada.fimPrevisto }],
+    )
     await recalcularAvisosInterjornada(tx, filialId, [viagemCriada.motoristaId])
     await registrarAuditoria(tx, {
       entidade: "Viagem",
@@ -247,18 +200,18 @@ async function inserirViagem(
 }
 
 export async function criarViagemAvulsaService(filialId: number, dadosRecebidos: NovaViagemInput, ator: Ator | null) {
-  const dados = converterNovaViagemParaBD(dadosRecebidos);
-  const numerosSapQueExigemIntegracao = await buscarNumerosSapQueExigemIntegracao();
-  const integracaoNecessaria = calcularIntegracaoExigida(dados.entregas, numerosSapQueExigemIntegracao);
-  const inicioPrevisto = dados.inicioPrevisto as Date;
-  const fimPrevisto = dados.fimPrevisto as Date;
+  const dados = converterNovaViagemParaBD(dadosRecebidos)
+  const numerosSapQueExigemIntegracao = await buscarNumerosSapQueExigemIntegracao()
+  const integracaoNecessaria = calcularIntegracaoExigida(dados.entregas, numerosSapQueExigemIntegracao)
+  const inicioPrevisto = dados.inicioPrevisto as Date
+  const fimPrevisto = dados.fimPrevisto as Date
 
-  const motoristasBrutos = await buscarMotoristasParaSelect(filialId);
+  const motoristasBrutos = await buscarMotoristasParaSelect(filialId)
   const motoristas = motoristasBrutos.map((motorista) => ({
     ...motorista,
     ...prepararJornadaDoMotorista(motorista),
-  }));
-  const hoje = inicioDoDia(new Date());
+  }))
+  const hoje = inicioDoDia(new Date())
 
   const motoristaSugeridoDisponivel = sugerirMotoristaAutomatico(motoristas, fimPrevisto, {
     turnoViagem: dados.turno,
@@ -267,10 +220,10 @@ export async function criarViagemAvulsaService(filialId: number, dadosRecebidos:
     integracaoExigida: integracaoNecessaria,
     produtoExigido: dados.produto,
     hoje,
-  });
-  const motoristaEscolhidoId = motoristaSugeridoDisponivel?.id ?? null;
+  })
+  const motoristaEscolhidoId = motoristaSugeridoDisponivel?.id ?? null
 
-  return inserirViagem(filialId, dados, integracaoNecessaria, motoristaEscolhidoId, dados.status, ator);
+  return inserirViagem(filialId, dados, integracaoNecessaria, motoristaEscolhidoId, dados.status, ator)
 }
 
 /**
@@ -279,23 +232,27 @@ export async function criarViagemAvulsaService(filialId: number, dadosRecebidos:
  * lote, depois que o usuário já revisou e confirmou a alocação sugerida para
  * cada viagem do arquivo.
  */
-export async function criarViagemComAlocacaoService(filialId: number, dadosRecebidos: NovaViagemInput, motoristaId: number | null, ator: Ator | null) {
-  const dados = converterNovaViagemParaBD(dadosRecebidos);
-  const numerosSapQueExigemIntegracao = await buscarNumerosSapQueExigemIntegracao();
-  const integracaoNecessaria = calcularIntegracaoExigida(dados.entregas, numerosSapQueExigemIntegracao);
+export async function criarViagemComAlocacaoService(
+  filialId: number,
+  dadosRecebidos: NovaViagemInput,
+  motoristaId: number | null,
+  ator: Ator | null,
+) {
+  const dados = converterNovaViagemParaBD(dadosRecebidos)
+  const numerosSapQueExigemIntegracao = await buscarNumerosSapQueExigemIntegracao()
+  const integracaoNecessaria = calcularIntegracaoExigida(dados.entregas, numerosSapQueExigemIntegracao)
 
-  return inserirViagem(filialId, dados, integracaoNecessaria, motoristaId, dados.status, ator);
+  return inserirViagem(filialId, dados, integracaoNecessaria, motoristaId, dados.status, ator)
 }
 
-
 export async function editarViagemService(filialId: number, idViagem: number, dadosRecebidos: EditarViagemInput, ator: Ator | null) {
-  const dados = converterEditarViagemParaBD(dadosRecebidos);
-  const numerosSapQueExigemIntegracao = await buscarNumerosSapQueExigemIntegracao();
-  const integracaoNecessaria = calcularIntegracaoExigida(dados.entregas, numerosSapQueExigemIntegracao);
+  const dados = converterEditarViagemParaBD(dadosRecebidos)
+  const numerosSapQueExigemIntegracao = await buscarNumerosSapQueExigemIntegracao()
+  const integracaoNecessaria = calcularIntegracaoExigida(dados.entregas, numerosSapQueExigemIntegracao)
 
-  const entregasExistentes = dados.entregas.filter(e => e.id);
-  const entregasNovas = dados.entregas.filter(e => !e.id);
-  const manterEntregas = entregasExistentes.map(e => e.id as number);
+  const entregasExistentes = dados.entregas.filter((e) => e.id)
+  const entregasNovas = dados.entregas.filter((e) => !e.id)
+  const manterEntregas = entregasExistentes.map((e) => e.id as number)
   // Linha completa (não um select estreito) — vira o snapshot "antes" da
   // auditoria, além de alimentar a lógica de negócio abaixo.
   const viagemAtual = await prisma.viagem.findUnique({
@@ -333,7 +290,10 @@ export async function editarViagemService(filialId: number, idViagem: number, da
   // quem dirigiu até onde — a troca tem tela própria (km, local, motivo).
   const emAndamento = STATUS_EM_ANDAMENTO.includes(viagemAtual.status)
   if (emAndamento && viagemAtual.motoristaId !== null && motoristaIdFinal !== viagemAtual.motoristaId) {
-    throw new ErroDeDominio("USAR_TROCA_DE_MOTORISTA", "A viagem já saiu: pra trocar o motorista, use \"Trocar motorista\" no fim desta tela.")
+    throw new ErroDeDominio(
+      "USAR_TROCA_DE_MOTORISTA",
+      'A viagem já saiu: pra trocar o motorista, use "Trocar motorista" no fim desta tela.',
+    )
   }
   return await prisma.$transaction(async (tx) => {
     // Entrega com chegada registrada pelo motorista (medição do descarregado)
@@ -347,7 +307,10 @@ export async function editarViagemService(filialId: number, idViagem: number, da
     })
     if (removidasComChegada.length > 0) {
       const clientes = removidasComChegada.map((entrega) => entrega.cliente).join(", ")
-      throw new ErroDeDominio("ENTREGA_COM_CHEGADA", `Não dá pra remover ${clientes}: o motorista já registrou a chegada e a medição nessa entrega.`)
+      throw new ErroDeDominio(
+        "ENTREGA_COM_CHEGADA",
+        `Não dá pra remover ${clientes}: o motorista já registrou a chegada e a medição nessa entrega.`,
+      )
     }
     // E também não muda de cliente/lugar: a medição ficaria ligada a um
     // cliente onde ela não aconteceu (ver trava-chegada.ts).
@@ -392,7 +355,7 @@ export async function editarViagemService(filialId: number, idViagem: number, da
         avisoFrotaProdutoIncompativel,
         entregas: {
           deleteMany: {
-            id: { notIn: manterEntregas }
+            id: { notIn: manterEntregas },
           },
           update: entregasExistentes.map((entrega) => ({
             where: { id: entrega.id },
@@ -406,7 +369,7 @@ export async function editarViagemService(filialId: number, idViagem: number, da
               obs: entrega.obs,
               sapcode: entrega.sapcode,
               codewhite: entrega.codewhite,
-            }
+            },
           })),
           create: entregasNovas.map((entrega) => ({
             dataEntrega: entrega.dataEntrega as Date,
@@ -418,9 +381,9 @@ export async function editarViagemService(filialId: number, idViagem: number, da
             obs: entrega.obs,
             sapcode: entrega.sapcode,
             codewhite: entrega.codewhite,
-          }))
-        }
-      }
+          })),
+        },
+      },
     })
 
     await sincronizarDisponibilidadeFrota(tx, filialId, dados.cavalo, dados.carreta)
@@ -465,14 +428,15 @@ export async function editarViagemService(filialId: number, idViagem: number, da
 }
 
 export async function deletarViagemService(filialId: number, id: number, ator: Ator | null) {
-  const viagemAntes = await prisma.viagem.findUniqueOrThrow({ where: { id, filialId } })
-
   return await prisma.$transaction(async (tx) => {
+    // Lida já travada: o "antes" da auditoria é o estado que de fato sai.
+    await tx.$queryRaw`SELECT id FROM "Viagem" WHERE id = ${id} AND "filialId" = ${filialId} FOR UPDATE`
+    const viagemAntes = await tx.viagem.findUniqueOrThrow({ where: { id, filialId } })
     const viagemDeletada = await tx.viagem.update({
       where: { id: id, filialId },
       data: {
         deletadoEm: new Date(),
-      }
+      },
     })
 
     await sincronizarDisponibilidadeFrota(tx, filialId, viagemDeletada.cavalo, viagemDeletada.carreta)
@@ -492,153 +456,5 @@ export async function deletarViagemService(filialId: number, id: number, ator: A
       filialId,
     })
     return viagemDeletada
-  })
-}
-
-/** Nova data de início/fim exigida só quando o status vai para POSTERGADA — ver atualizarStatusViagemService. */
-type NovaDataViagem = { inicioPrevisto: Date; fimPrevisto: Date }
-
-/**
- * Mudança de status feita pelo próprio motorista (celular): só grava se, NO
- * MOMENTO da escrita, a viagem ainda for dele e estiver num dos status
- * esperados — se o despacho cancelou, postergou, trocou o motorista ou
- * excluiu nesse meio-tempo, nada é gravado e sai VIAGEM_MUDOU.
- */
-type CondicaoDoMotorista = {
-  motoristaId: number
-  statusEsperados: StatusViagem[]
-  /** Gravado junto, na mesma escrita (km, saída real, motivo). */
-  dados: Prisma.ViagemUpdateManyMutationInput
-}
-
-export const CODIGO_VIAGEM_MUDOU = "VIAGEM_MUDOU"
-
-export async function atualizarStatusViagemService(
-  filialId: number,
-  idViagem: number,
-  status: EditarViagemInput["status"],
-  ator: Ator | null,
-  novaData?: NovaDataViagem,
-  condicao?: CondicaoDoMotorista,
-) {
-  if (!status) {
-    throw new StatusViagemObrigatorioError()
-  }
-
-  // Linha completa — vira o snapshot "antes" da auditoria.
-  const viagemAtual = await prisma.viagem.findUnique({
-    where: { id: idViagem, filialId },
-  })
-
-  if (!viagemAtual) {
-    throw new ViagemNaoEncontradaError()
-  }
-
-  // Postergar muda a data — os avisos de frota gravados na criação/última
-  // edição são recalculados pra essa data nova, senão ficam "presos" no valor
-  // de quando a viagem foi criada/editada pela última vez (ex: aviso de frota
-  // indisponível que não valia mais pro horário novo). O de interjornada é
-  // recalculado dentro da transação, pra qualquer mudança de status.
-  const avisosRecalculados = novaData
-    ? {
-        avisoFrotaIndisponivel: await calcularAvisoFrotaIndisponivel(
-          filialId,
-          viagemAtual.cavalo,
-          viagemAtual.carreta,
-          novaData.inicioPrevisto,
-          novaData.fimPrevisto,
-          idViagem,
-        ),
-        avisoFrotaProdutoIncompativel: await calcularAvisoFrotaProduto(filialId, viagemAtual.cavalo, viagemAtual.carreta, viagemAtual.produto),
-      }
-    : {}
-
-  const statusFinal = normalizarStatusPorAlocacao(status, viagemAtual.motoristaId)
-
-  return await prisma.$transaction(async (tx) => {
-    const dados = {
-      status: statusFinal,
-      canceladoEm: calcularCanceladoEm(statusFinal, viagemAtual.status),
-      finalizadoEm: calcularFinalizadoEm(statusFinal, viagemAtual.status),
-      ...(novaData ? {
-        inicioPrevisto: novaData.inicioPrevisto,
-        fimPrevisto: novaData.fimPrevisto,
-        diasViagem: calcularDiasEntre(novaData.inicioPrevisto, novaData.fimPrevisto),
-        // Postergar da noite pro dia (ou o contrário) troca o turno — senão a
-        // alocação procura motorista do turno errado.
-        turno: turnoPorHorario(novaData.inicioPrevisto) ?? viagemAtual.turno,
-      } : {}),
-      ...avisosRecalculados,
-    }
-    let viagemAtualizada
-    if (condicao) {
-      const { count } = await tx.viagem.updateMany({
-        where: {
-          id: idViagem,
-          filialId,
-          deletadoEm: null,
-          motoristaId: condicao.motoristaId,
-          status: { in: condicao.statusEsperados },
-        },
-        data: { ...dados, ...condicao.dados },
-      })
-      if (count === 0) throw new ErroDeDominio(CODIGO_VIAGEM_MUDOU, "A viagem foi alterada pelo escalador. Atualize a tela.")
-      viagemAtualizada = await tx.viagem.findUniqueOrThrow({ where: { id: idViagem } })
-    } else {
-      viagemAtualizada = await tx.viagem.update({ where: { id: idViagem, filialId }, data: dados })
-    }
-
-    // Cancelar/finalizar (ou postergar a data) muda se essa viagem ainda
-    // "segura" a frota — sincroniza sempre, não só quando novaData é enviado.
-    await sincronizarDisponibilidadeFrota(tx, filialId, viagemAtualizada.cavalo, viagemAtualizada.carreta)
-    await reconciliarFolgaMotoristasNoDiaAtual(
-      tx,
-      [viagemAtualizada.motoristaId, viagemAtualizada.motoristaAcompanhanteId],
-      [
-        { inicioPrevisto: viagemAtual.inicioPrevisto, fimPrevisto: viagemAtual.fimPrevisto },
-        { inicioPrevisto: viagemAtualizada.inicioPrevisto, fimPrevisto: viagemAtualizada.fimPrevisto },
-      ],
-    )
-    // Finalizar libera o motorista: a próxima viagem dele perde o aviso de
-    // descanso se, contando da finalização, as 11h/35h já estão cumpridas.
-    await recalcularAvisosInterjornada(tx, filialId, [viagemAtualizada.motoristaId, viagemAtualizada.motoristaAcompanhanteId])
-    await registrarAuditoria(tx, {
-      entidade: "Viagem",
-      entidadeId: idViagem,
-      acao: "ATUALIZACAO",
-      antes: viagemAtual,
-      depois: viagemAtualizada,
-      ator,
-      filialId,
-    })
-    return viagemAtualizada
-  })
-}
-
-/** Registro operacional feito pelo dashboard: horário real de saída e motivo do atraso, se houver. */
-export async function atualizarSaidaRealService(
-  filialId: number,
-  idViagem: number,
-  horarioRealSaida: Date | null,
-  motivoAtraso: string | null,
-  ator: Ator | null,
-) {
-  const viagemAntes = await prisma.viagem.findUniqueOrThrow({ where: { id: idViagem, filialId } })
-
-  return await prisma.$transaction(async (tx) => {
-    const viagemDepois = await tx.viagem.update({
-      where: { id: idViagem, filialId },
-      data: { horarioRealSaida, motivoAtraso },
-    })
-    await registrarAuditoria(tx, {
-      entidade: "Viagem",
-      entidadeId: idViagem,
-      acao: "ATUALIZACAO",
-      antes: viagemAntes,
-      depois: viagemDepois,
-      ator,
-      filialId,
-    })
-    return viagemDepois
   })
 }

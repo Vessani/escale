@@ -17,7 +17,9 @@ export default async function UsuariosPage() {
     <div className="space-y-6">
       <div>
         <h1 className="text-2xl font-semibold tracking-tight text-foreground">Usuários</h1>
-        <p className="text-muted-foreground mt-1" title="Cada usuário pertence a uma filial (exceto Superadmin) e só vê os dados dela.">Cada usuário só vê os dados da própria filial.</p>
+        <p className="text-muted-foreground mt-1" title="Cada usuário pertence a uma filial (exceto Superadmin) e só vê os dados dela.">
+          Cada usuário só vê os dados da própria filial.
+        </p>
       </div>
 
       <CriarUsuarioForm filiais={filiais} />
@@ -34,7 +36,9 @@ export default async function UsuariosPage() {
                 <TableHead>Papel</TableHead>
                 <TableHead>Filial</TableHead>
                 <TableHead>Situação</TableHead>
-                <TableHead className="w-12"><span className="sr-only">Ações</span></TableHead>
+                <TableHead className="w-12">
+                  <span className="sr-only">Ações</span>
+                </TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -48,15 +52,26 @@ export default async function UsuariosPage() {
                   <TableCell>{usuario.filial?.nome ?? "-"}</TableCell>
                   <TableCell>
                     {usuario.ativo ? (
-                      <Badge variant="outline" className="border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-900 dark:bg-emerald-950 dark:text-emerald-300">Ativo</Badge>
+                      <Badge
+                        variant="outline"
+                        className="border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-900 dark:bg-emerald-950 dark:text-emerald-300"
+                      >
+                        Ativo
+                      </Badge>
                     ) : (
-                      <Badge variant="outline" className="text-muted-foreground">Desativado</Badge>
+                      <Badge variant="outline" className="text-muted-foreground">
+                        Desativado
+                      </Badge>
                     )}
                   </TableCell>
                   <TableCell>
                     <AcoesLinha>
                       {usuario.id !== session.user.id && (
-                        <AlternarAtivoButton usuarioId={usuario.id} nome={usuario.nome ?? usuario.email ?? "Este usuário"} ativo={usuario.ativo} />
+                        <AlternarAtivoButton
+                          usuarioId={usuario.id}
+                          nome={usuario.nome ?? usuario.email ?? "Este usuário"}
+                          ativo={usuario.ativo}
+                        />
                       )}
                     </AcoesLinha>
                   </TableCell>

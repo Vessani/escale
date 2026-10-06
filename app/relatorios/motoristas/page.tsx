@@ -46,8 +46,8 @@ export default async function PainelMotoristasPage({ searchParams }: { searchPar
   return (
     <div className="space-y-6">
       <CabecalhoRelatorio titulo="Painel por motorista">
-        Quanto cada motorista trabalhou no período (pelo relatório de jornada), quantas viagens fez no Escalador e quantas vezes
-        caiu em cada alerta. Quem precisa de atenção aparece primeiro. Clique num número vermelho para ver os detalhes.
+        Quanto cada motorista trabalhou no período (pelo relatório de jornada), quantas viagens fez no Escalador e quantas vezes caiu em
+        cada alerta. Quem precisa de atenção aparece primeiro. Clique num número vermelho para ver os detalhes.
       </CabecalhoRelatorio>
 
       <FiltroRelatorio
@@ -58,10 +58,19 @@ export default async function PainelMotoristasPage({ searchParams }: { searchPar
       />
 
       <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
-        <StatCard rotulo="Motoristas com alerta" valor={comAlerta} icone={AlertTriangle} classeValor={comAlerta > 0 ? "text-destructive" : undefined} />
+        <StatCard
+          rotulo="Motoristas com alerta"
+          valor={comAlerta}
+          icone={AlertTriangle}
+          classeValor={comAlerta > 0 ? "text-destructive" : undefined}
+        />
         <StatCard rotulo="Trabalharam no período" valor={trabalharam.length} icone={CalendarCheck} />
         <StatCard rotulo="Média de horas por motorista" valor={formatarDuracao(mediaHoras)} icone={Clock} />
-        <StatCard rotulo="Sem jornada nem viagem" valor={linhas.filter((l) => l.diasTrabalhados === 0 && l.viagens === 0).length} icone={UserX} />
+        <StatCard
+          rotulo="Sem jornada nem viagem"
+          valor={linhas.filter((l) => l.diasTrabalhados === 0 && l.viagens === 0).length}
+          icone={UserX}
+        />
       </div>
 
       {linhas.length === 0 ? (
@@ -90,10 +99,16 @@ export default async function PainelMotoristasPage({ searchParams }: { searchPar
                   className={cn(linha.diasTrabalhados === 0 && linha.viagens === 0 && "text-muted-foreground")}
                 >
                   <TableCell className="font-medium">{formatarNomeProprio(linha.motorista)}</TableCell>
-                  <TableCell><BadgeTurno turno={linha.turno} /></TableCell>
+                  <TableCell>
+                    <BadgeTurno turno={linha.turno} />
+                  </TableCell>
                   <TableCell className="text-right tabular-nums">{linha.diasTrabalhados}</TableCell>
-                  <TableCell className="text-right tabular-nums">{linha.horasTrabalhadasMinutos ? formatarDuracao(linha.horasTrabalhadasMinutos) : "—"}</TableCell>
-                  <TableCell className="text-right tabular-nums">{linha.maiorJornadaMinutos ? formatarDuracao(linha.maiorJornadaMinutos) : "—"}</TableCell>
+                  <TableCell className="text-right tabular-nums">
+                    {linha.horasTrabalhadasMinutos ? formatarDuracao(linha.horasTrabalhadasMinutos) : "—"}
+                  </TableCell>
+                  <TableCell className="text-right tabular-nums">
+                    {linha.maiorJornadaMinutos ? formatarDuracao(linha.maiorJornadaMinutos) : "—"}
+                  </TableCell>
                   <TableCell className="text-right tabular-nums">{linha.viagens}</TableCell>
                   <CelulaAlerta valor={linha.circadiano} relatorio="circadiano" periodo={periodo} />
                   <CelulaAlerta valor={linha.estourosSetimoDia} relatorio="estouro-7-dia" periodo={periodo} />

@@ -1,6 +1,7 @@
 import { StatusViagem, type Prisma } from "@prisma/client"
 import { fimDoDia, inicioDoDia } from "@/lib/utils/date-format"
 import { registrarJornadaNoDia } from "./motorista.service"
+import { HORA_INICIO_TURNO_DIA } from "./turno"
 
 const STATUS_NAO_ATIVOS: StatusViagem[] = ["CANCELADA", "FINALIZADA"]
 
@@ -47,31 +48,28 @@ export async function reconciliarFolgaMotoristasNoDiaAtual(
   const inicioHoje = inicioDoDia(dataReferencia)
   const fimHoje = fimDoDia(dataReferencia)
 
-  const algumaJanelaTocaHoje = janelasRelevantes.some(
-    (janela) => janela.inicioPrevisto <= fimHoje && janela.fimPrevisto >= inicioHoje,
-  )
+  const algumaJanelaTocaHoje = janelasRelevantes.some((janela) => janela.inicioPrevisto <= fimHoje && janela.fimPrevisto >= inicioHoje)
   if (!algumaJanelaTocaHoje) {
     return
   }
 
+  // Trabalho HOJE = viagem que começa hoje, ou que vem de antes e passa das
+  // 04:00 de hoje. Quem chega de madrugada (viagem da noite de ontem) ainda
+  // está na jornada de ontem — não sai da folga de hoje por isso (mesma regra
+  // de instanteDoUltimoDiaDeJornada, lib/services/turno.ts).
+  const inicioDaJornadaDeHoje = new Date(inicioHoje.getTime() + HORA_INICIO_TURNO_DIA * 60 * 60 * 1000)
   const filtroAtividadeHoje = {
     deletadoEm: null,
     status: { notIn: STATUS_NAO_ATIVOS },
     inicioPrevisto: { lte: fimHoje },
-    fimPrevisto: { gte: inicioHoje },
+    OR: [{ inicioPrevisto: { gte: inicioHoje } }, { fimPrevisto: { gte: inicioDaJornadaDeHoje } }],
   }
   // Conta como "atividade hoje" tanto como motorista principal quanto acompanhante.
   const semAtividadeHoje = {
-    AND: [
-      { viagens: { none: filtroAtividadeHoje } },
-      { viagensComoAcompanhante: { none: filtroAtividadeHoje } },
-    ],
+    AND: [{ viagens: { none: filtroAtividadeHoje } }, { viagensComoAcompanhante: { none: filtroAtividadeHoje } }],
   }
   const comAtividadeHoje = {
-    OR: [
-      { viagens: { some: filtroAtividadeHoje } },
-      { viagensComoAcompanhante: { some: filtroAtividadeHoje } },
-    ],
+    OR: [{ viagens: { some: filtroAtividadeHoje } }, { viagensComoAcompanhante: { some: filtroAtividadeHoje } }],
   }
 
   const paraFolga = await tx.motorista.findMany({

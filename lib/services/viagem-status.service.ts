@@ -22,11 +22,10 @@ const STATUS_VIAGEM_LABELS: Record<StatusViagemSelecionavel, string> = {
   CANCELADA: "Cancelada",
 }
 
-export const STATUS_VIAGEM_OPCOES: Array<{ valor: StatusViagemSelecionavel; label: string }> =
-  STATUS_VIAGEM_VALORES.map((valor) => ({
-    valor,
-    label: STATUS_VIAGEM_LABELS[valor],
-  }))
+export const STATUS_VIAGEM_OPCOES: Array<{ valor: StatusViagemSelecionavel; label: string }> = STATUS_VIAGEM_VALORES.map((valor) => ({
+  valor,
+  label: STATUS_VIAGEM_LABELS[valor],
+}))
 
 export function normalizarStatusViagem(status: StatusViagem): StatusViagemSelecionavel {
   return status

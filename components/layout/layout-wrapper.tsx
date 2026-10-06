@@ -1,4 +1,4 @@
-'use client'
+"use client"
 
 import { ReactNode, useState, useSyncExternalStore } from "react"
 import Link from "next/link"
@@ -88,9 +88,7 @@ function LinksDoMenu({
   aoNavegar?: () => void
 }) {
   const menuItems =
-    role === "SUPERADMIN"
-      ? menuItemsSuperAdmin
-      : menuItemsOperacional.filter((item) => !("soGerencia" in item) || ehGerencia(role))
+    role === "SUPERADMIN" ? menuItemsSuperAdmin : menuItemsOperacional.filter((item) => !("soGerencia" in item) || ehGerencia(role))
 
   return (
     <nav aria-label="Navegação principal" className="flex-1 px-3 py-3 space-y-1 overflow-y-auto">
@@ -107,15 +105,9 @@ function LinksDoMenu({
             title={colapsado ? item.label : undefined}
             className={`relative flex items-center rounded-lg transition-colors group ${
               colapsado ? "justify-center px-2 py-2" : "px-3 py-2"
-            } ${
-              isActive
-                ? "bg-white/10 text-white font-medium"
-                : "hover:bg-white/5 hover:text-white"
-            }`}
+            } ${isActive ? "bg-white/10 text-white font-medium" : "hover:bg-white/5 hover:text-white"}`}
           >
-            {isActive && (
-              <span aria-hidden="true" className="absolute left-0 top-1.5 bottom-1.5 w-0.75 rounded-full bg-destaque" />
-            )}
+            {isActive && <span aria-hidden="true" className="absolute left-0 top-1.5 bottom-1.5 w-0.75 rounded-full bg-destaque" />}
             <Icon
               aria-hidden="true"
               className={`w-5 h-5 shrink-0 ${colapsado ? "" : "mr-3"} ${isActive ? "text-white" : "text-white/60 group-hover:text-white/80"}`}
@@ -134,7 +126,7 @@ function PainelUsuario({ usuario, colapsado = false }: { usuario: Session["user"
       <div className={`flex items-center ${colapsado ? "justify-center" : "mb-2.5"}`}>
         <div
           className="w-10 h-10 rounded-full bg-white/15 flex items-center justify-center text-white font-bold uppercase shrink-0"
-          title={colapsado ? usuario?.name ?? undefined : undefined}
+          title={colapsado ? (usuario?.name ?? undefined) : undefined}
         >
           {usuario?.name?.charAt(0) || "U"}
         </div>
@@ -149,7 +141,7 @@ function PainelUsuario({ usuario, colapsado = false }: { usuario: Session["user"
       {!colapsado && (
         <>
           <button
-            onClick={() => signOut({ callbackUrl: '/login' })}
+            onClick={() => signOut({ callbackUrl: "/login" })}
             className="w-full flex items-center justify-center px-3 py-2 text-sm text-red-400 bg-red-400/10 hover:bg-red-400/20 rounded-md transition-colors"
           >
             <LogOut aria-hidden="true" className="w-4 h-4 mr-2" />
@@ -161,7 +153,7 @@ function PainelUsuario({ usuario, colapsado = false }: { usuario: Session["user"
       {colapsado && (
         <>
           <button
-            onClick={() => signOut({ callbackUrl: '/login' })}
+            onClick={() => signOut({ callbackUrl: "/login" })}
             title="Sair do Sistema"
             className="mt-3 w-full flex items-center justify-center px-3 py-2 text-sm text-red-400 bg-red-400/10 hover:bg-red-400/20 rounded-md transition-colors"
           >
@@ -175,13 +167,7 @@ function PainelUsuario({ usuario, colapsado = false }: { usuario: Session["user"
   )
 }
 
-export function LayoutWrapper({
-  children,
-  usuario
-}: {
-  children: ReactNode,
-  usuario: Session["user"]
-}) {
+export function LayoutWrapper({ children, usuario }: { children: ReactNode; usuario: Session["user"] }) {
   const pathname = usePathname()
   // Fecha automaticamente ao clicar num link (ver `aoNavegar` passado a LinksDoMenu)
   const [menuAberto, setMenuAberto] = useState(false)
@@ -242,10 +228,7 @@ export function LayoutWrapper({
             </Dialog.Description>
             <div className="h-16 flex items-center justify-between px-6 bg-black/20 text-white">
               <LogoEscalador />
-              <Dialog.Close
-                aria-label="Fechar menu"
-                className="rounded-md p-1 text-white/70 hover:bg-white/10 hover:text-white"
-              >
+              <Dialog.Close aria-label="Fechar menu" className="rounded-md p-1 text-white/70 hover:bg-white/10 hover:text-white">
                 <X className="w-5 h-5" />
               </Dialog.Close>
             </div>

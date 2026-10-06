@@ -50,7 +50,18 @@ describe("relatorioViagens", () => {
 
   it("viagem que não saiu entra sem km nem custo, e não puxa o total", () => {
     const { linhas, totais } = relatorioViagens([
-      viagem({ id: 2, numViagem: "922090", status: "ALOCADA", inicioPrevisto: h("2026-10-02T06:00"), horarioRealSaida: null, finalizadoEm: null, kmInicial: null, kmFinal: null, despesas: [], produto: null }),
+      viagem({
+        id: 2,
+        numViagem: "922090",
+        status: "ALOCADA",
+        inicioPrevisto: h("2026-10-02T06:00"),
+        horarioRealSaida: null,
+        finalizadoEm: null,
+        kmInicial: null,
+        kmFinal: null,
+        despesas: [],
+        produto: null,
+      }),
       viagem(),
     ])
     expect(linhas.map((l) => l.numViagem)).toEqual(["922087", "922090"])

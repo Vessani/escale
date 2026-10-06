@@ -22,7 +22,13 @@ type Linha = {
 }
 
 const linha = (secao: string, parcial: Partial<Linha> & Pick<Linha, "item">): Linha => ({
-  secao, quando: null, detalhe: "", km: null, descarregado: null, valor: null, ...parcial,
+  secao,
+  quando: null,
+  detalhe: "",
+  km: null,
+  descarregado: null,
+  valor: null,
+  ...parcial,
 })
 
 /**
@@ -39,13 +45,20 @@ export function abasRelatorioViagem(r: RelatorioViagem): AbaPronta[] {
   const TEMPO = "Linha do tempo"
 
   const linhas: Linha[] = [
-    linha(RESUMO, { item: r.teveTroca ? "Motorista (atual)" : "Motorista", detalhe: [r.motorista ?? "—", r.acompanhante && `acompanhante: ${r.acompanhante}`].filter(Boolean).join(" · ") }),
+    linha(RESUMO, {
+      item: r.teveTroca ? "Motorista (atual)" : "Motorista",
+      detalhe: [r.motorista ?? "—", r.acompanhante && `acompanhante: ${r.acompanhante}`].filter(Boolean).join(" · "),
+    }),
     linha(RESUMO, { item: "Frota e produto", detalhe: `${frota(r.cavalo)} / ${frota(r.carreta)} · ${r.produto ?? "sem produto"}` }),
     linha(RESUMO, { item: "Previsto", detalhe: `${dataHora(r.inicioPrevisto)} até ${dataHora(r.fimPrevisto)}` }),
     linha(RESUMO, {
       item: "Saída real",
       quando: r.saidaReal,
-      detalhe: r.atrasoMinutos ? `atraso de ${formatarDuracao(r.atrasoMinutos)}${r.motivoAtraso ? ` · ${r.motivoAtraso}` : ""}` : r.saidaReal ? "no horário" : "—",
+      detalhe: r.atrasoMinutos
+        ? `atraso de ${formatarDuracao(r.atrasoMinutos)}${r.motivoAtraso ? ` · ${r.motivoAtraso}` : ""}`
+        : r.saidaReal
+          ? "no horário"
+          : "—",
     }),
     linha(RESUMO, { item: r.encerramento.rotulo, quando: r.encerramento.quando, detalhe: r.encerramento.quando ? "" : "—" }),
     linha(RESUMO, {

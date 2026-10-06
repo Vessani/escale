@@ -1,16 +1,16 @@
-import { prisma } from "@/lib/prisma";
+import { prisma } from "@/lib/prisma"
 
 export async function buscarClientes() {
   return await prisma.cliente.findMany({
     where: { deletadoEm: null },
     orderBy: { nome: "asc" },
-  });
+  })
 }
 
 export async function buscarClientePorId(id: number) {
   return await prisma.cliente.findFirst({
     where: { id, deletadoEm: null },
-  });
+  })
 }
 
 /**
@@ -25,7 +25,7 @@ export async function buscarNumerosSapQueExigemIntegracao(): Promise<Set<string>
   const clientes = await prisma.cliente.findMany({
     where: { deletadoEm: null, exigeIntegracao: true },
     select: { numeroSap: true },
-  });
+  })
 
-  return new Set(clientes.map((cliente) => cliente.numeroSap));
+  return new Set(clientes.map((cliente) => cliente.numeroSap))
 }

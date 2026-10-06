@@ -30,11 +30,7 @@ export function diferencaEmDias(dataA: Date, dataB: Date) {
 export function calcularCodigoJornadaNoDia(codigoAtual: number, dia: Date, hoje: Date) {
   const deslocamento = diferencaEmDias(dia, hoje)
 
-  const duracao =
-    codigoAtual === 9 ? DIAS_EXAMES
-    : codigoAtual === 10 ? DIAS_INTERNO
-    : codigoAtual === 8 ? DIAS_FERIAS
-    : null
+  const duracao = codigoAtual === 9 ? DIAS_EXAMES : codigoAtual === 10 ? DIAS_INTERNO : codigoAtual === 8 ? DIAS_FERIAS : null
   if (duracao !== null) {
     if (deslocamento < duracao) {
       return codigoAtual
@@ -54,7 +50,7 @@ export function calcularCodigoJornadaNoDia(codigoAtual: number, dia: Date, hoje:
   }
 
   const base = codigoAtual - 1
-  const rotacao = ((base + deslocamento) % DIAS_NO_CICLO_JORNADA + DIAS_NO_CICLO_JORNADA) % DIAS_NO_CICLO_JORNADA
+  const rotacao = (((base + deslocamento) % DIAS_NO_CICLO_JORNADA) + DIAS_NO_CICLO_JORNADA) % DIAS_NO_CICLO_JORNADA
   return rotacao + 1
 }
 
@@ -158,10 +154,7 @@ export function prepararJornadaDoMotorista(motorista: {
  * Só o lado do relatório: o fim de trabalho completo (relatório + viagens,
  * com finalização) é `encontrarFimTrabalhoAnterior` (alocacao/descanso.ts).
  */
-export function encontrarFimJornadaAnterior(
-  registros: Array<{ fimJornada?: Date | string | null }>,
-  antesDe: Date,
-): Date | null {
+export function encontrarFimJornadaAnterior(registros: Array<{ fimJornada?: Date | string | null }>, antesDe: Date): Date | null {
   let maisRecente: Date | null = null
 
   for (const registro of registros) {
@@ -184,12 +177,7 @@ export function encontrarFimJornadaAnterior(
  * (ex: marcar amanhã como Folga) sem afetar o código de hoje ou de outros
  * dias — cada um projeta a partir do registro conhecido mais relevante.
  */
-export function projetarCodigoNoDia(
-  registros: PontoRegistroJornada[],
-  dia: Date,
-  hoje: Date,
-  codigoFallback: number,
-): number {
+export function projetarCodigoNoDia(registros: PontoRegistroJornada[], dia: Date, hoje: Date, codigoFallback: number): number {
   const ordenados = [...registros].sort((a, b) => a.data.getTime() - b.data.getTime())
   const diaAlvo = inicioDoDia(dia).getTime()
 

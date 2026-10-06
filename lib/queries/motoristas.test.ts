@@ -69,8 +69,7 @@ describe("lib/queries/motoristas — isolamento por filial e filtro de viagem at
     const chamada = vi.mocked(prisma.motorista.findMany).mock.calls[0][0] as { include: { viagens: { where: ViagemWhere } } }
     const filtro = filtroViagemDaChamada(chamada.include as never)
     const condicaoFinalizada = filtro.OR!.find((c) => (c as { status?: string }).status === "FINALIZADA") as
-      | { status: string; fimPrevisto: { gte: Date } }
-      | undefined
+      { status: string; fimPrevisto: { gte: Date } } | undefined
 
     expect(condicaoFinalizada).toBeDefined()
     expect(condicaoFinalizada!.fimPrevisto.gte).toBeInstanceOf(Date)

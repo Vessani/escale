@@ -10,10 +10,7 @@ export default async function EditarManutencaoPage({ params }: { params: Promise
   if (!Number.isInteger(manutencaoId)) notFound()
 
   const { filialId } = await requireSessaoPaginaComFilial()
-  const [manutencao, conjuntos] = await Promise.all([
-    buscarManutencaoPorId(filialId, manutencaoId),
-    buscarVeiculosCadastrados(filialId),
-  ])
+  const [manutencao, conjuntos] = await Promise.all([buscarManutencaoPorId(filialId, manutencaoId), buscarVeiculosCadastrados(filialId)])
   if (!manutencao) notFound()
 
   return (

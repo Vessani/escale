@@ -11,9 +11,16 @@ import { chamarAcao } from "@/lib/chamar-acao"
 import { formatarHoraLocal } from "@/lib/utils/date-format"
 import { TAMANHO_MAXIMO_PROBLEMA } from "@/lib/services/limites-registro"
 
-
 /** Problema mecânico: o que ele escrever aparece em vermelho pro escalador. "Resolvido" limpa. */
-export function ProblemaMecanico({ viagemId, problema, informadoEm }: { viagemId: number; problema: string | null; informadoEm: string | null }) {
+export function ProblemaMecanico({
+  viagemId,
+  problema,
+  informadoEm,
+}: {
+  viagemId: number
+  problema: string | null
+  informadoEm: string | null
+}) {
   const router = useRouter()
   const [pendente, iniciarTransicao] = useTransition()
   const [erro, setErro] = useState("")
@@ -43,7 +50,9 @@ export function ProblemaMecanico({ viagemId, problema, informadoEm }: { viagemId
         <>
           <Alert variant="error">
             {problema}
-            {informadoEm && <span className="block text-xs opacity-80">Informado às {formatarHoraLocal(informadoEm)} — o escalador está vendo.</span>}
+            {informadoEm && (
+              <span className="block text-xs opacity-80">Informado às {formatarHoraLocal(informadoEm)} — o escalador está vendo.</span>
+            )}
           </Alert>
           <div className="flex gap-2">
             <Button type="button" variant="outline" className="h-11 flex-1" onClick={() => setEditando(true)} disabled={pendente}>
@@ -67,9 +76,20 @@ export function ProblemaMecanico({ viagemId, problema, informadoEm }: { viagemId
             placeholder="Ex: pneu furado na BR-101, aguardando socorro"
             className="min-h-24 resize-none text-base"
           />
-          <p className="text-right text-xs tabular-nums text-muted-foreground">{texto.length}/{TAMANHO_MAXIMO_PROBLEMA}</p>
+          <p className="text-right text-xs tabular-nums text-muted-foreground">
+            {texto.length}/{TAMANHO_MAXIMO_PROBLEMA}
+          </p>
           <div className="flex gap-2">
-            <Button type="button" variant="ghost" className="h-11" onClick={() => { setEditando(false); setTexto(problema ?? "") }} disabled={pendente}>
+            <Button
+              type="button"
+              variant="ghost"
+              className="h-11"
+              onClick={() => {
+                setEditando(false)
+                setTexto(problema ?? "")
+              }}
+              disabled={pendente}
+            >
               Cancelar
             </Button>
             <Button type="button" className="h-11 flex-1" onClick={() => salvar(texto)} disabled={pendente || !texto.trim()}>

@@ -1,10 +1,5 @@
 import { describe, expect, it } from "vitest"
-import {
-  entraNaSugestaoAutomatica,
-  podeSerAcompanhante,
-  podeSerPrincipal,
-  TIPO_MOTORISTA_VALORES,
-} from "./tipo-motorista"
+import { entraNaSugestaoAutomatica, podeSerAcompanhante, podeSerPrincipal, TIPO_MOTORISTA_VALORES } from "./tipo-motorista"
 
 describe("regras por tipo de motorista", () => {
   it.each([

@@ -16,24 +16,13 @@ import ExcluirViagemButton from "./excluir-viagem-button"
 import { classeBadgeTurno } from "./badge-styles"
 import { formatDateForDateInput, formatarDataHoraPtBr } from "@/lib/utils/date-format"
 import { formatarCodigoFrota } from "@/lib/services/frota-regras"
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table"
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 
 type Viagem = Awaited<ReturnType<typeof buscarViagensPaginadas>>["viagens"][number]
 
 function MotoristaCelula({ viagem }: { viagem: Viagem }) {
   if (!viagem.motorista) {
-    return (
-      <Badge variant="warning">
-        Pendente Alocação
-      </Badge>
-    )
+    return <Badge variant="warning">Pendente Alocação</Badge>
   }
 
   return (
@@ -120,7 +109,13 @@ function ViagensTabela({ viagens, podeExcluir }: { viagens: Viagem[]; podeExclui
                       Extra
                     </Badge>
                   )}
-                  <AtualizarStatusRapido key={`${viagem.id}-${viagem.status}`} viagemId={viagem.id} statusAtual={viagem.status} inicioPrevisto={viagem.inicioPrevisto} fimPrevisto={viagem.fimPrevisto} />
+                  <AtualizarStatusRapido
+                    key={`${viagem.id}-${viagem.status}`}
+                    viagemId={viagem.id}
+                    statusAtual={viagem.status}
+                    inicioPrevisto={viagem.inicioPrevisto}
+                    fimPrevisto={viagem.fimPrevisto}
+                  />
                 </div>
               </TableCell>
               <TableCell>
@@ -164,13 +159,21 @@ function ViagensCards({ viagens, podeExcluir }: { viagens: Viagem[]; podeExcluir
                 Extra
               </Badge>
             )}
-            <AtualizarStatusRapido key={`${viagem.id}-${viagem.status}`} viagemId={viagem.id} statusAtual={viagem.status} inicioPrevisto={viagem.inicioPrevisto} fimPrevisto={viagem.fimPrevisto} />
+            <AtualizarStatusRapido
+              key={`${viagem.id}-${viagem.status}`}
+              viagemId={viagem.id}
+              statusAtual={viagem.status}
+              inicioPrevisto={viagem.inicioPrevisto}
+              fimPrevisto={viagem.fimPrevisto}
+            />
           </div>
 
           <dl className="grid grid-cols-2 gap-x-4 gap-y-2 text-sm">
             <div>
               <dt className="text-xs text-muted-foreground">Caminhão</dt>
-              <dd className="font-mono font-medium tabular-nums text-foreground">{formatarCodigoFrota(viagem.cavalo)} / {formatarCodigoFrota(viagem.carreta)}</dd>
+              <dd className="font-mono font-medium tabular-nums text-foreground">
+                {formatarCodigoFrota(viagem.cavalo)} / {formatarCodigoFrota(viagem.carreta)}
+              </dd>
               {viagem.avisoFrotaIndisponivel && (
                 <Alert variant="warning" inline className="mt-1" title={viagem.avisoFrotaIndisponivel}>
                   Frota indisponível
@@ -184,7 +187,9 @@ function ViagensCards({ viagens, podeExcluir }: { viagens: Viagem[]; podeExcluir
             </div>
             <div>
               <dt className="text-xs text-muted-foreground">Motorista</dt>
-              <dd><MotoristaCelula viagem={viagem} /></dd>
+              <dd>
+                <MotoristaCelula viagem={viagem} />
+              </dd>
             </div>
           </dl>
 
@@ -213,7 +218,9 @@ function FiltrosViagens({ filtro }: { filtro: FiltroListaViagens }) {
         Nº da viagem
         <Input name="q" defaultValue={filtro.busca} placeholder="Buscar em todo o histórico" className="h-8 w-52 text-xs" />
       </label>
-      <Button type="submit" size="sm" variant="outline">Filtrar</Button>
+      <Button type="submit" size="sm" variant="outline">
+        Filtrar
+      </Button>
       {(filtro.busca || filtro.status !== "TODOS") && (
         <Link href="/viagens" className="text-xs text-muted-foreground underline-offset-4 hover:underline">
           Limpar filtros
@@ -237,14 +244,26 @@ function Paginacao({ filtro, totalPaginas, total }: { filtro: FiltroListaViagens
       </span>
       <div className="flex gap-2">
         {anterior ? (
-          <Link href={anterior}><Button size="sm" variant="outline">Anterior</Button></Link>
+          <Link href={anterior}>
+            <Button size="sm" variant="outline">
+              Anterior
+            </Button>
+          </Link>
         ) : (
-          <Button size="sm" variant="outline" disabled>Anterior</Button>
+          <Button size="sm" variant="outline" disabled>
+            Anterior
+          </Button>
         )}
         {proxima ? (
-          <Link href={proxima}><Button size="sm" variant="outline">Próxima</Button></Link>
+          <Link href={proxima}>
+            <Button size="sm" variant="outline">
+              Próxima
+            </Button>
+          </Link>
         ) : (
-          <Button size="sm" variant="outline" disabled>Próxima</Button>
+          <Button size="sm" variant="outline" disabled>
+            Próxima
+          </Button>
         )}
       </div>
     </nav>
@@ -259,11 +278,7 @@ type SearchParamsInput = {
   pagina?: string
 }
 
-export default async function ViagensPage({
-  searchParams,
-}: {
-  searchParams?: Promise<SearchParamsInput>
-}) {
+export default async function ViagensPage({ searchParams }: { searchParams?: Promise<SearchParamsInput> }) {
   const filtro = parseFiltroListaViagens((await searchParams) ?? {})
   const filtroStatus = filtro.status
   const { session, filialId } = await requireSessaoPaginaComFilial()
@@ -283,9 +298,7 @@ export default async function ViagensPage({
           </Link>
           {STATUS_VIAGEM_OPCOES.map((status) => (
             <Link key={status.valor} href={`/viagens${montarQueryFiltroViagens(filtro, { status: status.valor, pagina: 1 })}`}>
-              <Button variant={filtroStatus === status.valor ? "default" : "outline"}>
-                {status.label}
-              </Button>
+              <Button variant={filtroStatus === status.valor ? "default" : "outline"}>{status.label}</Button>
             </Link>
           ))}
           <Link href="/viagens/alocacao">

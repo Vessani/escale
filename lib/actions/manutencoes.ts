@@ -1,4 +1,4 @@
-'use server'
+"use server"
 import { revalidatePath } from "next/cache"
 import type { RespostaAcao } from "@/lib/types/types"
 import { errorToMessage } from "@/lib/action-error"
@@ -6,6 +6,7 @@ import { requireSessionComFilial } from "@/lib/auth-guard"
 import { atorDaSessao } from "@/lib/services/auditoria.service"
 import { manutencaoSchema, type ManutencaoFormValues } from "@/lib/validation/manutencoes"
 import { converterEntradaDeDataHora } from "@/lib/utils/date-format"
+import { z } from "@/lib/validation/zod"
 import {
   concluirManutencaoService,
   criarManutencaoService,
@@ -14,6 +15,8 @@ import {
   iniciarManutencaoService,
   reabrirManutencaoService,
 } from "@/lib/services/manutencao.service"
+
+const idSchema = z.number().int().positive()
 
 function revalidar() {
   revalidatePath("/frotas")
@@ -28,10 +31,9 @@ function horario(texto?: string | null): Date {
 export async function criarManutencao(dados: ManutencaoFormValues): Promise<RespostaAcao> {
   try {
     const { session, filialId } = await requireSessionComFilial()
-    const validacao = manutencaoSchema.safeParse(dados)
-    if (!validacao.success) return { sucesso: false, erro: validacao.error.issues[0]?.message ?? "Dados inválidos." }
+    const dadosValidados = manutencaoSchema.parse(dados)
 
-    await criarManutencaoService(filialId, validacao.data, atorDaSessao(session))
+    await criarManutencaoService(filialId, dadosValidados, atorDaSessao(session))
     revalidar()
     return { sucesso: true }
   } catch (erro) {
@@ -42,10 +44,9 @@ export async function criarManutencao(dados: ManutencaoFormValues): Promise<Resp
 export async function editarManutencao(id: number, dados: ManutencaoFormValues): Promise<RespostaAcao> {
   try {
     const { session, filialId } = await requireSessionComFilial()
-    const validacao = manutencaoSchema.safeParse(dados)
-    if (!validacao.success) return { sucesso: false, erro: validacao.error.issues[0]?.message ?? "Dados inválidos." }
+    const dadosValidados = manutencaoSchema.parse(dados)
 
-    await editarManutencaoService(filialId, id, validacao.data, atorDaSessao(session))
+    await editarManutencaoService(filialId, idSchema.parse(id), dadosValidados, atorDaSessao(session))
     revalidar()
     return { sucesso: true }
   } catch (erro) {
@@ -56,7 +57,7 @@ export async function editarManutencao(id: number, dados: ManutencaoFormValues):
 export async function iniciarManutencao(id: number, quando?: string | null): Promise<RespostaAcao> {
   try {
     const { session, filialId } = await requireSessionComFilial()
-    await iniciarManutencaoService(filialId, id, horario(quando), atorDaSessao(session))
+    await iniciarManutencaoService(filialId, idSchema.parse(id), horario(quando), atorDaSessao(session))
     revalidar()
     return { sucesso: true }
   } catch (erro) {
@@ -67,7 +68,7 @@ export async function iniciarManutencao(id: number, quando?: string | null): Pro
 export async function concluirManutencao(id: number, quando?: string | null): Promise<RespostaAcao> {
   try {
     const { session, filialId } = await requireSessionComFilial()
-    await concluirManutencaoService(filialId, id, horario(quando), atorDaSessao(session))
+    await concluirManutencaoService(filialId, idSchema.parse(id), horario(quando), atorDaSessao(session))
     revalidar()
     return { sucesso: true }
   } catch (erro) {
@@ -78,7 +79,7 @@ export async function concluirManutencao(id: number, quando?: string | null): Pr
 export async function reabrirManutencao(id: number): Promise<RespostaAcao> {
   try {
     const { session, filialId } = await requireSessionComFilial()
-    await reabrirManutencaoService(filialId, id, atorDaSessao(session))
+    await reabrirManutencaoService(filialId, idSchema.parse(id), atorDaSessao(session))
     revalidar()
     return { sucesso: true }
   } catch (erro) {
@@ -89,7 +90,7 @@ export async function reabrirManutencao(id: number): Promise<RespostaAcao> {
 export async function excluirManutencao(id: number): Promise<RespostaAcao> {
   try {
     const { session, filialId } = await requireSessionComFilial()
-    await excluirManutencaoService(filialId, id, atorDaSessao(session))
+    await excluirManutencaoService(filialId, idSchema.parse(id), atorDaSessao(session))
     revalidar()
     return { sucesso: true }
   } catch (erro) {

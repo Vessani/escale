@@ -128,10 +128,7 @@ function normalizarMotivo(motivo: string | null): string {
   return texto.charAt(0).toUpperCase() + texto.slice(1)
 }
 
-export function analisarPontualidade(
-  viagens: ViagemPontualidade[],
-  toleranciaMinutos = TOLERANCIA_SAIDA_MINUTOS,
-): ResultadoPontualidade {
+export function analisarPontualidade(viagens: ViagemPontualidade[], toleranciaMinutos = TOLERANCIA_SAIDA_MINUTOS): ResultadoPontualidade {
   const comSaida = viagens.filter((viagem) => viagem.horarioRealSaida !== null)
   const semRegistro = viagens.filter((viagem) => viagem.horarioRealSaida === null && STATUS_JA_SAIU.includes(viagem.status)).length
 

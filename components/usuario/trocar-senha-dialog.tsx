@@ -62,53 +62,65 @@ export default function TrocarSenhaDialog({ colapsado = false }: { colapsado?: b
         <Dialog.Overlay className="fixed inset-0 z-40 bg-black/50" />
         <Dialog.Content className="fixed left-1/2 top-1/2 z-50 w-[calc(100%-2rem)] max-w-sm -translate-x-1/2 -translate-y-1/2 rounded-lg bg-card p-6 shadow-xl">
           <Dialog.Title className="text-lg font-semibold text-foreground">Trocar senha</Dialog.Title>
-          <Dialog.Description className="mt-1 text-sm text-foreground/80">
-            Informe a senha atual e a nova senha.
-          </Dialog.Description>
+          <Dialog.Description className="mt-1 text-sm text-foreground/80">Informe a senha atual e a nova senha.</Dialog.Description>
 
           {sucesso ? (
             <>
-              <Alert variant="success" className="mt-4">Senha atualizada com sucesso.</Alert>
+              <Alert variant="success" className="mt-4">
+                Senha atualizada com sucesso.
+              </Alert>
               <div className="mt-6 flex justify-end">
-                <Button type="button" onClick={() => fechar(false)}>Fechar</Button>
+                <Button type="button" onClick={() => fechar(false)}>
+                  Fechar
+                </Button>
               </div>
             </>
           ) : (
             <Form {...form}>
               <form onSubmit={form.handleSubmit(onSubmit)} className="mt-4 space-y-3">
-                <FormField control={form.control} name="senhaAtual" render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Senha atual</FormLabel>
-                    <FormControl>
-                      <Input type="password" autoComplete="current-password" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )} />
+                <FormField
+                  control={form.control}
+                  name="senhaAtual"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Senha atual</FormLabel>
+                      <FormControl>
+                        <Input type="password" autoComplete="current-password" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
 
-                <FormField control={form.control} name="novaSenha" render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Nova senha</FormLabel>
-                    <FormControl>
-                      <Input type="password" autoComplete="new-password" placeholder="Mínimo de 8 caracteres" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )} />
+                <FormField
+                  control={form.control}
+                  name="novaSenha"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Nova senha</FormLabel>
+                      <FormControl>
+                        <Input type="password" autoComplete="new-password" placeholder="Mínimo de 8 caracteres" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
 
-                <FormField control={form.control} name="confirmarSenha" render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Confirmar nova senha</FormLabel>
-                    <FormControl>
-                      <Input type="password" autoComplete="new-password" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )} />
+                <FormField
+                  control={form.control}
+                  name="confirmarSenha"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Confirmar nova senha</FormLabel>
+                      <FormControl>
+                        <Input type="password" autoComplete="new-password" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
 
-                {form.formState.errors.root && (
-                  <Alert variant="error">{form.formState.errors.root.message}</Alert>
-                )}
+                {form.formState.errors.root && <Alert variant="error">{form.formState.errors.root.message}</Alert>}
 
                 <div className="mt-6 flex justify-end gap-2">
                   <Button type="button" variant="outline" onClick={() => fechar(false)} disabled={form.formState.isSubmitting}>

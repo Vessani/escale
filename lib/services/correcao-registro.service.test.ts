@@ -72,7 +72,9 @@ describe("corrigirKmPeloEscalador", () => {
     await expect(corrigirKmPeloEscalador(3, 5, { kmInicial: 152300, kmFinal: 152000 }, ator)).rejects.toThrow("menor que o inicial")
 
     tx.viagem.findFirst.mockResolvedValueOnce(viagem({ status: "INICIADA", kmFinal: null }))
-    await expect(corrigirKmPeloEscalador(3, 5, { kmInicial: 152300, kmFinal: 152400 }, ator)).rejects.toThrow("depois que a viagem é encerrada")
+    await expect(corrigirKmPeloEscalador(3, 5, { kmInicial: 152300, kmFinal: 152400 }, ator)).rejects.toThrow(
+      "depois que a viagem é encerrada",
+    )
 
     await expect(corrigirKmPeloEscalador(3, 5, { kmInicial: 152300, kmFinal: null }, ator)).rejects.toThrow("informe o km final")
 
@@ -95,7 +97,11 @@ describe("despesas pelo escalador", () => {
     tx.despesaViagem.create.mockResolvedValue({ id: 9, viagemId: 5, tipo: "PEDAGIO", valorCentavos: 1250 })
     await lancarDespesaPeloEscalador(3, 5, { tipo: "PEDAGIO", valorCentavos: 1250 }, ator)
     expect(tx.despesaViagem.create).toHaveBeenCalledWith({ data: { viagemId: 5, tipo: "PEDAGIO", valorCentavos: 1250, usuarioId: "u1" } })
-    expect(auditoria()).toMatchObject({ entidade: "DespesaViagem", acao: "CRIACAO", depois: { _contexto: "Correção do escalador (viagem 922087) · pedágio" } })
+    expect(auditoria()).toMatchObject({
+      entidade: "DespesaViagem",
+      acao: "CRIACAO",
+      depois: { _contexto: "Correção do escalador (viagem 922087) · pedágio" },
+    })
 
     vi.mocked(prisma.despesaViagem.findFirst).mockResolvedValue({ viagemId: 5 } as never)
     tx.despesaViagem.findFirst.mockResolvedValue({ id: 9, viagemId: 5, tipo: "PEDAGIO", valorCentavos: 1250 })
@@ -149,7 +155,10 @@ describe("salvarChegadaPeloEscalador", () => {
     const { create, update } = tx.chegadaEntrega.upsert.mock.calls[0][0]
     expect(create).toMatchObject({ entregaId: 21, km: 152400, fator: 0.754, totalDescarregado: 452.4, usuarioId: "u1" })
     expect(update).not.toHaveProperty("entregaId")
-    expect(auditoria()).toMatchObject({ acao: "ATUALIZACAO", depois: { _contexto: "Correção do escalador (viagem 922087) · chegada em WEG" } })
+    expect(auditoria()).toMatchObject({
+      acao: "ATUALIZACAO",
+      depois: { _contexto: "Correção do escalador (viagem 922087) · chegada em WEG" },
+    })
   })
 
   it("recusa: origem (sem códigos), km acima do final, km abaixo do inicial", async () => {
@@ -166,16 +175,23 @@ describe("salvarChegadaPeloEscalador", () => {
 describe("apagarChegadaPeloEscalador", () => {
   it("só acha chegada de viagem da filial; apaga com a viagem travada e guarda o que era no histórico", async () => {
     vi.mocked(prisma.chegadaEntrega.findFirst).mockResolvedValue({
-      id: 7, km: 152410, entrega: { cliente: "HOSPITAL", viagemId: 5, viagem: { numViagem: "922087" } },
+      id: 7,
+      km: 152410,
+      entrega: { cliente: "HOSPITAL", viagemId: 5, viagem: { numViagem: "922087" } },
     } as never)
 
     await expect(apagarChegadaPeloEscalador(3, 7, ator)).resolves.toEqual({ viagemId: 5 })
 
-    expect(prisma.chegadaEntrega.findFirst).toHaveBeenCalledWith(expect.objectContaining({ where: { id: 7, entrega: { viagem: { filialId: 3, deletadoEm: null } } } }))
+    expect(prisma.chegadaEntrega.findFirst).toHaveBeenCalledWith(
+      expect.objectContaining({ where: { id: 7, entrega: { viagem: { filialId: 3, deletadoEm: null } } } }),
+    )
     expect(tx.$queryRaw).toHaveBeenCalled()
     expect(tx.chegadaEntrega.delete).toHaveBeenCalledWith({ where: { id: 7 } })
     expect(auditoria()).toMatchObject({
-      entidade: "ChegadaEntrega", entidadeId: 7, acao: "EXCLUSAO", antes: { id: 7, km: 152410, _contexto: "Chegada em HOSPITAL (viagem 922087)" },
+      entidade: "ChegadaEntrega",
+      entidadeId: 7,
+      acao: "EXCLUSAO",
+      antes: { id: 7, km: 152410, _contexto: "Chegada em HOSPITAL (viagem 922087)" },
     })
   })
 

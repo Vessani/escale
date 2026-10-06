@@ -23,6 +23,8 @@ jobs:
         run: npx tsc --noEmit
       - name: Lint
         run: npm run lint
+      - name: Formatação
+        run: npm run format:check
       - name: Código sem uso
         run: npm run knip
       - name: Testes (UTC, como na Vercel)

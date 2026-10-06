@@ -33,7 +33,8 @@ export function precisaAtencao(categoria: CategoriaLinha) {
 
 export const ESTILO_CATEGORIA: Record<CategoriaLinha, { linha: string; ponto: string }> = {
   SETIMO_DIA: {
-    linha: "bg-destructive/10 text-destructive hover:bg-destructive/15 font-medium [&>td:first-child]:border-l-4 [&>td:first-child]:border-l-destructive",
+    linha:
+      "bg-destructive/10 text-destructive hover:bg-destructive/15 font-medium [&>td:first-child]:border-l-4 [&>td:first-child]:border-l-destructive",
     ponto: "bg-destructive",
   },
   EDITADA: {

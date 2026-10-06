@@ -31,7 +31,8 @@ export function validarKmDoRegistro(km: number, kmInicial: number | null, rotulo
   }
   if (kmInicial === null) return
   if (km < kmInicial) throw new ErroDeDominio("KM_MENOR_QUE_INICIAL", `${rotulo}: não pode ser menor que o km inicial (${kmInicial}).`)
-  if (km - kmInicial > KM_MAXIMO_POR_VIAGEM) throw new ErroDeDominio("KM_ALTO", `${rotulo}: mais de 10.000 km desde a saída — confira o km.`)
+  if (km - kmInicial > KM_MAXIMO_POR_VIAGEM)
+    throw new ErroDeDominio("KM_ALTO", `${rotulo}: mais de 10.000 km desde a saída — confira o km.`)
 }
 
 /** Hora de um registro no meio da viagem: nem no futuro, nem antes da saída. */

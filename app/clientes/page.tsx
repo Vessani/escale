@@ -21,7 +21,7 @@ export default async function ClientesPage() {
           <h1 className="text-2xl font-semibold tracking-tight text-foreground">Clientes</h1>
           <p
             className="text-muted-foreground mt-1"
-            title="Nomes usados nas entregas da viagem e nas integrações do motorista. Marcar &quot;Exige integração&quot; passa a cobrar integração ativa em qualquer viagem pra esse cliente."
+            title='Nomes usados nas entregas da viagem e nas integrações do motorista. Marcar "Exige integração" passa a cobrar integração ativa em qualquer viagem pra esse cliente.'
           >
             Clientes das entregas e exigência de integração.
           </p>
@@ -69,11 +69,7 @@ export default async function ClientesPage() {
                   <TableCell className="font-medium">{cliente.nome}</TableCell>
                   <TableCell className="font-mono tabular-nums text-foreground/80">{cliente.numeroSap}</TableCell>
                   <TableCell>
-                    {cliente.exigeIntegracao ? (
-                      <Badge variant="warning">Sim</Badge>
-                    ) : (
-                      <Badge variant="outline">Não</Badge>
-                    )}
+                    {cliente.exigeIntegracao ? <Badge variant="warning">Sim</Badge> : <Badge variant="outline">Não</Badge>}
                   </TableCell>
                   {podeGerenciar && (
                     <TableCell className="text-right">

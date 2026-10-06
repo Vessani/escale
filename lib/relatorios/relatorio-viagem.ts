@@ -50,7 +50,12 @@ export async function carregarRelatorioViagem(filialId: number, viagemId: number
     if (chegada) totaisPorUnidade.set(chegada.unidade, (totaisPorUnidade.get(chegada.unidade) ?? 0) + chegada.total)
   }
 
-  const despesas = viagem.despesas.map((d) => ({ id: d.id, tipo: rotuloDespesa(d.tipo), quando: d.registradoEm, centavos: d.valorCentavos }))
+  const despesas = viagem.despesas.map((d) => ({
+    id: d.id,
+    tipo: rotuloDespesa(d.tipo),
+    quando: d.registradoEm,
+    centavos: d.valorCentavos,
+  }))
   const { pedagioCentavos, pernoiteCentavos } = totaisDespesas(viagem.despesas)
 
   const trocas = viagem.trocas.map((t) => ({
@@ -64,23 +69,28 @@ export async function carregarRelatorioViagem(filialId: number, viagemId: number
   }))
 
   const cancelada = viagem.status === "CANCELADA"
-  const linhaDoTempo = historico && montarLinhaDoTempo({
-    rotuloStatus: (status: StatusViagem) => formatarStatusViagem(status),
-    mudancasStatus: mudancasDeStatus(historico).map((mudanca) => ({ ...mudanca, quem: nome(mudanca.quem) })),
-    saida: viagem.horarioRealSaida ? { quando: viagem.horarioRealSaida, km: viagem.kmInicial, motivoAtraso: viagem.motivoAtraso } : null,
-    chegadas: entregas.flatMap(({ cliente, chegada }) =>
-      chegada ? [{ quando: chegada.quando, cliente, km: chegada.km, total: `${formatarNumero(chegada.total)} ${chegada.unidade}`.trim() }] : [],
-    ),
-    despesas: despesas.map((d) => ({ quando: d.quando, tipo: d.tipo, valor: formatarReais(d.centavos) })),
-    trocas,
-    problema: viagem.problemaMecanico && viagem.problemaMecanicoEm ? { quando: viagem.problemaMecanicoEm, texto: viagem.problemaMecanico } : null,
-    fim:
-      viagem.status === "FINALIZADA" && viagem.finalizadoEm
-        ? { quando: viagem.finalizadoEm, status: "FINALIZADA", km: viagem.kmFinal }
-        : cancelada && viagem.canceladoEm
-          ? { quando: viagem.canceladoEm, status: "CANCELADA", km: null }
-          : null,
-  })
+  const linhaDoTempo =
+    historico &&
+    montarLinhaDoTempo({
+      rotuloStatus: (status: StatusViagem) => formatarStatusViagem(status),
+      mudancasStatus: mudancasDeStatus(historico).map((mudanca) => ({ ...mudanca, quem: nome(mudanca.quem) })),
+      saida: viagem.horarioRealSaida ? { quando: viagem.horarioRealSaida, km: viagem.kmInicial, motivoAtraso: viagem.motivoAtraso } : null,
+      chegadas: entregas.flatMap(({ cliente, chegada }) =>
+        chegada
+          ? [{ quando: chegada.quando, cliente, km: chegada.km, total: `${formatarNumero(chegada.total)} ${chegada.unidade}`.trim() }]
+          : [],
+      ),
+      despesas: despesas.map((d) => ({ quando: d.quando, tipo: d.tipo, valor: formatarReais(d.centavos) })),
+      trocas,
+      problema:
+        viagem.problemaMecanico && viagem.problemaMecanicoEm ? { quando: viagem.problemaMecanicoEm, texto: viagem.problemaMecanico } : null,
+      fim:
+        viagem.status === "FINALIZADA" && viagem.finalizadoEm
+          ? { quando: viagem.finalizadoEm, status: "FINALIZADA", km: viagem.kmFinal }
+          : cancelada && viagem.canceladoEm
+            ? { quando: viagem.canceladoEm, status: "CANCELADA", km: null }
+            : null,
+    })
 
   return {
     id: viagem.id,
@@ -102,7 +112,8 @@ export async function carregarRelatorioViagem(filialId: number, viagemId: number
     encerramento: { rotulo: cancelada ? "Cancelada em" : "Encerrada em", quando: cancelada ? viagem.canceladoEm : viagem.finalizadoEm },
     kmInicial: viagem.kmInicial,
     kmFinal: viagem.kmFinal,
-    kmRodado: viagem.kmInicial !== null && viagem.kmFinal !== null && viagem.kmFinal >= viagem.kmInicial ? viagem.kmFinal - viagem.kmInicial : null,
+    kmRodado:
+      viagem.kmInicial !== null && viagem.kmFinal !== null && viagem.kmFinal >= viagem.kmInicial ? viagem.kmFinal - viagem.kmInicial : null,
     entregas,
     totaisDescarga: [...totaisPorUnidade].map(([unidade, total]) => ({ unidade, total })),
     despesas,

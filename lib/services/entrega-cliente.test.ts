@@ -13,7 +13,11 @@ describe("ehEntregaDeCliente", () => {
   })
 
   it("filtra mantendo a ordem", () => {
-    const lista = [{ id: 1, sapcode: "", codewhite: "" }, { id: 2, sapcode: "1", codewhite: "W1" }, { id: 3, sapcode: "2", codewhite: "W2" }]
+    const lista = [
+      { id: 1, sapcode: "", codewhite: "" },
+      { id: 2, sapcode: "1", codewhite: "W1" },
+      { id: 3, sapcode: "2", codewhite: "W2" },
+    ]
     expect(soEntregasDeCliente(lista).map((e) => e.id)).toEqual([2, 3])
   })
 })

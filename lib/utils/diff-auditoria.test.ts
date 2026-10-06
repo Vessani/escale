@@ -34,9 +34,7 @@ describe("diffAuditoria", () => {
 
 describe("formatarCampoAlterado", () => {
   it("formata como 'campo: antigo → novo'", () => {
-    expect(formatarCampoAlterado({ campo: "status", valorAntigo: "ALOCADA", valorNovo: "CANCELADA" })).toBe(
-      "status: ALOCADA → CANCELADA",
-    )
+    expect(formatarCampoAlterado({ campo: "status", valorAntigo: "ALOCADA", valorNovo: "CANCELADA" })).toBe("status: ALOCADA → CANCELADA")
   })
 
   it("mostra travessão pra valores nulos/indefinidos", () => {
@@ -53,4 +51,3 @@ describe("contexto do registro", () => {
     expect(contextoAuditoria(null)).toBeNull()
   })
 })
-

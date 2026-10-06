@@ -38,9 +38,7 @@ export default function AtualizarStatusRapido({ viagemId, statusAtual, inicioPre
   const router = useRouter()
   const [isPending, startTransition] = useTransition()
   const [erro, setErro] = useState("")
-  const [statusSelecionado, setStatusSelecionado] = useState<StatusViagemSelecionavel>(
-    normalizarStatusViagem(statusAtual),
-  )
+  const [statusSelecionado, setStatusSelecionado] = useState<StatusViagemSelecionavel>(normalizarStatusViagem(statusAtual))
   const [dialogPostergarAberto, setDialogPostergarAberto] = useState(false)
   const [novoInicio, setNovoInicio] = useState(() => formatDateTimeForInput(inicioPrevisto))
   const [novoFim, setNovoFim] = useState(() => formatDateTimeForInput(fimPrevisto))
@@ -93,10 +91,7 @@ export default function AtualizarStatusRapido({ viagemId, statusAtual, inicioPre
       <Select value={statusSelecionado} onValueChange={alterarStatus} disabled={isPending}>
         <SelectTrigger
           aria-label="Status da viagem"
-          className={cn(
-            "h-7 w-auto gap-1.5 border px-2.5 text-xs font-medium",
-            classeBadgeStatusViagem(statusSelecionado),
-          )}
+          className={cn("h-7 w-auto gap-1.5 border px-2.5 text-xs font-medium", classeBadgeStatusViagem(statusSelecionado))}
         >
           {/*
             Conteúdo explícito (e não o texto copiado da opção): assim a
@@ -151,12 +146,7 @@ export default function AtualizarStatusRapido({ viagemId, statusAtual, inicioPre
               </div>
               <div>
                 <label className="mb-1 block text-xs font-medium text-foreground/80">Novo fim previsto</label>
-                <Input
-                  type="datetime-local"
-                  value={novoFim}
-                  disabled={isPending}
-                  onChange={(evento) => setNovoFim(evento.target.value)}
-                />
+                <Input type="datetime-local" value={novoFim} disabled={isPending} onChange={(evento) => setNovoFim(evento.target.value)} />
               </div>
             </div>
 

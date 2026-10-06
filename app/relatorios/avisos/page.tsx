@@ -27,9 +27,8 @@ export default async function ViagensComAvisoPage({ searchParams }: { searchPara
   return (
     <div className="space-y-6">
       <CabecalhoRelatorio titulo="Viagens com aviso">
-        Viagens (não canceladas) que foram com algum aviso do sistema — descanso, frota indisponível, frota de outro produto
-        ou que não consta no relatório de jornada — e quem fez a última alteração nelas. Passe o mouse no aviso pra ver o
-        detalhe.
+        Viagens (não canceladas) que foram com algum aviso do sistema — descanso, frota indisponível, frota de outro produto ou que não
+        consta no relatório de jornada — e quem fez a última alteração nelas. Passe o mouse no aviso pra ver o detalhe.
       </CabecalhoRelatorio>
 
       <FiltroRelatorio
@@ -60,17 +59,23 @@ export default async function ViagensComAvisoPage({ searchParams }: { searchPara
                 <TableRow key={viagem.id}>
                   <TableCell className="tabular-nums">{formatarDiaCurto(viagem.inicioPrevisto)}</TableCell>
                   <TableCell className="font-mono">
-                    <Link href={`/viagens/editar/${viagem.id}`} className="underline-offset-4 hover:underline">{viagem.numViagem}</Link>
+                    <Link href={`/viagens/editar/${viagem.id}`} className="underline-offset-4 hover:underline">
+                      {viagem.numViagem}
+                    </Link>
                   </TableCell>
                   <TableCell>
-                    <Badge dot variant="outline" className={classeBadgeStatusViagem(viagem.status)}>{formatarStatusViagem(viagem.status)}</Badge>
+                    <Badge dot variant="outline" className={classeBadgeStatusViagem(viagem.status)}>
+                      {formatarStatusViagem(viagem.status)}
+                    </Badge>
                   </TableCell>
                   <TableCell>{viagem.motorista ? formatarNomeProprio(viagem.motorista.nome) : "—"}</TableCell>
                   <TableCell className="font-mono tabular-nums">{textoFrota(viagem.cavalo, viagem.carreta)}</TableCell>
                   <TableCell>
                     <div className="flex flex-col gap-1">
                       {listarAvisos(viagem).map((aviso) => (
-                        <Alert key={aviso.rotulo} variant="warning" inline title={aviso.detalhe}>{aviso.rotulo}</Alert>
+                        <Alert key={aviso.rotulo} variant="warning" inline title={aviso.detalhe}>
+                          {aviso.rotulo}
+                        </Alert>
                       ))}
                     </div>
                   </TableCell>

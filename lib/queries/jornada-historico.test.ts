@@ -35,7 +35,11 @@ describe("histórico de jornada em janela + âncora", () => {
     const esperado = projetarCodigoNoDia([antigo], dia, dia, 1)
 
     const db = { $queryRaw: vi.fn().mockResolvedValue([{ motoristaId: 1, ...antigo, fimJornada: null }]) }
-    const [motorista] = await completarHistoricoComAncora([{ id: 1, registrosJornada: [] as Array<{ data: Date; codigo: number }> }], inicioJanelaJornada(dia), db as never)
+    const [motorista] = await completarHistoricoComAncora(
+      [{ id: 1, registrosJornada: [] as Array<{ data: Date; codigo: number }> }],
+      inicioJanelaJornada(dia),
+      db as never,
+    )
 
     expect(projetarCodigoNoDia(motorista.registrosJornada, dia, dia, 1)).toBe(esperado)
   })

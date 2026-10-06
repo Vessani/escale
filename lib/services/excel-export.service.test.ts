@@ -1,9 +1,6 @@
 import { describe, expect, it } from "vitest"
 import ExcelJS from "exceljs"
-import {
-  sanitizarNomeArquivo,
-  gerarExcelViagem,
-} from "@/lib/services/excel-export.service"
+import { sanitizarNomeArquivo, gerarExcelViagem } from "@/lib/services/excel-export.service"
 import { excelProgramacaoDoDia } from "@/lib/excel/viagens"
 import { lerAba, nomesDasAbas, textoDaAba } from "@/lib/excel/ler-planilha"
 

@@ -7,12 +7,7 @@ vi.mock("./frota.service", () => ({ sincronizarDisponibilidadeFrota: vi.fn() }))
 
 import { prisma } from "@/lib/prisma"
 import { sincronizarDisponibilidadeFrota } from "./frota.service"
-import {
-  concluirManutencaoService,
-  criarManutencaoService,
-  editarManutencaoService,
-  excluirManutencaoService,
-} from "./manutencao.service"
+import { concluirManutencaoService, criarManutencaoService, editarManutencaoService, excluirManutencaoService } from "./manutencao.service"
 import type { Ator } from "./auditoria.service"
 
 const FILIAL = 1
@@ -21,11 +16,19 @@ const h = (iso: string) => new Date(`${iso}-03:00`)
 
 function criarTx() {
   return {
+    $queryRaw: vi.fn(),
     manutencao: {
+      // a leitura (com trava) acontece dentro da transação
+      findFirst: vi.fn((...args: unknown[]) => (prisma.manutencao.findFirst as (...a: unknown[]) => unknown)(...args)),
       create: vi.fn(async ({ data }) => ({ id: 5, ...data })),
       update: vi.fn(async ({ data }) => ({ id: 5, veiculo: "CARRETA", codigo: "908", ...data })),
     },
-    viagem: { findMany: vi.fn().mockResolvedValue([{ cavalo: "75", carreta: "908" }, { cavalo: "76", carreta: "908" }]) },
+    viagem: {
+      findMany: vi.fn().mockResolvedValue([
+        { cavalo: "75", carreta: "908" },
+        { cavalo: "76", carreta: "908" },
+      ]),
+    },
     registroAuditoria: { create: vi.fn() },
   }
 }
@@ -68,7 +71,11 @@ describe("manutencao.service", () => {
       },
     })
     const filtro = vi.mocked(tx.viagem.findMany).mock.calls[0][0] as { where: Record<string, unknown> }
-    expect(filtro.where).toMatchObject({ filialId: FILIAL, status: { notIn: ["CANCELADA", "FINALIZADA"] }, OR: [{ carreta: { in: ["908"] } }] })
+    expect(filtro.where).toMatchObject({
+      filialId: FILIAL,
+      status: { notIn: ["CANCELADA", "FINALIZADA"] },
+      OR: [{ carreta: { in: ["908"] } }],
+    })
     // Uma sincronização por carreta, não por viagem.
     expect(sincronizarDisponibilidadeFrota).toHaveBeenCalledTimes(1)
     expect(sincronizarDisponibilidadeFrota).toHaveBeenCalledWith(tx, FILIAL, "76", "908")
@@ -101,7 +108,11 @@ describe("manutencao.service", () => {
       data: { inicioReal: h("2026-09-30T08:00:00"), fimReal: h("2026-09-30T17:30:00") },
     })
 
-    vi.mocked(prisma.manutencao.findFirst).mockResolvedValue({ id: 5, inicioPrevisto: h("2026-09-30T08:00:00"), inicioReal: h("2026-09-30T09:00:00") } as never)
+    vi.mocked(prisma.manutencao.findFirst).mockResolvedValue({
+      id: 5,
+      inicioPrevisto: h("2026-09-30T08:00:00"),
+      inicioReal: h("2026-09-30T09:00:00"),
+    } as never)
     await expect(concluirManutencaoService(FILIAL, 5, h("2026-09-30T08:30:00"), ATOR)).rejects.toThrow(/depois do início/)
   })
 
@@ -112,7 +123,8 @@ describe("manutencao.service", () => {
 
     await excluirManutencaoService(FILIAL, 5, ATOR)
     expect(tx.manutencao.update).toHaveBeenCalledWith({ where: { id: 5 }, data: { deletadoEm: expect.any(Date) } })
-    expect(prisma.manutencao.findFirst).toHaveBeenCalledWith({ where: { id: 5, filialId: FILIAL, deletadoEm: null } })
+    expect(tx.$queryRaw).toHaveBeenCalled()
+    expect(tx.manutencao.findFirst).toHaveBeenCalledWith({ where: { id: 5, filialId: FILIAL, deletadoEm: null } })
 
     vi.mocked(prisma.manutencao.findFirst).mockResolvedValue(null)
     await expect(excluirManutencaoService(FILIAL, 99, ATOR)).rejects.toThrow("Manutenção não encontrada.")

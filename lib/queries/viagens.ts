@@ -1,13 +1,13 @@
-import { Prisma } from "@prisma/client";
-import { prisma } from "@/lib/prisma";
-import { chegadaEmNumeros } from "@/lib/services/descarga";
-import { STATUS_A_INICIAR, STATUS_EM_ANDAMENTO } from "@/lib/services/viagem-status.service";
-import { DIAS_NAO_SAIU_NO_DASHBOARD } from "@/lib/services/dashboard.service";
+import { Prisma } from "@prisma/client"
+import { prisma } from "@/lib/prisma"
+import { chegadaEmNumeros } from "@/lib/services/descarga"
+import { STATUS_A_INICIAR, STATUS_EM_ANDAMENTO } from "@/lib/services/viagem-status.service"
+import { DIAS_NAO_SAIU_NO_DASHBOARD } from "@/lib/services/dashboard.service"
 
-const UM_DIA_MS = 24 * 60 * 60 * 1000;
-import { fimDoDia, inicioDoDia } from "@/lib/utils/date-format";
-import { VIAGENS_POR_PAGINA, type FiltroListaViagens } from "@/lib/services/filtro-viagens";
-import { soEntregasDeCliente } from "@/lib/services/entrega-cliente";
+const UM_DIA_MS = 24 * 60 * 60 * 1000
+import { fimDoDia, inicioDoDia } from "@/lib/utils/date-format"
+import { VIAGENS_POR_PAGINA, type FiltroListaViagens } from "@/lib/services/filtro-viagens"
+import { soEntregasDeCliente } from "@/lib/services/entrega-cliente"
 
 /**
  * Lista da Gestão de Viagens, paginada e filtrada no banco (ver
@@ -60,36 +60,34 @@ export async function buscarViagensPaginadas(filialId: number, filtro: FiltroLis
   return { viagens, total, totalPaginas: Math.max(1, Math.ceil(total / VIAGENS_POR_PAGINA)) }
 }
 
-
 export async function buscarViagemPorId(filialId: number, id: number) {
   return await prisma.viagem.findFirst({
     where: {
       id: id,
       filialId,
-      deletadoEm: null
+      deletadoEm: null,
     },
     include: {
       entregas: true,
       motorista: true,
       motoristaAcompanhante: true,
     },
-  });
+  })
 }
-
 
 export async function buscarViagensSemMotorista(filialId: number) {
   return await prisma.viagem.findMany({
     where: {
       deletadoEm: null,
       filialId,
-      status: 'CRIADA',
+      status: "CRIADA",
       motoristaId: null,
     },
-    orderBy: { inicioPrevisto: 'asc' },
+    orderBy: { inicioPrevisto: "asc" },
     include: {
-      entregas: true
+      entregas: true,
     },
-  });
+  })
 }
 
 /**
@@ -106,8 +104,8 @@ export async function buscarViagensSemMotorista(filialId: number) {
  * Finalizadas e as contagens só apareciam às vezes).
  */
 export async function buscarViagensDoDashboard(filialId: number, hoje: Date) {
-  const inicioHoje = inicioDoDia(hoje);
-  const fimHoje = fimDoDia(hoje);
+  const inicioHoje = inicioDoDia(hoje)
+  const fimHoje = fimDoDia(hoje)
 
   const viagens = await prisma.viagem.findMany({
     where: {
@@ -118,7 +116,10 @@ export async function buscarViagensDoDashboard(filialId: number, hoje: Date) {
         // Em andamento de dias anteriores fica até encerrar (mesmo com o fim previsto já passado).
         { status: { in: STATUS_EM_ANDAMENTO }, inicioPrevisto: { lte: fimHoje } },
         // Não saiu e era pra ter saído antes: pendência pro escalador resolver.
-        { status: { in: STATUS_A_INICIAR }, inicioPrevisto: { gte: new Date(inicioHoje.getTime() - DIAS_NAO_SAIU_NO_DASHBOARD * UM_DIA_MS), lt: inicioHoje } },
+        {
+          status: { in: STATUS_A_INICIAR },
+          inicioPrevisto: { gte: new Date(inicioHoje.getTime() - DIAS_NAO_SAIU_NO_DASHBOARD * UM_DIA_MS), lt: inicioHoje },
+        },
         { status: "CANCELADA", canceladoEm: { gte: inicioHoje, lte: fimHoje } },
         { status: "FINALIZADA", finalizadoEm: { gte: inicioHoje, lte: fimHoje } },
       ],
@@ -126,14 +127,17 @@ export async function buscarViagensDoDashboard(filialId: number, hoje: Date) {
     orderBy: { inicioPrevisto: "asc" },
     include: {
       // Ordem de cadastro = ordem da rota; o painel de destinos mostra cidade, cliente e horário de cada entrega.
-      entregas: { select: { cidade: true, uf: true, cliente: true, dataEntrega: true, sapcode: true, codewhite: true }, orderBy: { id: "asc" } },
+      entregas: {
+        select: { cidade: true, uf: true, cliente: true, dataEntrega: true, sapcode: true, codewhite: true },
+        orderBy: { id: "asc" },
+      },
       motorista: { select: { nome: true, tipo: true } },
       motoristaAcompanhante: { select: { nome: true, tipo: true } },
     },
-  });
+  })
   // Só clientes (SAP code + número white): a origem não é parada nem conta como entrega no resumo do turno.
-  return viagens.map((viagem) => ({ ...viagem, entregas: soEntregasDeCliente(viagem.entregas) }));
-}/**
+  return viagens.map((viagem) => ({ ...viagem, entregas: soEntregasDeCliente(viagem.entregas) }))
+} /**
  * Programação do dia: viagens previstas pra começar no dia (horário de
  * Brasília), em qualquer status, com motorista, acompanhante e entregas
  * completas — base do Excel "Programação do dia".
@@ -151,7 +155,7 @@ export async function buscarProgramacaoDoDia(filialId: number, dia: Date) {
       motoristaAcompanhante: { select: { nome: true } },
       entregas: { orderBy: { id: "asc" } },
     },
-  });
+  })
 }
 
 /** Chegadas do motorista nos clientes desta viagem (escopo pela filial). */
@@ -161,7 +165,12 @@ export async function buscarChegadasDaViagem(filialId: number, viagemId: number)
     orderBy: { entregaId: "asc" },
     include: { entrega: { select: { cliente: true, cidade: true, uf: true } } },
   })
-  return chegadas.map(({ entrega, ...chegada }) => ({ ...chegadaEmNumeros(chegada), cliente: entrega.cliente, cidade: entrega.cidade, uf: entrega.uf }))
+  return chegadas.map(({ entrega, ...chegada }) => ({
+    ...chegadaEmNumeros(chegada),
+    cliente: entrega.cliente,
+    cidade: entrega.cidade,
+    uf: entrega.uf,
+  }))
 }
 
 /** Pedágios e pernoites ativos da viagem (escopo pela filial). */

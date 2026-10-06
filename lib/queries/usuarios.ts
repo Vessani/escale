@@ -1,4 +1,4 @@
-import { prisma } from "@/lib/prisma";
+import { prisma } from "@/lib/prisma"
 
 export async function buscarUsuarios() {
   return await prisma.usuario.findMany({
@@ -12,5 +12,5 @@ export async function buscarUsuarios() {
       filialId: true,
       filial: { select: { nome: true } },
     },
-  });
+  })
 }

@@ -1,11 +1,11 @@
-'use client'
+"use client"
 
-import React, { useState } from 'react'
-import type { NovaViagemFormValues } from '@/lib/validation/viagens'
-import { Button } from '@/components/ui/button'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
-import { Upload, AlertCircle, CheckCircle2, Loader } from 'lucide-react'
-import { XLSXParserViagem, type DadosViagemPlanilha } from '@/lib/parsers/xlsx-parser'
+import React, { useState } from "react"
+import type { NovaViagemFormValues } from "@/lib/validation/viagens"
+import { Button } from "@/components/ui/button"
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { Upload, AlertCircle, CheckCircle2, Loader } from "lucide-react"
+import { XLSXParserViagem, type DadosViagemPlanilha } from "@/lib/parsers/xlsx-parser"
 
 interface UploadXLSXViagemProps {
   onDataLoaded: (dados: NovaViagemFormValues) => void
@@ -17,7 +17,7 @@ export default function UploadXLSXViagem({ onDataLoaded, onError, onImportarLote
   const [carregando, setCarregando] = useState(false)
   const [importandoLote, setImportandoLote] = useState(false)
   const [arquivo, setArquivo] = useState<File | null>(null)
-  const [erro, setErro] = useState<string>('')
+  const [erro, setErro] = useState<string>("")
   const [sucesso, setSucesso] = useState(false)
   const [viagensDisponiveis, setViagensDisponiveis] = useState<DadosViagemPlanilha[]>([])
   const [numViagemCarregada, setNumViagemCarregada] = useState<string | null>(null)
@@ -35,9 +35,7 @@ export default function UploadXLSXViagem({ onDataLoaded, onError, onImportarLote
 
     setImportandoLote(true)
     try {
-      const todasConvertidas = viagensDisponiveis.map(
-        (viagem) => XLSXParserViagem.converterParaFormulario(viagem) as NovaViagemFormValues,
-      )
+      const todasConvertidas = viagensDisponiveis.map((viagem) => XLSXParserViagem.converterParaFormulario(viagem) as NovaViagemFormValues)
       await onImportarLote(todasConvertidas)
     } finally {
       setImportandoLote(false)
@@ -45,7 +43,7 @@ export default function UploadXLSXViagem({ onDataLoaded, onError, onImportarLote
   }
 
   const processarArquivo = async (file: File): Promise<void> => {
-    setErro('')
+    setErro("")
     setSucesso(false)
     setViagensDisponiveis([])
     setNumViagemCarregada(null)
@@ -55,7 +53,7 @@ export default function UploadXLSXViagem({ onDataLoaded, onError, onImportarLote
       const viagens = await XLSXParserViagem.parseFromFile(file)
 
       if (viagens.length === 0) {
-        throw new Error('Nenhuma viagem encontrada no arquivo')
+        throw new Error("Nenhuma viagem encontrada no arquivo")
       }
 
       setArquivo(file)
@@ -67,7 +65,7 @@ export default function UploadXLSXViagem({ onDataLoaded, onError, onImportarLote
         carregarViagem(viagens[0])
       }
     } catch (err: unknown) {
-      const mensagem = err instanceof Error ? err.message : 'Erro desconhecido ao processar arquivo'
+      const mensagem = err instanceof Error ? err.message : "Erro desconhecido ao processar arquivo"
       setErro(mensagem)
       if (onError) onError(mensagem)
     } finally {
@@ -103,7 +101,7 @@ export default function UploadXLSXViagem({ onDataLoaded, onError, onImportarLote
 
   const handleLimpar = (): void => {
     setArquivo(null)
-    setErro('')
+    setErro("")
     setSucesso(false)
     setViagensDisponiveis([])
     setNumViagemCarregada(null)
@@ -116,13 +114,10 @@ export default function UploadXLSXViagem({ onDataLoaded, onError, onImportarLote
           <Upload className="w-5 h-5" />
           Importar de Arquivo
         </CardTitle>
-        <CardDescription>
-          Carregue um arquivo .xlsx para preencher automaticamente os dados da viagem
-        </CardDescription>
+        <CardDescription>Carregue um arquivo .xlsx para preencher automaticamente os dados da viagem</CardDescription>
       </CardHeader>
       <CardContent className="pt-6">
         <div className="flex flex-col gap-4">
-
           {/* Zona de upload */}
           <div className="relative">
             <input
@@ -142,10 +137,10 @@ export default function UploadXLSXViagem({ onDataLoaded, onError, onImportarLote
               className={`
                 flex flex-col items-center justify-center p-8 border-2 border-dashed rounded-lg
                 cursor-pointer transition-colors
-                ${carregando ? 'bg-muted border-border' : 'hover:border-primary hover:bg-primary/10'}
-                ${arrastandoArquivo ? 'border-primary bg-primary/10' : ''}
-                ${sucesso ? 'border-green-300 bg-green-50' : 'border-border'}
-                ${erro ? 'border-red-300 bg-red-50' : ''}
+                ${carregando ? "bg-muted border-border" : "hover:border-primary hover:bg-primary/10"}
+                ${arrastandoArquivo ? "border-primary bg-primary/10" : ""}
+                ${sucesso ? "border-green-300 bg-green-50" : "border-border"}
+                ${erro ? "border-red-300 bg-red-50" : ""}
               `}
             >
               <div className="flex flex-col items-center gap-2">
@@ -157,9 +152,7 @@ export default function UploadXLSXViagem({ onDataLoaded, onError, onImportarLote
                 ) : sucesso ? (
                   <>
                     <CheckCircle2 className="w-8 h-8 text-green-500" />
-                    <span className="text-sm font-medium text-green-700">
-                      {arquivo?.name || 'Arquivo carregado'}
-                    </span>
+                    <span className="text-sm font-medium text-green-700">{arquivo?.name || "Arquivo carregado"}</span>
                   </>
                 ) : erro ? (
                   <>
@@ -169,19 +162,13 @@ export default function UploadXLSXViagem({ onDataLoaded, onError, onImportarLote
                 ) : arrastandoArquivo ? (
                   <>
                     <Upload className="w-8 h-8 text-primary" />
-                    <span className="text-sm font-medium text-primary">
-                      Solte o arquivo para carregar
-                    </span>
+                    <span className="text-sm font-medium text-primary">Solte o arquivo para carregar</span>
                   </>
                 ) : (
                   <>
                     <Upload className="w-8 h-8 text-muted-foreground" />
-                    <span className="text-sm font-medium text-foreground/80">
-                      Clique para selecionar arquivo
-                    </span>
-                    <span className="text-xs text-muted-foreground">
-                      ou arraste um arquivo .xlsx aqui
-                    </span>
+                    <span className="text-sm font-medium text-foreground/80">Clique para selecionar arquivo</span>
+                    <span className="text-xs text-muted-foreground">ou arraste um arquivo .xlsx aqui</span>
                   </>
                 )}
               </div>
@@ -192,25 +179,16 @@ export default function UploadXLSXViagem({ onDataLoaded, onError, onImportarLote
           {viagensDisponiveis.length > 1 && (
             <div className="rounded-lg border border-border">
               <div className="flex flex-wrap items-center justify-between gap-3 border-b bg-muted px-4 py-2">
-                <span className="text-sm font-semibold text-foreground/80">
-                  {viagensDisponiveis.length} viagens encontradas no arquivo
-                </span>
+                <span className="text-sm font-semibold text-foreground/80">{viagensDisponiveis.length} viagens encontradas no arquivo</span>
                 {onImportarLote && (
-                  <Button
-                    type="button"
-                    size="sm"
-                    disabled={importandoLote}
-                    onClick={handleImportarLote}
-                  >
-                    {importandoLote
-                      ? "Importando..."
-                      : `Importar todas as ${viagensDisponiveis.length} viagens`}
+                  <Button type="button" size="sm" disabled={importandoLote} onClick={handleImportarLote}>
+                    {importandoLote ? "Importando..." : `Importar todas as ${viagensDisponiveis.length} viagens`}
                   </Button>
                 )}
               </div>
               <p className="border-b bg-muted px-4 pb-2 text-xs text-muted-foreground">
-                &ldquo;Importar todas&rdquo; calcula a alocação sugerida pra cada viagem e mostra pra você revisar
-                antes de criar. Ou escolha uma abaixo para revisar/ajustar os campos antes de salvar individualmente.
+                &ldquo;Importar todas&rdquo; calcula a alocação sugerida pra cada viagem e mostra pra você revisar antes de criar. Ou
+                escolha uma abaixo para revisar/ajustar os campos antes de salvar individualmente.
               </p>
               <ul className="divide-y divide-border">
                 {viagensDisponiveis.map((viagem) => {
@@ -218,7 +196,9 @@ export default function UploadXLSXViagem({ onDataLoaded, onError, onImportarLote
                   return (
                     <li key={viagem.numViagem} className="flex flex-wrap items-center justify-between gap-3 px-4 py-3">
                       <div className="text-sm">
-                        <div className="font-medium text-foreground">Viagem <span className="font-mono tabular-nums">{viagem.numViagem}</span></div>
+                        <div className="font-medium text-foreground">
+                          Viagem <span className="font-mono tabular-nums">{viagem.numViagem}</span>
+                        </div>
                         <div className="text-xs text-muted-foreground">
                           {viagem.entregas.length} entrega(s) · início {viagem.dataInicio}
                         </div>
@@ -241,20 +221,15 @@ export default function UploadXLSXViagem({ onDataLoaded, onError, onImportarLote
 
           {/* Botão de limpar */}
           {sucesso && (
-            <Button
-              type="button"
-              variant="outline"
-              onClick={handleLimpar}
-              className="w-full"
-            >
+            <Button type="button" variant="outline" onClick={handleLimpar} className="w-full">
               Carregar outro arquivo
             </Button>
           )}
 
           {/* Info sobre o formato esperado */}
           <div className="p-3 bg-primary/10 border border-primary/20 rounded-md text-sm text-primary">
-            <strong>Formato esperado:</strong> A planilha deve conter dados de viagem com colunas para:
-            Viagem, Carreta, Cavalo, Data, Hora, SAP Code, White Code, Data Entrega, Localização, UF, KG, M3 e Observações.
+            <strong>Formato esperado:</strong> A planilha deve conter dados de viagem com colunas para: Viagem, Carreta, Cavalo, Data, Hora,
+            SAP Code, White Code, Data Entrega, Localização, UF, KG, M3 e Observações.
           </div>
         </div>
       </CardContent>

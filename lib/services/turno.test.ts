@@ -9,6 +9,8 @@ describe("turnoPorHorario", () => {
     expect(turnoPorHorario("2026-10-01T07:00")).toBe("MANHA")
     expect(turnoPorHorario("2026-10-01T18:59:00.000Z")).toBe("MANHA")
     expect(turnoPorHorario("2026-10-01T19:00:00.000Z")).toBe("NOITE")
+    expect(turnoPorHorario("2026-10-01T03:30")).toBe("NOITE")
+    expect(turnoPorHorario("2026-10-01T04:00")).toBe("MANHA")
     expect(turnoPorHorario("lixo")).toBeNull()
   })
 })
@@ -26,3 +28,19 @@ describe("turnoDaJornada (ciclo circadiano)", () => {
   })
 })
 
+describe("instanteDoUltimoDiaDeJornada", () => {
+  const bsb = (iso: string) => new Date(`${iso}-03:00`)
+  const dia = (data: Date) => new Date(data.getTime() - 3 * 60 * 60 * 1000).toISOString().slice(0, 10)
+
+  it("chegada de madrugada (antes das 04:00) conta no dia anterior", async () => {
+    const { instanteDoUltimoDiaDeJornada } = await import("./turno")
+    expect(dia(instanteDoUltimoDiaDeJornada(bsb("2026-10-05T20:00:00"), bsb("2026-10-06T03:00:00")))).toBe("2026-10-05")
+    expect(dia(instanteDoUltimoDiaDeJornada(bsb("2026-10-05T20:00:00"), bsb("2026-10-06T03:59:00")))).toBe("2026-10-05")
+    // 04:00 em diante já é trabalho no dia seguinte
+    expect(dia(instanteDoUltimoDiaDeJornada(bsb("2026-10-05T20:00:00"), bsb("2026-10-06T04:00:00")))).toBe("2026-10-06")
+    // começou de madrugada no próprio dia: o dia é esse
+    expect(dia(instanteDoUltimoDiaDeJornada(bsb("2026-10-06T01:00:00"), bsb("2026-10-06T03:00:00")))).toBe("2026-10-06")
+    // viagem de vários dias chegando de madrugada: último dia é a véspera da chegada
+    expect(dia(instanteDoUltimoDiaDeJornada(bsb("2026-10-04T08:00:00"), bsb("2026-10-06T02:00:00")))).toBe("2026-10-05")
+  })
+})

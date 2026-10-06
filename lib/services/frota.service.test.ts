@@ -35,8 +35,7 @@ type Tx = ReturnType<typeof criarTx>
 
 /** Faz `prisma.$transaction(callback)` invocar `callback(tx)` — o cast contorna a assinatura real (sobrecarregada) do Prisma, que não importa aqui. */
 function usarTransacaoCom(tx: Tx) {
-  vi.mocked(prisma.$transaction).mockImplementation(((callback: (tx: Tx) => unknown) =>
-    Promise.resolve(callback(tx))) as never)
+  vi.mocked(prisma.$transaction).mockImplementation(((callback: (tx: Tx) => unknown) => Promise.resolve(callback(tx))) as never)
 }
 
 describe("calcularAvisoFrotaIndisponivel", () => {
@@ -191,7 +190,9 @@ describe("calcularAvisoFrotaIndisponivel", () => {
     vi.mocked(prisma.manutencao.findMany).mockResolvedValue([
       manutencao({ veiculo: "CAVALO", codigo: "75", tipo: "CORRETIVA", nivel: null, responsavel: "RITMO", fimPrevisto: null }),
     ] as never)
-    expect(await calcularAvisoFrotaIndisponivel(FILIAL_ID, "75", "908", INICIO, FIM)).toMatch(/^Cavalo 75 em manutenção \(Corretiva, Ritmo\) desde/)
+    expect(await calcularAvisoFrotaIndisponivel(FILIAL_ID, "75", "908", INICIO, FIM)).toMatch(
+      /^Cavalo 75 em manutenção \(Corretiva, Ritmo\) desde/,
+    )
 
     vi.mocked(prisma.manutencao.findMany).mockResolvedValue([
       manutencao({ fimReal: new Date("2026-09-30T19:00:00-03:00"), inicioReal: new Date("2026-09-30T08:00:00-03:00") }),
@@ -216,12 +217,27 @@ describe("sincronizarDisponibilidadeFrota", () => {
     const tx = criarTx()
     vi.mocked(tx.frota.findFirst).mockResolvedValue(null)
     vi.mocked(tx.viagem.findMany).mockResolvedValue([
-      { id: 1, numViagem: "A", cavalo: "75", inicioPrevisto: new Date("2026-07-20T08:00:00Z"), fimPrevisto: new Date("2026-07-20T18:00:00Z"), avisoFrotaIndisponivel: null },
+      {
+        id: 1,
+        numViagem: "A",
+        cavalo: "75",
+        inicioPrevisto: new Date("2026-07-20T08:00:00Z"),
+        fimPrevisto: new Date("2026-07-20T18:00:00Z"),
+        avisoFrotaIndisponivel: null,
+      },
     ] as never)
     vi.mocked(tx.manutencao.findMany).mockResolvedValue([
       {
-        id: 9, veiculo: "CARRETA", codigo: "908", tipo: "CORRETIVA", nivel: null, responsavel: "RITMO",
-        inicioPrevisto: new Date("2026-07-20T10:00:00Z"), fimPrevisto: new Date("2026-07-20T12:00:00Z"), inicioReal: null, fimReal: null,
+        id: 9,
+        veiculo: "CARRETA",
+        codigo: "908",
+        tipo: "CORRETIVA",
+        nivel: null,
+        responsavel: "RITMO",
+        inicioPrevisto: new Date("2026-07-20T10:00:00Z"),
+        fimPrevisto: new Date("2026-07-20T12:00:00Z"),
+        inicioReal: null,
+        fimReal: null,
       },
     ] as never)
 
@@ -237,8 +253,22 @@ describe("sincronizarDisponibilidadeFrota", () => {
     const tx = criarTx()
     vi.mocked(tx.frota.findFirst).mockResolvedValue({ id: 7, cavalo: "75", carreta: "908" } as never)
     vi.mocked(tx.viagem.findMany).mockResolvedValue([
-      { id: 1, numViagem: "A", cavalo: "75", inicioPrevisto: new Date("2026-07-20T08:00:00Z"), fimPrevisto: new Date("2026-07-20T18:00:00Z"), avisoFrotaIndisponivel: null },
-      { id: 2, numViagem: "B", cavalo: "75", inicioPrevisto: new Date("2026-07-22T08:00:00Z"), fimPrevisto: new Date("2026-07-22T18:00:00Z"), avisoFrotaIndisponivel: null },
+      {
+        id: 1,
+        numViagem: "A",
+        cavalo: "75",
+        inicioPrevisto: new Date("2026-07-20T08:00:00Z"),
+        fimPrevisto: new Date("2026-07-20T18:00:00Z"),
+        avisoFrotaIndisponivel: null,
+      },
+      {
+        id: 2,
+        numViagem: "B",
+        cavalo: "75",
+        inicioPrevisto: new Date("2026-07-22T08:00:00Z"),
+        fimPrevisto: new Date("2026-07-22T18:00:00Z"),
+        avisoFrotaIndisponivel: null,
+      },
     ] as never)
 
     await sincronizarDisponibilidadeFrota(tx as never, FILIAL_ID, "75", "908")
@@ -269,9 +299,30 @@ describe("sincronizarDisponibilidadeFrota", () => {
     vi.mocked(tx.frota.findFirst).mockResolvedValue({ id: 7 } as never)
     vi.mocked(tx.viagem.findMany).mockResolvedValue([
       // Aviso antigo "preso" (ex: conflitava com uma viagem que foi cancelada).
-      { id: 1, numViagem: "A", cavalo: "75", inicioPrevisto: new Date("2026-07-20T08:00:00Z"), fimPrevisto: new Date("2026-07-20T18:00:00Z"), avisoFrotaIndisponivel: "antigo" },
-      { id: 2, numViagem: "B", cavalo: "75", inicioPrevisto: new Date("2026-07-22T08:00:00Z"), fimPrevisto: new Date("2026-07-22T18:00:00Z"), avisoFrotaIndisponivel: null },
-      { id: 3, numViagem: "C", cavalo: "75", inicioPrevisto: new Date("2026-07-22T12:00:00Z"), fimPrevisto: new Date("2026-07-22T20:00:00Z"), avisoFrotaIndisponivel: null },
+      {
+        id: 1,
+        numViagem: "A",
+        cavalo: "75",
+        inicioPrevisto: new Date("2026-07-20T08:00:00Z"),
+        fimPrevisto: new Date("2026-07-20T18:00:00Z"),
+        avisoFrotaIndisponivel: "antigo",
+      },
+      {
+        id: 2,
+        numViagem: "B",
+        cavalo: "75",
+        inicioPrevisto: new Date("2026-07-22T08:00:00Z"),
+        fimPrevisto: new Date("2026-07-22T18:00:00Z"),
+        avisoFrotaIndisponivel: null,
+      },
+      {
+        id: 3,
+        numViagem: "C",
+        cavalo: "75",
+        inicioPrevisto: new Date("2026-07-22T12:00:00Z"),
+        fimPrevisto: new Date("2026-07-22T20:00:00Z"),
+        avisoFrotaIndisponivel: null,
+      },
     ] as never)
 
     await sincronizarDisponibilidadeFrota(tx as never, FILIAL_ID, "75", "908")

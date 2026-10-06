@@ -1,7 +1,7 @@
-import { prisma } from "@/lib/prisma";
-import { Prisma, Turno } from "@prisma/client";
-import { fimDoDia, inicioDoDia } from "@/lib/utils/date-format";
-import { completarHistoricoComAncora, filtroJanelaJornada, inicioJanelaJornada } from "./jornada-historico";
+import { prisma } from "@/lib/prisma"
+import { Prisma, Turno } from "@prisma/client"
+import { fimDoDia, inicioDoDia } from "@/lib/utils/date-format"
+import { completarHistoricoComAncora, filtroJanelaJornada, inicioJanelaJornada } from "./jornada-historico"
 
 /**
  * Margem sobre o maior descanso legal (35h, descanso semanal) usada pra
@@ -53,7 +53,7 @@ export async function buscarMotoristas(filialId: number) {
       deletadoEm: null,
       filialId,
     },
-    orderBy: { nome: 'asc' },
+    orderBy: { nome: "asc" },
     include: {
       // Até que dia o Relatório de Jornada cobre — ver viagemDesmentidaPeloRelatorio.
       filial: { select: { relatorioJornadaAte: true } },
@@ -71,7 +71,7 @@ export async function buscarMotoristas(filialId: number) {
         orderBy: { data: "asc" },
       },
     },
-  });
+  })
 
   const comAncora = await completarHistoricoComAncora(motoristas, desde)
   return comAncora.map(({ viagensComoAcompanhante, ...motorista }) => ({
@@ -80,13 +80,12 @@ export async function buscarMotoristas(filialId: number) {
   }))
 }
 
-
 export async function buscarMotoristaPorId(filialId: number, id: number) {
   return await prisma.motorista.findFirst({
     where: {
       id: id,
       filialId,
-      deletadoEm: null
+      deletadoEm: null,
     },
     include: {
       integracao: true,
@@ -98,9 +97,8 @@ export async function buscarMotoristaPorId(filialId: number, id: number) {
         orderBy: { data: "asc" },
       },
     },
-  });
+  })
 }
-
 
 export async function buscarMotoristasParaSelect(filialId: number, turnoDaViagem?: Turno) {
   const filtroViagem = filtroViagemAtiva(new Date())
@@ -110,7 +108,7 @@ export async function buscarMotoristasParaSelect(filialId: number, turnoDaViagem
       deletadoEm: null,
       filialId,
 
-      ...(turnoDaViagem ? { turno: turnoDaViagem } : {})
+      ...(turnoDaViagem ? { turno: turnoDaViagem } : {}),
     },
     select: {
       id: true,
@@ -142,8 +140,8 @@ export async function buscarMotoristasParaSelect(filialId: number, turnoDaViagem
         orderBy: { data: "asc" },
       },
     },
-    orderBy: { nome: 'asc' }
-  });
+    orderBy: { nome: "asc" },
+  })
 
   const comAncora = await completarHistoricoComAncora(motoristas, desde)
   return comAncora.map(({ viagensComoAcompanhante, ...motorista }) => ({
@@ -228,7 +226,7 @@ export async function buscarMotoristasComAgenda(filialId: number, inicio: Date, 
         orderBy: { data: "asc" },
       },
     },
-  });
+  })
 
   return completarHistoricoComAncora(motoristas, desde)
 }

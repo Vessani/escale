@@ -61,11 +61,16 @@ async function buscarAncoras(db: ClienteComRaw, motoristaIds: number[], desde: D
  * dá a mesma projeção e o mesmo fim de jornada anterior que o histórico
  * completo daria pra qualquer dia a partir do início da janela.
  */
-export async function completarHistoricoComAncora<
-  R extends { data: Date },
-  M extends { id: number; registrosJornada: R[] },
->(motoristas: M[], desde: Date, db: ClienteComRaw = prisma): Promise<M[]> {
-  const ancoras = await buscarAncoras(db, motoristas.map((motorista) => motorista.id), desde)
+export async function completarHistoricoComAncora<R extends { data: Date }, M extends { id: number; registrosJornada: R[] }>(
+  motoristas: M[],
+  desde: Date,
+  db: ClienteComRaw = prisma,
+): Promise<M[]> {
+  const ancoras = await buscarAncoras(
+    db,
+    motoristas.map((motorista) => motorista.id),
+    desde,
+  )
 
   return motoristas.map((motorista) => {
     const ancora = ancoras.get(motorista.id)

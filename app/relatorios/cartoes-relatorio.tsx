@@ -30,7 +30,10 @@ export function GradeRelatorios({ titulo, cartoes }: { titulo: string; cartoes: 
             <div className="min-w-0 flex-1 space-y-1">
               <div className="flex items-center justify-between gap-2">
                 <p className="font-medium text-foreground">{tituloCartao}</p>
-                <ChevronRight className="size-4 shrink-0 text-muted-foreground transition-transform group-hover:translate-x-0.5" aria-hidden />
+                <ChevronRight
+                  className="size-4 shrink-0 text-muted-foreground transition-transform group-hover:translate-x-0.5"
+                  aria-hidden
+                />
               </div>
               <p className="text-sm text-muted-foreground">{descricao}</p>
               {contagem !== undefined && (

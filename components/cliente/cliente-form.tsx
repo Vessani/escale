@@ -51,7 +51,11 @@ export default function ClienteForm({ defaultValues, onSubmit, submitLabel, subm
   return (
     <Form {...form}>
       <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-6">
-        {erroGlobal && <Alert variant="error" className="font-medium">{erroGlobal}</Alert>}
+        {erroGlobal && (
+          <Alert variant="error" className="font-medium">
+            {erroGlobal}
+          </Alert>
+        )}
 
         <Card className="shadow-sm border-border">
           <CardHeader className="bg-muted border-b">
@@ -61,49 +65,62 @@ export default function ClienteForm({ defaultValues, onSubmit, submitLabel, subm
             </CardDescription>
           </CardHeader>
           <CardContent className="pt-6 space-y-4">
-            <FormField control={form.control} name="nome" render={({ field }) => (
-              <FormItem>
-                <FormLabel>Nome do cliente</FormLabel>
-                <FormControl>
-                  <Input placeholder="Ex: WEG" {...field} value={normalizeFormValue(field.value)} />
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )} />
-
-            <FormField control={form.control} name="numeroSap" render={({ field }) => (
-              <FormItem>
-                <FormLabel>SAP Code</FormLabel>
-                <FormControl>
-                  <Input placeholder="Ex: 4521087" {...field} value={normalizeFormValue(field.value)} />
-                </FormControl>
-                <FormDescription>
-                  Mesmo SAP Code preenchido nas entregas da viagem — é ele, não o nome, que valida as integrações do motorista.
-                </FormDescription>
-                <FormMessage />
-              </FormItem>
-            )} />
-
-            <FormField control={form.control} name="exigeIntegracao" render={({ field }) => (
-              <FormItem>
-                <FormLabel>Exige integração do motorista</FormLabel>
-                <Select value={field.value ? "true" : "false"} onValueChange={(value) => field.onChange(value === "true")}>
+            <FormField
+              control={form.control}
+              name="nome"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Nome do cliente</FormLabel>
                   <FormControl>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Selecione" />
-                    </SelectTrigger>
+                    <Input placeholder="Ex: WEG" {...field} value={normalizeFormValue(field.value)} />
                   </FormControl>
-                  <SelectContent>
-                    <SelectItem value="false">Não</SelectItem>
-                    <SelectItem value="true">Sim</SelectItem>
-                  </SelectContent>
-                </Select>
-                <FormDescription>
-                  Se marcado, toda viagem com uma entrega cujo SAP Code bata com o cadastrado acima exige que o motorista tenha uma integração ativa e válida com esse cliente.
-                </FormDescription>
-                <FormMessage />
-              </FormItem>
-            )} />
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <FormField
+              control={form.control}
+              name="numeroSap"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>SAP Code</FormLabel>
+                  <FormControl>
+                    <Input placeholder="Ex: 4521087" {...field} value={normalizeFormValue(field.value)} />
+                  </FormControl>
+                  <FormDescription>
+                    Mesmo SAP Code preenchido nas entregas da viagem — é ele, não o nome, que valida as integrações do motorista.
+                  </FormDescription>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <FormField
+              control={form.control}
+              name="exigeIntegracao"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Exige integração do motorista</FormLabel>
+                  <Select value={field.value ? "true" : "false"} onValueChange={(value) => field.onChange(value === "true")}>
+                    <FormControl>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Selecione" />
+                      </SelectTrigger>
+                    </FormControl>
+                    <SelectContent>
+                      <SelectItem value="false">Não</SelectItem>
+                      <SelectItem value="true">Sim</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <FormDescription>
+                    Se marcado, toda viagem com uma entrega cujo SAP Code bata com o cadastrado acima exige que o motorista tenha uma
+                    integração ativa e válida com esse cliente.
+                  </FormDescription>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
           </CardContent>
         </Card>
 

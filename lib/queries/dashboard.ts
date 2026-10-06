@@ -1,3 +1,7 @@
+import { buscarViagensDoDashboard } from "@/lib/queries/viagens"
+import { pendenciaDeOutroDia } from "@/lib/services/dashboard.service"
+import { serializeData } from "@/lib/serialization"
+import { inicioDoDia } from "@/lib/utils/date-format"
 import { prisma } from "@/lib/prisma"
 import { PRODUTO_VALORES, formatarProduto } from "@/lib/services/produto.service"
 import { STATUS_VIAGEM_VALORES, formatarStatusViagem } from "@/lib/services/viagem-status.service"
@@ -23,11 +27,7 @@ export type IndicadoresDashboard = {
  * relatórios/filtros de viagem). `deletadoEm: null` segue o padrão de todo
  * o resto do app (viagem deletada não aparece em relatório nenhum).
  */
-export async function buscarIndicadoresDashboard(
-  filialId: number,
-  de: Date,
-  ate: Date,
-): Promise<IndicadoresDashboard> {
+export async function buscarIndicadoresDashboard(filialId: number, de: Date, ate: Date): Promise<IndicadoresDashboard> {
   const where = {
     filialId,
     deletadoEm: null,
@@ -71,11 +71,13 @@ export async function buscarIndicadoresDashboard(
   }))
 
   const contagemPorProduto = new Map(porProdutoRaw.map((r) => [r.produto, r._count._all]))
-  const porProduto = [...PRODUTO_VALORES, null].map((produto) => ({
-    produto,
-    label: formatarProduto(produto),
-    quantidade: contagemPorProduto.get(produto) ?? 0,
-  })).filter((item) => item.quantidade > 0 || item.produto !== null)
+  const porProduto = [...PRODUTO_VALORES, null]
+    .map((produto) => ({
+      produto,
+      label: formatarProduto(produto),
+      quantidade: contagemPorProduto.get(produto) ?? 0,
+    }))
+    .filter((item) => item.quantidade > 0 || item.produto !== null)
 
   const LABEL_TURNO: Record<Turno, string> = { MANHA: "Manhã", NOITE: "Noite" }
   const contagemPorTurno = new Map(porTurnoRaw.map((r) => [r.turno, r._count._all]))
@@ -96,9 +98,7 @@ export async function buscarIndicadoresDashboard(
       porMotoristaMap.set(v.motorista.id, atual)
     }
   }
-  const porDia = [...porDiaMap.entries()]
-    .sort(([a], [b]) => a.localeCompare(b))
-    .map(([dia, quantidade]) => ({ dia, quantidade }))
+  const porDia = [...porDiaMap.entries()].sort(([a], [b]) => a.localeCompare(b)).map(([dia, quantidade]) => ({ dia, quantidade }))
   const topMotoristas = [...porMotoristaMap.entries()]
     .map(([motoristaId, v]) => ({ motoristaId, ...v }))
     .sort((a, b) => b.quantidade - a.quantidade)
@@ -141,3 +141,11 @@ export async function buscarIndicadoresDashboard(
     topClientesCancelamentos,
   }
 }
+
+/** Viagens do Dashboard com a pendência de outro dia ("Desde 01/10", "Não saiu"), já serializadas pro cliente. */
+export async function buscarItensDoDashboard(filialId: number, hoje: Date) {
+  const viagens = await buscarViagensDoDashboard(filialId, hoje)
+  return serializeData(viagens.map((viagem) => ({ viagem, pendencia: pendenciaDeOutroDia(viagem, inicioDoDia(hoje)) })))
+}
+
+export type ItemDashboard = Awaited<ReturnType<typeof buscarItensDoDashboard>>[number]
