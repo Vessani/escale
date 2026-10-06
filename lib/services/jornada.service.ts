@@ -202,6 +202,24 @@ export function projetarCodigoNoDia(registros: PontoRegistroJornada[], dia: Date
   return calcularCodigoJornadaNoDia(ancora.codigo, dia, ancora.data)
 }
 
+/**
+ * Código do dia só quando ele vem de informação, não de palpite: projetar a
+ * partir de um registro do próprio dia ou de antes (pra frente) é seguro;
+ * "voltar no tempo" a partir de um registro posterior não é — de "06/10 =
+ * 1º dia" a projeção concluiria "05/10 = Folga", mesmo com o motorista tendo
+ * trabalhado no dia 05 (o histórico desses dias só não chegou ao Escalador).
+ * Sem histórico nenhum, vale o código atual (diasTrabalhados) de hoje em
+ * diante. `null` = não se sabe.
+ */
+export function codigoConhecidoNoDia(registros: PontoRegistroJornada[], dia: Date, hoje: Date, codigoAtual: number): number | null {
+  const diaAlvo = inicioDoDia(dia).getTime()
+  if (registros.length === 0) {
+    return diaAlvo >= inicioDoDia(hoje).getTime() ? calcularCodigoJornadaNoDia(codigoAtual, dia, hoje) : null
+  }
+  if (!registros.some((registro) => inicioDoDia(registro.data).getTime() <= diaAlvo)) return null
+  return projetarCodigoNoDia(registros, dia, hoje, codigoAtual)
+}
+
 export function obterStatusJornada(diasTrabalhados: number): StatusJornada {
   if (diasTrabalhados >= 1 && diasTrabalhados <= 3) {
     return { texto: `${diasTrabalhados}º dia` }
