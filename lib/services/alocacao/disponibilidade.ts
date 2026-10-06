@@ -139,28 +139,46 @@ export function descansoMinimoNecessarioApos(
   return codigoAoFim >= MAX_DIAS_CONSECUTIVOS ? MINIMO_HORAS_ENTRE_FOLGAS : MINIMO_HORAS_ENTRE_JORNADAS
 }
 
+const HORA_MS = 60 * 60 * 1000
+const diaHora = (data: Date) =>
+  new Intl.DateTimeFormat("pt-BR", { timeZone: "America/Sao_Paulo", day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" })
+    .format(data)
+    .replace(",", "")
+
+/**
+ * Por que o motorista NÃO está livre pra este período (null = livre): outra
+ * viagem no meio, ou descanso (11h, ou 35h depois do 6º dia) que ainda não
+ * acabou — antes ou depois desta viagem. Aparece no seletor ao lado do nome
+ * (bolinha laranja). Fonte única: motoristaEstaDisponivelNoPeriodo é
+ * `motivoIndisponivel(...) === null`.
+ */
+export function motivoIndisponivel(motorista: MotoristaComAgenda, inicioViagem: Date, fimViagem: Date, hoje: Date): string | null {
+  for (const viagem of motorista.viagens) {
+    if (!viagemBloqueiaAgenda(viagem) || viagemDesmentidaPeloRelatorio(motorista, viagem)) continue
+
+    const inicioExistente = new Date(viagem.inicioPrevisto)
+    const fimExistente = fimEfetivoViagem(viagem)
+    const minimoHoras = descansoMinimoNecessarioApos(motorista, fimExistente, hoje)
+    if (!periodosConflitamComDescanso(inicioExistente, fimExistente, inicioViagem, fimViagem, minimoHoras)) continue
+
+    const horas = minimoHoras === MINIMO_HORAS_ENTRE_FOLGAS ? ` (${MINIMO_HORAS_ENTRE_FOLGAS}h após o 6º dia)` : ""
+    if (periodoConflita(inicioExistente, fimExistente, inicioViagem, fimViagem)) {
+      return inicioExistente <= inicioViagem ? `Em viagem até ${diaHora(fimExistente)}` : `Outra viagem às ${diaHora(inicioExistente)}`
+    }
+    return inicioExistente <= inicioViagem
+      ? `Descanso até ${diaHora(new Date(fimExistente.getTime() + minimoHoras * HORA_MS))}${horas}`
+      : `Viagem às ${diaHora(inicioExistente)} sem ${minimoHoras}h de descanso depois desta`
+  }
+  return null
+}
+
 export function motoristaEstaDisponivelNoPeriodo(
   motorista: MotoristaComAgenda,
   inicioViagem: Date,
   fimViagem: Date,
   hoje: Date,
 ) {
-  return !motorista.viagens.some((viagem) => {
-    if (!viagemBloqueiaAgenda(viagem) || viagemDesmentidaPeloRelatorio(motorista, viagem)) {
-      return false
-    }
-
-    const fimViagemExistente = fimEfetivoViagem(viagem)
-    const minimoHoras = descansoMinimoNecessarioApos(motorista, fimViagemExistente, hoje)
-
-    return periodosConflitamComDescanso(
-      new Date(viagem.inicioPrevisto),
-      fimViagemExistente,
-      inicioViagem,
-      fimViagem,
-      minimoHoras,
-    )
-  })
+  return motivoIndisponivel(motorista, inicioViagem, fimViagem, hoje) === null
 }
 
 export function filtrarMotoristasDisponiveisNoPeriodo(

@@ -1,6 +1,6 @@
 import type { TipoMotorista, TipoProduto, Turno } from "@prisma/client"
 import { situacaoDoMotorista, type SituacaoMotorista } from "@/components/motorista/indicador-compatibilidade"
-import { motivoForaDaRegra, motoristaEstaDisponivelNoPeriodo } from "./alocacao.service"
+import { calcularDiasDisponiveis, codigoJornadaNaViagem, motivoForaDaRegra, motivoIndisponivel } from "./alocacao.service"
 import type { IntegracaoBase, ViagemParaDisponibilidade } from "./alocacao/tipos"
 import { prepararJornadaDoMotorista } from "./jornada.service"
 
@@ -10,7 +10,11 @@ type OpcaoMotoristaServidor = {
   nome: string
   tipo: TipoMotorista
   situacao: SituacaoMotorista
-  /** Por que está fora da regra ("Folga em 06/10", "Turno Noite"...) — null quando cabe. */
+  /**
+   * O porquê da cor, ao lado do nome: verde "5 dias disponíveis", laranja
+   * "Em viagem até 05/10 17:00" / "Descanso até 06/10 04:00", branco/vermelho
+   * "Folga em 06/10", "Turno Noite"...
+   */
   motivo: string | null
 }
 
@@ -69,13 +73,13 @@ export function montarOpcoesMotoristaPorViagem(
       const opcoes = preparados.map((motorista) => {
         // Ignora a própria viagem na agenda — senão quem já está nela
         // apareceria "ocupado" por causa dela mesma.
-        const disponivel = motoristaEstaDisponivelNoPeriodo(
+        const semDescanso = motivoIndisponivel(
           { ...motorista, viagens: motorista.viagens.filter((agendada) => agendada.id !== viagem.id) },
           inicio,
           fim,
           hoje,
         )
-        const motivo = motivoForaDaRegra(motorista, {
+        const contexto = {
           turnoViagem: viagem.turno,
           diasViagem: viagem.diasViagem,
           dataInicioViagem: inicio,
@@ -83,13 +87,19 @@ export function montarOpcoesMotoristaPorViagem(
           integracaoExigida: viagem.integracaoExigida,
           produtoExigido: viagem.produto,
           hoje,
-        })
+        }
+        const foraDaRegra = motivoForaDaRegra(motorista, contexto)
+        const dias = calcularDiasDisponiveis(codigoJornadaNaViagem(motorista, contexto))
+        // Verde: quanto ainda cabe no ciclo. Laranja: o que impede. Fora da regra: a regra (e a agenda, se também pegar).
+        const motivo = foraDaRegra
+          ? [foraDaRegra, semDescanso].filter(Boolean).join(" · ")
+          : (semDescanso ?? `${dias} ${dias === 1 ? "dia disponível" : "dias disponíveis"}`)
 
         return {
           id: motorista.id,
           nome: motorista.nome,
           tipo: motorista.tipo,
-          situacao: situacaoDoMotorista(motivo === null, disponivel),
+          situacao: situacaoDoMotorista(foraDaRegra === null, semDescanso === null),
           motivo,
         }
       })
