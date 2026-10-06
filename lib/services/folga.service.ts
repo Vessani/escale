@@ -1,6 +1,7 @@
 import { StatusViagem, type Prisma } from "@prisma/client"
 import { fimDoDia, inicioDoDia } from "@/lib/utils/date-format"
 import { registrarJornadaNoDia } from "./motorista.service"
+import { HORA_INICIO_TURNO_DIA } from "./turno"
 
 const STATUS_NAO_ATIVOS: StatusViagem[] = ["CANCELADA", "FINALIZADA"]
 
@@ -52,11 +53,16 @@ export async function reconciliarFolgaMotoristasNoDiaAtual(
     return
   }
 
+  // Trabalho HOJE = viagem que começa hoje, ou que vem de antes e passa das
+  // 04:00 de hoje. Quem chega de madrugada (viagem da noite de ontem) ainda
+  // está na jornada de ontem — não sai da folga de hoje por isso (mesma regra
+  // de instanteDoUltimoDiaDeJornada, lib/services/turno.ts).
+  const inicioDaJornadaDeHoje = new Date(inicioHoje.getTime() + HORA_INICIO_TURNO_DIA * 60 * 60 * 1000)
   const filtroAtividadeHoje = {
     deletadoEm: null,
     status: { notIn: STATUS_NAO_ATIVOS },
     inicioPrevisto: { lte: fimHoje },
-    fimPrevisto: { gte: inicioHoje },
+    OR: [{ inicioPrevisto: { gte: inicioHoje } }, { fimPrevisto: { gte: inicioDaJornadaDeHoje } }],
   }
   // Conta como "atividade hoje" tanto como motorista principal quanto acompanhante.
   const semAtividadeHoje = {

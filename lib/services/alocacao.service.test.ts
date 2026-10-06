@@ -126,6 +126,39 @@ describe("alocacao.service", () => {
     })
   })
 
+  describe("viagem da noite que vira o dia, com folga no dia seguinte", () => {
+    // 05/10 é o 6º dia, 06/10 é folga. Viagem 05/10 20:00 → 06/10 03:00: a
+    // jornada é do dia 05 (começou nele) — a madrugada não é trabalho no dia 06.
+    const bsb = (iso: string) => new Date(`${iso}-03:00`)
+    const hoje = bsb("2026-10-05T00:00:00")
+    const noturno = criarMotorista({
+      turno: "NOITE",
+      diasTrabalhados: 6,
+      registrosJornada: [
+        { data: bsb("2026-10-05T00:00:00"), codigo: 6 },
+        { data: bsb("2026-10-06T00:00:00"), codigo: 7 },
+      ],
+    })
+    const contexto = (inicio: string, fim: string) => ({
+      turnoViagem: "NOITE" as const,
+      diasViagem: 1,
+      dataInicioViagem: bsb(inicio),
+      fimViagem: bsb(fim),
+      integracaoExigida: null,
+      hoje,
+    })
+
+    it("termina de madrugada (antes das 04:00) no dia da folga: cabe", () => {
+      expect(motivoForaDaRegra(noturno, contexto("2026-10-05T20:00:00", "2026-10-06T03:00:00"))).toBeNull()
+      expect(motivoForaDaRegra(noturno, contexto("2026-10-05T22:00:00", "2026-10-06T03:59:00"))).toBeNull()
+    })
+
+    it("entra na manhã do dia da folga, ou começa no dia da folga: não cabe", () => {
+      expect(motivoForaDaRegra(noturno, contexto("2026-10-05T20:00:00", "2026-10-06T04:30:00"))).toBe("Folga em 06/10 (fim da viagem)")
+      expect(motivoForaDaRegra(noturno, contexto("2026-10-06T01:00:00", "2026-10-06T03:00:00"))).toBe("Folga em 06/10")
+    })
+  })
+
   describe("motoristaEhCompativel", () => {
     const hoje = new Date("2026-07-08T00:00:00")
 
@@ -325,17 +358,19 @@ describe("alocacao.service", () => {
     it("usa o fim real da viagem para bloquear a invasão da folga ao cruzar para o dia seguinte", () => {
       const motoristaNoSextoDia = criarMotorista({ diasTrabalhados: 6 })
       const hojeBrasilia = new Date("2026-07-08T00:00:00-03:00")
-
-      expect(
+      const saindoNoSextoDiaAsOito = (fim: string) =>
         motoristaEhCompativel(motoristaNoSextoDia, {
           turnoViagem: "MANHA",
           diasViagem: 1,
           dataInicioViagem: new Date("2026-07-08T20:00:00-03:00"),
-          fimViagem: new Date("2026-07-09T02:00:00-03:00"),
+          fimViagem: new Date(fim),
           integracaoExigida: null,
           hoje: hojeBrasilia,
-        }),
-      ).toBe(false)
+        })
+
+      // Chegada de madrugada ainda é a jornada do 6º dia; a partir das 04:00 já é o 7º (folga).
+      expect(saindoNoSextoDiaAsOito("2026-07-09T02:00:00-03:00")).toBe(true)
+      expect(saindoNoSextoDiaAsOito("2026-07-09T05:00:00-03:00")).toBe(false)
 
       expect(
         motoristaEhCompativel(motoristaNoSextoDia, {

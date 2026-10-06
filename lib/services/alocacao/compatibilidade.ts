@@ -4,6 +4,7 @@ import { projetarCodigoNoDia } from "../jornada.service"
 import type { ContextoCompatibilidade, MotoristaParaAlocacao } from "./tipos"
 import { podeSerPrincipal } from "../tipo-motorista"
 import { MAX_DIAS_SEM_FOLGA } from "../dias-sem-folga"
+import { instanteDoUltimoDiaDeJornada } from "../turno"
 
 /** Máximo de dias consecutivos de trabalho antes da folga obrigatória — mesmo limite usado pra capar o "Dias Sem Folga" importado do relatório (ver jornada-relatorio.service.ts). */
 export const MAX_DIAS_CONSECUTIVOS = MAX_DIAS_SEM_FOLGA
@@ -121,8 +122,11 @@ export function motivoForaDaRegra(motorista: MotoristaParaAlocacao, contexto: Co
   // (ou o fim estimado desde a data de início) para projetar o código de
   // jornada no último dia calendário coberto — o motorista pode iniciar no 6º
   // dia, mas nunca terminar no 7º (folga obrigatória).
-  const fimViagem =
-    contexto.fimViagem ?? new Date(contexto.dataInicioViagem.getTime() + Math.max(contexto.diasViagem - 1, 0) * 24 * 60 * 60 * 1000)
+  // A chegada de madrugada (antes das 04:00) ainda é da jornada do dia
+  // anterior — ver instanteDoUltimoDiaDeJornada.
+  const fimViagem = contexto.fimViagem
+    ? instanteDoUltimoDiaDeJornada(contexto.dataInicioViagem, contexto.fimViagem)
+    : new Date(contexto.dataInicioViagem.getTime() + Math.max(contexto.diasViagem - 1, 0) * 24 * 60 * 60 * 1000)
   const codigoNoUltimoDia = projetarCodigoNoDia(motorista.registrosJornada, fimViagem, contexto.hoje, motorista.diasTrabalhados)
   if (codigoNoUltimoDia > MAX_DIAS_CONSECUTIVOS) {
     return `${ROTULO_CODIGO_PARADO[codigoNoUltimoDia] ?? "Folga"} em ${formatarDiaMes(fimViagem)} (fim da viagem)`
