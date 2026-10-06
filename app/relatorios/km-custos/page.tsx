@@ -12,17 +12,16 @@ import { periodoOuPadrao } from "@/lib/relatorios/periodo"
 import { parseFiltroRegistro, relatorioKmCustos } from "@/lib/services/relatorios/km-custos"
 import { formatarStatusViagem } from "@/lib/services/viagem-status.service"
 import { classeBadgeStatusViagem } from "@/app/viagens/badge-styles"
-import { formatarReais } from "@/lib/utils/dinheiro"
+import { formatarReais, formatarReaisOuTraco } from "@/lib/utils/dinheiro"
 import { formatarDataHoraPtBr } from "@/lib/utils/date-format"
 import { formatarNomeProprio } from "@/lib/utils/texto"
 import { cn } from "@/lib/utils"
+import { formatarKm } from "@/lib/utils/numero"
 
 export const metadata = { title: "Km e custos por viagem" }
 
 type SearchParamsInput = { de?: string; ate?: string; motorista?: string; registro?: string }
 
-const km = (valor: number | null) => (valor === null ? "—" : valor.toLocaleString("pt-BR"))
-const reais = (centavos: number) => (centavos ? formatarReais(centavos) : "—")
 
 export default async function KmCustosPage({ searchParams }: { searchParams?: Promise<SearchParamsInput> }) {
   const parametros = (await searchParams) ?? {}
@@ -80,7 +79,7 @@ export default async function KmCustosPage({ searchParams }: { searchParams?: Pr
         <StatCard rotulo="Viagens" valor={totais.viagens} icone={Route} />
         <StatCard
           rotulo={totais.viagensComKm < totais.viagens ? `Km rodado · ${totais.viagensComKm} com km` : "Km rodado"}
-          valor={km(totais.kmRodado)}
+          valor={formatarKm(totais.kmRodado)}
           icone={Gauge}
         />
         <StatCard rotulo="Custo total" valor={formatarReais(totais.custoCentavos)} icone={Wallet} />
@@ -136,12 +135,12 @@ export default async function KmCustosPage({ searchParams }: { searchParams?: Pr
                     {linha.inicioEhPrevisto && <p className="text-[11px] text-muted-foreground">previsto (sem saída real)</p>}
                   </TableCell>
                   <TableCell className="whitespace-nowrap tabular-nums">{linha.fim ? formatarDataHoraPtBr(linha.fim) : "—"}</TableCell>
-                  <TableCell className="text-right tabular-nums">{km(linha.kmInicial)}</TableCell>
-                  <TableCell className="text-right tabular-nums">{km(linha.kmFinal)}</TableCell>
-                  <TableCell className="text-right font-medium tabular-nums">{km(linha.kmRodado)}</TableCell>
-                  <TableCell className="text-right tabular-nums">{reais(linha.pedagioCentavos)}</TableCell>
-                  <TableCell className="text-right tabular-nums">{reais(linha.pernoiteCentavos)}</TableCell>
-                  <TableCell className="text-right font-medium tabular-nums">{reais(linha.custoCentavos)}</TableCell>
+                  <TableCell className="text-right tabular-nums">{formatarKm(linha.kmInicial)}</TableCell>
+                  <TableCell className="text-right tabular-nums">{formatarKm(linha.kmFinal)}</TableCell>
+                  <TableCell className="text-right font-medium tabular-nums">{formatarKm(linha.kmRodado)}</TableCell>
+                  <TableCell className="text-right tabular-nums">{formatarReaisOuTraco(linha.pedagioCentavos)}</TableCell>
+                  <TableCell className="text-right tabular-nums">{formatarReaisOuTraco(linha.pernoiteCentavos)}</TableCell>
+                  <TableCell className="text-right font-medium tabular-nums">{formatarReaisOuTraco(linha.custoCentavos)}</TableCell>
                   <TableCell className="py-2 text-xs">
                     {linha.regiao.length ? (
                       // Uma cidade por linha, numerada na ordem da rota — todas alinhadas na mesma coluna.
@@ -163,7 +162,7 @@ export default async function KmCustosPage({ searchParams }: { searchParams?: Pr
               ))}
               <TableRow className="bg-muted/50 font-semibold">
                 <TableCell colSpan={6}>Total do período</TableCell>
-                <TableCell className="text-right tabular-nums">{km(totais.kmRodado)}</TableCell>
+                <TableCell className="text-right tabular-nums">{formatarKm(totais.kmRodado)}</TableCell>
                 <TableCell className="text-right tabular-nums">{formatarReais(totais.pedagioCentavos)}</TableCell>
                 <TableCell className="text-right tabular-nums">{formatarReais(totais.pernoiteCentavos)}</TableCell>
                 <TableCell className="text-right tabular-nums">{formatarReais(totais.custoCentavos)}</TableCell>

@@ -20,3 +20,12 @@ describe("dinheiro", () => {
     expect(formatarReais(123456).replace(/\s/g, " ")).toBe("R$ 1.234,56")
   })
 })
+
+describe("reaisNoCampo / formatarReaisOuTraco", () => {
+  it("volta pro campo no formato que parseReaisParaCentavos lê; zero vira traço no relatório", async () => {
+    const { reaisNoCampo, formatarReaisOuTraco, parseReaisParaCentavos } = await import("./dinheiro")
+    expect(reaisNoCampo(123450)).toBe("1234,50")
+    expect(parseReaisParaCentavos(reaisNoCampo(123450))).toBe(123450)
+    expect(formatarReaisOuTraco(0)).toBe("—")
+  })
+})

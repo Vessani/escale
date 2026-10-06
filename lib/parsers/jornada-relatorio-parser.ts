@@ -1,5 +1,5 @@
 import { lerPlanilhaDoArquivo } from "@/lib/excel/ler-arquivo-planilha"
-import { inicioDoDia, parseDataHoraBr } from "@/lib/utils/date-format"
+import { formatarHoraLocal, inicioDoDia, parseDataHoraBr } from "@/lib/utils/date-format"
 
 /**
  * Um registro por (matrícula, dia) pronto pra importar: o relatório lista
@@ -124,10 +124,6 @@ type JornadaMontada = {
 type ItemSequencia = { tipo: "JORNADA"; jornada: JornadaMontada } | { tipo: "FORA"; linha: LinhaEmTrabalho; situacao: "IGNORADA" }
 
 const duracao = (linha: { inicioMs: number; fimMs: number }) => linha.fimMs - linha.inicioMs
-
-function horaLocal(ms: number) {
-  return new Intl.DateTimeFormat("pt-BR", { timeZone: "America/Sao_Paulo", hour: "2-digit", minute: "2-digit" }).format(ms)
-}
 
 /**
  * Leitura do arquivo: uma linha bruta por linha válida, sem juntar nem
@@ -337,7 +333,7 @@ class JornadaRelatorioProcessador {
         diasSemFolgaRelatorio: primeira.diasSemFolgaRelatorio,
         correcao: jornada.batidaExtra ? "BATIDA_EXTRA" : jornada.correcao,
         situacao: "IMPORTAR",
-        batidaExtra: jornada.batidaExtra ? horaLocal(jornada.batidaExtra.inicioMs) : null,
+        batidaExtra: jornada.batidaExtra ? formatarHoraLocal(new Date(jornada.batidaExtra.inicioMs)) : null,
         original: { inicio: primeira.original.inicio, fim: ultima.original.fim },
         editada: jornada.linhas.some((linha) => linha.editada) || ajuste !== undefined,
       })

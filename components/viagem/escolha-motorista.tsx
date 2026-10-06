@@ -6,7 +6,7 @@ import { Alert } from "@/components/ui/alert"
 import { Select, SelectContent, SelectGroup, SelectItem, SelectLabel, SelectSeparator, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { NomeMotorista } from "@/components/motorista/icone-tipo-motorista"
 import { IndicadorCompatibilidade } from "@/components/motorista/indicador-compatibilidade"
-import { formatarHoraLocal } from "@/lib/utils/date-format"
+import { formatarDiaMesHora, formatarHoraLocal, mesmoDiaEmBrasilia } from "@/lib/utils/date-format"
 import { formatarNomeProprio } from "@/lib/utils/texto"
 import { cn } from "@/lib/utils"
 
@@ -18,9 +18,8 @@ function textoDescanso(motorista: MotoristaCompativel, inicioViagem: Date): { te
   if (!motorista.liberadoEm) return { texto: "sem jornada anterior", ok: true }
   const liberado = new Date(motorista.liberadoEm)
   if (liberado <= inicioViagem) return { texto: "descanso ok", ok: true }
-  const mesmoDia = liberado.toDateString() === inicioViagem.toDateString()
-  const dia = new Intl.DateTimeFormat("pt-BR", { timeZone: "America/Sao_Paulo", day: "2-digit", month: "2-digit" }).format(liberado)
-  return { texto: `livre ${mesmoDia ? "às" : dia} ${formatarHoraLocal(liberado)}`, ok: false }
+  const quando = mesmoDiaEmBrasilia(liberado, inicioViagem) ? `às ${formatarHoraLocal(liberado)}` : formatarDiaMesHora(liberado)
+  return { texto: `livre ${quando}`, ok: false }
 }
 
 function textoDias(dias: number) {

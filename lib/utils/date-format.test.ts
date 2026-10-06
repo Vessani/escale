@@ -257,3 +257,14 @@ describe("tentarConverterEntradaDeDataHora", () => {
   })
 })
 
+
+describe("formatarDiaMes / formatarDiaMesHora / mesmoDiaEmBrasilia", () => {
+  it("usa o dia de Brasília, não o do processo", async () => {
+    const { formatarDiaMes, formatarDiaMesHora, mesmoDiaEmBrasilia } = await import("./date-format")
+    const noite = new Date("2026-10-02T23:30:00-03:00") // 03/10 02:30 em UTC
+    expect(formatarDiaMes(noite)).toBe("02/10")
+    expect(formatarDiaMesHora(noite)).toBe("02/10 23:30")
+    expect(mesmoDiaEmBrasilia(noite, new Date("2026-10-02T06:00:00-03:00"))).toBe(true)
+    expect(mesmoDiaEmBrasilia(noite, new Date("2026-10-03T00:10:00-03:00"))).toBe(false)
+  })
+})

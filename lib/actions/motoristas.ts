@@ -18,7 +18,7 @@ import {
   type CoberturaImportacaoJornada,
   type ResultadoImportacaoJornada,
 } from "@/lib/services/jornada-relatorio.service";
-import { ajustesJornadaSchema, coberturaJornadaSchema, type AjusteJornada } from "@/lib/validation/ajuste-jornada";
+import { ajustesJornadaSchema, coberturaJornadaSchema, type AjusteJornada, registrosJornadaSchema } from "@/lib/validation/ajuste-jornada";
 import type { RegistroJornadaRelatorio } from "@/lib/parsers/jornada-relatorio-parser";
 
 export async function criarMotorista(dados: NovoMotoristaInput): Promise<RespostaAcao> {
@@ -108,18 +108,18 @@ export async function atualizarJornadaRelatorio(
 ): Promise<RespostaImportacaoJornada> {
   try {
     const { session, filialId } = await requireSessionComFilial();
+    const validacaoRegistros = registrosJornadaSchema.safeParse(registros);
     const validacaoAjustes = ajustesJornadaSchema.safeParse(ajustes);
     const validacaoCobertura = cobertura === undefined ? null : coberturaJornadaSchema.safeParse(cobertura);
-    if (!validacaoAjustes.success || (validacaoCobertura && !validacaoCobertura.success)) {
+    if (!validacaoRegistros.success || !validacaoAjustes.success || (validacaoCobertura && !validacaoCobertura.success)) {
       return { sucesso: false, erro: "Dados da conferência inválidos." };
     }
-    const resultado = await atualizarJornadaRelatorioDosMotoristas(filialId, registros, validacaoCobertura?.data);
+    const resultado = await atualizarJornadaRelatorioDosMotoristas(filialId, validacaoRegistros.data, validacaoCobertura?.data);
     await registrarAjustesJornada(filialId, validacaoAjustes.data, atorDaSessao(session));
 
     revalidatePath("/motorista");
     return { sucesso: true, resultado };
   } catch (error) {
-    console.error("[atualizarJornadaRelatorio] Erro ao importar relatório de jornada:", error);
     return { sucesso: false, erro: errorToMessage(error, "Não foi possível importar o relatório de jornada.") };
   }
 }

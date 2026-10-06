@@ -202,6 +202,23 @@ export function formatarHoraLocal(data: Date | string): string {
   }).format(dataNormalizada)
 }
 
+/** "02/10" — dia e mês em Brasília. */
+export function formatarDiaMes(data: Date | string | number): string {
+  return new Intl.DateTimeFormat("pt-BR", { timeZone: "America/Sao_Paulo", day: "2-digit", month: "2-digit" }).format(
+    data instanceof Date ? data : new Date(data),
+  )
+}
+
+/** "02/10 05:40" — dia, mês e hora em Brasília. */
+export function formatarDiaMesHora(data: Date | string | number): string {
+  return `${formatarDiaMes(data)} ${formatarHoraLocal(data instanceof Date ? data : new Date(data))}`
+}
+
+/** Mesmo dia do calendário em Brasília (independe do fuso do navegador/servidor). */
+export function mesmoDiaEmBrasilia(a: Date, b: Date): boolean {
+  return inicioDoDia(a).getTime() === inicioDoDia(b).getTime()
+}
+
 /**
  * Formata data em diferentes formatos para datetime-local
  * Suporta: DD.MM, DD.MM.YYYY, serial Excel, Date object

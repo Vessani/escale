@@ -1,4 +1,5 @@
 import { formatarHoraLocal } from "@/lib/utils/date-format"
+import { paradasDaRota } from "@/lib/utils/texto"
 
 const formatoDia = new Intl.DateTimeFormat("pt-BR", { timeZone: "America/Sao_Paulo", day: "2-digit", month: "2-digit" })
 const formatoSemana = new Intl.DateTimeFormat("pt-BR", { timeZone: "America/Sao_Paulo", weekday: "short" })
@@ -15,6 +16,5 @@ export function quando(valor: Date | string, agora = new Date()): string {
 
 /** Cidades das entregas em ordem, sem repetir seguidas: "Joinville → Blumenau → Itajaí". */
 export function rota(entregas: Array<{ cidade: string }>): string {
-  const cidades = entregas.map((entrega) => entrega.cidade.trim()).filter((cidade, i, todas) => cidade && cidade !== todas[i - 1])
-  return cidades.join(" → ") || "—"
+  return paradasDaRota(entregas.map((entrega) => entrega.cidade)).join(" → ") || "—"
 }

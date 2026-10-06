@@ -10,16 +10,15 @@ import { PERIODO_PADRAO } from "@/lib/relatorios/catalogo"
 import { periodoOuPadrao } from "@/lib/relatorios/periodo"
 import { relatorioViagens, STATUS_RELATORIO_VIAGENS } from "@/lib/services/relatorios/viagens"
 import { formatarStatusViagem } from "@/lib/services/viagem-status.service"
-import { formatarReais } from "@/lib/utils/dinheiro"
+import { formatarReais, formatarReaisOuTraco } from "@/lib/utils/dinheiro"
 import { formatarDataHoraPtBr } from "@/lib/utils/date-format"
 import { formatarNomeProprio } from "@/lib/utils/texto"
+import { formatarKm } from "@/lib/utils/numero"
 
 export const metadata = { title: "Viagens" }
 
 type SearchParamsInput = { de?: string; ate?: string; motorista?: string }
 
-const km = (valor: number | null) => (valor === null ? "—" : valor.toLocaleString("pt-BR"))
-const reais = (centavos: number) => (centavos ? formatarReais(centavos) : "—")
 
 /** Todas as viagens do período, uma por linha — o resumo pra conferir km, despesas e por onde passou. */
 export default async function RelatorioViagensPage({ searchParams }: { searchParams?: Promise<SearchParamsInput> }) {
@@ -65,7 +64,7 @@ export default async function RelatorioViagensPage({ searchParams }: { searchPar
         <StatCard rotulo="Viagens" valor={totais.viagens} icone={Route} />
         <StatCard
           rotulo={totais.viagensComKm < totais.viagens ? `Km total · ${totais.viagensComKm} com km` : "Km total"}
-          valor={totais.viagensComKm ? km(totais.kmRodado) : "—"}
+          valor={totais.viagensComKm ? formatarKm(totais.kmRodado) : "—"}
           icone={Gauge}
         />
         <StatCard rotulo="Pedágio" valor={formatarReais(totais.pedagioCentavos)} icone={Ticket} />
@@ -105,16 +104,16 @@ export default async function RelatorioViagensPage({ searchParams }: { searchPar
                   <TableCell>{linha.motorista ? formatarNomeProprio(linha.motorista) : "—"}</TableCell>
                   <TableCell>{linha.produto ?? "—"}</TableCell>
                   <TableCell className="text-xs">{linha.regiao.length ? linha.regiao.join(" › ") : "—"}</TableCell>
-                  <TableCell className="text-right tabular-nums">{km(linha.kmInicial)}</TableCell>
-                  <TableCell className="text-right tabular-nums">{km(linha.kmFinal)}</TableCell>
-                  <TableCell className="text-right font-medium tabular-nums">{km(linha.kmRodado)}</TableCell>
-                  <TableCell className="text-right tabular-nums">{reais(linha.pedagioCentavos)}</TableCell>
-                  <TableCell className="text-right tabular-nums">{reais(linha.pernoiteCentavos)}</TableCell>
+                  <TableCell className="text-right tabular-nums">{formatarKm(linha.kmInicial)}</TableCell>
+                  <TableCell className="text-right tabular-nums">{formatarKm(linha.kmFinal)}</TableCell>
+                  <TableCell className="text-right font-medium tabular-nums">{formatarKm(linha.kmRodado)}</TableCell>
+                  <TableCell className="text-right tabular-nums">{formatarReaisOuTraco(linha.pedagioCentavos)}</TableCell>
+                  <TableCell className="text-right tabular-nums">{formatarReaisOuTraco(linha.pernoiteCentavos)}</TableCell>
                 </TableRow>
               ))}
               <TableRow className="bg-muted/50 font-semibold">
                 <TableCell colSpan={8}>Total do período</TableCell>
-                <TableCell className="text-right tabular-nums">{km(totais.kmRodado)}</TableCell>
+                <TableCell className="text-right tabular-nums">{formatarKm(totais.kmRodado)}</TableCell>
                 <TableCell className="text-right tabular-nums">{formatarReais(totais.pedagioCentavos)}</TableCell>
                 <TableCell className="text-right tabular-nums">{formatarReais(totais.pernoiteCentavos)}</TableCell>
               </TableRow>

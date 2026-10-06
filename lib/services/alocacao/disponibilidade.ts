@@ -1,4 +1,4 @@
-import { inicioDoDia } from "@/lib/utils/date-format"
+import { formatarDiaMesHora, inicioDoDia } from "@/lib/utils/date-format"
 import { projetarCodigoNoDia } from "../jornada.service"
 import { MAX_DIAS_CONSECUTIVOS } from "./compatibilidade"
 import type { MotoristaComAgenda, MotoristaParaAlocacao, ViagemParaDisponibilidade } from "./tipos"
@@ -140,10 +140,6 @@ export function descansoMinimoNecessarioApos(
 }
 
 const HORA_MS = 60 * 60 * 1000
-const diaHora = (data: Date) =>
-  new Intl.DateTimeFormat("pt-BR", { timeZone: "America/Sao_Paulo", day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" })
-    .format(data)
-    .replace(",", "")
 
 /**
  * Por que o motorista NÃO está livre pra este período (null = livre): outra
@@ -163,11 +159,11 @@ export function motivoIndisponivel(motorista: MotoristaComAgenda, inicioViagem: 
 
     const horas = minimoHoras === MINIMO_HORAS_ENTRE_FOLGAS ? ` (${MINIMO_HORAS_ENTRE_FOLGAS}h após o 6º dia)` : ""
     if (periodoConflita(inicioExistente, fimExistente, inicioViagem, fimViagem)) {
-      return inicioExistente <= inicioViagem ? `Em viagem até ${diaHora(fimExistente)}` : `Outra viagem às ${diaHora(inicioExistente)}`
+      return inicioExistente <= inicioViagem ? `Em viagem até ${formatarDiaMesHora(fimExistente)}` : `Outra viagem às ${formatarDiaMesHora(inicioExistente)}`
     }
     return inicioExistente <= inicioViagem
-      ? `Descanso até ${diaHora(new Date(fimExistente.getTime() + minimoHoras * HORA_MS))}${horas}`
-      : `Viagem às ${diaHora(inicioExistente)} sem ${minimoHoras}h de descanso depois desta`
+      ? `Descanso até ${formatarDiaMesHora(new Date(fimExistente.getTime() + minimoHoras * HORA_MS))}${horas}`
+      : `Viagem às ${formatarDiaMesHora(inicioExistente)} sem ${minimoHoras}h de descanso depois desta`
   }
   return null
 }

@@ -55,6 +55,7 @@ export default function QuadroDeObservacoes({ textoInicial }: { textoInicial: st
       </p>
       <Textarea
         autoFocus
+        maxLength={5000}
         className="min-h-20"
         placeholder="Ex.: Frota 2064/908 com problema no freio, não alocar até revisão."
         value={rascunho}

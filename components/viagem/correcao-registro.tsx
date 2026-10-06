@@ -19,7 +19,7 @@ import {
   salvarChegadaEscalador,
 } from "@/lib/actions/correcao-registro"
 import { chamarAcao } from "@/lib/chamar-acao"
-import { formatarReais, parseReaisParaCentavos } from "@/lib/utils/dinheiro"
+import { formatarReais, parseReaisParaCentavos, reaisNoCampo } from "@/lib/utils/dinheiro"
 import { formatarDataHoraPtBr } from "@/lib/utils/date-format"
 import type { RespostaAcao } from "@/lib/types/types"
 
@@ -30,7 +30,6 @@ import type { RespostaAcao } from "@/lib/types/types"
 
 type TipoDespesa = "PEDAGIO" | "PERNOITE"
 const ROTULO_DESPESA: Record<TipoDespesa, string> = { PEDAGIO: "Pedágio", PERNOITE: "Pernoite" }
-const reaisNoCampo = (centavos: number) => (centavos / 100).toFixed(2).replace(".", ",")
 
 /** Chama a action, mostra o erro ou recarrega a tela. */
 function useCorrecao() {
