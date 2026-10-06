@@ -196,6 +196,37 @@ describe("alocacao.service", () => {
     })
   })
 
+  describe("descanso de 35h só quando se sabe que era o 6º dia", () => {
+    const bsb = (iso: string) => new Date(`${iso}-03:00`)
+    const hoje = bsb("2026-10-06T00:00:00")
+    const viagemDe05 = {
+      id: 1,
+      inicioPrevisto: bsb("2026-10-05T08:00:00"),
+      fimPrevisto: bsb("2026-10-05T17:04:00"),
+      status: "FINALIZADA" as const,
+      finalizadoEm: bsb("2026-10-05T17:04:00"),
+    }
+    const novaDe06 = { id: 2, inicioPrevisto: bsb("2026-10-06T07:58:00") }
+    const aviso = (registrosJornada: Array<{ data: Date; codigo: number }>, diasTrabalhados = 1) =>
+      calcularAvisoDescanso({ diasTrabalhados, registrosJornada, viagens: [viagemDe05] }, novaDe06, hoje)
+
+    it("Escalador só conhece o 06/10 (1º dia): não deduz 'folga em 05/10' e vale a interjornada de 11h", () => {
+      expect(aviso([{ data: bsb("2026-10-06T00:00:00"), codigo: 1 }])).toBeNull()
+      expect(aviso([], 1)).toBeNull()
+      expect(aviso([], 7)).toBeNull()
+    })
+
+    it("05/10 sabido como 6º dia (registro dele ou de antes): exige 35h", () => {
+      expect(aviso([{ data: bsb("2026-10-05T00:00:00"), codigo: 6 }])).toBe(
+        "Descanso semanal: motorista teve apenas 14.9h de descanso (mínimo 35h).",
+      )
+      expect(aviso([{ data: bsb("2026-10-03T00:00:00"), codigo: 4 }])).toBe(
+        "Descanso semanal: motorista teve apenas 14.9h de descanso (mínimo 35h).",
+      )
+      expect(aviso([{ data: bsb("2026-10-04T00:00:00"), codigo: 1 }])).toBeNull()
+    })
+  })
+
   describe("motoristaEhCompativel", () => {
     const hoje = new Date("2026-07-08T00:00:00")
 
