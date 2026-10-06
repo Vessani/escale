@@ -1,5 +1,5 @@
 import { TipoProduto } from "@prisma/client"
-import { colunaDateParaLocal, fimDoDia, formatarDiaMes } from "@/lib/utils/date-format"
+import { colunaDateParaLocal, fimDoDia, formatarDiaMes, inicioDoDia } from "@/lib/utils/date-format"
 import { projetarCodigoNoDia } from "../jornada.service"
 import type { ContextoCompatibilidade, MotoristaParaAlocacao } from "./tipos"
 import { podeSerPrincipal } from "../tipo-motorista"
@@ -91,6 +91,21 @@ export function motoristaAutorizadoParaProduto(produtosAutorizados: TipoProduto[
   return !produtoExigido || produtosAutorizados.includes(produtoExigido)
 }
 
+const UM_DIA_MS = 24 * 60 * 60 * 1000
+
+/**
+ * Quantos dias de jornada a viagem ocupa: do dia em que começa até o último
+ * dia de jornada (chegada antes das 04:00 conta no dia anterior — ver
+ * instanteDoUltimoDiaDeJornada). Com o fim real, conta pelo calendário, não
+ * pela duração em horas: 04/10 02:00 → 07/10 03:00 são 73h, mas 3 dias de
+ * jornada (04, 05 e 06). Sem o fim, usa diasViagem gravado na viagem.
+ */
+function contarDiasDeJornada(contexto: ContextoCompatibilidade): number {
+  if (!contexto.fimViagem) return contexto.diasViagem
+  const ultimoDia = instanteDoUltimoDiaDeJornada(contexto.dataInicioViagem, contexto.fimViagem)
+  return Math.max(1, Math.round((inicioDoDia(ultimoDia).getTime() - inicioDoDia(contexto.dataInicioViagem).getTime()) / UM_DIA_MS) + 1)
+}
+
 const ROTULO_CODIGO_PARADO: Record<number, string> = { 7: "Folga", 8: "Férias", 9: "Exames", 10: "Interno", 11: "Manutenção" }
 
 /**
@@ -111,9 +126,6 @@ export function motivoForaDaRegra(motorista: MotoristaParaAlocacao, contexto: Co
   const codigoNaViagem = codigoJornadaNaViagem(motorista, contexto)
   const parado = ROTULO_CODIGO_PARADO[codigoNaViagem]
   if (parado) return `${parado} em ${formatarDiaMes(contexto.dataInicioViagem)}`
-  if (calcularDiasDisponiveis(codigoNaViagem) < contexto.diasViagem) {
-    return `${codigoNaViagem}º dia: não cabem ${contexto.diasViagem} dias de viagem`
-  }
 
   // Garante que a viagem inteira cabe dentro do ciclo de trabalho: mesmo com
   // diasViagem consistente, o caminho de gravação manual (alocação de
@@ -128,9 +140,16 @@ export function motivoForaDaRegra(motorista: MotoristaParaAlocacao, contexto: Co
     ? instanteDoUltimoDiaDeJornada(contexto.dataInicioViagem, contexto.fimViagem)
     : new Date(contexto.dataInicioViagem.getTime() + Math.max(contexto.diasViagem - 1, 0) * 24 * 60 * 60 * 1000)
   const codigoNoUltimoDia = projetarCodigoNoDia(motorista.registrosJornada, fimViagem, contexto.hoje, motorista.diasTrabalhados)
-  if (codigoNoUltimoDia > MAX_DIAS_CONSECUTIVOS) {
-    return `${ROTULO_CODIGO_PARADO[codigoNoUltimoDia] ?? "Folga"} em ${formatarDiaMes(fimViagem)} (fim da viagem)`
-  }
+  const folgaNoFim =
+    codigoNoUltimoDia > MAX_DIAS_CONSECUTIVOS
+      ? `${ROTULO_CODIGO_PARADO[codigoNoUltimoDia] ?? "Folga"} em ${formatarDiaMes(fimViagem)} (fim da viagem)`
+      : null
+  const diasDeJornada = contarDiasDeJornada(contexto)
+  const naoCabem =
+    calcularDiasDisponiveis(codigoNaViagem) < diasDeJornada ? `${codigoNaViagem}º dia: não cabem ${diasDeJornada} dias de viagem` : null
+  // Com o fim real, "Folga em 07/10 (fim da viagem)" explica melhor; sem ele, a contagem de dias.
+  const motivoDoCiclo = contexto.fimViagem ? (folgaNoFim ?? naoCabem) : (naoCabem ?? folgaNoFim)
+  if (motivoDoCiclo) return motivoDoCiclo
 
   if (!motoristaAutorizadoParaProduto(motorista.produtosAutorizados, contexto.produtoExigido)) {
     return "Produto não autorizado"

@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest"
+import { calcularDiasEntre } from "@/lib/utils/date-format"
 import type { StatusIntegracao, TipoMotorista, TipoProduto, Turno } from "@prisma/client"
 import {
   calcularAvisoInterjornada,
@@ -156,6 +157,42 @@ describe("alocacao.service", () => {
     it("entra na manhã do dia da folga, ou começa no dia da folga: não cabe", () => {
       expect(motivoForaDaRegra(noturno, contexto("2026-10-05T20:00:00", "2026-10-06T04:30:00"))).toBe("Folga em 06/10 (fim da viagem)")
       expect(motivoForaDaRegra(noturno, contexto("2026-10-06T01:00:00", "2026-10-06T03:00:00"))).toBe("Folga em 06/10")
+    })
+  })
+
+  describe("viagem de vários dias: conta dias de jornada, não horas", () => {
+    // 04/10 = 4º dia, 05/10 = 5º, 06/10 = 6º, 07/10 = folga
+    const bsb = (iso: string) => new Date(`${iso}-03:00`)
+    const registrosJornada = [
+      { data: bsb("2026-10-04T00:00:00"), codigo: 4 },
+      { data: bsb("2026-10-05T00:00:00"), codigo: 5 },
+      { data: bsb("2026-10-06T00:00:00"), codigo: 6 },
+      { data: bsb("2026-10-07T00:00:00"), codigo: 7 },
+    ]
+    const motivo = (inicio: string, fim: string) => {
+      const ini = bsb(inicio)
+      const turno = Number(inicio.slice(11, 13)) >= 4 && Number(inicio.slice(11, 13)) < 16 ? ("MANHA" as const) : ("NOITE" as const)
+      return motivoForaDaRegra(criarMotorista({ turno, diasTrabalhados: 4, registrosJornada }), {
+        turnoViagem: turno,
+        diasViagem: calcularDiasEntre(ini, bsb(fim)),
+        dataInicioViagem: ini,
+        fimViagem: bsb(fim),
+        integracaoExigida: null,
+        hoje: bsb("2026-10-04T00:00:00"),
+      })
+    }
+
+    it("3 dias de jornada a partir do 4º dia cabem, mesmo chegando de madrugada no dia da folga", () => {
+      expect(motivo("2026-10-04T08:00:00", "2026-10-06T20:00:00")).toBeNull()
+      expect(motivo("2026-10-04T20:00:00", "2026-10-07T03:00:00")).toBeNull()
+      // 73h de viagem, mas 3 dias de jornada (04, 05 e 06)
+      expect(motivo("2026-10-04T02:00:00", "2026-10-07T03:00:00")).toBeNull()
+      expect(motivo("2026-10-05T02:00:00", "2026-10-07T03:00:00")).toBeNull()
+    })
+
+    it("entrar na manhã da folga, ou passar do 6º dia, não cabe", () => {
+      expect(motivo("2026-10-04T20:00:00", "2026-10-07T06:00:00")).toBe("Folga em 07/10 (fim da viagem)")
+      expect(motivo("2026-10-05T08:00:00", "2026-10-07T20:00:00")).toBe("Folga em 07/10 (fim da viagem)")
     })
   })
 
