@@ -48,8 +48,10 @@ describe('XLSXParserViagem.converterParaFormulario', () => {
   })
 
   describe('turno pela hora de início', () => {
-    it('define MANHA para horários antes das 16h', () => {
-      expect(XLSXParserViagem.converterParaFormulario(criarDadosViagem({ horaInicio: '00:00' })).turno).toBe('MANHA')
+    it('define MANHA de 04:00 a 15:59; madrugada (00:00–03:59) é NOITE', () => {
+      expect(XLSXParserViagem.converterParaFormulario(criarDadosViagem({ horaInicio: '00:00' })).turno).toBe('NOITE')
+      expect(XLSXParserViagem.converterParaFormulario(criarDadosViagem({ horaInicio: '03:59' })).turno).toBe('NOITE')
+      expect(XLSXParserViagem.converterParaFormulario(criarDadosViagem({ horaInicio: '04:00' })).turno).toBe('MANHA')
       expect(XLSXParserViagem.converterParaFormulario(criarDadosViagem({ horaInicio: '15:59' })).turno).toBe('MANHA')
     })
 

@@ -9,6 +9,8 @@ describe("turnoPorHorario", () => {
     expect(turnoPorHorario("2026-10-01T07:00")).toBe("MANHA")
     expect(turnoPorHorario("2026-10-01T18:59:00.000Z")).toBe("MANHA")
     expect(turnoPorHorario("2026-10-01T19:00:00.000Z")).toBe("NOITE")
+    expect(turnoPorHorario("2026-10-01T03:30")).toBe("NOITE")
+    expect(turnoPorHorario("2026-10-01T04:00")).toBe("MANHA")
     expect(turnoPorHorario("lixo")).toBeNull()
   })
 })

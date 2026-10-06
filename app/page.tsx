@@ -370,7 +370,7 @@ function ResumoTurnos({ resumo }: { resumo: ReturnType<typeof resumoPorTurno> })
   return (
     <div
       className="flex flex-wrap items-center gap-x-5 gap-y-1 text-sm"
-      title="Viagens que começam no dia (sem as canceladas) e as entregas delas. Dia: início até 15:59; Noite: a partir das 16:00."
+      title="Viagens que começam no dia (sem as canceladas) e as entregas delas. Dia: início das 04:00 às 15:59; Noite: das 16:00 às 03:59."
     >
       {linhas.map(({ rotulo, icone: Icone, viagens, entregas }) => (
         <span key={rotulo} className="flex items-center gap-1.5 text-muted-foreground">

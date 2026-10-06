@@ -76,8 +76,8 @@ type ResumoTurno = { viagens: number; entregas: number }
 /**
  * Programação do dia por turno: viagens que começam no dia (as canceladas
  * não contam; Retornando de dias anteriores também não — é de outro dia) e
- * quantas entregas cada turno tem. Turno = o da viagem (Dia até 15:59,
- * Noite a partir das 16:00, mesma regra da importação e da alocação).
+ * quantas entregas cada turno tem. Turno = o da viagem (Dia 04:00–15:59,
+ * Noite 16:00–03:59, ver lib/services/turno.ts).
  */
 export function resumoPorTurno<T extends { status: StatusViagem; turno: Turno; inicioPrevisto: Date | string; entregas: unknown[] }>(
   viagens: T[],

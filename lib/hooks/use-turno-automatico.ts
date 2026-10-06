@@ -5,8 +5,8 @@ import { useWatch, type Control, type FieldValues, type Path, type PathValue, ty
 import { turnoPorHorario } from "@/lib/services/turno"
 
 /**
- * Quando o início previsto muda no formulário, o turno acompanha (a partir
- * das 16:00 é noite). Continua dando pra trocar o turno à mão depois — só
+ * Quando o início previsto muda no formulário, o turno acompanha (Noite
+ * das 16:00 às 03:59). Continua dando pra trocar o turno à mão depois — só
  * uma nova mudança no início recalcula. O valor inicial não dispara.
  */
 export function useTurnoAutomatico<T extends FieldValues>(control: Control<T>, setValue: UseFormSetValue<T>) {

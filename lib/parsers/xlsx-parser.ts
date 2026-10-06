@@ -183,7 +183,7 @@ class XLSXDataExtractor {
 
 class XLSXToFormDataConverter {
   /**
-   * MANHA/NOITE conforme a hora de início da viagem: a partir das 16h é NOITE.
+   * MANHA/NOITE conforme a hora de início da viagem: NOITE das 16:00 às 03:59.
    */
   private static determinarTurnoPorHora(horaInicio: string): 'MANHA' | 'NOITE' {
     return turnoPorHora(Number(horaInicio.split(':')[0]))
