@@ -49,9 +49,8 @@ import {
   criarViagemComAlocacaoService,
   editarViagemService,
   deletarViagemService,
-  atualizarStatusViagemService,
-  atualizarSaidaRealService,
 } from "@/lib/services/viagem.service"
+import { atualizarSaidaRealService, atualizarStatusViagemService } from "@/lib/services/viagem-andamento.service"
 import type { Ator } from "@/lib/services/auditoria.service"
 
 const FILIAL_ID = 1
@@ -63,8 +62,9 @@ function criarTx() {
       create: vi.fn(),
       update: vi.fn(),
       updateMany: vi.fn(),
-      findUnique: vi.fn(),
-      findUniqueOrThrow: vi.fn(),
+      // Leituras dentro da transação delegam pros mocks do prisma que cada teste configura.
+      findUnique: vi.fn((...a: unknown[]) => (prisma.viagem.findUnique as (...x: unknown[]) => unknown)(...a)),
+      findUniqueOrThrow: vi.fn((...a: unknown[]) => (prisma.viagem.findUniqueOrThrow as (...x: unknown[]) => unknown)(...a)),
     },
     entrega: { findMany: vi.fn().mockResolvedValue([]) },
     $queryRaw: vi.fn().mockResolvedValue([{ id: 1 }]),

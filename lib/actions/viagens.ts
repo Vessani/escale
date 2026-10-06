@@ -20,9 +20,8 @@ import {
   criarViagemComAlocacaoService,
   editarViagemService,
   deletarViagemService,
-  atualizarStatusViagemService,
-  atualizarSaidaRealService,
 } from "@/lib/services/viagem.service";
+import { atualizarSaidaRealService, atualizarStatusViagemService } from "@/lib/services/viagem-andamento.service";
 import { buscarMotoristasParaSelect } from "@/lib/queries/motoristas";
 import { buscarNumerosSapQueExigemIntegracao } from "@/lib/queries/clientes";
 import {

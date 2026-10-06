@@ -8,12 +8,12 @@ vi.mock("@/lib/prisma", () => ({
     entrega: { findFirst: vi.fn() },
   },
 }))
-vi.mock("@/lib/services/viagem.service", () => ({ atualizarStatusViagemService: vi.fn(), CODIGO_VIAGEM_MUDOU: "VIAGEM_MUDOU" }))
+vi.mock("@/lib/services/viagem-andamento.service", () => ({ atualizarStatusViagemService: vi.fn(), CODIGO_VIAGEM_MUDOU: "VIAGEM_MUDOU" }))
 vi.mock("@/lib/services/auditoria.service", () => ({ registrarAuditoria: vi.fn() }))
 
 import { prisma } from "@/lib/prisma"
 import { ErroDeDominio } from "@/lib/errors"
-import { atualizarStatusViagemService } from "@/lib/services/viagem.service"
+import { atualizarStatusViagemService } from "@/lib/services/viagem-andamento.service"
 import {
   adicionarMinhaDespesa,
   buscarMinhaViagem,

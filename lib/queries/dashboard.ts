@@ -1,3 +1,7 @@
+import { buscarViagensDoDashboard } from "@/lib/queries/viagens"
+import { pendenciaDeOutroDia } from "@/lib/services/dashboard.service"
+import { serializeData } from "@/lib/serialization"
+import { inicioDoDia } from "@/lib/utils/date-format"
 import { prisma } from "@/lib/prisma"
 import { PRODUTO_VALORES, formatarProduto } from "@/lib/services/produto.service"
 import { STATUS_VIAGEM_VALORES, formatarStatusViagem } from "@/lib/services/viagem-status.service"
@@ -141,3 +145,11 @@ export async function buscarIndicadoresDashboard(
     topClientesCancelamentos,
   }
 }
+
+/** Viagens do Dashboard com a pendência de outro dia ("Desde 01/10", "Não saiu"), já serializadas pro cliente. */
+export async function buscarItensDoDashboard(filialId: number, hoje: Date) {
+  const viagens = await buscarViagensDoDashboard(filialId, hoje)
+  return serializeData(viagens.map((viagem) => ({ viagem, pendencia: pendenciaDeOutroDia(viagem, inicioDoDia(hoje)) })))
+}
+
+export type ItemDashboard = Awaited<ReturnType<typeof buscarItensDoDashboard>>[number]

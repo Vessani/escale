@@ -1,102 +1,20 @@
 "use client"
 
-import { Fragment, useMemo, useState } from "react"
-import { Check, Pencil, RotateCcw, Search, Trash2, Undo2, X } from "lucide-react"
+import { useMemo, useState } from "react"
+import { Search } from "lucide-react"
 import { Alert } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { AcoesLinha, BotaoIcone } from "@/components/ui/botao-icone"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
-import {
-  JornadaRelatorioParser,
-  SEM_EDICOES,
-  registrosParaImportar,
-  type EdicoesJornada,
-  type LinhaJornadaBruta,
-  type LinhaRevisaoJornada,
-  type RegistroJornadaRelatorio,
-} from "@/lib/parsers/jornada-relatorio-parser"
+import { JornadaRelatorioParser, SEM_EDICOES, registrosParaImportar, type EdicoesJornada, type LinhaJornadaBruta, type LinhaRevisaoJornada, type RegistroJornadaRelatorio } from "@/lib/parsers/jornada-relatorio-parser"
 import type { AjusteJornada } from "@/lib/validation/ajuste-jornada"
 import type { CoberturaImportacaoJornada } from "@/lib/services/jornada-relatorio.service"
 import { MAX_DIAS_SEM_FOLGA, folgaEstourada } from "@/lib/services/dias-sem-folga"
 import { formatarDataHoraPtBr, formatarHoraLocal, formatDateTimeForInput, parseDateTimeFromInput } from "@/lib/utils/date-format"
 import { cn } from "@/lib/utils"
-import { ESTILO_CATEGORIA, categoriaDaLinha, precisaAtencao, type CategoriaLinha } from "./categoria-linha"
-
-type Rascunho = { id: number; inicio: string; fim: string; dias: string; erro: string }
-
-const ROTULO_SITUACAO: Record<LinhaRevisaoJornada["situacao"], string> = {
-  IMPORTAR: "Importada",
-  MESMO_DIA: "Fora do calendário",
-  IGNORADA: "Excluída",
-  ABSORVIDA: "Batida extra desconsiderada",
-}
-
-/** Ordem das cores na legenda. */
-const LEGENDA: Array<Exclude<CategoriaLinha, "OK">> = ["SETIMO_DIA", "SEM_PAR", "CORRIGIDA", "EDITADA", "FORA"]
-
-const ROTULO_LEGENDA: Record<Exclude<CategoriaLinha, "OK">, string> = {
-  SETIMO_DIA: "7º dia",
-  SEM_PAR: "Batida sem par",
-  CORRIGIDA: "Corrigida pelo sistema",
-  EDITADA: "Alterada por você",
-  FORA: "Não entra no calendário",
-}
-
-const formatoDia = new Intl.DateTimeFormat("pt-BR", { timeZone: "America/Sao_Paulo", day: "2-digit", month: "2-digit", weekday: "long" })
-
-/** "01/09 · terça-feira" */
-function rotuloDia(diaIso: string) {
-  const partes = Object.fromEntries(formatoDia.formatToParts(new Date(diaIso)).map((parte) => [parte.type, parte.value]))
-  return `${partes.day}/${partes.month} · ${partes.weekday}`
-}
-
-/** "01/09 ter" — dia da coluna, com o dia da semana curto. */
-function diaCurto(diaIso: string) {
-  const [data, semana] = rotuloDia(diaIso).split(" · ")
-  return { data, semana: semana.slice(0, 3) }
-}
-
-/** Data em Brasília (YYYY-MM-DD), pra saber se o fim caiu em outro dia. */
-const dataLocal = (valor: string) => formatDateTimeForInput(valor).slice(0, 10)
-
-function diasEntre(de: string, ate: string) {
-  return Math.round((Date.parse(dataLocal(ate)) - Date.parse(dataLocal(de))) / 86_400_000)
-}
-
-/** Por que a linha tem essa cor — vai no tooltip, não na tela. */
-function motivo(linha: LinhaRevisaoJornada): string {
-  const partes: string[] = []
-  if (linha.situacao === "MESMO_DIA") partes.push("Não entra no calendário: já tem outra jornada mais tarde nesse dia")
-  if (linha.situacao === "ABSORVIDA") partes.push("Batida logo depois da jornada — desconsiderada, não conta como dia")
-  if (linha.situacao === "IGNORADA") partes.push("Excluída por você")
-  if (linha.correcao === "BATIDAS_UNIDAS") partes.push("Entrada e saída vieram em linhas separadas e foram juntadas")
-  if (linha.correcao === "BATIDA_EXTRA") partes.push(`Batida das ${linha.batidaExtra} desconsiderada`)
-  if (linha.correcao === "BATIDA_SEM_PAR") partes.push("Batida sem par — o fim pode não ser o real")
-  if (linha.situacao === "IMPORTAR" && folgaEstourada(linha.diasSemFolga)) partes.push(`Passou de ${MAX_DIAS_SEM_FOLGA} dias sem folga`)
-  if (linha.situacao !== "IGNORADA" && linha.diasSemFolga !== linha.diasSemFolgaRelatorio) {
-    partes.push(`Dias sem folga no relatório: ${linha.diasSemFolgaRelatorio}`)
-  }
-  if (linha.editada && linha.situacao !== "IGNORADA") {
-    partes.push(`Alterada por você (era ${formatarHoraLocal(linha.original.inicio)}–${formatarHoraLocal(linha.original.fim)})`)
-  }
-  return partes.join(" · ")
-}
-
-/** Tira do conjunto de edições tudo o que vale pras linhas do arquivo `ids` (e o ajuste de dias da linha `id`). */
-function semEdicoesDe(edicoes: EdicoesJornada, id: number, ids: number[]): EdicoesJornada {
-  const remover = new Set(ids)
-  const horarios = { ...edicoes.horarios }
-  for (const chave of ids) delete horarios[chave]
-  const dias = { ...edicoes.dias }
-  delete dias[id]
-  return {
-    ignoradas: edicoes.ignoradas.filter((chave) => !remover.has(chave)),
-    semCorrecao: edicoes.semCorrecao.filter((chave) => !remover.has(chave)),
-    horarios,
-    dias,
-  }
-}
+import { ESTILO_CATEGORIA, categoriaDaLinha, precisaAtencao } from "./categoria-linha"
+import { LEGENDA, ROTULO_LEGENDA, ROTULO_SITUACAO, rotuloDia, type Rascunho } from "./conferencia-formato"
+import { LinhaConferencia } from "./linha-conferencia"
 
 /**
  * Conferência do Relatório de Jornada antes de importar: as linhas do
@@ -352,141 +270,22 @@ export function ConferenciaJornada({
                 </TableRow>
               )}
               {visiveis.map(({ linha, categoria }, indice) => {
-                const novoMotorista = indice === 0 || visiveis[indice - 1].linha.matricula !== linha.matricula
-                const destaque = destaquePorMotorista.get(linha.matricula)
-                const dia = diaCurto(linha.dia)
-                const emEdicao = rascunho?.id === linha.id ? rascunho : null
-                const fora = linha.situacao !== "IMPORTAR"
-                const podeEditar = linha.situacao === "IMPORTAR" || linha.situacao === "MESMO_DIA"
-                const alteradaPorVoce =
-                  linha.situacao !== "IGNORADA" &&
-                  (linha.editada || linha.ids.some((id) => edicoes.semCorrecao.includes(id)) || edicoes.dias[linha.id] !== undefined)
-                const diasDepois = diasEntre(linha.inicioJornada, linha.fimJornada)
+                const anterior = visiveis[indice - 1]
                 return (
-                  <Fragment key={`${linha.situacao}-${linha.id}`}>
-                    {novoMotorista && (
-                      <TableRow className="bg-muted/70 hover:bg-muted/70">
-                        <TableCell colSpan={5} className="py-2">
-                          <div className="flex items-center justify-between gap-3">
-                            <span className="truncate text-sm font-semibold text-foreground">
-                              {linha.nome}
-                              <span className="ml-2 font-mono text-xs font-normal text-muted-foreground">{linha.matricula}</span>
-                              {!cadastradas.has(linha.matricula) && (
-                                <span className="ml-2 text-xs font-normal text-muted-foreground">· sem cadastro, não importa</span>
-                              )}
-                            </span>
-                            {destaque && (
-                              <span
-                                className={cn(
-                                  "shrink-0 rounded-full px-2 py-0.5 text-xs font-medium",
-                                  destaque.setimoDia ? "bg-destructive/15 text-destructive" : "bg-background text-muted-foreground ring-1 ring-border",
-                                )}
-                              >
-                                {destaque.total} em destaque
-                              </span>
-                            )}
-                          </div>
-                        </TableCell>
-                      </TableRow>
-                    )}
-                    <TableRow className={ESTILO_CATEGORIA[categoria].linha} title={motivo(linha) || undefined}>
-                      <TableCell className={cn("tabular-nums", linha.situacao === "IGNORADA" && "line-through")}>
-                        <span className="font-mono">{dia.data}</span>
-                        <span className="ml-1.5 text-xs text-muted-foreground">{dia.semana}</span>
-                      </TableCell>
-                      {emEdicao ? (
-                        <>
-                          <TableCell>
-                            <Input
-                              type="datetime-local"
-                              value={emEdicao.inicio}
-                              onChange={(e) => setRascunho({ ...emEdicao, inicio: e.target.value, erro: "" })}
-                              className="h-8 px-2 text-xs"
-                              aria-label="Início da jornada"
-                            />
-                          </TableCell>
-                          <TableCell>
-                            <Input
-                              type="datetime-local"
-                              value={emEdicao.fim}
-                              onChange={(e) => setRascunho({ ...emEdicao, fim: e.target.value, erro: "" })}
-                              className="h-8 px-2 text-xs"
-                              aria-label="Fim da jornada"
-                            />
-                          </TableCell>
-                          <TableCell className="whitespace-normal">
-                            <Input
-                              type="number"
-                              min={1}
-                              max={31}
-                              value={emEdicao.dias}
-                              onChange={(e) => setRascunho({ ...emEdicao, dias: e.target.value, erro: "" })}
-                              className="h-8 w-20 px-2 text-xs"
-                              aria-label="Dias sem folga"
-                            />
-                            {emEdicao.erro && <p className="mt-1 text-xs font-medium text-destructive">{emEdicao.erro}</p>}
-                          </TableCell>
-                          <TableCell>
-                            <AcoesLinha>
-                              <BotaoIcone rotulo="Salvar" icone={Check} onClick={() => salvar(linha)} />
-                              <BotaoIcone rotulo="Cancelar" icone={X} onClick={() => setRascunho(null)} />
-                            </AcoesLinha>
-                          </TableCell>
-                        </>
-                      ) : (
-                        <>
-                          <TableCell className={cn("font-mono tabular-nums", fora && "line-through")}>
-                            {formatarHoraLocal(linha.inicioJornada)}
-                          </TableCell>
-                          <TableCell className={cn("font-mono tabular-nums", fora && "line-through")}>
-                            {formatarHoraLocal(linha.fimJornada)}
-                            {diasDepois > 0 && <span className="ml-1 text-xs text-muted-foreground">+{diasDepois}</span>}
-                          </TableCell>
-                          <TableCell className="tabular-nums">{fora ? "—" : linha.diasSemFolga}</TableCell>
-                          <TableCell>
-                            <AcoesLinha>
-                              {podeEditar && (
-                                <BotaoIcone rotulo="Editar" icone={Pencil} disabled={rascunho !== null} onClick={() => editar(linha)} />
-                              )}
-                              {podeEditar && (
-                                <BotaoIcone
-                                  rotulo="Excluir (não era jornada)"
-                                  icone={Trash2}
-                                  perigo
-                                  disabled={rascunho !== null}
-                                  onClick={() => setEdicoes((atual) => ({ ...atual, ignoradas: [...atual.ignoradas, ...linha.ids] }))}
-                                />
-                              )}
-                              {linha.situacao === "IGNORADA" && (
-                                <BotaoIcone
-                                  rotulo="Trazer de volta"
-                                  icone={Undo2}
-                                  disabled={rascunho !== null}
-                                  onClick={() => setEdicoes((atual) => semEdicoesDe(atual, linha.id, linha.ids))}
-                                />
-                              )}
-                              {linha.situacao === "ABSORVIDA" && (
-                                <BotaoIcone
-                                  rotulo="Trazer de volta (contar como jornada)"
-                                  icone={Undo2}
-                                  disabled={rascunho !== null}
-                                  onClick={() => setEdicoes((atual) => ({ ...atual, semCorrecao: [...atual.semCorrecao, linha.id] }))}
-                                />
-                              )}
-                              {alteradaPorVoce && (
-                                <BotaoIcone
-                                  rotulo="Desfazer minha alteração"
-                                  icone={RotateCcw}
-                                  disabled={rascunho !== null}
-                                  onClick={() => setEdicoes((atual) => semEdicoesDe(atual, linha.id, linha.ids))}
-                                />
-                              )}
-                            </AcoesLinha>
-                          </TableCell>
-                        </>
-                      )}
-                    </TableRow>
-                  </Fragment>
+                  <LinhaConferencia
+                    key={`${linha.situacao}-${linha.id}`}
+                    linha={linha}
+                    categoria={categoria}
+                    novoMotorista={indice === 0 || anterior.linha.matricula !== linha.matricula}
+                    destaque={destaquePorMotorista.get(linha.matricula)}
+                    cadastrado={cadastradas.has(linha.matricula)}
+                    rascunho={rascunho}
+                    edicoes={edicoes}
+                    onRascunho={setRascunho}
+                    onEditar={() => editar(linha)}
+                    onSalvar={() => salvar(linha)}
+                    onEdicoes={setEdicoes}
+                  />
                 )
               })}
             </TableBody>
