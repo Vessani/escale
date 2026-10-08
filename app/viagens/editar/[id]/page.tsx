@@ -115,6 +115,12 @@ export default async function EditarViagemPage({ params }: { params: Promise<{ i
                   polFinal: chegada.polFinal,
                   fator: chegada.fator,
                   totalDescarregado: chegada.totalDescarregado,
+                  m3Inicial: chegada.m3Inicial,
+                  m3Final: chegada.m3Final,
+                  kgInicial: chegada.kgInicial,
+                  kgFinal: chegada.kgFinal,
+                  pctInicial: chegada.pctInicial,
+                  pctFinal: chegada.pctFinal,
                 }
               : null,
           }

@@ -592,8 +592,11 @@
   }
 
   enum TipoMedicao {
+    // MANOMETRO e BALANCA: registros antigos (antes da grade) — só leitura.
     MANOMETRO
     BALANCA
+    // Grade m³ / kg / %: o motorista preenche uma ou mais linhas.
+    GRADE
   }
 
   // Chegada do motorista em cada cliente (uma por entrega): km, hora e a
@@ -615,6 +618,15 @@
     polFinal          Decimal?     @db.Decimal(10, 2)
     // Conversão usada (manômetro: a do cliente, informada; balança: a do produto).
     fator             Decimal?     @db.Decimal(10, 4)
+    // Grade (medicao = GRADE): cada linha é opcional, mas inicial e final
+    // andam juntos. O total vem da linha de referência (kg > m³ > %), e
+    // nivelInicial/nivelFinal repetem as leituras dela.
+    m3Inicial         Decimal?     @db.Decimal(12, 3)
+    m3Final           Decimal?     @db.Decimal(12, 3)
+    kgInicial         Decimal?     @db.Decimal(12, 3)
+    kgFinal           Decimal?     @db.Decimal(12, 3)
+    pctInicial        Decimal?     @db.Decimal(6, 2)
+    pctFinal          Decimal?     @db.Decimal(6, 2)
     totalDescarregado Decimal      @db.Decimal(14, 3)
 
     usuarioId         String?
