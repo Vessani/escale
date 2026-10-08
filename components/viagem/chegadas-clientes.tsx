@@ -6,14 +6,15 @@ import { CircleCheck, MapPin, Pencil } from "lucide-react"
 import { Alert } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { ControleSegmentado } from "@/components/ui/controle-segmentado"
 import { chamarAcao } from "@/lib/chamar-acao"
 import {
   FATOR_BALANCA,
   calcularDescarga,
   formatarNumero,
   parseNumeroDecimal,
+  textoMedicao,
   unidadeDescarga,
+  type LinhaGrade,
   type TipoMedicao,
 } from "@/lib/services/descarga"
 import { formatDateTimeForInput, formatarDataHoraPtBr } from "@/lib/utils/date-format"
@@ -36,6 +37,12 @@ export type ChegadaDoPainel = {
   polFinal: number | null
   fator: number | null
   totalDescarregado: number
+  m3Inicial?: number | null
+  m3Final?: number | null
+  kgInicial?: number | null
+  kgFinal?: number | null
+  pctInicial?: number | null
+  pctFinal?: number | null
 }
 
 export type EntregaDoPainel = {
@@ -46,7 +53,7 @@ export type EntregaDoPainel = {
   chegada: (ChegadaDoPainel & { id?: number }) | null
 }
 
-const ROTULO_MEDICAO: Record<TipoMedicao, string> = { MANOMETRO: "Manômetro", BALANCA: "Balança" }
+const ROTULO_LINHA: Record<LinhaGrade, string> = { M3: "m³", KG: "kg", PCT: "%" }
 
 const numeroCampo = (valor: number | null | undefined) => (valor === null || valor === undefined ? "" : String(valor).replace(".", ","))
 
@@ -82,6 +89,20 @@ function CampoNumero({
   )
 }
 
+/** Campo da grade: sem rótulo próprio (a linha e a coluna dizem o que é). */
+function CampoGrade({ rotulo, valor, onChange }: { rotulo: string; valor: string; onChange: (v: string) => void }) {
+  return (
+    <Input
+      aria-label={rotulo}
+      inputMode="decimal"
+      autoComplete="off"
+      value={valor}
+      onChange={(e) => onChange(e.target.value.replace(/[^\d.,]/g, ""))}
+      className="h-11 px-2 text-base tabular-nums text-foreground"
+    />
+  )
+}
+
 function FormChegada({
   salvar,
   entrega,
@@ -107,23 +128,57 @@ function FormChegada({
   // Horário de Brasília (como o resto do sistema), a partir do relógio do
   // servidor — não do celular, que pode estar em outro fuso ou adiantado.
   const [quando, setQuando] = useState(() => formatDateTimeForInput(anterior ? anterior.chegadaEm : agoraServidor))
-  const [medicao, setMedicao] = useState<TipoMedicao | null>(anterior?.medicao ?? null)
-  const [inicial, setInicial] = useState(numeroCampo(anterior?.nivelInicial))
-  const [final, setFinal] = useState(numeroCampo(anterior?.nivelFinal))
-  const [fator, setFator] = useState(anterior?.medicao === "MANOMETRO" ? numeroCampo(anterior.fator) : "")
+  // Registro antigo de balança vira a linha kg; manômetro antigo não tem
+  // equivalente na grade (polegadas × conversão do cliente) — começa vazio.
+  const legadoBalanca = anterior?.medicao === "BALANCA"
+  const [m3Inicial, setM3Inicial] = useState(numeroCampo(anterior?.m3Inicial))
+  const [m3Final, setM3Final] = useState(numeroCampo(anterior?.m3Final))
+  const [kgInicial, setKgInicial] = useState(numeroCampo(legadoBalanca ? anterior.nivelInicial : anterior?.kgInicial))
+  const [kgFinal, setKgFinal] = useState(numeroCampo(legadoBalanca ? anterior.nivelFinal : anterior?.kgFinal))
+  const [pctInicial, setPctInicial] = useState(numeroCampo(anterior?.pctInicial))
+  const [pctFinal, setPctFinal] = useState(numeroCampo(anterior?.pctFinal))
+  // Biometano: nível do tanque do caminhão em m³ e em polegadas.
+  const [inicial, setInicial] = useState(biometano ? numeroCampo(anterior?.nivelInicial) : "")
+  const [final, setFinal] = useState(biometano ? numeroCampo(anterior?.nivelFinal) : "")
   const [polInicial, setPolInicial] = useState(numeroCampo(anterior?.polInicial))
   const [polFinal, setPolFinal] = useState(numeroCampo(anterior?.polFinal))
 
+  const grade = (texto: string) => (biometano ? null : parseNumeroDecimal(texto))
   const dados = {
-    medicao: biometano ? null : medicao,
-    nivelInicial: parseNumeroDecimal(inicial),
-    nivelFinal: parseNumeroDecimal(final),
-    fatorCliente: medicao === "MANOMETRO" ? parseNumeroDecimal(fator, { pontoDecimal: true }) : null,
+    medicao: biometano ? null : ("GRADE" as const),
+    m3Inicial: grade(m3Inicial),
+    m3Final: grade(m3Final),
+    kgInicial: grade(kgInicial),
+    kgFinal: grade(kgFinal),
+    pctInicial: grade(pctInicial),
+    pctFinal: grade(pctFinal),
+    nivelInicial: biometano ? parseNumeroDecimal(inicial) : null,
+    nivelFinal: biometano ? parseNumeroDecimal(final) : null,
     polInicial: biometano ? parseNumeroDecimal(polInicial) : null,
     polFinal: biometano ? parseNumeroDecimal(polFinal) : null,
   }
   const resultado = calcularDescarga({ ...dados, produto })
-  const preenchido = inicial && final && (biometano ? polInicial && polFinal : medicao && (medicao === "BALANCA" || fator))
+  const algumaLinha = [m3Inicial, m3Final, kgInicial, kgFinal, pctInicial, pctFinal].some(Boolean)
+  const preenchido = biometano ? inicial && final && polInicial && polFinal : algumaLinha
+  const linhas = resultado.ok ? resultado.linhas : null
+  const referencia = resultado.ok ? resultado.referencia : null
+  const fatorProduto = produto && produto !== "BIOMETANO" ? FATOR_BALANCA[produto] : null
+
+  const descarregadoDaLinha = (linha: LinhaGrade): string => {
+    if (!linhas) return "—"
+    if (linha === "KG") {
+      if (!linhas.kg) return "—"
+      return `${formatarNumero(linhas.kg.descarregado)} kg`
+    }
+    const l = linha === "M3" ? linhas.m3 : linhas.pct
+    return l ? `${formatarNumero(l.descarregado)} ${ROTULO_LINHA[linha]}` : "—"
+  }
+
+  const camposDaLinha: Record<LinhaGrade, [string, (v: string) => void, string, (v: string) => void]> = {
+    M3: [m3Inicial, setM3Inicial, m3Final, setM3Final],
+    KG: [kgInicial, setKgInicial, kgFinal, setKgFinal],
+    PCT: [pctInicial, setPctInicial, pctFinal, setPctFinal],
+  }
 
   const enviar = () => {
     setErro("")
@@ -134,8 +189,6 @@ function FormChegada({
       router.refresh()
     })
   }
-
-  const unidadeLeitura = biometano ? "m³" : medicao === "BALANCA" ? "kg" : "pol"
 
   return (
     <div className="space-y-3 border-t pt-3">
@@ -163,55 +216,72 @@ function FormChegada({
         </label>
       </div>
 
-      {!biometano && (
-        <ControleSegmentado
-          rotulo="Tipo de medida"
-          largo
-          opcoes={(["MANOMETRO", "BALANCA"] as const).map((tipo) => ({ valor: tipo, rotulo: ROTULO_MEDICAO[tipo] }))}
-          valor={medicao}
-          onChange={setMedicao}
-        />
+      {anterior?.medicao === "MANOMETRO" && (
+        <Alert variant="info">
+          Registro antigo pelo manômetro ({textoMedicao(anterior)}: {formatarNumero(anterior.totalDescarregado)}). Pra corrigir, preencha a
+          grade abaixo.
+        </Alert>
       )}
 
-      {(biometano || medicao) && (
-        <>
-          {biometano && (
-            <div className="grid grid-cols-2 gap-2">
-              <CampoNumero rotulo="Nível inicial" valor={polInicial} onChange={setPolInicial} sufixo="pol" />
-              <CampoNumero rotulo="Nível final" valor={polFinal} onChange={setPolFinal} sufixo="pol" />
-            </div>
-          )}
+      {biometano ? (
+        <div className="space-y-2">
           <div className="grid grid-cols-2 gap-2">
-            <CampoNumero rotulo="Nível inicial" valor={inicial} onChange={setInicial} sufixo={unidadeLeitura} />
-            <CampoNumero rotulo="Nível final" valor={final} onChange={setFinal} sufixo={unidadeLeitura} />
+            <CampoNumero rotulo="Nível inicial" valor={polInicial} onChange={setPolInicial} sufixo="pol" />
+            <CampoNumero rotulo="Nível final" valor={polFinal} onChange={setPolFinal} sufixo="pol" />
           </div>
-          {medicao === "MANOMETRO" && !biometano && (
-            <>
-              <p className="text-xs text-muted-foreground">
-                Manômetro do tanque do cliente: o nível sobe com a descarga (final maior que o inicial).
-              </p>
-              <CampoNumero rotulo="Conversão do cliente" valor={fator} onChange={setFator} />
-            </>
-          )}
-          {medicao === "BALANCA" && !biometano && (
-            <p className="text-xs text-muted-foreground">Peso do caminhão: cai com a descarga (final menor que o inicial).</p>
-          )}
-          {medicao === "BALANCA" && produto && produto !== "BIOMETANO" && (
-            <p className="text-xs text-muted-foreground">
-              Conversão do produto:{" "}
-              {FATOR_BALANCA[produto] === 1 ? "sem conversão (fica em kg)" : `× ${formatarNumero(FATOR_BALANCA[produto], 4)}`}
-            </p>
-          )}
-
-          <div className="flex items-center justify-between rounded-lg bg-muted/60 px-3 py-2">
-            <span className="text-sm text-muted-foreground">Total descarregado</span>
-            <span className="text-lg font-semibold tabular-nums">
-              {preenchido && resultado.ok ? `${formatarNumero(resultado.total)}${resultado.unidade ? ` ${resultado.unidade}` : ""}` : "—"}
-            </span>
+          <div className="grid grid-cols-2 gap-2">
+            <CampoNumero rotulo="Nível inicial" valor={inicial} onChange={setInicial} sufixo="m³" />
+            <CampoNumero rotulo="Nível final" valor={final} onChange={setFinal} sufixo="m³" />
           </div>
-          {preenchido && !resultado.ok && <p className="text-sm text-destructive">{resultado.erro}</p>}
-        </>
+        </div>
+      ) : (
+        <div className="space-y-1">
+          <p className="text-xs font-medium text-muted-foreground">Medição — preencha a linha do seu medidor (ou mais de uma)</p>
+          <div className="grid grid-cols-[2.25rem_1fr_1fr_minmax(0,1.3fr)] items-center gap-x-1.5 gap-y-1.5 text-xs">
+            <span />
+            <span className="font-medium text-muted-foreground">Inicial</span>
+            <span className="font-medium text-muted-foreground">Final</span>
+            <span className="text-right font-medium text-muted-foreground">Descarregado</span>
+            {(["M3", "KG", "PCT"] as const).map((linha) => {
+              const [ini, setIni, fim, setFim] = camposDaLinha[linha]
+              return (
+                <div key={linha} className="contents">
+                  <span className="font-semibold">{ROTULO_LINHA[linha]}</span>
+                  <CampoGrade rotulo={`${ROTULO_LINHA[linha]} inicial`} valor={ini} onChange={setIni} />
+                  <CampoGrade rotulo={`${ROTULO_LINHA[linha]} final`} valor={fim} onChange={setFim} />
+                  <span
+                    className={cn(
+                      "text-right text-sm tabular-nums",
+                      referencia === linha ? "font-semibold text-foreground" : "text-muted-foreground",
+                    )}
+                  >
+                    {descarregadoDaLinha(linha)}
+                    {linha === "KG" && linhas?.kg && fatorProduto !== 1 && (
+                      <span className="block text-xs font-normal whitespace-nowrap text-muted-foreground">
+                        = {formatarNumero(linhas.kg.convertido)} m³
+                      </span>
+                    )}
+                  </span>
+                </div>
+              )
+            })}
+          </div>
+          <p className="text-xs text-muted-foreground">
+            O final é maior que o inicial (sobe com a descarga).{" "}
+            {fatorProduto !== null && (fatorProduto === 1 ? "kg sem conversão (CO2)." : `kg → m³: × ${formatarNumero(fatorProduto, 4)}.`)} %
+            fica em pontos percentuais.
+          </p>
+        </div>
       )}
+
+      <div className="flex items-center justify-between rounded-lg bg-muted/60 px-3 py-2">
+        <span className="text-sm text-muted-foreground">Resultado{referencia ? ` (pela linha ${ROTULO_LINHA[referencia]})` : ""}</span>
+        <span className="text-lg font-semibold tabular-nums">
+          {preenchido && resultado.ok ? `${formatarNumero(resultado.total)}${resultado.unidade ? ` ${resultado.unidade}` : ""}` : "—"}
+        </span>
+      </div>
+      {preenchido && resultado.ok && resultado.aviso && <Alert variant="warning">{resultado.aviso}</Alert>}
+      {preenchido && !resultado.ok && <p className="text-sm text-destructive">{resultado.erro}</p>}
 
       <div className="flex gap-2">
         {anterior && (
@@ -247,7 +317,9 @@ function ResumoChegada({ chegada }: { chegada: ChegadaDoPainel }) {
         <dd className="font-semibold tabular-nums">{chegada.km}</dd>
       </div>
       <div className="rounded-lg bg-muted/60 px-3 py-2">
-        <dt className="text-xs text-muted-foreground">{chegada.medicao ? ROTULO_MEDICAO[chegada.medicao] : "Descarregado"}</dt>
+        <dt className="text-xs text-muted-foreground">
+          {chegada.medicao === "MANOMETRO" ? "Manômetro" : chegada.medicao === "BALANCA" ? "Balança" : "Descarregado"}
+        </dt>
         <dd className="font-semibold tabular-nums">
           {formatarNumero(chegada.totalDescarregado)}
           {unidade}
