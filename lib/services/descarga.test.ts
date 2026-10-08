@@ -85,7 +85,7 @@ describe("calcularDescarga — grade m³ / kg / %", () => {
     })
     expect(calcularDescarga({ ...grade, produto: "OXIGENIO", kgInicial: 1000, kgFinal: 400 })).toMatchObject({
       ok: false,
-      erro: expect.stringContaining("Linha kg: o final é maior que o inicial"),
+      erro: expect.stringContaining("Linha kg: o final tem que ser maior que o inicial"),
     })
     expect(calcularDescarga({ ...grade, produto: "OXIGENIO", m3Inicial: 28, m3Final: 12.5 })).toMatchObject({
       ok: false,

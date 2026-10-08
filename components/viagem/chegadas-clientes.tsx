@@ -168,9 +168,7 @@ function FormChegada({
     if (!linhas) return "—"
     if (linha === "KG") {
       if (!linhas.kg) return "—"
-      return fatorProduto === 1
-        ? `${formatarNumero(linhas.kg.descarregado)} kg`
-        : `${formatarNumero(linhas.kg.descarregado)} kg = ${formatarNumero(linhas.kg.convertido)} m³`
+      return `${formatarNumero(linhas.kg.descarregado)} kg`
     }
     const l = linha === "M3" ? linhas.m3 : linhas.pct
     return l ? `${formatarNumero(l.descarregado)} ${ROTULO_LINHA[linha]}` : "—"
@@ -258,6 +256,11 @@ function FormChegada({
                     )}
                   >
                     {descarregadoDaLinha(linha)}
+                    {linha === "KG" && linhas?.kg && fatorProduto !== 1 && (
+                      <span className="block text-xs font-normal whitespace-nowrap text-muted-foreground">
+                        = {formatarNumero(linhas.kg.convertido)} m³
+                      </span>
+                    )}
                   </span>
                 </div>
               )
@@ -314,7 +317,9 @@ function ResumoChegada({ chegada }: { chegada: ChegadaDoPainel }) {
         <dd className="font-semibold tabular-nums">{chegada.km}</dd>
       </div>
       <div className="rounded-lg bg-muted/60 px-3 py-2">
-        <dt className="text-xs text-muted-foreground">{chegada.medicao ? textoMedicao(chegada).split(" ×")[0] : "Descarregado"}</dt>
+        <dt className="text-xs text-muted-foreground">
+          {chegada.medicao === "MANOMETRO" ? "Manômetro" : chegada.medicao === "BALANCA" ? "Balança" : "Descarregado"}
+        </dt>
         <dd className="font-semibold tabular-nums">
           {formatarNumero(chegada.totalDescarregado)}
           {unidade}

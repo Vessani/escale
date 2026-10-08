@@ -88,7 +88,7 @@ function lerLinha(linha: LinhaGrade, inicial: number | null | undefined, final: 
   const nome = NOME_LINHA[linha]
   if (!valido(inicial) || !valido(final)) return `Linha ${nome}: informe o inicial e o final (só números).`
   if (linha === "PCT" && (inicial > 100 || final > 100)) return "Linha %: o nível vai de 0 a 100."
-  if (final < inicial) return `Linha ${nome}: o final é maior que o inicial (sobe com a descarga) — confira as leituras.`
+  if (final < inicial) return `Linha ${nome}: o final tem que ser maior que o inicial (sobe com a descarga) — confira as leituras.`
   return { inicial, final, descarregado: arredondar(final - inicial) }
 }
 
