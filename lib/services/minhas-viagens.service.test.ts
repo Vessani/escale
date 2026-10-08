@@ -234,8 +234,8 @@ describe("registrarChegadaCliente", () => {
     km: 152400,
     chegadaEm: h("2026-10-02T09:30:00"),
     medicao: "BALANCA" as const,
-    nivelInicial: 1000,
-    nivelFinal: 400,
+    nivelInicial: 400,
+    nivelFinal: 1000,
     fatorCliente: null,
     polInicial: null,
     polFinal: null,
@@ -321,7 +321,7 @@ describe("registrarChegadaCliente", () => {
     expect(tx.chegadaEntrega.upsert).toHaveBeenCalledTimes(1)
     tx.chegadaEntrega.upsert.mockClear()
     vi.mocked(prisma.entrega.findFirst).mockResolvedValue(entrega() as never)
-    await expect(registrarChegadaCliente(FILIAL, ZE, 1, 11, dados({ nivelInicial: 100, nivelFinal: 400 }), ator, agora)).rejects.toThrow(
+    await expect(registrarChegadaCliente(FILIAL, ZE, 1, 11, dados({ nivelInicial: 400, nivelFinal: 100 }), ator, agora)).rejects.toThrow(
       "maior que o inicial",
     )
     expect(tx.chegadaEntrega.upsert).not.toHaveBeenCalled()
@@ -375,7 +375,7 @@ describe("gravações do motorista com a viagem travada", () => {
         ZE,
         1,
         11,
-        { km: 150, chegadaEm: new Date(Date.now() - 60_000), medicao: "BALANCA", nivelInicial: 10, nivelFinal: 5 },
+        { km: 150, chegadaEm: new Date(Date.now() - 60_000), medicao: "BALANCA", nivelInicial: 5, nivelFinal: 10 },
         ator,
       ),
     ).rejects.toThrow("não está mais com você")

@@ -40,7 +40,7 @@ const relatorio = {
       cliente: "HOSPITAL SANTA ISABEL",
       cidade: "Joinville/SC",
       prevista: h("10:00"),
-      chegada: { quando: h("10:05"), km: 152410, medicao: "Balança × 0,754", leituras: "1.000 → 400", total: 452.4, unidade: "m³" },
+      chegada: { quando: h("10:05"), km: 152410, medicao: "Balança × 0,754", leituras: "400 → 1.000", total: 452.4, unidade: "m³" },
     },
   ],
   totaisDescarga: [{ unidade: "m³", total: 452.4 }],

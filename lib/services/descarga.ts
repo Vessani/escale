@@ -8,8 +8,8 @@ import type { TipoProduto } from "@prisma/client"
  * Cada medida lê um tanque diferente:
  *  - Manômetro: tanque do CLIENTE, em polegadas — sobe com a descarga:
  *    (final − inicial) × conversão do cliente (o motorista informa).
- *  - Balança:   peso do CAMINHÃO — desce com a descarga:
- *    (inicial − final) × conversão do produto (kg → m³; CO2 fica em kg).
+ *  - Balança:   pesagem que SOBE com a descarga:
+ *    (final − inicial) × conversão do produto (kg → m³; CO2 fica em kg).
  *  - Biometano: tanque do caminhão em polegadas e em m³; total = m³ inicial − m³ final.
  */
 
@@ -80,32 +80,34 @@ export function calcularDescarga(dados: DadosDescarga): ResultadoDescarga {
     }
   }
 
-  // Balança e biometano medem o caminhão: o nível DESCE enquanto descarrega.
-  if (dados.nivelFinal > dados.nivelInicial) {
-    return { ok: false, erro: "O nível final está maior que o inicial — confira as leituras." }
+  // Balança: a pesagem SOBE com a descarga — (final − inicial) × fator do produto.
+  if (dados.produto !== "BIOMETANO" && dados.medicao === "BALANCA") {
+    if (dados.nivelFinal < dados.nivelInicial) {
+      return { ok: false, erro: "Na balança o peso final é maior que o inicial — confira as leituras." }
+    }
+    const fator = FATOR_BALANCA[dados.produto]
+    return {
+      ok: true,
+      total: arredondar((dados.nivelFinal - dados.nivelInicial) * fator),
+      fator,
+      unidade: dados.produto === "CO2" ? "kg" : "m³",
+      medicao: "BALANCA",
+      ...niveis,
+    }
   }
-  const diferenca = dados.nivelInicial - dados.nivelFinal
 
+  // Biometano mede o tanque do caminhão: o nível DESCE enquanto descarrega.
   if (dados.produto === "BIOMETANO") {
+    if (dados.nivelFinal > dados.nivelInicial) {
+      return { ok: false, erro: "O nível final está maior que o inicial — confira as leituras." }
+    }
     if (!valido(dados.polInicial) || !valido(dados.polFinal)) {
       return { ok: false, erro: "Biometano: informe também o nível inicial e o final em polegadas." }
     }
     if (dados.polFinal > dados.polInicial) {
       return { ok: false, erro: "Em polegadas, o nível final está maior que o inicial — confira as leituras." }
     }
-    return { ok: true, total: arredondar(diferenca), fator: null, unidade: "m³", medicao: null, ...niveis }
-  }
-
-  if (dados.medicao === "BALANCA") {
-    const fator = FATOR_BALANCA[dados.produto]
-    return {
-      ok: true,
-      total: arredondar(diferenca * fator),
-      fator,
-      unidade: dados.produto === "CO2" ? "kg" : "m³",
-      medicao: "BALANCA",
-      ...niveis,
-    }
+    return { ok: true, total: arredondar(dados.nivelInicial - dados.nivelFinal), fator: null, unidade: "m³", medicao: null, ...niveis }
   }
 
   return { ok: false, erro: "Escolha o tipo de medida: manômetro ou balança." }

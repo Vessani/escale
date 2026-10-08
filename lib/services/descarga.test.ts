@@ -2,21 +2,21 @@ import { describe, expect, it } from "vitest"
 import { calcularDescarga, parseNumeroDecimal } from "./descarga"
 
 describe("calcularDescarga", () => {
-  it("balança: (inicial − final) × fator do produto; CO2 fica em kg", () => {
-    expect(calcularDescarga({ produto: "OXIGENIO", medicao: "BALANCA", nivelInicial: 1000, nivelFinal: 400 })).toEqual({
+  it("balança (sobe): (final − inicial) × fator do produto; CO2 fica em kg", () => {
+    expect(calcularDescarga({ produto: "OXIGENIO", medicao: "BALANCA", nivelInicial: 400, nivelFinal: 1000 })).toEqual({
       ok: true,
       total: 452.4,
       fator: 0.754,
       unidade: "m³",
       medicao: "BALANCA",
-      nivelInicial: 1000,
-      nivelFinal: 400,
+      nivelInicial: 400,
+      nivelFinal: 1000,
     })
-    expect(calcularDescarga({ produto: "ARGONIO", medicao: "BALANCA", nivelInicial: 500, nivelFinal: 0 })).toMatchObject({ total: 302 })
-    expect(calcularDescarga({ produto: "NITROGENIO", medicao: "BALANCA", nivelInicial: 100, nivelFinal: 50 })).toMatchObject({
+    expect(calcularDescarga({ produto: "ARGONIO", medicao: "BALANCA", nivelInicial: 0, nivelFinal: 500 })).toMatchObject({ total: 302 })
+    expect(calcularDescarga({ produto: "NITROGENIO", medicao: "BALANCA", nivelInicial: 50, nivelFinal: 100 })).toMatchObject({
       total: 43.1,
     })
-    expect(calcularDescarga({ produto: "CO2", medicao: "BALANCA", nivelInicial: 800, nivelFinal: 300 })).toMatchObject({
+    expect(calcularDescarga({ produto: "CO2", medicao: "BALANCA", nivelInicial: 300, nivelFinal: 800 })).toMatchObject({
       total: 500,
       unidade: "kg",
     })
@@ -68,10 +68,10 @@ describe("calcularDescarga", () => {
     })
   })
 
-  it("recusa: final maior que inicial, leitura faltando, sem medida, viagem sem produto", () => {
-    expect(calcularDescarga({ produto: "OXIGENIO", medicao: "BALANCA", nivelInicial: 100, nivelFinal: 200 })).toMatchObject({
+  it("recusa: leituras invertidas, leitura faltando, sem medida, viagem sem produto", () => {
+    expect(calcularDescarga({ produto: "OXIGENIO", medicao: "BALANCA", nivelInicial: 200, nivelFinal: 100 })).toMatchObject({
       ok: false,
-      erro: expect.stringContaining("maior que o inicial"),
+      erro: expect.stringContaining("peso final é maior que o inicial"),
     })
     expect(calcularDescarga({ produto: "OXIGENIO", medicao: "BALANCA", nivelInicial: null, nivelFinal: 2 })).toMatchObject({ ok: false })
     expect(calcularDescarga({ produto: "OXIGENIO", medicao: null, nivelInicial: 5, nivelFinal: 2 })).toMatchObject({

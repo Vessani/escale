@@ -194,7 +194,7 @@ function FormChegada({
             </>
           )}
           {medicao === "BALANCA" && !biometano && (
-            <p className="text-xs text-muted-foreground">Peso do caminhão: cai com a descarga (final menor que o inicial).</p>
+            <p className="text-xs text-muted-foreground">Balança: o peso sobe com a descarga (final maior que o inicial).</p>
           )}
           {medicao === "BALANCA" && produto && produto !== "BIOMETANO" && (
             <p className="text-xs text-muted-foreground">
