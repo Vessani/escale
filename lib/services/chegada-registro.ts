@@ -20,7 +20,7 @@ export function montarRegistroChegada(dados: DadosChegada, viagem: ViagemDaChega
   const descarga = calcularDescarga({ ...dados, produto: viagem.produto })
   if (!descarga.ok) throw new ErroDeDominio("DESCARGA_INVALIDA", descarga.erro)
   const biometano = viagem.produto === "BIOMETANO"
-  const { kg, m3, pct } = descarga.linhas
+  const { pol, kg, m3, pct } = descarga.linhas
 
   return {
     km: dados.km,
@@ -28,8 +28,9 @@ export function montarRegistroChegada(dados: DadosChegada, viagem: ViagemDaChega
     medicao: descarga.medicao,
     nivelInicial: descarga.nivelInicial,
     nivelFinal: descarga.nivelFinal,
-    polInicial: biometano ? (dados.polInicial ?? null) : null,
-    polFinal: biometano ? (dados.polFinal ?? null) : null,
+    // pol: tanque do caminhão no biometano; linha pol (tanque do cliente) nos outros.
+    polInicial: biometano ? (dados.polInicial ?? null) : (pol?.inicial ?? null),
+    polFinal: biometano ? (dados.polFinal ?? null) : (pol?.final ?? null),
     fator: descarga.fator,
     totalDescarregado: descarga.total,
     // Só as linhas preenchidas; corrigir uma chegada limpa as que saíram.

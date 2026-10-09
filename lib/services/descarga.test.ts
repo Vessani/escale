@@ -1,105 +1,131 @@
 import { describe, expect, it } from "vitest"
 import { calcularDescarga, parseNumeroDecimal, textoLeituras, textoMedicao, unidadeDescarga } from "./descarga"
 
-describe("calcularDescarga — grade m³ / kg / %", () => {
-  const grade = { medicao: "GRADE" as const }
+describe("calcularDescarga — balança", () => {
+  const balanca = { medicao: "BALANCA" as const }
 
-  it("kg (balança): (final − inicial) × fator do produto; CO2 fica em kg", () => {
-    expect(calcularDescarga({ ...grade, produto: "OXIGENIO", kgInicial: 400, kgFinal: 1000 })).toEqual({
-      ok: true,
-      total: 452.4,
-      fator: 0.754,
-      unidade: "m³",
-      medicao: "GRADE",
-      nivelInicial: 400,
-      nivelFinal: 1000,
-      referencia: "KG",
-      linhas: { kg: { inicial: 400, final: 1000, descarregado: 600, convertido: 452.4 }, m3: null, pct: null },
-      aviso: null,
-    })
-    expect(calcularDescarga({ ...grade, produto: "ARGONIO", kgInicial: 0, kgFinal: 500 })).toMatchObject({ total: 302 })
-    expect(calcularDescarga({ ...grade, produto: "NITROGENIO", kgInicial: 50, kgFinal: 100 })).toMatchObject({ total: 43.1 })
-    expect(calcularDescarga({ ...grade, produto: "CO2", kgInicial: 300, kgFinal: 800 })).toMatchObject({ total: 500, unidade: "kg" })
-  })
-
-  it("só m³ ou só %: o total vem da própria linha (% sem conversão)", () => {
-    expect(calcularDescarga({ ...grade, produto: "OXIGENIO", m3Inicial: 12.5, m3Final: 28 })).toMatchObject({
-      ok: true,
-      total: 15.5,
-      unidade: "m³",
-      fator: null,
-      referencia: "M3",
-      nivelInicial: 12.5,
-      nivelFinal: 28,
-    })
-    expect(calcularDescarga({ ...grade, produto: "NITROGENIO", pctInicial: 38, pctFinal: 85 })).toMatchObject({
-      ok: true,
-      total: 47,
-      unidade: "%",
-      referencia: "PCT",
-    })
-  })
-
-  it("várias linhas: referência kg > m³ > %, e todas aparecem calculadas", () => {
+  it("caso real (tela WM): peso do caminhão 47.760 → 23.400 kg de nitrogênio = 24.360 kg = 20.998,32 m³", () => {
     const r = calcularDescarga({
-      ...grade,
-      produto: "OXIGENIO",
-      kgInicial: 400,
-      kgFinal: 1000,
-      m3Inicial: 10,
-      m3Final: 10.45,
-      pctInicial: 20,
-      pctFinal: 30,
+      ...balanca,
+      produto: "NITROGENIO",
+      kgInicial: 47760,
+      kgFinal: 23400,
+      // Tanque do cliente, na mesma tela: sobe.
+      m3Inicial: 35515.4,
+      m3Final: 50139.39,
+      polInicial: 51,
+      polFinal: 72,
     })
-    expect(r).toMatchObject({ ok: true, total: 452.4, referencia: "KG" })
-    if (!r.ok) throw new Error()
-    expect(r.linhas.m3?.descarregado).toBe(0.45)
-    expect(r.linhas.pct?.descarregado).toBe(10)
-    expect(calcularDescarga({ ...grade, produto: "OXIGENIO", m3Inicial: 10, m3Final: 25, pctInicial: 20, pctFinal: 70 })).toMatchObject({
-      total: 15,
+    expect(r).toEqual({
+      ok: true,
+      total: 20998.32,
+      fator: 0.862,
       unidade: "m³",
-      referencia: "M3",
+      medicao: "BALANCA",
+      nivelInicial: 47760,
+      nivelFinal: 23400,
+      linhas: {
+        kg: { inicial: 47760, final: 23400, descarregado: 24360, convertido: 20998.32 },
+        m3: { inicial: 35515.4, final: 50139.39, descarregado: 14623.99 },
+        pol: { inicial: 51, final: 72, descarregado: 21 },
+        pct: null,
+      },
     })
   })
 
-  it("kg e m³ divergentes além de 3%: avisa, mas não bloqueia (total pela balança)", () => {
-    // 600 kg × 0,754 = 452,4 m³ — informou 440 m³ (2,7%): sem aviso
-    expect(calcularDescarga({ ...grade, produto: "OXIGENIO", kgInicial: 400, kgFinal: 1000, m3Inicial: 0, m3Final: 440 })).toMatchObject({
-      ok: true,
-      aviso: null,
+  it("kg × fator do produto; CO2 fica em kg; as outras linhas não mudam o total", () => {
+    expect(calcularDescarga({ ...balanca, produto: "OXIGENIO", kgInicial: 1000, kgFinal: 400 })).toMatchObject({
+      total: 452.4,
+      unidade: "m³",
     })
-    // informou 400 m³ (11,6%): avisa
-    const r = calcularDescarga({ ...grade, produto: "OXIGENIO", kgInicial: 400, kgFinal: 1000, m3Inicial: 0, m3Final: 400 })
-    expect(r).toMatchObject({ ok: true, total: 452.4, aviso: expect.stringContaining("não batem") })
-    // CO2 fica em kg: não compara com m³
-    expect(calcularDescarga({ ...grade, produto: "CO2", kgInicial: 0, kgFinal: 500, m3Inicial: 0, m3Final: 1 })).toMatchObject({
+    expect(calcularDescarga({ ...balanca, produto: "ARGONIO", kgInicial: 500, kgFinal: 0 })).toMatchObject({ total: 302 })
+    expect(calcularDescarga({ ...balanca, produto: "CO2", kgInicial: 800, kgFinal: 300 })).toMatchObject({ total: 500, unidade: "kg" })
+    expect(
+      calcularDescarga({ ...balanca, produto: "OXIGENIO", kgInicial: 1000, kgFinal: 400, pctInicial: 20, pctFinal: 65 }),
+    ).toMatchObject({ total: 452.4, linhas: { pct: { descarregado: 45 } } })
+  })
+
+  it("recusa: peso do caminhão subindo (o caso da foto), sem a linha kg, % acima de 100", () => {
+    expect(calcularDescarga({ ...balanca, produto: "NITROGENIO", kgInicial: 4457, kgFinal: 45720 })).toMatchObject({
+      ok: false,
+      erro: expect.stringContaining("o final tem que ser menor que o inicial"),
+    })
+    // O caso da foto do motorista (45.720 → 4.457) agora passa.
+    expect(calcularDescarga({ ...balanca, produto: "NITROGENIO", kgInicial: 45720, kgFinal: 4457 })).toMatchObject({ ok: true })
+    expect(calcularDescarga({ ...balanca, produto: "OXIGENIO", m3Inicial: 10, m3Final: 20 })).toMatchObject({
+      ok: false,
+      erro: expect.stringContaining("linha kg"),
+    })
+    expect(
+      calcularDescarga({ ...balanca, produto: "OXIGENIO", kgInicial: 1000, kgFinal: 400, pctInicial: 20, pctFinal: 120 }),
+    ).toMatchObject({ ok: false, erro: expect.stringContaining("0 a 100") })
+  })
+})
+
+describe("calcularDescarga — manômetro", () => {
+  const manometro = { medicao: "MANOMETRO" as const }
+
+  it("como antes: (pol final − pol inicial) × conversão do cliente; demais linhas só registram", () => {
+    // Caso real: nitrogênio, 122" → 250", conversão 131,92
+    expect(
+      calcularDescarga({
+        ...manometro,
+        produto: "NITROGENIO",
+        polInicial: 122,
+        polFinal: 250,
+        fatorCliente: 131.92,
+        m3Inicial: 100,
+        m3Final: 900,
+      }),
+    ).toEqual({
       ok: true,
-      aviso: null,
+      total: 16885.76,
+      fator: 131.92,
+      unidade: "",
+      medicao: "MANOMETRO",
+      nivelInicial: 122,
+      nivelFinal: 250,
+      linhas: {
+        pol: { inicial: 122, final: 250, descarregado: 128 },
+        m3: { inicial: 100, final: 900, descarregado: 800 },
+        kg: null,
+        pct: null,
+      },
     })
   })
 
-  it("recusa: linha pela metade, final menor que o inicial, % acima de 100, grade vazia, viagem sem produto", () => {
-    expect(calcularDescarga({ ...grade, produto: "OXIGENIO", kgInicial: 400, kgFinal: null })).toMatchObject({
+  it("recusa: sem pol, sem conversão, tanque do cliente descendo, linha pela metade", () => {
+    expect(calcularDescarga({ ...manometro, produto: "OXIGENIO", m3Inicial: 1, m3Final: 2, fatorCliente: 12 })).toMatchObject({
       ok: false,
-      erro: expect.stringContaining("Linha kg: informe o inicial e o final"),
+      erro: expect.stringContaining("polegadas"),
     })
-    expect(calcularDescarga({ ...grade, produto: "OXIGENIO", kgInicial: 1000, kgFinal: 400 })).toMatchObject({
+    expect(calcularDescarga({ ...manometro, produto: "OXIGENIO", polInicial: 30, polFinal: 80, fatorCliente: 0 })).toMatchObject({
       ok: false,
-      erro: expect.stringContaining("Linha kg: o final tem que ser maior que o inicial"),
+      erro: expect.stringContaining("conversão do cliente"),
     })
-    expect(calcularDescarga({ ...grade, produto: "OXIGENIO", m3Inicial: 28, m3Final: 12.5 })).toMatchObject({
+    expect(calcularDescarga({ ...manometro, produto: "OXIGENIO", polInicial: 80, polFinal: 30, fatorCliente: 12.5 })).toMatchObject({
       ok: false,
-      erro: expect.stringContaining("Linha m³"),
+      erro: expect.stringContaining("tanque do cliente"),
     })
-    expect(calcularDescarga({ ...grade, produto: "OXIGENIO", pctInicial: 20, pctFinal: 120 })).toMatchObject({
+    expect(
+      calcularDescarga({
+        ...manometro,
+        produto: "OXIGENIO",
+        polInicial: 30,
+        polFinal: 80,
+        fatorCliente: 12.5,
+        kgInicial: 1000,
+        kgFinal: null,
+      }),
+    ).toMatchObject({ ok: false, erro: expect.stringContaining("Linha kg: informe") })
+  })
+
+  it("recusa sem medida escolhida ou viagem sem produto", () => {
+    expect(calcularDescarga({ produto: "OXIGENIO", medicao: null, kgInicial: 5, kgFinal: 2 })).toMatchObject({
       ok: false,
-      erro: expect.stringContaining("0 a 100"),
+      erro: expect.stringContaining("manômetro ou balança"),
     })
-    expect(calcularDescarga({ ...grade, produto: "OXIGENIO" })).toMatchObject({
-      ok: false,
-      erro: expect.stringContaining("pelo menos uma linha"),
-    })
-    expect(calcularDescarga({ ...grade, produto: null, kgInicial: 1, kgFinal: 2 })).toMatchObject({
+    expect(calcularDescarga({ produto: null, medicao: "BALANCA", kgInicial: 5, kgFinal: 2 })).toMatchObject({
       ok: false,
       erro: expect.stringContaining("sem produto"),
     })
@@ -129,34 +155,32 @@ describe("calcularDescarga — biometano", () => {
 
 describe("textos de uma chegada gravada", () => {
   const base = { polInicial: null, polFinal: null }
-  it("grade: medição pela linha de referência e leituras de todas as linhas preenchidas", () => {
+  it("com linhas: medição pela medida escolhida e leituras de todas as linhas preenchidas", () => {
     const c = {
-      ...base,
-      medicao: "GRADE" as const,
-      fator: 0.754,
-      nivelInicial: 400,
-      nivelFinal: 1000,
-      kgInicial: 400,
-      kgFinal: 1000,
-      m3Inicial: 10,
-      m3Final: 10.45,
-      pctInicial: null,
-      pctFinal: null,
+      medicao: "BALANCA" as const,
+      fator: 0.862,
+      nivelInicial: 47760,
+      nivelFinal: 23400,
+      kgInicial: 47760,
+      kgFinal: 23400,
+      polInicial: 51,
+      polFinal: 72,
     }
-    expect(textoMedicao(c)).toBe("Grade (kg × 0,754)")
+    expect(textoMedicao(c)).toBe("Balança × 0,862")
     expect(unidadeDescarga(c)).toBe("m³")
-    expect(textoLeituras(c)).toBe("kg 400 → 1.000 · m³ 10 → 10,45")
-    const pct = { ...base, medicao: "GRADE" as const, fator: null, nivelInicial: 38, nivelFinal: 85, pctInicial: 38, pctFinal: 85 }
-    expect(textoMedicao(pct)).toBe("Grade (%)")
-    expect(unidadeDescarga(pct)).toBe("%")
-    expect(unidadeDescarga({ ...base, medicao: "GRADE", fator: 1, kgInicial: 0, kgFinal: 5 })).toBe("kg")
+    expect(textoLeituras(c)).toBe("pol 51 → 72 · kg 47.760 → 23.400")
   })
 
-  it("registros antigos (manômetro/balança) continuam aparecendo como eram", () => {
+  it("antigas (uma leitura só), biometano e GRADE continuam aparecendo como eram", () => {
     expect(textoMedicao({ medicao: "MANOMETRO", fator: 131.92 })).toBe("Manômetro × 131,92")
     expect(unidadeDescarga({ medicao: "MANOMETRO", fator: 131.92 })).toBe("")
-    expect(textoMedicao({ medicao: "BALANCA", fator: 0.754 })).toBe("Balança × 0,754")
-    expect(textoLeituras({ ...base, medicao: "BALANCA", fator: 0.754, nivelInicial: 400, nivelFinal: 1000 })).toBe("400 → 1.000")
+    expect(textoLeituras({ ...base, medicao: "BALANCA", fator: 0.754, nivelInicial: 1000, nivelFinal: 400 })).toBe("1.000 → 400")
+    expect(textoLeituras({ medicao: null, fator: null, nivelInicial: 950, nivelFinal: 200, polInicial: 80, polFinal: 15 })).toBe(
+      "950 → 200 m³ (80 → 15 pol)",
+    )
+    const grade = { ...base, medicao: "GRADE" as const, fator: 0.754, nivelInicial: 400, nivelFinal: 1000, kgInicial: 400, kgFinal: 1000 }
+    expect(textoMedicao(grade)).toBe("Grade (kg × 0,754)")
+    expect(textoLeituras(grade)).toBe("kg 400 → 1.000")
   })
 })
 

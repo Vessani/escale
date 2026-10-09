@@ -18,8 +18,9 @@ Sistema de escala de viagens da Ritmo Logística: programação das viagens de g
 
 **Motorista** (login com matrícula + PIN, área `/minhas-viagens`)
 - Vê só as próprias viagens, registra saída, km, pedágio/pernoite e a chegada em cada cliente com a medição da descarga:
-  - manômetro: (final − inicial) × fator do cliente;
-  - balança: (final − inicial) × fator da balança;
+  - manômetro: (pol final − pol inicial) × conversão do cliente;
+  - balança: (peso do caminhão antes − depois) × fator do produto;
+  - nos dois, o motorista pode registrar também pol, m³, kg e % (kg do caminhão cai; pol, m³ e % do tanque do cliente sobem) — só a linha da medida escolhida vale pro total;
   - biometano: m³ inicial − m³ final.
 - Baixa o relatório da viagem.
 
