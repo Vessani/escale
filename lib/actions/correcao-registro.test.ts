@@ -59,9 +59,10 @@ describe("lib/actions/correcao-registro", () => {
     const resposta = await salvarChegadaEscalador(21, {
       km: 152400,
       chegadaEm: "2026-10-02T09:30",
-      medicao: "GRADE",
-      kgInicial: 400,
-      kgFinal: 1000,
+      medicao: "BALANCA",
+      fatorCliente: null,
+      kgInicial: 1000,
+      kgFinal: 400,
       m3Inicial: null,
       m3Final: null,
       pctInicial: null,

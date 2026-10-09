@@ -233,9 +233,10 @@ describe("registrarChegadaCliente", () => {
   const dados = (parcial: Record<string, unknown> = {}) => ({
     km: 152400,
     chegadaEm: h("2026-10-02T09:30:00"),
-    medicao: "GRADE" as const,
-    kgInicial: 400,
-    kgFinal: 1000,
+    medicao: "BALANCA" as const,
+    fatorCliente: null,
+    kgInicial: 1000,
+    kgFinal: 400,
     m3Inicial: null,
     m3Final: null,
     pctInicial: null,
@@ -245,7 +246,7 @@ describe("registrarChegadaCliente", () => {
     ...parcial,
   })
 
-  it("grade em kg (oxigênio): grava km, hora e o total recalculado no servidor (600 kg × 0,754)", async () => {
+  it("balança de oxigênio: grava km, hora e o total recalculado no servidor (600 kg × 0,754)", async () => {
     vi.mocked(prisma.entrega.findFirst).mockResolvedValue(entrega() as never)
     await registrarChegadaCliente(FILIAL, ZE, 1, 11, dados(), ator, agora)
 
@@ -256,17 +257,17 @@ describe("registrarChegadaCliente", () => {
     expect(create).toMatchObject({
       entregaId: 11,
       km: 152400,
-      medicao: "GRADE",
+      medicao: "BALANCA",
       fator: 0.754,
       totalDescarregado: 452.4,
-      kgInicial: 400,
-      kgFinal: 1000,
+      kgInicial: 1000,
+      kgFinal: 400,
       usuarioId: "m1",
     })
     expect(update).not.toHaveProperty("entregaId")
   })
 
-  it("biometano: guarda polegadas e m³; grade só em % fica em pontos percentuais", async () => {
+  it("biometano: guarda polegadas e m³; manômetro usa pol × conversão e guarda as demais linhas", async () => {
     vi.mocked(prisma.entrega.findFirst).mockResolvedValue(entrega({ produto: "BIOMETANO" }) as never)
     await registrarChegadaCliente(
       FILIAL,
@@ -286,15 +287,33 @@ describe("registrarChegadaCliente", () => {
     })
 
     vi.mocked(prisma.entrega.findFirst).mockResolvedValue(entrega() as never)
-    await registrarChegadaCliente(FILIAL, ZE, 1, 11, dados({ kgInicial: null, kgFinal: null, pctInicial: 30, pctFinal: 80 }), ator, agora)
+    await registrarChegadaCliente(
+      FILIAL,
+      ZE,
+      1,
+      11,
+      dados({
+        medicao: "MANOMETRO",
+        fatorCliente: 12.5,
+        kgInicial: null,
+        kgFinal: null,
+        polInicial: 30,
+        polFinal: 80,
+        pctInicial: 20,
+        pctFinal: 60,
+      }),
+      ator,
+      agora,
+    )
     expect(tx.chegadaEntrega.upsert.mock.calls[1][0].create).toMatchObject({
-      medicao: "GRADE",
-      fator: null,
-      totalDescarregado: 50,
-      pctInicial: 30,
-      pctFinal: 80,
+      medicao: "MANOMETRO",
+      fator: 12.5,
+      totalDescarregado: 625,
+      polInicial: 30,
+      polFinal: 80,
+      pctInicial: 20,
+      pctFinal: 60,
       kgInicial: null,
-      polInicial: null,
     })
   })
 
@@ -328,8 +347,8 @@ describe("registrarChegadaCliente", () => {
     expect(tx.chegadaEntrega.upsert).toHaveBeenCalledTimes(1)
     tx.chegadaEntrega.upsert.mockClear()
     vi.mocked(prisma.entrega.findFirst).mockResolvedValue(entrega() as never)
-    await expect(registrarChegadaCliente(FILIAL, ZE, 1, 11, dados({ kgInicial: 1000, kgFinal: 400 }), ator, agora)).rejects.toThrow(
-      "maior que o inicial",
+    await expect(registrarChegadaCliente(FILIAL, ZE, 1, 11, dados({ kgInicial: 400, kgFinal: 1000 }), ator, agora)).rejects.toThrow(
+      "menor que o inicial",
     )
     expect(tx.chegadaEntrega.upsert).not.toHaveBeenCalled()
   })
@@ -382,7 +401,7 @@ describe("gravações do motorista com a viagem travada", () => {
         ZE,
         1,
         11,
-        { km: 150, chegadaEm: new Date(Date.now() - 60_000), medicao: "GRADE", kgInicial: 5, kgFinal: 10 },
+        { km: 150, chegadaEm: new Date(Date.now() - 60_000), medicao: "BALANCA", kgInicial: 10, kgFinal: 5 },
         ator,
       ),
     ).rejects.toThrow("não está mais com você")

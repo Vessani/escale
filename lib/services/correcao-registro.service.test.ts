@@ -136,9 +136,10 @@ describe("salvarChegadaPeloEscalador", () => {
   const dados = (parcial: Record<string, unknown> = {}) => ({
     km: 152400,
     chegadaEm: h("2026-10-02T09:30:00"),
-    medicao: "GRADE" as const,
-    kgInicial: 400,
-    kgFinal: 1000,
+    medicao: "BALANCA" as const,
+    fatorCliente: null,
+    kgInicial: 1000,
+    kgFinal: 400,
     m3Inicial: null,
     m3Final: null,
     pctInicial: null,

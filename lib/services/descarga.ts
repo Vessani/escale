@@ -5,22 +5,23 @@ import type { TipoProduto } from "@prisma/client"
  * a tela do motorista usa a mesma função pra mostrar o total enquanto ele
  * digita, e o servidor recalcula ao gravar (não confia no número da tela).
  *
- * Grade (gases do ar e CO2): três linhas — m³, kg e % — cada uma com inicial
- * e final. O motorista preenche a que o medidor dele mostra (ou mais de uma).
- *  - Toda linha SOBE com a descarga: descarregado = final − inicial.
- *  - kg vira m³ pela conversão do produto (CO2 fica em kg).
- *  - % não tem conversão: o resultado fica em pontos percentuais.
- *  - Total oficial = a linha de referência, nessa ordem: kg (balança, a mais
- *    precisa) > m³ > %.
- *  - kg e m³ preenchidos juntos: se divergirem mais que a tolerância, avisa
- *    (não bloqueia — o total continua sendo o do kg).
+ * Gases do ar e CO2: o motorista escolhe a medida que vale (manômetro ou
+ * balança) e pode registrar também as outras leituras — pol, m³, kg e % —,
+ * como na tela de descarga da White Martins. Cada linha tem o seu sentido:
+ *  - kg:          peso do CAMINHÃO na balança — DESCE: inicial − final.
+ *  - pol, m³, %:  tanque do CLIENTE — SOBE: final − inicial.
+ * O total oficial vem da linha da medida escolhida:
+ *  - Manômetro: pol × conversão do cliente (o motorista informa).
+ *  - Balança:   kg × conversão do produto (kg → m³; CO2 fica em kg).
+ * As outras linhas são registro/conferência: aparecem calculadas, não mudam o total.
  * Biometano: tanque do caminhão em polegadas e em m³; total = m³ inicial − m³ final.
  *
- * MANOMETRO e BALANCA só existem em registros antigos (antes da grade).
+ * GRADE só existe nas chegadas gravadas entre 08 e 09/10/2026 (grade sem
+ * escolha de medida) — só leitura.
  */
 
 export type TipoMedicao = "MANOMETRO" | "BALANCA" | "GRADE"
-export type LinhaGrade = "KG" | "M3" | "PCT"
+export type LinhaMedicao = "POL" | "M3" | "KG" | "PCT"
 
 export const FATOR_BALANCA: Record<Exclude<TipoProduto, "BIOMETANO">, number> = {
   ARGONIO: 0.604,
@@ -29,11 +30,9 @@ export const FATOR_BALANCA: Record<Exclude<TipoProduto, "BIOMETANO">, number> = 
   CO2: 1,
 }
 
-/** Diferença aceita entre kg convertido e m³ antes de avisar (3%). */
-const TOLERANCIA_DIVERGENCIA = 0.03
-
 /** Leitura absurda = erro de digitação. */
 const LEITURA_MAXIMA = 1_000_000
+const FATOR_MAXIMO = 10_000
 
 export type LeiturasGrade = {
   m3Inicial?: number | null
@@ -46,17 +45,25 @@ export type LeiturasGrade = {
 
 export type DadosDescarga = LeiturasGrade & {
   produto: TipoProduto | null
-  /** GRADE nos gases do ar/CO2; nulo no biometano. */
-  medicao: "GRADE" | null
+  /** Manômetro ou balança nos gases do ar/CO2; nulo no biometano. */
+  medicao: "MANOMETRO" | "BALANCA" | null
   /** Só biometano: m³ do tanque do caminhão. */
   nivelInicial?: number | null
   nivelFinal?: number | null
-  /** Só biometano. */
+  /** Polegadas: linha pol (gases do ar) ou tanque do caminhão (biometano). */
   polInicial?: number | null
   polFinal?: number | null
+  /** Só manômetro: conversão do cliente (pol → total). */
+  fatorCliente?: number | null
 }
 
 type LinhaCalculada = { inicial: number; final: number; descarregado: number }
+type Linhas = {
+  pol: LinhaCalculada | null
+  m3: LinhaCalculada | null
+  kg: (LinhaCalculada & { convertido: number }) | null
+  pct: LinhaCalculada | null
+}
 
 type ResultadoDescarga =
   | {
@@ -64,14 +71,11 @@ type ResultadoDescarga =
       total: number
       fator: number | null
       unidade: string
-      medicao: "GRADE" | null
-      /** Leituras da linha de referência (biometano: m³). */
+      medicao: "MANOMETRO" | "BALANCA" | null
+      /** Leituras da linha que deu o total (manômetro: pol; balança: kg; biometano: m³). */
       nivelInicial: number
       nivelFinal: number
-      /** Só grade. */
-      referencia: LinhaGrade | null
-      linhas: { kg: (LinhaCalculada & { convertido: number }) | null; m3: LinhaCalculada | null; pct: LinhaCalculada | null }
-      aviso: string | null
+      linhas: Linhas
     }
   | { ok: false; erro: string }
 
@@ -80,17 +84,29 @@ const valido = (valor: number | null | undefined): valor is number =>
   typeof valor === "number" && Number.isFinite(valor) && valor >= 0 && valor <= LEITURA_MAXIMA
 const vazio = (valor: number | null | undefined) => valor === null || valor === undefined
 
-const NOME_LINHA: Record<LinhaGrade, string> = { KG: "kg", M3: "m³", PCT: "%" }
+export const NOME_LINHA: Record<LinhaMedicao, string> = { POL: "pol", M3: "m³", KG: "kg", PCT: "%" }
+/** kg é o peso do caminhão (desce); o resto é o tanque do cliente (sobe). */
+const LINHA_DESCE: Record<LinhaMedicao, boolean> = { POL: false, M3: false, KG: true, PCT: false }
 
-/** Uma linha da grade: vazia (null), válida, ou o erro pra mostrar. */
-function lerLinha(linha: LinhaGrade, inicial: number | null | undefined, final: number | null | undefined): LinhaCalculada | null | string {
+/** Uma linha: vazia (null), válida, ou o erro pra mostrar. */
+function lerLinha(
+  linha: LinhaMedicao,
+  inicial: number | null | undefined,
+  final: number | null | undefined,
+): LinhaCalculada | null | string {
   if (vazio(inicial) && vazio(final)) return null
   const nome = NOME_LINHA[linha]
   if (!valido(inicial) || !valido(final)) return `Linha ${nome}: informe o inicial e o final (só números).`
   if (linha === "PCT" && (inicial > 100 || final > 100)) return "Linha %: o nível vai de 0 a 100."
-  if (final < inicial) return `Linha ${nome}: o final tem que ser maior que o inicial (sobe com a descarga) — confira as leituras.`
+  if (LINHA_DESCE[linha]) {
+    if (final > inicial) return "Linha kg (peso do caminhão): o final tem que ser menor que o inicial — confira as leituras."
+    return { inicial, final, descarregado: arredondar(inicial - final) }
+  }
+  if (final < inicial) return `Linha ${nome} (tanque do cliente): o final tem que ser maior que o inicial — confira as leituras.`
   return { inicial, final, descarregado: arredondar(final - inicial) }
 }
+
+const SEM_LINHAS: Linhas = { pol: null, m3: null, kg: null, pct: null }
 
 export function calcularDescarga(dados: DadosDescarga): ResultadoDescarga {
   if (!dados.produto) return { ok: false, erro: "A viagem está sem produto cadastrado — peça ao escalador pra informar." }
@@ -117,59 +133,55 @@ export function calcularDescarga(dados: DadosDescarga): ResultadoDescarga {
       medicao: null,
       nivelInicial: dados.nivelInicial,
       nivelFinal: dados.nivelFinal,
-      referencia: null,
-      linhas: { kg: null, m3: null, pct: null },
-      aviso: null,
+      linhas: SEM_LINHAS,
     }
   }
 
-  const kg = lerLinha("KG", dados.kgInicial, dados.kgFinal)
-  const m3 = lerLinha("M3", dados.m3Inicial, dados.m3Final)
-  const pct = lerLinha("PCT", dados.pctInicial, dados.pctFinal)
-  for (const linha of [kg, m3, pct]) if (typeof linha === "string") return { ok: false, erro: linha }
-  const [lkg, lm3, lpct] = [kg, m3, pct] as (LinhaCalculada | null)[]
-  if (!lkg && !lm3 && !lpct) return { ok: false, erro: "Preencha pelo menos uma linha da medição (m³, kg ou %)." }
-
-  const fator = FATOR_BALANCA[dados.produto]
-  const co2 = dados.produto === "CO2"
-  const kgConvertido = lkg && { ...lkg, convertido: arredondar(lkg.descarregado * fator) }
-
-  let aviso: string | null = null
-  if (kgConvertido && lm3 && !co2) {
-    const base = Math.max(kgConvertido.convertido, lm3.descarregado)
-    if (base > 0 && Math.abs(kgConvertido.convertido - lm3.descarregado) / base > TOLERANCIA_DIVERGENCIA) {
-      aviso =
-        `kg e m³ não batem: ${formatarNumero(kgConvertido.convertido)} m³ pela balança × ` +
-        `${formatarNumero(lm3.descarregado)} m³ informado. Vale conferir — o total usa a balança.`
-    }
+  if (dados.medicao !== "MANOMETRO" && dados.medicao !== "BALANCA") {
+    return { ok: false, erro: "Escolha o tipo de medida: manômetro ou balança." }
   }
 
-  const linhas = { kg: kgConvertido, m3: lm3, pct: lpct }
-  const comum = { ok: true as const, medicao: "GRADE" as const, linhas, aviso }
-  if (kgConvertido) {
+  const lidas = {
+    pol: lerLinha("POL", dados.polInicial, dados.polFinal),
+    m3: lerLinha("M3", dados.m3Inicial, dados.m3Final),
+    kg: lerLinha("KG", dados.kgInicial, dados.kgFinal),
+    pct: lerLinha("PCT", dados.pctInicial, dados.pctFinal),
+  }
+  for (const linha of Object.values(lidas)) if (typeof linha === "string") return { ok: false, erro: linha }
+  const { pol, m3, kg, pct } = lidas as { [K in keyof typeof lidas]: LinhaCalculada | null }
+
+  const fatorProduto = FATOR_BALANCA[dados.produto]
+  const linhas: Linhas = { pol, m3, pct, kg: kg && { ...kg, convertido: arredondar(kg.descarregado * fatorProduto) } }
+
+  if (dados.medicao === "MANOMETRO") {
+    if (!pol) return { ok: false, erro: "No manômetro, informe o nível inicial e o final em polegadas (linha pol)." }
+    const fator = dados.fatorCliente
+    if (typeof fator !== "number" || !Number.isFinite(fator) || fator <= 0 || fator > FATOR_MAXIMO) {
+      return { ok: false, erro: "Informe a conversão do cliente (número maior que zero)." }
+    }
     return {
-      ...comum,
-      total: kgConvertido.convertido,
+      ok: true,
+      total: arredondar(pol.descarregado * fator),
       fator,
-      unidade: co2 ? "kg" : "m³",
-      nivelInicial: kgConvertido.inicial,
-      nivelFinal: kgConvertido.final,
-      referencia: "KG",
+      unidade: "",
+      medicao: "MANOMETRO",
+      nivelInicial: pol.inicial,
+      nivelFinal: pol.final,
+      linhas,
     }
   }
-  if (lm3) {
-    return {
-      ...comum,
-      total: lm3.descarregado,
-      fator: null,
-      unidade: "m³",
-      nivelInicial: lm3.inicial,
-      nivelFinal: lm3.final,
-      referencia: "M3",
-    }
+
+  if (!linhas.kg) return { ok: false, erro: "Na balança, informe o peso do caminhão antes e depois (linha kg)." }
+  return {
+    ok: true,
+    total: linhas.kg.convertido,
+    fator: fatorProduto,
+    unidade: dados.produto === "CO2" ? "kg" : "m³",
+    medicao: "BALANCA",
+    nivelInicial: linhas.kg.inicial,
+    nivelFinal: linhas.kg.final,
+    linhas,
   }
-  const p = lpct as LinhaCalculada
-  return { ...comum, total: p.descarregado, fator: null, unidade: "%", nivelInicial: p.inicial, nivelFinal: p.final, referencia: "PCT" }
 }
 
 /** "12,5" / "1.234,5" / "12.5" → número; vazio ou inválido → null. */
@@ -201,17 +213,23 @@ type ChegadaGravada = LeiturasGrade & {
   polFinal: number | null
 }
 
-/** Linha que deu o total de uma chegada em grade (kg > m³ > %). */
-function referenciaDaGrade(chegada: LeiturasGrade): LinhaGrade {
+/** Chegada gravada com as linhas (pol / m³ / kg / %) — não as antigas de uma leitura só. */
+function temLinhas(chegada: ChegadaGravada): boolean {
+  if (chegada.medicao === null) return false
+  return [chegada.polInicial, chegada.m3Inicial, chegada.kgInicial, chegada.pctInicial].some((v) => !vazio(v))
+}
+
+/** Linha que deu o total de uma chegada GRADE (kg > m³ > %). */
+function referenciaGrade(chegada: LeiturasGrade): LinhaMedicao {
   if (!vazio(chegada.kgInicial)) return "KG"
   if (!vazio(chegada.m3Inicial)) return "M3"
   return "PCT"
 }
 
-/** "Grade (kg × 0,754)", "Grade (m³)", "Manômetro × 12,5", "Balança × 0,754", "Biometano". */
+/** "Manômetro × 12,5", "Balança × 0,754", "Balança (kg)", "Biometano" (e "Grade (...)" das chegadas GRADE). */
 export function textoMedicao(chegada: Pick<ChegadaGravada, "medicao" | "fator"> & LeiturasGrade): string {
   if (chegada.medicao === "GRADE") {
-    const ref = referenciaDaGrade(chegada)
+    const ref = referenciaGrade(chegada)
     if (ref === "KG") return chegada.fator === 1 ? "Grade (kg)" : `Grade (kg × ${formatarNumero(chegada.fator ?? 0, 4)})`
     return `Grade (${NOME_LINHA[ref]})`
   }
@@ -220,10 +238,10 @@ export function textoMedicao(chegada: Pick<ChegadaGravada, "medicao" | "fator"> 
   return "Biometano"
 }
 
-/** Unidade do total: manômetro antigo depende da conversão do cliente (sem unidade). */
+/** Unidade do total: manômetro depende da conversão do cliente (sem unidade). */
 export function unidadeDescarga(chegada: Pick<ChegadaGravada, "medicao" | "fator"> & LeiturasGrade): string {
   if (chegada.medicao === "GRADE") {
-    const ref = referenciaDaGrade(chegada)
+    const ref = referenciaGrade(chegada)
     if (ref === "PCT") return "%"
     return ref === "KG" && chegada.fator === 1 ? "kg" : "m³"
   }
@@ -232,17 +250,18 @@ export function unidadeDescarga(chegada: Pick<ChegadaGravada, "medicao" | "fator
 }
 
 /**
- * "1.000 → 400"; biometano: "950 → 200 m³ (80 → 15 pol)";
- * grade: "kg 400 → 1.000 · m³ 0,3 → 0,75 · % 10 → 45" (só as linhas preenchidas).
+ * Antigas: "1.000 → 400"; biometano: "950 → 200 m³ (80 → 15 pol)";
+ * com linhas: "pol 51 → 72 · m³ 35.515,4 → 50.139,39 · kg 47.760 → 23.400" (só as preenchidas).
  */
 export function textoLeituras(chegada: ChegadaGravada): string {
-  if (chegada.medicao === "GRADE") {
+  if (temLinhas(chegada)) {
     const partes: string[] = []
     const linha = (nome: string, ini: number | null | undefined, fim: number | null | undefined) => {
       if (!vazio(ini) && !vazio(fim)) partes.push(`${nome} ${formatarNumero(ini as number)} → ${formatarNumero(fim as number)}`)
     }
-    linha("kg", chegada.kgInicial, chegada.kgFinal)
+    linha("pol", chegada.polInicial, chegada.polFinal)
     linha("m³", chegada.m3Inicial, chegada.m3Final)
+    linha("kg", chegada.kgInicial, chegada.kgFinal)
     linha("%", chegada.pctInicial, chegada.pctFinal)
     return partes.join(" · ")
   }
