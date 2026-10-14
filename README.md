@@ -16,6 +16,26 @@ O Escalador junta tudo num lugar só. As viagens entram por planilha ou cadastro
 
 O que começou como uma forma de parar de montar a escala na mão virou um ERP logístico focado na jornada do motorista e na fluidez e transparência da operação.
 
+## Telas
+
+> Prints de um ambiente de demonstração, com dados fictícios.
+
+**Dashboard do dia** — viagens por status, quadro de recados e o que está em aberto.
+
+![Dashboard](docs/telas/dashboard.png)
+
+**Alocação** — viagens sem motorista e a sugestão automática de quem cabe nas regras de turno, jornada, produto e integração.
+
+![Alocação de viagens](docs/telas/alocacao.png)
+
+**Calendário de motoristas** — jornada de cada motorista dia a dia (ciclo de trabalho, folga, férias) com as viagens por cima.
+
+![Calendário de motoristas](docs/telas/calendario.png)
+
+**Área do motorista (celular)** — o motorista acompanha a viagem e registra a chegada e a medição em cada cliente.
+
+<img src="docs/telas/motorista-viagem.png" alt="Viagem na área do motorista" width="300">
+
 ## O que o sistema faz
 
 **Operação (escalador)**
