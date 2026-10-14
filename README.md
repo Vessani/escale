@@ -1,6 +1,20 @@
 # Escalador
 
-Sistema de escala de viagens da Ritmo Logística: programação das viagens de gases (CO₂, nitrogênio, argônio, oxigênio e biometano), alocação de motorista e frota, acompanhamento da viagem pelo próprio motorista e relatórios operacionais. Tudo separado por filial.
+Sistema de escala de viagens para transporte de gases (CO₂, nitrogênio, argônio, oxigênio e biometano): programação das viagens, alocação de motorista e frota, acompanhamento da viagem pelo próprio motorista e relatórios operacionais. Tudo separado por filial.
+
+Projeto pessoal, idealizado e desenvolvido sozinho por [Alan Michel Vessani](https://github.com/Vessani), fora do horário de trabalho. Hoje está em implantação na operação de uma transportadora.
+
+**Em produção:** [escale-sepia.vercel.app](https://escale-sepia.vercel.app) — acesso restrito, porque roda com dados reais da operação.
+
+## O problema
+
+Montar a programação das viagens levava cerca de 2 horas por dia, depois do expediente, cruzando informações espalhadas em várias planilhas: viagens, disponibilidade e jornada dos motoristas, folgas, frota e as integrações exigidas por cada cliente. Era fácil escalar alguém que não podia pegar a viagem, e não havia histórico de quem mudou o quê.
+
+## A solução
+
+O Escalador junta tudo num lugar só. As viagens entram por planilha ou cadastro manual, o sistema sugere o motorista que cabe nas regras de jornada, turno, produto e integração do cliente, e explica por que cada um está ou não disponível. O motorista acompanha e registra a viagem pelo celular, e a gerência tem relatórios e auditoria de cada alteração.
+
+O que começou como uma forma de parar de montar a escala na mão virou um ERP logístico focado na jornada do motorista e na fluidez e transparência da operação.
 
 ## O que o sistema faz
 
@@ -165,6 +179,8 @@ O CI (`.github/workflows/ci.yml`) roda tipos, lint, formatação, knip e as duas
 
 Vercel, com o banco no Supabase. Cada merge na `main` publica. Detalhes em [DEPLOYMENT.md](./DEPLOYMENT.md) e [DEPLOYMENT-CHECKLIST.md](./DEPLOYMENT-CHECKLIST.md).
 
-## Licença
+## Autor
 
-Proprietário — Ritmo Logística.
+Desenvolvido por **Alan Michel Vessani** · [GitHub](https://github.com/Vessani)
+
+© 2026 Alan Michel Vessani. Todos os direitos reservados.
