@@ -18,7 +18,7 @@ import { revalidatePath } from "next/cache"
 import * as servico from "@/lib/services/minhas-viagens.service"
 import { trocarMotoristaDaViagem } from "@/lib/services/troca-motorista.service"
 import { ErroDeDominio } from "@/lib/errors"
-import { encerrarViagem, iniciarViagem, informarProblema, lancarDespesa, passarViagem } from "./minhas-viagens"
+import { encerrarViagem, iniciarViagem, informarProblema, lancarDespesa, passarViagem, registrarChegada } from "./minhas-viagens"
 
 const sessao = (user: Record<string, unknown> | null) => vi.mocked(getServerSession).mockResolvedValue(user ? ({ user } as never) : null)
 const motorista = { id: "u9", name: "João", role: "MOTORISTA", filialId: 3, motoristaId: 7 }
@@ -66,6 +66,39 @@ describe("lib/actions/minhas-viagens", () => {
     vi.mocked(servico.encerrarMinhaViagem).mockRejectedValueOnce(new ErroDeDominio("VIAGEM_MUDOU", "A viagem foi alterada pelo despacho."))
     expect(await encerrarViagem(5, { kmFinal: 152780 })).toEqual({ sucesso: false, erro: "A viagem foi alterada pelo despacho." })
     expect(revalidatePath).not.toHaveBeenCalled()
+  })
+
+  it("chegada: manda pro service a entrega como o motorista estava vendo, separada da medição", async () => {
+    const vista = { id: 11, cliente: "HOSPITAL SANTA ISABEL", cidade: "BLUMENAU", uf: "SC" }
+    const medida = {
+      km: 152400,
+      chegadaEm: "2026-10-02T09:30",
+      medicao: "BALANCA" as const,
+      fatorCliente: null,
+      m3Inicial: null,
+      m3Final: null,
+      kgInicial: 1000,
+      kgFinal: 400,
+      pctInicial: null,
+      pctFinal: null,
+      nivelInicial: null,
+      nivelFinal: null,
+      polInicial: null,
+      polFinal: null,
+    }
+    expect(await registrarChegada(5, vista, medida)).toEqual({ sucesso: true })
+
+    const [filialId, motoristaId, viagemId, entregaId, entregaVista, dados] = vi.mocked(servico.registrarChegadaCliente).mock.calls[0]
+    expect([filialId, motoristaId, viagemId, entregaId]).toEqual([3, 7, 5, 11])
+    expect(entregaVista).toEqual({ cliente: "HOSPITAL SANTA ISABEL", cidade: "BLUMENAU", uf: "SC" })
+    expect(dados).not.toHaveProperty("entrega")
+    expect(dados.chegadaEm).toEqual(new Date("2026-10-02T09:30:00-03:00"))
+
+    // Entrega sem id ou com texto absurdo nem chega no service.
+    vi.mocked(servico.registrarChegadaCliente).mockClear()
+    expect((await registrarChegada(5, { ...vista, id: 0 }, medida)).sucesso).toBe(false)
+    expect((await registrarChegada(5, { ...vista, cliente: "x".repeat(500) }, medida)).sucesso).toBe(false)
+    expect(servico.registrarChegadaCliente).not.toHaveBeenCalled()
   })
 
   it("passar a viagem: só se ele for o motorista atual, com o horário em Brasília", async () => {

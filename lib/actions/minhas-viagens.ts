@@ -17,7 +17,7 @@ import { z } from "@/lib/validation/zod"
 import type { RespostaAcao } from "@/lib/types/types"
 import { trocarMotoristaDaViagem } from "@/lib/services/troca-motorista.service"
 import { esquemaTroca, type EntradaTroca } from "@/lib/validation/troca-motorista"
-import { esquemaChegada, type EntradaChegada } from "@/lib/validation/chegada"
+import { esquemaChegada, esquemaEntregaVista, type EntradaChegada, type EntradaEntregaVista } from "@/lib/validation/chegada"
 import { converterEntradaDeDataHora } from "@/lib/utils/date-format"
 import { KM_MAXIMO_HODOMETRO, TAMANHO_MAXIMO_PROBLEMA } from "@/lib/services/limites-registro"
 
@@ -95,17 +95,20 @@ export async function encerrarViagem(viagemId: number, dados: { kmFinal: number 
   )
 }
 
-export async function registrarChegada(viagemId: number, entregaId: number, dados: EntradaChegada): Promise<RespostaAcao> {
+/** `entrega` é a entrega como o motorista a via ao abrir a chegada (o servidor confere se não mudou). */
+export async function registrarChegada(viagemId: number, entrega: EntradaEntregaVista, dados: EntradaChegada): Promise<RespostaAcao> {
   return executar(
     async () => {
       const { session, filialId, motoristaId } = await requireSessaoMotorista()
-      const entrada = esquemaChegada.extend({ viagemId: id, entregaId: id }).parse({ ...dados, entregaId, viagemId })
+      const entrada = esquemaChegada.extend({ viagemId: id, entrega: esquemaEntregaVista }).parse({ ...dados, entrega, viagemId })
+      const { entrega: vista, ...medida } = entrada
       await registrarChegadaCliente(
         filialId,
         motoristaId,
         entrada.viagemId,
-        entrada.entregaId,
-        { ...entrada, chegadaEm: converterEntradaDeDataHora(entrada.chegadaEm) },
+        vista.id,
+        { cliente: vista.cliente, cidade: vista.cidade, uf: vista.uf },
+        { ...medida, chegadaEm: converterEntradaDeDataHora(medida.chegadaEm) },
         atorDaSessao(session),
       )
     },

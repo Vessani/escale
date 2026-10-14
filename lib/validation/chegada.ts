@@ -44,3 +44,17 @@ export const esquemaChegada = z.object({
   polInicial: leitura,
   polFinal: leitura,
 })
+
+/**
+ * A entrega como o motorista estava vendo quando abriu a chegada — o
+ * servidor confere contra o banco antes de gravar (ver entregaMudouDesdeAVista).
+ * Só limita tamanho: serve pra comparar, nunca é gravado.
+ */
+export type EntradaEntregaVista = { id: number; cliente: string; cidade: string; uf: string }
+
+export const esquemaEntregaVista = z.object({
+  id: z.number().int().positive(),
+  cliente: z.string().max(100),
+  cidade: z.string().max(25),
+  uf: z.string().max(5),
+})

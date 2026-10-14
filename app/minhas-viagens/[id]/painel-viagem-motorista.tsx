@@ -221,7 +221,7 @@ export function PainelViagemMotorista({
           {viagem.entregas.length > 0 && (
             <Cartao titulo="Chegada nos clientes" icone={MapPinned}>
               <ChegadasClientes
-                salvar={(entregaId, dados) => registrarChegada(viagem.id, entregaId, dados)}
+                salvar={(entrega, dados) => registrarChegada(viagem.id, entrega, dados)}
                 entregas={viagem.entregas}
                 produto={viagem.produto}
                 kmInicial={viagem.kmInicial}

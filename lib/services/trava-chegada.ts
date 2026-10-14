@@ -25,3 +25,16 @@ export function camposTravadosAlterados(atual: DadosTravados, editada: DadosTrav
     .filter((campo) => normalizar(atual[campo]) !== normalizar(editada[campo]))
     .map((campo) => CAMPOS_TRAVADOS_COM_CHEGADA[campo])
 }
+
+/**
+ * O caso inverso da trava acima: o motorista abriu a chegada vendo o cliente
+ * A, e o escalador trocou essa entrega pro cliente B antes dele salvar. Sem
+ * conferir, a medição feita em A ia parar em B. A tela manda o que o
+ * motorista estava vendo (cliente, cidade, UF — o que aparece pra ele) e o
+ * servidor compara, com a viagem travada, antes de gravar.
+ */
+export type EntregaVista = { cliente: string; cidade: string; uf: string }
+
+export function entregaMudouDesdeAVista(atual: EntregaVista, vista: EntregaVista): boolean {
+  return (["cliente", "cidade", "uf"] as const).some((campo) => normalizar(atual[campo]) !== normalizar(vista[campo]))
+}

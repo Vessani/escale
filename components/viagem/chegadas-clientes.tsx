@@ -21,10 +21,11 @@ import {
 import { formatDateTimeForInput, formatarDataHoraPtBr } from "@/lib/utils/date-format"
 import { cn } from "@/lib/utils"
 import type { RespostaAcao } from "@/lib/types/types"
-import type { EntradaChegada } from "@/lib/validation/chegada"
+import type { EntradaChegada, EntradaEntregaVista } from "@/lib/validation/chegada"
 
 /** Grava a chegada de uma entrega — a action do motorista ou a do escalador (correção). */
-type SalvarChegada = (entregaId: number, dados: EntradaChegada) => Promise<RespostaAcao>
+/** Recebe a entrega como estava na tela quando a chegada foi aberta (não a da última atualização). */
+type SalvarChegada = (entrega: EntradaEntregaVista, dados: EntradaChegada) => Promise<RespostaAcao>
 
 type Produto = "CO2" | "NITROGENIO" | "ARGONIO" | "BIOMETANO" | "OXIGENIO"
 
@@ -128,6 +129,15 @@ function FormChegada({
   const [erro, setErro] = useState("")
   const anterior = entrega.chegada
   const biometano = produto === "BIOMETANO"
+  // Congelada ao abrir: a tela se atualiza sozinha a cada minuto, e se o
+  // escalador trocar o cliente no meio-tempo o rótulo muda, mas a medição foi
+  // feita no cliente de antes — o servidor compara com isto e recusa.
+  const [entregaVista] = useState<EntradaEntregaVista>(() => ({
+    id: entrega.id,
+    cliente: entrega.cliente,
+    cidade: entrega.cidade,
+    uf: entrega.uf,
+  }))
 
   const [km, setKm] = useState(anterior ? String(anterior.km) : "")
   // Horário de Brasília (como o resto do sistema), a partir do relógio do
@@ -189,7 +199,7 @@ function FormChegada({
   const enviar = () => {
     setErro("")
     iniciarTransicao(async () => {
-      const resposta = await chamarAcao(() => salvar(entrega.id, { km: Number(km), chegadaEm: quando, ...dados }))
+      const resposta = await chamarAcao(() => salvar(entregaVista, { km: Number(km), chegadaEm: quando, ...dados }))
       if (!resposta.sucesso) return setErro(resposta.erro)
       aoTerminar()
       router.refresh()

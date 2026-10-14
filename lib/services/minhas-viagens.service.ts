@@ -8,6 +8,7 @@ import { registrarAuditoria, type Ator } from "@/lib/services/auditoria.service"
 import { atualizarStatusViagemService, CODIGO_VIAGEM_MUDOU } from "@/lib/services/viagem-andamento.service"
 import { montarRegistroChegada, type DadosChegada } from "@/lib/services/chegada-registro"
 import { ehEntregaDeCliente, soEntregasDeCliente } from "@/lib/services/entrega-cliente"
+import { entregaMudouDesdeAVista, type EntregaVista } from "@/lib/services/trava-chegada"
 import { STATUS_A_INICIAR, STATUS_EM_ANDAMENTO } from "@/lib/services/viagem-status.service"
 import { KM_MAXIMO_HODOMETRO, KM_MAXIMO_POR_VIAGEM, TAMANHO_MAXIMO_PROBLEMA, VALOR_MAXIMO_CENTAVOS } from "@/lib/services/limites-registro"
 
@@ -344,6 +345,7 @@ export async function registrarChegadaCliente(
   motoristaId: number,
   viagemId: number,
   entregaId: number,
+  vista: EntregaVista,
   dados: DadosChegada,
   ator: Ator,
   agora = new Date(),
@@ -355,7 +357,12 @@ export async function registrarChegadaCliente(
       viagem: { select: { id: true, status: true, produto: true, kmInicial: true, horarioRealSaida: true } },
     },
   })
-  if (!entrega || !ehEntregaDeCliente(entrega)) throw new ErroDeDominio("ENTREGA_NAO_ENCONTRADA", "Entrega não encontrada nesta viagem.")
+  if (!entrega || !ehEntregaDeCliente(entrega)) {
+    throw new ErroDeDominio(
+      "ENTREGA_NAO_ENCONTRADA",
+      "Entrega não encontrada nesta viagem — o escalador pode ter mudado os clientes. Atualize a tela.",
+    )
+  }
   const { viagem } = entrega
   if (!STATUS_EM_ANDAMENTO.includes(viagem.status)) {
     throw await explicarSituacao(filialId, motoristaId, viagem.id, NAO_INICIADA("Inicie a viagem antes de registrar a chegada no cliente."))
@@ -366,6 +373,20 @@ export async function registrarChegadaCliente(
 
   const gravada = await prisma.$transaction(async (tx) => {
     if (!(await travarViagemDoMotorista(tx, filialId, motoristaId, viagem.id, STATUS_EM_ANDAMENTO))) return false
+    // Relida com a viagem travada — a edição do escalador trava a mesma linha,
+    // então não troca o cliente entre esta conferência e a gravação. Se a
+    // entrega sumiu ou virou outro cliente desde que o motorista abriu a tela,
+    // não grava: a medição dele foi feita no cliente que ele estava vendo.
+    const atual = await tx.entrega.findFirst({
+      where: { id: entregaId, viagemId: viagem.id },
+      select: { cliente: true, cidade: true, uf: true },
+    })
+    if (!atual || entregaMudouDesdeAVista(atual, vista)) {
+      throw new ErroDeDominio(
+        CODIGO_VIAGEM_MUDOU,
+        `O escalador alterou os clientes desta viagem (você estava registrando ${vista.cliente}). Atualize a tela e confira antes de salvar.`,
+      )
+    }
     // Lido com a viagem travada: toque duplo não registra duas "criações" no histórico.
     const antes = await tx.chegadaEntrega.findUnique({ where: { entregaId } })
     const depois = await tx.chegadaEntrega.upsert({

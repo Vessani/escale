@@ -308,7 +308,8 @@ export function ChegadasEditaveis({
   return (
     <div className="[&>ol]:grid [&>ol]:gap-2 [&>ol]:space-y-0 md:[&>ol]:grid-cols-2">
       <ChegadasClientes
-        salvar={salvarChegadaEscalador}
+        // O escalador vê a viagem já com as próprias edições — não precisa da conferência.
+        salvar={(entrega, dados) => salvarChegadaEscalador(entrega.id, dados)}
         entregas={entregas}
         produto={produto}
         kmInicial={kmInicial}
