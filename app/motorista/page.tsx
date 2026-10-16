@@ -3,7 +3,8 @@ import { requireSessaoPaginaComFilial } from "@/lib/auth-guard"
 import { Button } from "@/components/ui/button"
 import { EmptyState } from "@/components/ui/empty-state"
 import { ChevronLeft, ChevronRight, PlusCircle, Upload, Users } from "lucide-react"
-import { buscarMotoristasComAgenda } from "@/lib/queries/motoristas"
+import { buscarMotoristasComAgenda, buscarMotoristasSemProdutoAutorizado } from "@/lib/queries/motoristas"
+import { AvisoMotoristasSemProduto } from "@/components/motorista/aviso-motoristas-sem-produto"
 import { buscarCoberturaRelatorioJornada } from "@/lib/queries/filiais"
 import { serializeData } from "@/lib/serialization"
 import { fimDoDia, inicioDoDia } from "@/lib/utils/date-format"
@@ -36,9 +37,10 @@ export default async function MotoristasPage({ searchParams }: { searchParams?: 
 
   const { session, filialId } = await requireSessaoPaginaComFilial()
   const podeExcluir = session.user.role === "ADMIN"
-  const [motoristas, coberturaRelatorio] = await Promise.all([
+  const [motoristas, coberturaRelatorio, semProdutoAutorizado] = await Promise.all([
     buscarMotoristasComAgenda(filialId, inicioJanela, fimJanela),
     buscarCoberturaRelatorioJornada(filialId),
+    buscarMotoristasSemProdutoAutorizado(filialId),
   ])
   const inicioParam = formatarDataDia(inicioJanela)
   const diasIso = dias.map((dia) => formatarDataDia(dia))
@@ -104,6 +106,8 @@ export default async function MotoristasPage({ searchParams }: { searchParams?: 
           </Link>
         </div>
       </div>
+
+      <AvisoMotoristasSemProduto motoristas={semProdutoAutorizado} />
 
       {motoristas.length === 0 ? (
         <EmptyState

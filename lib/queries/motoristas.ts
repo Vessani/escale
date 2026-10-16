@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/prisma"
 import { Prisma, Turno } from "@prisma/client"
 import { fimDoDia, inicioDoDia } from "@/lib/utils/date-format"
+import { motoristasSemProdutoAutorizado } from "@/lib/services/produto.service"
 import { completarHistoricoComAncora, filtroJanelaJornada, inicioJanelaJornada } from "./jornada-historico"
 
 /**
@@ -253,4 +254,13 @@ export async function buscarMotoristasParaApi(filialId: number) {
 export async function buscarMatriculasCadastradas(filialId: number): Promise<number[]> {
   const motoristas = await prisma.motorista.findMany({ where: { filialId, deletadoEm: null }, select: { seva: true } })
   return [...new Set(motoristas.map((motorista) => motorista.seva))]
+}
+
+/** Motoristas que viajam e estão sem produto autorizado — ver motoristasSemProdutoAutorizado. */
+export async function buscarMotoristasSemProdutoAutorizado(filialId: number) {
+  const motoristas = await prisma.motorista.findMany({
+    where: { filialId, deletadoEm: null, produtosAutorizados: { isEmpty: true } },
+    select: { id: true, nome: true, tipo: true, produtosAutorizados: true },
+  })
+  return motoristasSemProdutoAutorizado(motoristas).map(({ id, nome }) => ({ id, nome }))
 }

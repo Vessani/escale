@@ -33,6 +33,10 @@ vi.mock("@/lib/queries/clientes", () => ({
   buscarNumerosSapQueExigemIntegracao: vi.fn(),
 }))
 
+vi.mock("@/lib/queries/viagens", () => ({
+  buscarViagemPorId: vi.fn(),
+}))
+
 vi.mock("@/lib/queries/frotas", () => ({
   buscarProdutoPorCarreta: vi.fn(),
 }))
@@ -47,6 +51,7 @@ import * as andamentoService from "@/lib/services/viagem-andamento.service"
 import * as motoristasQueries from "@/lib/queries/motoristas"
 import * as clientesQueries from "@/lib/queries/clientes"
 import * as frotasQueries from "@/lib/queries/frotas"
+import * as viagensQueries from "@/lib/queries/viagens"
 import * as frotaService from "@/lib/services/frota.service"
 import {
   criarViagemAvulsa,
@@ -56,6 +61,7 @@ import {
   deletarViagem,
   atualizarStatusViagem,
   atualizarSaidaReal,
+  opcoesMotoristaDaEdicao,
 } from "@/lib/actions/viagens"
 
 const viagemValida = {
@@ -278,5 +284,75 @@ describe("sugerirAlocacaoParaViagens — produto da carreta", () => {
     await sugerirAlocacaoParaViagens([viagemValida as never])
 
     expect(frotaService.calcularAvisoFrotaProduto).toHaveBeenCalledWith(1, "XYZ456", "ABC123", "CO2")
+  })
+})
+
+describe("opcoesMotoristaDaEdicao — lista de motoristas acompanhando a edição", () => {
+  const agenda = { inicioPrevisto: "2026-10-02T08:00", fimPrevisto: "2026-10-02T18:00", turno: "MANHA" as const, produto: "CO2" as const }
+  const viagemSalva = {
+    id: 7,
+    turno: "MANHA",
+    diasViagem: 1,
+    inicioPrevisto: new Date("2026-09-30T11:00:00Z"),
+    fimPrevisto: new Date("2026-09-30T21:00:00Z"),
+    integracaoExigida: null,
+    produto: "CO2",
+    entregas: [],
+  }
+  const bruno = {
+    id: 2,
+    nome: "BRUNO",
+    turno: "MANHA",
+    diasTrabalhados: 1,
+    tipo: "MOTORISTA",
+    produtosAutorizados: ["CO2"],
+    jornadaRelatorioInicio: null,
+    jornadaRelatorioFim: null,
+    integracao: [],
+    registrosJornada: [],
+    // Ocupado no horário salvo (30/09), livre no novo (02/10).
+    viagens: [{ id: 99, status: "ALOCADA", inicioPrevisto: viagemSalva.inicioPrevisto, fimPrevisto: viagemSalva.fimPrevisto }],
+  }
+
+  beforeEach(() => {
+    vi.clearAllMocks()
+    vi.mocked(getServerSession).mockResolvedValue({ user: { id: "1", role: "DESPACHANTE", filialId: 1 } } as never)
+    vi.mocked(viagensQueries.buscarViagemPorId).mockResolvedValue(viagemSalva as never)
+    vi.mocked(motoristasQueries.buscarMotoristasParaSelect).mockResolvedValue([bruno] as never)
+    vi.mocked(clientesQueries.buscarNumerosSapQueExigemIntegracao).mockResolvedValue(new Set() as never)
+  })
+
+  it("calcula a situação com as datas do formulário, sem gravar nada", async () => {
+    const resposta = await opcoesMotoristaDaEdicao(7, agenda)
+
+    expect(resposta).toEqual({ sucesso: true, opcoes: [expect.objectContaining({ id: 2, nome: "BRUNO", situacao: "OK" })] })
+    expect(viagensQueries.buscarViagemPorId).toHaveBeenCalledWith(1, 7)
+    expect(viagemService.editarViagemService).not.toHaveBeenCalled()
+  })
+
+  it("só devolve id, nome, tipo, situação e motivo — nada de agenda pro navegador", async () => {
+    const resposta = await opcoesMotoristaDaEdicao(7, agenda)
+    expect(resposta.sucesso && Object.keys(resposta.opcoes[0]).sort()).toEqual(["id", "motivo", "nome", "situacao", "tipo"])
+  })
+
+  it("período invertido é recusado antes de consultar o banco", async () => {
+    const resposta = await opcoesMotoristaDaEdicao(7, { ...agenda, fimPrevisto: "2026-10-01T08:00" })
+
+    expect(resposta.sucesso).toBe(false)
+    expect(viagensQueries.buscarViagemPorId).not.toHaveBeenCalled()
+  })
+
+  it("viagem de outra filial (ou apagada) não vaza nada", async () => {
+    vi.mocked(viagensQueries.buscarViagemPorId).mockResolvedValue(null)
+
+    expect(await opcoesMotoristaDaEdicao(7, agenda)).toEqual({ sucesso: false, erro: "Viagem não encontrada." })
+    expect(motoristasQueries.buscarMotoristasParaSelect).not.toHaveBeenCalled()
+  })
+
+  it("sem sessão, recusa e não consulta nada", async () => {
+    vi.mocked(getServerSession).mockResolvedValue(null)
+
+    expect((await opcoesMotoristaDaEdicao(7, agenda)).sucesso).toBe(false)
+    expect(viagensQueries.buscarViagemPorId).not.toHaveBeenCalled()
   })
 })

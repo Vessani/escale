@@ -11,6 +11,7 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { PenLine, Save } from "lucide-react"
 import { criarViagemAvulsa, sugerirAlocacaoParaViagens } from "@/lib/actions/viagens"
+import { listarMotoristasSemProdutoAutorizado } from "@/lib/actions/motoristas"
 import { STATUS_VIAGEM_OPCOES } from "@/lib/services/viagem-status.service"
 import { PRODUTO_OPCOES } from "@/lib/services/produto.service"
 import { novaViagemSchema, type NovaViagemFormValues } from "@/lib/validation/viagens"
@@ -28,6 +29,7 @@ export default function NovaViagemPage() {
   const [resumoLote, setResumoLote] = useState<ResultadoImportacaoLote | null>(null)
   const [mostrarFormularioAvulso, setMostrarFormularioAvulso] = useState(false)
   const [revisandoLote, setRevisandoLote] = useState<ViagemParaConfirmar[] | null>(null)
+  const [semProdutoAutorizado, setSemProdutoAutorizado] = useState<Array<{ id: number; nome: string }>>([])
   const [carregandoRevisao, setCarregandoRevisao] = useState(false)
 
   const form = useForm<NovaViagemFormValues>({
@@ -61,7 +63,9 @@ export default function NovaViagemPage() {
     setCarregandoRevisao(true)
 
     try {
-      const sugestoes = await sugerirAlocacaoParaViagens(viagens)
+      // O aviso de quem está sem produto é só informativo: se falhar, a revisão segue sem ele.
+      const [sugestoes, semProduto] = await Promise.all([sugerirAlocacaoParaViagens(viagens), listarMotoristasSemProdutoAutorizado()])
+      setSemProdutoAutorizado(semProduto.sucesso ? semProduto.motoristas : [])
       const paraConfirmar: ViagemParaConfirmar[] = viagens.map((dados, indice) => ({
         dados,
         sugestao: sugestoes[indice] ?? {
@@ -145,7 +149,12 @@ export default function NovaViagemPage() {
       )}
 
       {revisandoLote ? (
-        <ConfirmarLoteViagens viagens={revisandoLote} onConcluido={handleConcluidoLote} onCancelar={() => setRevisandoLote(null)} />
+        <ConfirmarLoteViagens
+          viagens={revisandoLote}
+          semProdutoAutorizado={semProdutoAutorizado}
+          onConcluido={handleConcluidoLote}
+          onCancelar={() => setRevisandoLote(null)}
+        />
       ) : (
         <>
           <UploadXLSXViagem onDataLoaded={handleDataLoaded} onError={setErroGlobal} onImportarLote={handleImportarLote} />

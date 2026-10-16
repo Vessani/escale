@@ -70,6 +70,21 @@ export const editarViagemSchema = viagemBaseSchema
   })
   .refine(periodoValido, { message: MENSAGEM_PERIODO_INVALIDO, path: ["fimPrevisto"] })
 
+/**
+ * O que a tela de edição manda pra recalcular a lista de motoristas antes de
+ * salvar (opcoesMotoristaDaEdicao): só os campos que mudam quem cabe na viagem.
+ */
+export const agendaDaEdicaoSchema = z
+  .object({
+    inicioPrevisto: z.string().min(1, "Obrigatório").max(40),
+    fimPrevisto: z.string().min(1, "Obrigatório").max(40),
+    turno: turnoSchema,
+    produto: produtoSchema.nullable(),
+  })
+  .refine(periodoValido, { message: MENSAGEM_PERIODO_INVALIDO, path: ["fimPrevisto"] })
+
+export type AgendaDaEdicaoInput = z.input<typeof agendaDaEdicaoSchema>
+
 export type NovaViagemFormValues = z.infer<typeof novaViagemSchema>
 export type EditarViagemFormValues = z.infer<typeof editarViagemSchema>
 

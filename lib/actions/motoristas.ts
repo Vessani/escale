@@ -3,6 +3,7 @@ import { revalidatePath } from "next/cache"
 import { NovoMotoristaInput, EditarMotoristaInput, type RespostaAcao } from "@/lib/types/types"
 import { errorToMessage } from "@/lib/action-error"
 import { requireSessionComFilial } from "@/lib/auth-guard"
+import { buscarMotoristasSemProdutoAutorizado } from "@/lib/queries/motoristas"
 import { atorDaSessao } from "@/lib/services/auditoria.service"
 import { parseDataLocal } from "@/lib/utils/date-format"
 import { motoristaComIntegracoesServerSchema } from "@/lib/validation/motoristas"
@@ -20,6 +21,21 @@ import {
 } from "@/lib/services/jornada-relatorio.service"
 import { ajustesJornadaSchema, coberturaJornadaSchema, type AjusteJornada, registrosJornadaSchema } from "@/lib/validation/ajuste-jornada"
 import type { RegistroJornadaRelatorio } from "@/lib/parsers/jornada-relatorio-parser"
+
+/**
+ * Motoristas sem produto autorizado, pro aviso na revisão do lote importado
+ * (a tela é client). Só leitura; falhar aqui não pode travar a importação.
+ */
+export async function listarMotoristasSemProdutoAutorizado(): Promise<
+  { sucesso: true; motoristas: Array<{ id: number; nome: string }> } | { sucesso: false; erro: string }
+> {
+  try {
+    const { filialId } = await requireSessionComFilial()
+    return { sucesso: true, motoristas: await buscarMotoristasSemProdutoAutorizado(filialId) }
+  } catch (erro) {
+    return { sucesso: false, erro: errorToMessage(erro, "Não foi possível conferir os produtos dos motoristas.") }
+  }
+}
 
 export async function criarMotorista(dados: NovoMotoristaInput): Promise<RespostaAcao> {
   try {

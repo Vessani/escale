@@ -17,6 +17,7 @@ import {
   buscarMotoristaPorId,
   buscarMotoristasParaSelect,
   buscarMotoristasComAgenda,
+  buscarMotoristasSemProdutoAutorizado,
 } from "./motoristas"
 
 const FILIAL_ID = 3
@@ -101,5 +102,27 @@ describe("lib/queries/motoristas — isolamento por filial e filtro de viagem at
 
     const chamada = vi.mocked(prisma.motorista.findMany).mock.calls[0][0] as { where: Record<string, unknown> }
     expect(chamada.where).toMatchObject({ filialId: FILIAL_ID, deletadoEm: null })
+  })
+})
+
+describe("buscarMotoristasSemProdutoAutorizado", () => {
+  beforeEach(() => vi.clearAllMocks())
+
+  it("busca só na filial, sem apagados e com a lista de produtos vazia — e devolve só id e nome", async () => {
+    vi.mocked(prisma.motorista.findMany).mockResolvedValue([
+      { id: 2, nome: "ZECA", tipo: "MOTORISTA", produtosAutorizados: [] },
+      { id: 3, nome: "DUDA", tipo: "ENCHEDOR", produtosAutorizados: [] },
+      { id: 1, nome: "ANA", tipo: "INSTRUTOR", produtosAutorizados: [] },
+    ] as never)
+
+    const lista = await buscarMotoristasSemProdutoAutorizado(FILIAL_ID)
+
+    expect(vi.mocked(prisma.motorista.findMany).mock.calls[0][0]).toMatchObject({
+      where: { filialId: FILIAL_ID, deletadoEm: null, produtosAutorizados: { isEmpty: true } },
+    })
+    expect(lista).toEqual([
+      { id: 1, nome: "ANA" },
+      { id: 2, nome: "ZECA" },
+    ])
   })
 })

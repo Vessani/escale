@@ -20,6 +20,10 @@ vi.mock("@/lib/services/motorista.service", () => ({
   registrarJornadaNoDiaService: vi.fn(),
 }))
 
+vi.mock("@/lib/queries/motoristas", () => ({
+  buscarMotoristasSemProdutoAutorizado: vi.fn(),
+}))
+
 vi.mock("@/lib/services/jornada-relatorio.service", () => ({
   atualizarJornadaRelatorioDosMotoristas: vi.fn(),
   registrarAjustesJornada: vi.fn(),
@@ -27,12 +31,14 @@ vi.mock("@/lib/services/jornada-relatorio.service", () => ({
 
 import * as motoristaService from "@/lib/services/motorista.service"
 import * as jornadaRelatorioService from "@/lib/services/jornada-relatorio.service"
+import * as motoristasQueries from "@/lib/queries/motoristas"
 import {
   criarMotorista,
   editarMotorista,
   deletarMotorista,
   atualizarJornadaMotoristaNoCalendario,
   atualizarJornadaRelatorio,
+  listarMotoristasSemProdutoAutorizado,
 } from "@/lib/actions/motoristas"
 
 const motoristaValido = {
@@ -205,5 +211,24 @@ describe("lib/actions/motoristas — controle de acesso", () => {
       expect(resposta).toEqual({ sucesso: true })
       expect(motoristaService.deletarMotoristaService).toHaveBeenCalledTimes(1)
     })
+  })
+})
+
+describe("listarMotoristasSemProdutoAutorizado", () => {
+  beforeEach(() => vi.clearAllMocks())
+
+  it("busca na filial da sessão", async () => {
+    vi.mocked(getServerSession).mockResolvedValue({ user: { id: "1", role: "DESPACHANTE", filialId: 4 } } as never)
+    vi.mocked(motoristasQueries.buscarMotoristasSemProdutoAutorizado).mockResolvedValue([{ id: 1, nome: "ANA" }])
+
+    expect(await listarMotoristasSemProdutoAutorizado()).toEqual({ sucesso: true, motoristas: [{ id: 1, nome: "ANA" }] })
+    expect(motoristasQueries.buscarMotoristasSemProdutoAutorizado).toHaveBeenCalledWith(4)
+  })
+
+  it("sem sessão, recusa sem consultar", async () => {
+    vi.mocked(getServerSession).mockResolvedValue(null)
+
+    expect((await listarMotoristasSemProdutoAutorizado()).sucesso).toBe(false)
+    expect(motoristasQueries.buscarMotoristasSemProdutoAutorizado).not.toHaveBeenCalled()
   })
 })

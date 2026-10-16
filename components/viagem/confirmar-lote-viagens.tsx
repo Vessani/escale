@@ -15,6 +15,7 @@ import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { CartaoViagemAlocacao } from "@/components/viagem/cartao-viagem-alocacao"
+import { AvisoMotoristasSemProduto } from "@/components/motorista/aviso-motoristas-sem-produto"
 import { EscolhaMotorista, SEM_MOTORISTA } from "@/components/viagem/escolha-motorista"
 import { CheckCircle2, Loader2, PackageCheck, UserCheck } from "lucide-react"
 import { mensagemDaFalha } from "@/lib/chamar-acao"
@@ -26,6 +27,8 @@ export type ViagemParaConfirmar = {
 
 type Props = {
   viagens: ViagemParaConfirmar[]
+  /** Quem some da sugestão por estar sem produto autorizado (ver motoristasSemProdutoAutorizado). */
+  semProdutoAutorizado?: Array<{ id: number; nome: string }>
   onConcluido: (resultado: ResultadoImportacaoLote) => void
   onCancelar: () => void
 }
@@ -39,18 +42,19 @@ function selecaoInicial(sugestao: SugestaoAlocacaoPendente) {
 
 /**
  * Revisão do lote importado da planilha, antes de criar. O produto vem do
- * cadastro da carreta quando existe e, no resto, é escolhido UMA vez pra
+ * título da planilha ("Oxigênio (Sul)"), senão do cadastro da carreta, e no
+ * resto é escolhido UMA vez pra
  * todas (com ajuste por viagem). Trocar o produto refaz a sugestão daquela
  * viagem — os motoristas compatíveis dependem dele.
  */
-export default function ConfirmarLoteViagens({ viagens, onConcluido, onCancelar }: Props) {
+export default function ConfirmarLoteViagens({ viagens, semProdutoAutorizado = [], onConcluido, onCancelar }: Props) {
   const [criando, iniciarCriacao] = useTransition()
   const [erro, setErro] = useState("")
   const [sugestoes, setSugestoes] = useState<Record<string, SugestaoAlocacaoPendente>>(() =>
     Object.fromEntries(viagens.map((viagem) => [viagem.dados.numViagem, viagem.sugestao])),
   )
   const [produtos, setProdutos] = useState<Record<string, TipoProduto | "">>(() =>
-    Object.fromEntries(viagens.map((viagem) => [viagem.dados.numViagem, viagem.sugestao.produtoDaFrota ?? ""])),
+    Object.fromEntries(viagens.map((viagem) => [viagem.dados.numViagem, viagem.dados.produto || viagem.sugestao.produtoDaFrota || ""])),
   )
   const [selecoes, setSelecoes] = useState<Record<string, string>>(() =>
     Object.fromEntries(viagens.map((viagem) => [viagem.dados.numViagem, selecaoInicial(viagem.sugestao)])),
@@ -97,7 +101,8 @@ export default function ConfirmarLoteViagens({ viagens, onConcluido, onCancelar 
   const valoresProduto = new Set(Object.values(produtos))
   const produtoDeTodas = valoresProduto.size === 1 ? [...valoresProduto][0] : VARIOS
   const semProduto = viagens.filter((viagem) => !ehTipoProduto(produtos[viagem.dados.numViagem] ?? "")).length
-  const vindosDaFrota = viagens.filter((viagem) => viagem.sugestao.produtoDaFrota).length
+  const vindosDaPlanilha = viagens.filter((viagem) => viagem.dados.produto).length
+  const vindosDaFrota = viagens.filter((viagem) => !viagem.dados.produto && viagem.sugestao.produtoDaFrota).length
 
   const itensParaConflito = useMemo(
     () =>
@@ -218,6 +223,7 @@ export default function ConfirmarLoteViagens({ viagens, onConcluido, onCancelar 
             </SelectContent>
           </Select>
           <span className="text-xs text-muted-foreground">
+            {vindosDaPlanilha > 0 && `${vindosDaPlanilha} preenchida(s) pelo título da planilha. `}
             {vindosDaFrota > 0 && `${vindosDaFrota} preenchida(s) pelo cadastro da carreta. `}
             {semProduto > 0 ? (
               <span className="font-medium text-warning">{semProduto} sem produto.</span>
@@ -227,6 +233,7 @@ export default function ConfirmarLoteViagens({ viagens, onConcluido, onCancelar 
           </span>
         </div>
         {erro && <Alert variant="error">{erro}</Alert>}
+        <AvisoMotoristasSemProduto motoristas={semProdutoAutorizado} contexto="importacao" />
       </div>
 
       <div className="grid gap-4">

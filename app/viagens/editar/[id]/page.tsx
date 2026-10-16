@@ -3,8 +3,7 @@ import { buscarChegadasDaViagem, buscarDespesasDaViagem, buscarViagemPorId } fro
 import { buscarMotoristasParaSelect } from "@/lib/queries/motoristas"
 import { buscarNumerosSapQueExigemIntegracao } from "@/lib/queries/clientes"
 import { buscarHistoricoDaEntidade } from "@/lib/queries/auditoria"
-import { calcularIntegracaoExigida } from "@/lib/services/alocacao.service"
-import { montarOpcoesMotoristaPorViagem } from "@/lib/services/opcoes-motorista.service"
+import { montarOpcoesDaEdicao } from "@/lib/services/opcoes-motorista.service"
 import { inicioDoDia } from "@/lib/utils/date-format"
 import { notFound } from "next/navigation"
 import FormEditarViagem from "./form-editar"
@@ -47,15 +46,9 @@ export default async function EditarViagemPage({ params }: { params: Promise<{ i
     buscarSubstitutosPossiveis(filialId, viagem.motoristaId, viagem.produto),
   ])
   // Situação de cada motorista pra esta viagem calculada aqui no servidor —
-  // o formulário recebe só id, nome, tipo e situação (ver montarOpcoesMotoristaPorViagem).
-  const integracaoExigida =
-    viagem.integracaoExigida ??
-    calcularIntegracaoExigida(
-      viagem.entregas.map((entrega) => ({ sapcode: entrega.sapcode ?? "" })),
-      numerosSapQueExigemIntegracao,
-    )
-  const opcoesMotorista =
-    montarOpcoesMotoristaPorViagem(motoristas, [{ ...viagem, integracaoExigida }], inicioDoDia(new Date())).get(viagem.id) ?? []
+  // o formulário recebe só id, nome, tipo e situação. Mudou data, turno ou
+  // produto no formulário, ele pede a lista de novo (opcoesMotoristaDaEdicao).
+  const opcoesMotorista = montarOpcoesDaEdicao(motoristas, viagem, numerosSapQueExigemIntegracao, inicioDoDia(new Date()))
 
   const viagemSerializada = serializeData(viagem)
 
