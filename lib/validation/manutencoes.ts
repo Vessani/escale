@@ -1,4 +1,5 @@
 import { z } from "./zod"
+import { TIPOS_MANUTENCAO } from "@/lib/services/manutencao-regras"
 
 /**
  * Formulário de manutenção. Datas no formato do <input type="datetime-local">
@@ -9,7 +10,7 @@ export const manutencaoSchema = z
   .object({
     veiculo: z.enum(["CAVALO", "CARRETA"]),
     codigo: z.string().trim().min(1, "Informe o código do veículo").max(7, "Máximo de 7 caracteres"),
-    tipo: z.enum(["PREVENTIVA", "CORRETIVA"]),
+    tipo: z.enum(TIPOS_MANUTENCAO),
     nivel: z.enum(["A", "B", "C", "D"]).nullable(),
     responsavel: z.enum(["WHITE_MARTINS", "RITMO"]),
     descricao: z.string().trim().max(500, "Máximo de 500 caracteres").optional().default(""),

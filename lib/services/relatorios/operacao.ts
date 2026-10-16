@@ -274,8 +274,14 @@ export type DisponibilidadeVeiculo = VeiculoDisponibilidade & {
   viagens: number
   minutosPeriodo: number
   minutosEmRota: number
+  /** Preventiva/corretiva com responsável White Martins. */
   minutosManutencaoWhiteMartins: number
+  /** Preventiva/corretiva com responsável Ritmo. */
   minutosManutencaoRitmo: number
+  /** Borracharia, seja quem for o responsável. */
+  minutosBorracharia: number
+  /** Driox, seja quem for o responsável. */
+  minutosDriox: number
   minutosDisponivelParado: number
   /** Fora de manutenção / período. */
   disponibilidade: number
@@ -290,9 +296,12 @@ const MINUTO_MS = 60_000
 /**
  * Pra cada cavalo e carreta, como o tempo do período se dividiu: em rota
  * (viagens não canceladas, da saída real — ou do início previsto — até o fim
- * efetivo), parado em manutenção (separado por responsável) e disponível
- * sem uso. Manutenção vence rota se os dois se sobrepõem. Só conta até
- * `agora`: o futuro ainda não aconteceu.
+ * efetivo), parado em manutenção e disponível sem uso. A manutenção se
+ * divide em preventiva/corretiva por responsável (White Martins, Ritmo) e
+ * em borracharia e Driox, cada uma na sua coluna. Se duas se sobrepõem, o
+ * tempo conta uma vez só, nessa ordem de prioridade: White Martins, Ritmo,
+ * borracharia, Driox. Manutenção vence rota. Só conta até `agora`: o
+ * futuro ainda não aconteceu.
  */
 export function disponibilidadeDaFrota(
   veiculos: VeiculoDisponibilidade[],
@@ -317,12 +326,22 @@ export function disponibilidadeDaFrota(
       const manutencoesDoVeiculo = manutencoes.filter((m) => m.veiculo === veiculo.veiculo && m.codigo === veiculo.codigo)
       const intervaloManutencao = (m: ManutencaoBase) =>
         recortar(inicioEfetivo(m).getTime(), (fimEfetivo(m, agora) ?? agora).getTime(), inicioPeriodo, fimPeriodo)
-      const manutencaoWM = unir(manutencoesDoVeiculo.filter((m) => m.responsavel === "WHITE_MARTINS").map(intervaloManutencao))
+      const deOficina = (m: ManutencaoBase) => m.tipo === "PREVENTIVA" || m.tipo === "CORRETIVA"
+      const intervalosDe = (filtro: (m: ManutencaoBase) => boolean) => unir(manutencoesDoVeiculo.filter(filtro).map(intervaloManutencao))
+      const manutencaoWM = intervalosDe((m) => deOficina(m) && m.responsavel === "WHITE_MARTINS")
       const manutencaoRitmo = subtrair(
-        unir(manutencoesDoVeiculo.filter((m) => m.responsavel === "RITMO").map(intervaloManutencao)),
+        intervalosDe((m) => deOficina(m) && m.responsavel === "RITMO"),
         manutencaoWM,
       )
-      const parado = unir([...manutencaoWM, ...manutencaoRitmo])
+      const borracharia = subtrair(
+        intervalosDe((m) => m.tipo === "BORRACHARIA"),
+        unir([...manutencaoWM, ...manutencaoRitmo]),
+      )
+      const driox = subtrair(
+        intervalosDe((m) => m.tipo === "DRIOX"),
+        unir([...manutencaoWM, ...manutencaoRitmo, ...borracharia]),
+      )
+      const parado = unir([...manutencaoWM, ...manutencaoRitmo, ...borracharia, ...driox])
 
       const rota = subtrair(
         unir(
@@ -341,7 +360,9 @@ export function disponibilidadeDaFrota(
       const minutosEmRota = Math.round(total(rota) / MINUTO_MS)
       const minutosManutencaoWhiteMartins = Math.round(total(manutencaoWM) / MINUTO_MS)
       const minutosManutencaoRitmo = Math.round(total(manutencaoRitmo) / MINUTO_MS)
-      const minutosParados = minutosManutencaoWhiteMartins + minutosManutencaoRitmo
+      const minutosBorracharia = Math.round(total(borracharia) / MINUTO_MS)
+      const minutosDriox = Math.round(total(driox) / MINUTO_MS)
+      const minutosParados = minutosManutencaoWhiteMartins + minutosManutencaoRitmo + minutosBorracharia + minutosDriox
       const ultima = daFrota.reduce<Date | null>(
         (maisRecente, viagem) => (!maisRecente || viagem.inicioPrevisto > maisRecente ? viagem.inicioPrevisto : maisRecente),
         null,
@@ -354,6 +375,8 @@ export function disponibilidadeDaFrota(
         minutosEmRota,
         minutosManutencaoWhiteMartins,
         minutosManutencaoRitmo,
+        minutosBorracharia,
+        minutosDriox,
         minutosDisponivelParado: Math.max(0, minutosPeriodo - minutosEmRota - minutosParados),
         disponibilidade: minutosPeriodo > 0 ? (minutosPeriodo - minutosParados) / minutosPeriodo : 1,
         utilizacao: minutosPeriodo > 0 ? minutosEmRota / minutosPeriodo : 0,

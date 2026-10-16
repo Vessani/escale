@@ -1,7 +1,9 @@
 import { describe, expect, it } from "vitest"
+import { manutencaoSchema } from "@/lib/validation/manutencoes"
 import {
   avisoManutencaoNaViagem,
   descreverTipo,
+  OPCOES_TIPO_MANUTENCAO,
   fimEfetivo,
   inicioEfetivo,
   manutencaoAtualOuProxima,
@@ -61,6 +63,20 @@ describe("situação e período efetivo", () => {
   it("descreve o tipo com o plano", () => {
     expect(descreverTipo(manutencao())).toBe("Preventiva B")
     expect(descreverTipo(manutencao({ tipo: "CORRETIVA", nivel: null }))).toBe("Corretiva")
+    expect(descreverTipo(manutencao({ tipo: "BORRACHARIA", nivel: null }))).toBe("Borracharia")
+    expect(descreverTipo(manutencao({ tipo: "DRIOX", nivel: null }))).toBe("Driox")
+  })
+
+  it("formulário oferece os quatro tipos, nessa ordem", () => {
+    expect(OPCOES_TIPO_MANUTENCAO.map((opcao) => opcao.rotulo)).toEqual(["Preventiva", "Corretiva", "Borracharia", "Driox"])
+  })
+
+  it("borracharia e Driox gravam sem plano, com responsável White Martins ou Ritmo", () => {
+    const base = { veiculo: "CARRETA", codigo: "908", nivel: null, inicioPrevisto: "2026-10-16T16:00" }
+    expect(manutencaoSchema.safeParse({ ...base, tipo: "BORRACHARIA", responsavel: "RITMO" }).success).toBe(true)
+    expect(manutencaoSchema.safeParse({ ...base, tipo: "DRIOX", responsavel: "WHITE_MARTINS" }).success).toBe(true)
+    expect(manutencaoSchema.safeParse({ ...base, tipo: "DRIOX", responsavel: "BORRACHARIA" }).success).toBe(false)
+    expect(manutencaoSchema.safeParse({ ...base, tipo: "PREVENTIVA", responsavel: "RITMO" }).success).toBe(false) // sem plano
   })
 })
 

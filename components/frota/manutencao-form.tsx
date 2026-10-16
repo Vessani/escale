@@ -13,6 +13,7 @@ import { criarManutencao, editarManutencao } from "@/lib/actions/manutencoes"
 import type { ManutencaoFormValues } from "@/lib/validation/manutencoes"
 import { cn } from "@/lib/utils"
 import { chamarAcao } from "@/lib/chamar-acao"
+import { OPCOES_TIPO_MANUTENCAO } from "@/lib/services/manutencao-regras"
 
 type Opcao<T extends string> = { valor: T; rotulo: string }
 
@@ -150,10 +151,7 @@ export default function ManutencaoForm({ manutencaoId, valoresIniciais, conjunto
                 rotulo="Tipo"
                 valor={dados.tipo}
                 disabled={pendente}
-                opcoes={[
-                  { valor: "PREVENTIVA", rotulo: "Preventiva" },
-                  { valor: "CORRETIVA", rotulo: "Corretiva" },
-                ]}
+                opcoes={OPCOES_TIPO_MANUTENCAO}
                 onChange={(tipo) => setDados((atual) => ({ ...atual, tipo, nivel: tipo === "PREVENTIVA" ? atual.nivel : null }))}
               />
               {dados.tipo === "PREVENTIVA" && (

@@ -66,6 +66,8 @@
   enum TipoManutencao {
     PREVENTIVA
     CORRETIVA
+    BORRACHARIA
+    DRIOX
   }
 
   // Plano da preventiva, do mais simples (A) ao mais completo (D).
