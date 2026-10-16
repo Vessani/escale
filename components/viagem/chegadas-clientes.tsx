@@ -27,7 +27,7 @@ import type { EntradaChegada, EntradaEntregaVista } from "@/lib/validation/chega
 /** Recebe a entrega como estava na tela quando a chegada foi aberta (não a da última atualização). */
 type SalvarChegada = (entrega: EntradaEntregaVista, dados: EntradaChegada) => Promise<RespostaAcao>
 
-type Produto = "CO2" | "NITROGENIO" | "ARGONIO" | "BIOMETANO" | "OXIGENIO"
+type Produto = "CO2" | "NITROGENIO" | "ARGONIO" | "BIOMETANO" | "OXIGENIO" | "GNL"
 
 export type ChegadaDoPainel = {
   km: number

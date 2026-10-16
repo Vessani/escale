@@ -1,6 +1,6 @@
 # Escalador
 
-Sistema de escala de viagens da Ritmo Logística: programação das viagens de gases (CO₂, nitrogênio, argônio, oxigênio e biometano), alocação de motorista e frota, acompanhamento da viagem pelo próprio motorista e relatórios operacionais. Tudo separado por filial.
+Sistema de escala de viagens da Ritmo Logística: programação das viagens de gases (CO₂, nitrogênio, argônio, oxigênio, biometano e GNL), alocação de motorista e frota, acompanhamento da viagem pelo próprio motorista e relatórios operacionais. Tudo separado por filial.
 
 ## O que o sistema faz
 

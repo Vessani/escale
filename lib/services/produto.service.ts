@@ -1,7 +1,7 @@
 import type { TipoMotorista, TipoProduto } from "@prisma/client"
 import { podeSerAcompanhante } from "./tipo-motorista"
 
-export const PRODUTO_VALORES = ["CO2", "NITROGENIO", "ARGONIO", "BIOMETANO", "OXIGENIO"] as const satisfies readonly TipoProduto[]
+export const PRODUTO_VALORES = ["CO2", "NITROGENIO", "ARGONIO", "BIOMETANO", "OXIGENIO", "GNL"] as const satisfies readonly TipoProduto[]
 
 const PRODUTO_LABELS: Record<TipoProduto, string> = {
   CO2: "Carbono",
@@ -9,6 +9,7 @@ const PRODUTO_LABELS: Record<TipoProduto, string> = {
   ARGONIO: "Argônio",
   BIOMETANO: "Biometano",
   OXIGENIO: "Oxigênio",
+  GNL: "GNL",
 }
 
 export const PRODUTO_OPCOES: Array<{ valor: TipoProduto; label: string }> = PRODUTO_VALORES.map((valor) => ({
@@ -32,6 +33,7 @@ const TERMOS_DO_PRODUTO: Record<TipoProduto, string[]> = {
   ARGONIO: ["argon"],
   CO2: ["co2", "carbono", "carbonico"],
   BIOMETANO: ["biometano"],
+  GNL: ["gnl", "gas natural liquefeito"],
 }
 
 function semAcentoMinusculo(texto: string): string {

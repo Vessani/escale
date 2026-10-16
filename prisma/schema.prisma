@@ -90,6 +90,7 @@
     ARGONIO
     BIOMETANO
     OXIGENIO
+    GNL
   }
 
   // Cadastro global de clientes (compartilhado entre filiais — um cliente

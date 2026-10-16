@@ -3,8 +3,9 @@ import { PRODUTO_OPCOES, ehTipoProduto, formatarProduto, motoristasSemProdutoAut
 
 describe("produto.service", () => {
   it("rótulos e checagem dos produtos", () => {
-    expect(PRODUTO_OPCOES.map((p) => p.valor)).toEqual(["CO2", "NITROGENIO", "ARGONIO", "BIOMETANO", "OXIGENIO"])
+    expect(PRODUTO_OPCOES.map((p) => p.valor)).toEqual(["CO2", "NITROGENIO", "ARGONIO", "BIOMETANO", "OXIGENIO", "GNL"])
     expect(formatarProduto("CO2")).toBe("Carbono")
+    expect(formatarProduto("GNL")).toBe("GNL")
     expect(formatarProduto(null)).toBe("Não informado")
     expect(ehTipoProduto("ARGONIO")).toBe(true)
     expect(ehTipoProduto("HELIO")).toBe(false)
@@ -18,6 +19,8 @@ describe("produtoPeloNome (título da planilha de programação)", () => {
     expect(produtoPeloNome("ARGONIO (SUL)")).toBe("ARGONIO")
     expect(produtoPeloNome("Biometano")).toBe("BIOMETANO")
     expect(produtoPeloNome("CO2 (Sul)")).toBe("CO2")
+    expect(produtoPeloNome("GNL (Sul)")).toBe("GNL")
+    expect(produtoPeloNome("Gás Natural Liquefeito")).toBe("GNL")
   })
 
   it("Oxigênio Laser e Ultra Puro usam a frota do oxigênio", () => {

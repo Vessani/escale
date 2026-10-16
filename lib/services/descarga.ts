@@ -13,6 +13,7 @@ import type { TipoProduto } from "@prisma/client"
  * O total oficial vem da linha da medida escolhida:
  *  - Manômetro: pol × conversão do cliente (o motorista informa).
  *  - Balança:   kg × conversão do produto (kg → m³; CO2 fica em kg).
+ * GNL segue a mesma regra dos gases do ar (balança: kg × 1,38).
  * As outras linhas são registro/conferência: aparecem calculadas, não mudam o total.
  * Biometano: tanque do caminhão em polegadas e em m³; total = m³ inicial − m³ final.
  *
@@ -28,6 +29,7 @@ export const FATOR_BALANCA: Record<Exclude<TipoProduto, "BIOMETANO">, number> = 
   OXIGENIO: 0.754,
   NITROGENIO: 0.862,
   CO2: 1,
+  GNL: 1.38,
 }
 
 /** Leitura absurda = erro de digitação. */

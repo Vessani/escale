@@ -34,7 +34,7 @@ export type ViagemDoPainel = {
   kmInicial: number | null
   kmFinal: number | null
   despesas: Array<{ id: number; tipo: TipoDespesa; valorCentavos: number; registradoEm: string; minha: boolean }>
-  produto: "CO2" | "NITROGENIO" | "ARGONIO" | "BIOMETANO" | "OXIGENIO" | null
+  produto: "CO2" | "NITROGENIO" | "ARGONIO" | "BIOMETANO" | "OXIGENIO" | "GNL" | null
   entregas: EntregaDoPainel[]
   problemaMecanico: string | null
   problemaMecanicoEm: string | null

@@ -290,7 +290,7 @@ export function DespesasEditaveis({ viagemId, despesas }: { viagemId: number; de
   )
 }
 
-type Produto = "CO2" | "NITROGENIO" | "ARGONIO" | "BIOMETANO" | "OXIGENIO"
+type Produto = "CO2" | "NITROGENIO" | "ARGONIO" | "BIOMETANO" | "OXIGENIO" | "GNL"
 
 export function ChegadasEditaveis({
   entregas,
