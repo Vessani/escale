@@ -23,6 +23,12 @@ O sistema suporta importação automática de dados de viagens através de arqui
 - **Importar todas as N viagens**: cria todas direto no banco (sem motorista ainda) e leva para `/viagens/alocacao`, onde dá pra comparar a sugestão de motorista entre todas e ajustar manualmente se precisar
 - **Carregar no formulário**: carrega só aquela viagem específica no formulário, para revisar/ajustar os campos antes de salvar (mesmo fluxo do item 3a)
 
+### Vários arquivos de uma vez (um por produto)
+- Dá pra selecionar ou arrastar até **5 arquivos .xlsx** juntos (ex.: Oxigênio, Nitrogênio, Argônio)
+- O **produto** de cada viagem sai do título do arquivo (célula B4, ex.: "Oxigênio (Sul)"), sem acento e sem diferenciar maiúsculas. "Oxigênio Laser" e "Oxigênio Ultra Puro" entram como **Oxigênio** (mesma frota). Título sem produto reconhecido → a pessoa escolhe na revisão; se o título não diz, vale o produto do cadastro da carreta
+- As viagens de todos os arquivos são listadas e importadas **da mais longa para a mais curta** (saída → volta à base). A sugestão em lote escolhe motorista nessa ordem, então as viagens longas pegam o melhor encaixe primeiro
+- A mesma viagem em dois arquivos é recusada, com o nome dos dois arquivos
+
 ## Formato Esperado da Planilha (arquivo AR.xls)
 
 O parser (`lib/parsers/xlsx-parser.ts`) lê a planilha por **letra de coluna**, não pelo cabeçalho (o arquivo real tem células mescladas que deslocam o texto do cabeçalho em relação aos dados). O mapeamento abaixo foi conferido diretamente contra um arquivo real:

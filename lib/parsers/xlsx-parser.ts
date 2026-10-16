@@ -1,4 +1,6 @@
+import type { TipoProduto } from "@prisma/client"
 import { lerPlanilhaDoArquivo } from "@/lib/excel/ler-arquivo-planilha"
+import { produtoPeloNome } from "@/lib/services/produto.service"
 import { turnoPorHora } from "@/lib/services/turno"
 import { calcularDiasEntre, formatarDataExcel, formatarDateTimeLocal, normalizarHora, validarNumeroPositivo } from "@/lib/utils/date-format"
 
@@ -12,8 +14,21 @@ export interface DadosViagemPlanilha {
   dataFim?: string
   horaFim?: string
   turno?: string
+  /** Produto identificado pelo título da planilha (ex: "Oxigênio (Sul)"); ausente quando o título não diz. */
+  produto?: TipoProduto
+  /** Título original de onde o produto saiu — mostra "Oxigênio Laser (Sul)" mesmo virando OXIGENIO. */
+  tituloProduto?: string
   entregas: DadosEntregaPlanilha[]
 }
+
+/** Viagens lidas de um arquivo, com o nome dele pra mensagens e pro resumo da importação. */
+export interface ArquivoLido {
+  nomeArquivo: string
+  viagens: DadosViagemPlanilha[]
+}
+
+/** Quantos arquivos dá pra importar de uma vez (um por produto: oxigênio, nitrogênio, argônio...). */
+export const MAX_ARQUIVOS_POR_IMPORTACAO = 5
 
 export interface DadosEntregaPlanilha {
   dataEntrega: string
@@ -38,6 +53,7 @@ type LinhaPlanilha = Record<string, unknown>
 class XLSXDataExtractor {
   static extract(jsonData: LinhaPlanilha[]): DadosViagemPlanilha[] {
     const viagens: DadosViagemPlanilha[] = []
+    const titulo = this.encontrarTituloDoProduto(jsonData)
     let i = 0
 
     while (i < jsonData.length) {
@@ -49,7 +65,7 @@ class XLSXDataExtractor {
 
       const viagem = this.extrairViagem(jsonData, startRow)
       if (viagem) {
-        viagens.push(viagem)
+        viagens.push(titulo ? { ...viagem, produto: titulo.produto, tituloProduto: titulo.texto } : viagem)
       }
 
       // Próxima iteração começa após as entregas desta viagem
@@ -61,6 +77,25 @@ class XLSXDataExtractor {
     }
 
     return viagens
+  }
+
+  /**
+   * O relatório traz o produto no cabeçalho, antes da primeira viagem (célula
+   * B4: "Oxigênio (Sul)"). Procura só ali: no meio das viagens, nome de
+   * cliente como "O2 L / GASES" não pode decidir o produto.
+   */
+  private static encontrarTituloDoProduto(jsonData: LinhaPlanilha[]): { produto: TipoProduto; texto: string } | null {
+    const primeiraViagem = this.findStartRowFrom(jsonData, 0)
+    const cabecalho = primeiraViagem === -1 ? jsonData : jsonData.slice(0, primeiraViagem)
+
+    for (const linha of cabecalho) {
+      for (const valor of Object.values(linha)) {
+        if (typeof valor !== "string") continue
+        const produto = produtoPeloNome(valor)
+        if (produto) return { produto, texto: valor.trim() }
+      }
+    }
+    return null
   }
 
   private static findStartRowFrom(jsonData: LinhaPlanilha[], startFrom: number): number {
@@ -207,6 +242,7 @@ class XLSXToFormDataConverter {
       // Veículos truck não têm cavalo separado; usa "0000" quando a planilha vem vazia
       cavalo: dados.cavalo || "0000",
       tanque: dados.tanque || "",
+      produto: dados.produto,
       diasViagem: this.calcularDiasViagemComoString(dataInicio, dataFimString),
       inicioPrevisto: dataInicio,
       fimPrevisto: dataFimString,
@@ -267,9 +303,69 @@ class XLSXToFormDataConverter {
  * Parser Principal - Orquestra os componentes
  * Responsabilidade: coordenar leitura, extração e conversão
  */
+/** Duração prevista (início → volta à base) em minutos, da mesma conta que vai pro formulário. */
+function minutosEntre(inicioPrevisto: string, fimPrevisto: string): number {
+  return (new Date(fimPrevisto).getTime() - new Date(inicioPrevisto).getTime()) / 60_000
+}
+
 export class XLSXParserViagem {
   static async parseFromFile(file: File): Promise<DadosViagemPlanilha[]> {
     return XLSXDataExtractor.extract(await lerPlanilhaDoArquivo(file))
+  }
+
+  /**
+   * Lê até MAX_ARQUIVOS_POR_IMPORTACAO arquivos (um por produto, normalmente).
+   * O erro de um arquivo leva o nome dele, pra saber qual corrigir.
+   */
+  static async parseVariosArquivos(arquivos: File[]): Promise<ArquivoLido[]> {
+    if (arquivos.length > MAX_ARQUIVOS_POR_IMPORTACAO) {
+      throw new Error(`Envie no máximo ${MAX_ARQUIVOS_POR_IMPORTACAO} arquivos por vez (foram ${arquivos.length}).`)
+    }
+    return Promise.all(
+      arquivos.map(async (arquivo) => {
+        try {
+          return { nomeArquivo: arquivo.name, viagens: await this.parseFromFile(arquivo) }
+        } catch (erro) {
+          throw new Error(`${arquivo.name}: ${erro instanceof Error ? erro.message : "Erro desconhecido"}`)
+        }
+      }),
+    )
+  }
+
+  /**
+   * Junta as viagens de todos os arquivos, da mais longa pra mais curta. A
+   * ordem importa: a sugestão em lote (sugerirAlocacoesEmLote) escolhe
+   * motorista na ordem recebida, então a viagem longa pega o melhor encaixe
+   * antes das curtas. Empate: sai primeiro quem começa antes.
+   * A mesma viagem em dois arquivos é erro — criaria a viagem duas vezes.
+   */
+  static juntarArquivos(arquivos: ArquivoLido[]): DadosViagemPlanilha[] {
+    const arquivoDaViagem = new Map<string, string>()
+    for (const { nomeArquivo, viagens } of arquivos) {
+      for (const { numViagem } of viagens) {
+        const anterior = arquivoDaViagem.get(numViagem)
+        if (anterior !== undefined && anterior !== nomeArquivo) {
+          throw new Error(`A viagem ${numViagem} aparece em dois arquivos (${anterior} e ${nomeArquivo}). Remova um deles.`)
+        }
+        arquivoDaViagem.set(numViagem, nomeArquivo)
+      }
+    }
+    return this.ordenarDaMaisLongaParaMaisCurta(arquivos.flatMap((arquivo) => arquivo.viagens))
+  }
+
+  static ordenarDaMaisLongaParaMaisCurta(viagens: DadosViagemPlanilha[]): DadosViagemPlanilha[] {
+    return viagens
+      .map((viagem) => {
+        const { inicioPrevisto, fimPrevisto } = XLSXToFormDataConverter.convert(viagem)
+        return { viagem, duracao: minutosEntre(inicioPrevisto, fimPrevisto), inicio: inicioPrevisto }
+      })
+      .sort((a, b) => b.duracao - a.duracao || a.inicio.localeCompare(b.inicio))
+      .map(({ viagem }) => viagem)
+  }
+
+  static duracaoPrevistaMinutos(viagem: DadosViagemPlanilha): number {
+    const { inicioPrevisto, fimPrevisto } = XLSXToFormDataConverter.convert(viagem)
+    return minutosEntre(inicioPrevisto, fimPrevisto)
   }
 
   /** Extração a partir das linhas já lidas ({ A, B, ... }) — sem I/O, usada nos testes. */

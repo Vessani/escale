@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest"
-import { XLSXParserViagem, type DadosViagemPlanilha } from "@/lib/parsers/xlsx-parser"
+import { MAX_ARQUIVOS_POR_IMPORTACAO, XLSXParserViagem, type DadosViagemPlanilha } from "@/lib/parsers/xlsx-parser"
 import { converterNovaViagemParaBD } from "@/lib/services/viagem-data-converter.service"
 
 function criarDadosViagem(parcial: Partial<DadosViagemPlanilha> = {}): DadosViagemPlanilha {
@@ -262,5 +262,112 @@ describe("integração: planilha → conversão de formulário → conversão pa
     // O conversor para o banco recalcula diasViagem a partir do intervalo real
     // (fonte de verdade), então deve bater com o que o parser já havia calculado.
     expect(dadosParaBD.diasViagem).toBe(dadosFormulario.diasViagem)
+  })
+})
+
+/** Linhas no formato do "Resumo de viagem" real (célula B4 = produto), como lerPrimeiraAba entrega. */
+function linhasDoRelatorio(
+  titulo: string,
+  viagens: Array<{ num: string; inicio: [string, string]; volta: [string, string] }>,
+): Array<Record<string, unknown>> {
+  return [
+    { B: "Resumo de viagem de 16.10.2026 a 16.10.2026" },
+    { B: titulo },
+    { C: "CDL: JOINVILLE" },
+    { C: "Viagem", E: "Carreta ou Caminhão", I: "Cavalo", K: "Dia", L: "Hora", R: "Paradas" },
+    ...viagens.flatMap(({ num, inicio, volta }) => [
+      { C: num, F: "1189", J: "2066", K: inicio[0], L: inicio[1], R: "JOINVILLE", U: "JOINVILLE", V: "SC", AD: "TWM-29" },
+      { K: inicio[0], L: inicio[1], R: "JOINVILLE", U: "JOINVILLE", V: "SC", W: "R", Y: 31785, AC: 23966 },
+      {
+        K: inicio[0],
+        L: "10:25",
+        M: "90004061",
+        O: "49310",
+        R: "O2 L / GASES - CLIENTE",
+        U: "JARAGUA DO SUL",
+        V: "SC",
+        W: "D",
+        Y: 100,
+        AC: 80,
+      },
+      { K: volta[0], L: volta[1], R: "JOINVILLE", U: "JOINVILLE", V: "SC" },
+    ]),
+  ]
+}
+
+describe("produto pelo título da planilha", () => {
+  it("toda viagem do arquivo recebe o produto do título, e ele vai pro formulário", () => {
+    const viagens = XLSXParserViagem.extrairDeLinhas(
+      linhasDoRelatorio("Oxigênio Laser (Sul)", [
+        { num: "926828", inicio: ["16.10.", "08:00"], volta: ["16.10.", "15:22"] },
+        { num: "927311", inicio: ["16.10.", "21:00"], volta: ["17.10.", "02:42"] },
+      ]),
+    )
+
+    expect(viagens.map((v) => v.produto)).toEqual(["OXIGENIO", "OXIGENIO"])
+    expect(viagens[0].tituloProduto).toBe("Oxigênio Laser (Sul)")
+    expect(XLSXParserViagem.converterParaFormulario(viagens[0]).produto).toBe("OXIGENIO")
+  })
+
+  it("título sem produto conhecido deixa o produto em branco pra pessoa escolher", () => {
+    const [viagem] = XLSXParserViagem.extrairDeLinhas(
+      linhasDoRelatorio("Hélio (Sul)", [{ num: "1", inicio: ["16.10.", "08:00"], volta: ["16.10.", "12:00"] }]),
+    )
+    expect(viagem.produto).toBeUndefined()
+    expect(XLSXParserViagem.converterParaFormulario(viagem).produto).toBeUndefined()
+  })
+
+  it("nome de cliente no meio das viagens não decide o produto", () => {
+    const linhas = linhasDoRelatorio("Resumo", [{ num: "1", inicio: ["16.10.", "08:00"], volta: ["16.10.", "12:00"] }])
+    linhas[6] = { ...linhas[6], R: "OXIGENIO INDUSTRIAL LTDA" }
+    const [viagem] = XLSXParserViagem.extrairDeLinhas(linhas)
+    expect(viagem.entregas.map((e) => e.cliente)).toContain("OXIGENIO INDUSTRIAL LTDA")
+    expect(viagem.produto).toBeUndefined()
+  })
+})
+
+describe("importação de vários arquivos", () => {
+  const oxigenio = {
+    nomeArquivo: "oxigenio.xlsx",
+    viagens: XLSXParserViagem.extrairDeLinhas(
+      linhasDoRelatorio("Oxigênio (Sul)", [
+        { num: "926828", inicio: ["16.10.", "08:00"], volta: ["16.10.", "15:22"] }, // 7h22
+        { num: "927493", inicio: ["16.10.", "08:00"], volta: ["17.10.", "07:32"] }, // 23h32
+      ]),
+    ),
+  }
+  const nitrogenio = {
+    nomeArquivo: "nitrogenio.xlsx",
+    viagens: XLSXParserViagem.extrairDeLinhas(
+      linhasDoRelatorio("Nitrogênio (Sul)", [
+        { num: "930001", inicio: ["16.10.", "22:00"], volta: ["17.10.", "08:30"] }, // 10h30
+        { num: "930002", inicio: ["16.10.", "06:00"], volta: ["16.10.", "13:22"] }, // 7h22, começa antes
+      ]),
+    ),
+  }
+
+  it("junta os arquivos da viagem mais longa pra mais curta, cada uma com o produto do seu arquivo", () => {
+    const juntas = XLSXParserViagem.juntarArquivos([oxigenio, nitrogenio])
+
+    expect(juntas.map((v) => v.numViagem)).toEqual(["927493", "930001", "930002", "926828"])
+    expect(juntas.map((v) => v.produto)).toEqual(["OXIGENIO", "NITROGENIO", "NITROGENIO", "OXIGENIO"])
+  })
+
+  it("duração conta até a volta à base, mesmo passando da meia-noite", () => {
+    expect(XLSXParserViagem.duracaoPrevistaMinutos(oxigenio.viagens[1])).toBe(23 * 60 + 32)
+  })
+
+  it("a mesma viagem em dois arquivos é erro, com o nome dos dois", () => {
+    const repetido = { nomeArquivo: "oxigenio-copia.xlsx", viagens: oxigenio.viagens }
+    expect(() => XLSXParserViagem.juntarArquivos([oxigenio, repetido])).toThrow(/926828.*oxigenio\.xlsx e oxigenio-copia\.xlsx/)
+  })
+
+  it(`recusa mais de ${MAX_ARQUIVOS_POR_IMPORTACAO} arquivos`, async () => {
+    const arquivos = Array.from({ length: MAX_ARQUIVOS_POR_IMPORTACAO + 1 }, (_, i) => new File([], `${i}.xlsx`))
+    await expect(XLSXParserViagem.parseVariosArquivos(arquivos)).rejects.toThrow(/no máximo 5/)
+  })
+
+  it("o erro de leitura diz qual arquivo falhou", async () => {
+    await expect(XLSXParserViagem.parseVariosArquivos([new File(["x"], "antigo.xls")])).rejects.toThrow(/^antigo\.xls: /)
   })
 })

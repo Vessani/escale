@@ -2,10 +2,13 @@
 
 import React, { useState } from "react"
 import type { NovaViagemFormValues } from "@/lib/validation/viagens"
+import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Upload, AlertCircle, CheckCircle2, Loader } from "lucide-react"
-import { XLSXParserViagem, type DadosViagemPlanilha } from "@/lib/parsers/xlsx-parser"
+import { MAX_ARQUIVOS_POR_IMPORTACAO, XLSXParserViagem, type ArquivoLido, type DadosViagemPlanilha } from "@/lib/parsers/xlsx-parser"
+import { formatarProduto } from "@/lib/services/produto.service"
+import { formatarDuracao } from "@/lib/relatorios/formato"
 
 interface UploadXLSXViagemProps {
   onDataLoaded: (dados: NovaViagemFormValues) => void
@@ -16,7 +19,7 @@ interface UploadXLSXViagemProps {
 export default function UploadXLSXViagem({ onDataLoaded, onError, onImportarLote }: UploadXLSXViagemProps) {
   const [carregando, setCarregando] = useState(false)
   const [importandoLote, setImportandoLote] = useState(false)
-  const [arquivo, setArquivo] = useState<File | null>(null)
+  const [arquivosLidos, setArquivosLidos] = useState<ArquivoLido[]>([])
   const [erro, setErro] = useState<string>("")
   const [sucesso, setSucesso] = useState(false)
   const [viagensDisponiveis, setViagensDisponiveis] = useState<DadosViagemPlanilha[]>([])
@@ -42,22 +45,26 @@ export default function UploadXLSXViagem({ onDataLoaded, onError, onImportarLote
     }
   }
 
-  const processarArquivo = async (file: File): Promise<void> => {
+  const processarArquivos = async (files: File[]): Promise<void> => {
     setErro("")
     setSucesso(false)
     setViagensDisponiveis([])
+    setArquivosLidos([])
     setNumViagemCarregada(null)
     setCarregando(true)
 
     try {
-      const viagens = await XLSXParserViagem.parseFromFile(file)
+      const lidos = await XLSXParserViagem.parseVariosArquivos(files)
+      // Já vem da mais longa pra mais curta — é a ordem que vai pra sugestão de motorista.
+      const viagens = XLSXParserViagem.juntarArquivos(lidos)
 
       if (viagens.length === 0) {
         throw new Error("Nenhuma viagem encontrada no arquivo")
       }
 
-      setArquivo(file)
+      setArquivosLidos(lidos)
       setViagensDisponiveis(viagens)
+      if (viagens.length > 1) setSucesso(true)
 
       // Com apenas uma viagem no arquivo, carrega direto no formulário.
       // Com várias, o usuário escolhe qual revisar na lista abaixo.
@@ -74,9 +81,11 @@ export default function UploadXLSXViagem({ onDataLoaded, onError, onImportarLote
   }
 
   const handleFileChange = async (event: React.ChangeEvent<HTMLInputElement>): Promise<void> => {
-    const file = event.target.files?.[0]
-    if (!file) return
-    await processarArquivo(file)
+    const files = Array.from(event.target.files ?? [])
+    // Limpa o input: escolher os mesmos arquivos de novo (depois de corrigir um) dispara o onChange.
+    event.target.value = ""
+    if (files.length === 0) return
+    await processarArquivos(files)
   }
 
   const handleDragOver = (event: React.DragEvent<HTMLLabelElement>): void => {
@@ -94,13 +103,13 @@ export default function UploadXLSXViagem({ onDataLoaded, onError, onImportarLote
     setArrastandoArquivo(false)
     if (carregando) return
 
-    const file = event.dataTransfer.files?.[0]
-    if (!file) return
-    await processarArquivo(file)
+    const files = Array.from(event.dataTransfer.files ?? [])
+    if (files.length === 0) return
+    await processarArquivos(files)
   }
 
   const handleLimpar = (): void => {
-    setArquivo(null)
+    setArquivosLidos([])
     setErro("")
     setSucesso(false)
     setViagensDisponiveis([])
@@ -114,7 +123,9 @@ export default function UploadXLSXViagem({ onDataLoaded, onError, onImportarLote
           <Upload className="w-5 h-5" />
           Importar de Arquivo
         </CardTitle>
-        <CardDescription>Carregue um arquivo .xlsx para preencher automaticamente os dados da viagem</CardDescription>
+        <CardDescription>
+          Carregue até {MAX_ARQUIVOS_POR_IMPORTACAO} arquivos .xlsx (um por produto) para preencher automaticamente os dados das viagens
+        </CardDescription>
       </CardHeader>
       <CardContent className="pt-6">
         <div className="flex flex-col gap-4">
@@ -123,11 +134,12 @@ export default function UploadXLSXViagem({ onDataLoaded, onError, onImportarLote
             <input
               type="file"
               accept=".xlsx"
+              multiple
               onChange={handleFileChange}
               disabled={carregando}
               className="sr-only"
               id="xlsx-upload"
-              aria-label="Upload de arquivo XLSX"
+              aria-label="Upload de arquivos XLSX"
             />
             <label
               htmlFor="xlsx-upload"
@@ -152,7 +164,9 @@ export default function UploadXLSXViagem({ onDataLoaded, onError, onImportarLote
                 ) : sucesso ? (
                   <>
                     <CheckCircle2 className="w-8 h-8 text-green-500" />
-                    <span className="text-sm font-medium text-green-700">{arquivo?.name || "Arquivo carregado"}</span>
+                    <span className="text-sm font-medium text-green-700">
+                      {arquivosLidos.length === 1 ? arquivosLidos[0].nomeArquivo : `${arquivosLidos.length} arquivos carregados`}
+                    </span>
                   </>
                 ) : erro ? (
                   <>
@@ -162,24 +176,52 @@ export default function UploadXLSXViagem({ onDataLoaded, onError, onImportarLote
                 ) : arrastandoArquivo ? (
                   <>
                     <Upload className="w-8 h-8 text-primary" />
-                    <span className="text-sm font-medium text-primary">Solte o arquivo para carregar</span>
+                    <span className="text-sm font-medium text-primary">Solte os arquivos para carregar</span>
                   </>
                 ) : (
                   <>
                     <Upload className="w-8 h-8 text-muted-foreground" />
-                    <span className="text-sm font-medium text-foreground/80">Clique para selecionar arquivo</span>
-                    <span className="text-xs text-muted-foreground">ou arraste um arquivo .xlsx aqui</span>
+                    <span className="text-sm font-medium text-foreground/80">Clique para selecionar os arquivos</span>
+                    <span className="text-xs text-muted-foreground">
+                      ou arraste até {MAX_ARQUIVOS_POR_IMPORTACAO} arquivos .xlsx aqui (oxigênio, nitrogênio, argônio...)
+                    </span>
                   </>
                 )}
               </div>
             </label>
           </div>
 
-          {/* Lista de viagens encontradas, quando o arquivo tem mais de uma */}
+          {/* Resumo por arquivo: o produto que saiu do título de cada um */}
+          {arquivosLidos.length > 0 && (
+            <ul className="flex flex-wrap gap-2">
+              {arquivosLidos.map(({ nomeArquivo, viagens }) => {
+                const { produto, tituloProduto } = viagens[0] ?? {}
+                return (
+                  <li key={nomeArquivo} className="flex items-center gap-2 rounded-md border border-border px-3 py-1.5 text-xs">
+                    <span className="max-w-48 truncate font-medium text-foreground" title={nomeArquivo}>
+                      {nomeArquivo}
+                    </span>
+                    {produto ? (
+                      <Badge variant="outline" title={tituloProduto}>
+                        {formatarProduto(produto)}
+                      </Badge>
+                    ) : (
+                      <Badge variant="warning">Produto não identificado</Badge>
+                    )}
+                    <span className="text-muted-foreground">{viagens.length} viagem(ns)</span>
+                  </li>
+                )
+              })}
+            </ul>
+          )}
+
+          {/* Lista de viagens encontradas, quando os arquivos têm mais de uma */}
           {viagensDisponiveis.length > 1 && (
             <div className="rounded-lg border border-border">
               <div className="flex flex-wrap items-center justify-between gap-3 border-b bg-muted px-4 py-2">
-                <span className="text-sm font-semibold text-foreground/80">{viagensDisponiveis.length} viagens encontradas no arquivo</span>
+                <span className="text-sm font-semibold text-foreground/80">
+                  {viagensDisponiveis.length} viagens encontradas · da mais longa para a mais curta
+                </span>
                 {onImportarLote && (
                   <Button type="button" size="sm" disabled={importandoLote} onClick={handleImportarLote}>
                     {importandoLote ? "Importando..." : `Importar todas as ${viagensDisponiveis.length} viagens`}
@@ -200,7 +242,9 @@ export default function UploadXLSXViagem({ onDataLoaded, onError, onImportarLote
                           Viagem <span className="font-mono tabular-nums">{viagem.numViagem}</span>
                         </div>
                         <div className="text-xs text-muted-foreground">
-                          {viagem.entregas.length} entrega(s) · início {viagem.dataInicio}
+                          {viagem.produto ? `${viagem.tituloProduto ?? formatarProduto(viagem.produto)} · ` : ""}
+                          {viagem.entregas.length} parada(s) · início {viagem.dataInicio} {viagem.horaInicio} · duração{" "}
+                          {formatarDuracao(XLSXParserViagem.duracaoPrevistaMinutos(viagem))}
                         </div>
                       </div>
                       <Button
@@ -222,14 +266,15 @@ export default function UploadXLSXViagem({ onDataLoaded, onError, onImportarLote
           {/* Botão de limpar */}
           {sucesso && (
             <Button type="button" variant="outline" onClick={handleLimpar} className="w-full">
-              Carregar outro arquivo
+              Carregar outros arquivos
             </Button>
           )}
 
           {/* Info sobre o formato esperado */}
           <div className="p-3 bg-primary/10 border border-primary/20 rounded-md text-sm text-primary">
-            <strong>Formato esperado:</strong> A planilha deve conter dados de viagem com colunas para: Viagem, Carreta, Cavalo, Data, Hora,
-            SAP Code, White Code, Data Entrega, Localização, UF, KG, M3 e Observações.
+            <strong>Formato esperado:</strong> o &ldquo;Resumo de viagem&rdquo; exportado, com o produto no título (ex.: &ldquo;Oxigênio
+            (Sul)&rdquo;) e colunas para: Viagem, Carreta, Cavalo, Data, Hora, SAP Code, White Code, Localização, UF, KG, M3 e Observações.
+            Oxigênio Laser e Ultra Puro entram como Oxigênio.
           </div>
         </div>
       </CardContent>
