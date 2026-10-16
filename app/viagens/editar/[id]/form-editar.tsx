@@ -2,6 +2,7 @@
 
 import type { StatusViagem, TipoProduto } from "@prisma/client"
 import { useTurnoAutomatico } from "@/lib/hooks/use-turno-automatico"
+import { useOpcoesMotoristaDaEdicao } from "@/lib/hooks/use-opcoes-motorista-da-edicao"
 import { useState } from "react"
 import { useRouter } from "next/navigation"
 import { zodResolver } from "@hookform/resolvers/zod"
@@ -16,7 +17,7 @@ import { editarViagem } from "@/lib/actions/viagens"
 import type { EditarViagemInput } from "@/lib/types/types"
 import { STATUS_VIAGEM_OPCOES, formatarStatusViagem, normalizarStatusViagem } from "@/lib/services/viagem-status.service"
 import { classeBadgeStatusViagem } from "../../badge-styles"
-import { Save, UserCheck } from "lucide-react"
+import { Loader2, Save, UserCheck } from "lucide-react"
 import { formatDateTimeForInput } from "@/lib/utils/date-format"
 import {
   OpcoesMotoristaAcompanhante,
@@ -64,13 +65,13 @@ type ViagemComRelacionamentos = {
 
 type FormEditarViagemProps = {
   viagem: ViagemComRelacionamentos
-  /** Já com a situação de cada motorista calculada no servidor (ver montarOpcoesMotoristaPorViagem). */
+  /** Situação de cada motorista com a viagem como está salva (ver montarOpcoesDaEdicao); o formulário recalcula ao mudar a agenda. */
   opcoesMotorista: OpcaoMotorista[]
   /** Entregas com chegada registrada pelo motorista (cliente/lugar travados). */
   entregasComChegada: number[]
 }
 
-export default function FormEditarViagem({ viagem, opcoesMotorista, entregasComChegada }: FormEditarViagemProps) {
+export default function FormEditarViagem({ viagem, opcoesMotorista: opcoesIniciais, entregasComChegada }: FormEditarViagemProps) {
   const router = useRouter()
   const [erroGlobal, setErroGlobal] = useState("")
   const statusInicial = normalizarStatusViagem(viagem.status)
@@ -107,7 +108,13 @@ export default function FormEditarViagem({ viagem, opcoesMotorista, entregasComC
   })
 
   const statusSelecionado = useWatch({ control: form.control, name: "status" })
+  const turnoSelecionado = useWatch({ control: form.control, name: "turno" })
   useTurnoAutomatico(form.control, form.setValue)
+  const {
+    opcoes: opcoesMotorista,
+    atualizando: atualizandoMotoristas,
+    erro: erroMotoristas,
+  } = useOpcoesMotoristaDaEdicao(viagem.id, opcoesIniciais, form.control)
 
   const onSubmit: SubmitHandler<EditarViagemFormValues> = async (dados) => {
     setErroGlobal("")
@@ -168,7 +175,12 @@ export default function FormEditarViagem({ viagem, opcoesMotorista, entregasComC
               name="motoristaId"
               render={({ field }) => (
                 <FormItem className="max-w-md">
-                  <FormLabel>Condutor Responsável (turno da viagem: {viagem.turno === "NOITE" ? "noite" : "dia"})</FormLabel>
+                  <FormLabel className="flex items-center gap-2">
+                    Condutor Responsável (turno da viagem: {turnoSelecionado === "NOITE" ? "noite" : "dia"})
+                    {atualizandoMotoristas && (
+                      <Loader2 className="size-3.5 animate-spin text-muted-foreground" aria-label="Atualizando a lista de motoristas" />
+                    )}
+                  </FormLabel>
                   <Select
                     value={field.value === null || field.value === undefined ? "" : String(field.value)}
                     onValueChange={(value) => field.onChange(value ? Number(value) : null)}
@@ -189,8 +201,13 @@ export default function FormEditarViagem({ viagem, opcoesMotorista, entregasComC
                   </Select>
                   <p className="text-xs text-muted-foreground">
                     O ponto indica a situação: verde livre, amarelo sem descanso, vazio fora da regra, vermelho os dois. Exceções são
-                    aceitas — confira antes de confirmar.
+                    aceitas — confira antes de confirmar. A lista acompanha as datas, o turno e o produto do formulário, antes de salvar.
                   </p>
+                  {erroMotoristas && (
+                    <p className="text-xs font-medium text-warning">
+                      Não deu pra atualizar a lista com as datas novas ({erroMotoristas}). A situação mostrada é a anterior.
+                    </p>
+                  )}
                   <FormMessage />
                 </FormItem>
               )}

@@ -1,4 +1,5 @@
-import type { TipoProduto } from "@prisma/client"
+import type { TipoMotorista, TipoProduto } from "@prisma/client"
+import { podeSerAcompanhante } from "./tipo-motorista"
 
 export const PRODUTO_VALORES = ["CO2", "NITROGENIO", "ARGONIO", "BIOMETANO", "OXIGENIO"] as const satisfies readonly TipoProduto[]
 
@@ -53,4 +54,18 @@ export function produtoPeloNome(texto: string): TipoProduto | null {
 
 export function formatarProduto(produto: TipoProduto | null | undefined): string {
   return produto ? PRODUTO_LABELS[produto] : "Não informado"
+}
+
+/**
+ * Quem viaja (todo tipo menos enchedor) e está sem nenhum produto autorizado.
+ * O bloqueio de produto é rígido (motoristaAutorizadoParaProduto), então essa
+ * pessoa some da sugestão — e fica fora da regra na escolha manual — de toda
+ * viagem com produto definido. Ordem alfabética, pra lista do aviso.
+ */
+export function motoristasSemProdutoAutorizado<T extends { nome: string; tipo: TipoMotorista; produtosAutorizados: TipoProduto[] }>(
+  motoristas: T[],
+): T[] {
+  return motoristas
+    .filter((motorista) => podeSerAcompanhante(motorista.tipo) && motorista.produtosAutorizados.length === 0)
+    .sort((a, b) => a.nome.localeCompare(b.nome, "pt-BR"))
 }

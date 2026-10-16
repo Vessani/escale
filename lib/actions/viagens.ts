@@ -14,7 +14,13 @@ import { errorToMessage } from "@/lib/action-error"
 import { requireSessionComFilial } from "@/lib/auth-guard"
 import { atorDaSessao } from "@/lib/services/auditoria.service"
 import { ehStatusViagem, type StatusViagemSelecionavel } from "@/lib/services/viagem-status.service"
-import { novaViagemSchema, editarViagemServerSchema, type NovaViagemFormValues } from "@/lib/validation/viagens"
+import {
+  agendaDaEdicaoSchema,
+  novaViagemSchema,
+  editarViagemServerSchema,
+  type AgendaDaEdicaoInput,
+  type NovaViagemFormValues,
+} from "@/lib/validation/viagens"
 import {
   criarViagemAvulsaService,
   criarViagemComAlocacaoService,
@@ -23,6 +29,9 @@ import {
 } from "@/lib/services/viagem.service"
 import { atualizarSaidaRealService, atualizarStatusViagemService } from "@/lib/services/viagem-andamento.service"
 import { buscarMotoristasParaSelect } from "@/lib/queries/motoristas"
+import { buscarViagemPorId } from "@/lib/queries/viagens"
+import { montarOpcoesDaEdicao } from "@/lib/services/opcoes-motorista.service"
+import type { OpcaoMotorista } from "@/components/motorista/opcoes-motorista"
 import { buscarNumerosSapQueExigemIntegracao } from "@/lib/queries/clientes"
 import { calcularAvisoDescanso, calcularIntegracaoExigida, sugerirAlocacoesEmLote } from "@/lib/services/alocacao.service"
 import { calcularAvisoFrotaIndisponivel, calcularAvisoFrotaProduto } from "@/lib/services/frota.service"
@@ -211,6 +220,39 @@ export async function editarViagem(idViagem: number, dados: EditarViagemInput): 
     const mensagem = errorToMessage(erro, "Ocorreu um erro desconhecido ao editar.")
 
     return { sucesso: false, erro: mensagem }
+  }
+}
+
+/**
+ * Lista de motoristas da tela de edição recalculada com o que está no
+ * formulário (datas, turno, produto), antes de salvar — sem isso a lista
+ * ficava com a situação das datas antigas até salvar e abrir de novo.
+ * Não grava nada.
+ */
+export async function opcoesMotoristaDaEdicao(
+  idViagem: number,
+  agenda: AgendaDaEdicaoInput,
+): Promise<{ sucesso: true; opcoes: OpcaoMotorista[] } | { sucesso: false; erro: string }> {
+  try {
+    const { filialId } = await requireSessionComFilial()
+    const dados = agendaDaEdicaoSchema.parse(agenda)
+
+    const viagem = await buscarViagemPorId(filialId, idViagem)
+    if (!viagem) return { sucesso: false, erro: "Viagem não encontrada." }
+
+    const [motoristas, numerosSapQueExigemIntegracao] = await Promise.all([
+      buscarMotoristasParaSelect(filialId),
+      buscarNumerosSapQueExigemIntegracao(),
+    ])
+    const opcoes = montarOpcoesDaEdicao(motoristas, viagem, numerosSapQueExigemIntegracao, inicioDoDia(new Date()), {
+      inicioPrevisto: converterEntradaDeDataHora(dados.inicioPrevisto),
+      fimPrevisto: converterEntradaDeDataHora(dados.fimPrevisto),
+      turno: dados.turno,
+      produto: dados.produto,
+    })
+    return { sucesso: true, opcoes }
+  } catch (erro) {
+    return { sucesso: false, erro: errorToMessage(erro, "Não foi possível atualizar a lista de motoristas.") }
   }
 }
 

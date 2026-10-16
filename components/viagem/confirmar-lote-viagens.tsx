@@ -15,6 +15,7 @@ import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { CartaoViagemAlocacao } from "@/components/viagem/cartao-viagem-alocacao"
+import { AvisoMotoristasSemProduto } from "@/components/motorista/aviso-motoristas-sem-produto"
 import { EscolhaMotorista, SEM_MOTORISTA } from "@/components/viagem/escolha-motorista"
 import { CheckCircle2, Loader2, PackageCheck, UserCheck } from "lucide-react"
 import { mensagemDaFalha } from "@/lib/chamar-acao"
@@ -26,6 +27,8 @@ export type ViagemParaConfirmar = {
 
 type Props = {
   viagens: ViagemParaConfirmar[]
+  /** Quem some da sugestão por estar sem produto autorizado (ver motoristasSemProdutoAutorizado). */
+  semProdutoAutorizado?: Array<{ id: number; nome: string }>
   onConcluido: (resultado: ResultadoImportacaoLote) => void
   onCancelar: () => void
 }
@@ -44,7 +47,7 @@ function selecaoInicial(sugestao: SugestaoAlocacaoPendente) {
  * todas (com ajuste por viagem). Trocar o produto refaz a sugestão daquela
  * viagem — os motoristas compatíveis dependem dele.
  */
-export default function ConfirmarLoteViagens({ viagens, onConcluido, onCancelar }: Props) {
+export default function ConfirmarLoteViagens({ viagens, semProdutoAutorizado = [], onConcluido, onCancelar }: Props) {
   const [criando, iniciarCriacao] = useTransition()
   const [erro, setErro] = useState("")
   const [sugestoes, setSugestoes] = useState<Record<string, SugestaoAlocacaoPendente>>(() =>
@@ -230,6 +233,7 @@ export default function ConfirmarLoteViagens({ viagens, onConcluido, onCancelar 
           </span>
         </div>
         {erro && <Alert variant="error">{erro}</Alert>}
+        <AvisoMotoristasSemProduto motoristas={semProdutoAutorizado} contexto="importacao" />
       </div>
 
       <div className="grid gap-4">

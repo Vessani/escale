@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest"
-import { PRODUTO_OPCOES, ehTipoProduto, formatarProduto, produtoPeloNome } from "./produto.service"
+import { PRODUTO_OPCOES, ehTipoProduto, formatarProduto, motoristasSemProdutoAutorizado, produtoPeloNome } from "./produto.service"
 
 describe("produto.service", () => {
   it("rótulos e checagem dos produtos", () => {
@@ -33,5 +33,31 @@ describe("produtoPeloNome (título da planilha de programação)", () => {
     expect(produtoPeloNome("Resumo de viagem de 16.10.2026 a 16.10.2026")).toBeNull()
     expect(produtoPeloNome("CDL: JOINVILLE")).toBeNull()
     expect(produtoPeloNome("Oxigênio e Nitrogênio")).toBeNull()
+  })
+})
+
+describe("motoristasSemProdutoAutorizado", () => {
+  const motorista = (
+    nome: string,
+    tipo: "MOTORISTA" | "INSTRUTOR" | "TREINAMENTO" | "ENCHEDOR",
+    produtos: Array<"CO2" | "OXIGENIO"> = [],
+  ) => ({
+    nome,
+    tipo,
+    produtosAutorizados: produtos,
+  })
+
+  it("lista quem viaja e não tem nenhum produto, em ordem alfabética", () => {
+    const lista = motoristasSemProdutoAutorizado([
+      motorista("ZECA", "MOTORISTA"),
+      motorista("ÁLVARO", "TREINAMENTO"),
+      motorista("BIA", "MOTORISTA", ["OXIGENIO"]),
+      motorista("CAIO", "INSTRUTOR"),
+    ])
+    expect(lista.map((m) => m.nome)).toEqual(["ÁLVARO", "CAIO", "ZECA"])
+  })
+
+  it("enchedor não viaja, então não precisa de produto", () => {
+    expect(motoristasSemProdutoAutorizado([motorista("DUDA", "ENCHEDOR")])).toEqual([])
   })
 })

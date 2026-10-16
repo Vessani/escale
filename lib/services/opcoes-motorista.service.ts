@@ -1,8 +1,15 @@
 import type { TipoMotorista, TipoProduto, Turno } from "@prisma/client"
 import { situacaoDoMotorista, type SituacaoMotorista } from "@/components/motorista/indicador-compatibilidade"
-import { calcularDiasDisponiveis, codigoJornadaNaViagem, motivoForaDaRegra, motivoIndisponivel } from "./alocacao.service"
+import {
+  calcularDiasDisponiveis,
+  calcularIntegracaoExigida,
+  codigoJornadaNaViagem,
+  motivoForaDaRegra,
+  motivoIndisponivel,
+} from "./alocacao.service"
 import type { IntegracaoBase, ViagemParaDisponibilidade } from "./alocacao/tipos"
 import { prepararJornadaDoMotorista } from "./jornada.service"
+import { calcularDiasEntre } from "@/lib/utils/date-format"
 
 /** O que o seletor de motorista precisa pra cada opção — nada além disso vai pro navegador. */
 type OpcaoMotoristaServidor = {
@@ -107,4 +114,39 @@ export function montarOpcoesMotoristaPorViagem(
       return [viagem.id, opcoes] as const
     }),
   )
+}
+
+/** O que o escalador pode mudar no formulário de edição e muda quem cabe na viagem. */
+export type AgendaDoFormulario = {
+  inicioPrevisto: Date
+  fimPrevisto: Date
+  turno: Turno
+  produto: TipoProduto | null
+}
+
+type ViagemSalva = ViagemParaOpcoes & { entregas: Array<{ sapcode: string | null }> }
+
+/**
+ * Opções de motorista da tela de edição. Sem `agenda`, com a viagem como está
+ * salva (abertura da tela); com `agenda`, como ela vai ficar com o que está
+ * no formulário — a lista acompanha a troca de data, turno ou produto antes
+ * de salvar. diasViagem sai das datas, igual ao servidor ao gravar
+ * (converterEditarViagemParaBD).
+ */
+export function montarOpcoesDaEdicao(
+  motoristas: MotoristaComAgendaBruta[],
+  viagem: ViagemSalva,
+  numerosSapQueExigemIntegracao: Set<string>,
+  hoje: Date,
+  agenda?: AgendaDoFormulario,
+): OpcaoMotoristaServidor[] {
+  const integracaoExigida =
+    viagem.integracaoExigida ??
+    calcularIntegracaoExigida(
+      viagem.entregas.map((entrega) => ({ sapcode: entrega.sapcode ?? "" })),
+      numerosSapQueExigemIntegracao,
+    )
+  const comAgenda = agenda ? { ...agenda, diasViagem: calcularDiasEntre(agenda.inicioPrevisto, agenda.fimPrevisto) } : {}
+
+  return montarOpcoesMotoristaPorViagem(motoristas, [{ ...viagem, integracaoExigida, ...comAgenda }], hoje).get(viagem.id) ?? []
 }
