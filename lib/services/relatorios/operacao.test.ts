@@ -172,6 +172,44 @@ describe("disponibilidadeDaFrota", () => {
     expect(item.manutencoes).toBe(2)
   })
 
+  it("borracharia e Driox têm coluna própria, seja quem for o responsável; sobreposição conta uma vez só", () => {
+    const [item] = disponibilidadeDaFrota(
+      [carreta],
+      [],
+      [
+        // Corretiva Ritmo 05/09 08h–12h.
+        manutencao({ id: 1, tipo: "CORRETIVA", nivel: null, responsavel: "RITMO", fimReal: h("2026-09-05T12:00:00") }),
+        // Borracharia (responsável WM) 05/09 10h–14h: 10h–12h já é Ritmo, sobram 2h.
+        manutencao({
+          id: 2,
+          tipo: "BORRACHARIA",
+          nivel: null,
+          inicioPrevisto: h("2026-09-05T10:00:00"),
+          fimReal: h("2026-09-05T14:00:00"),
+        }),
+        // Driox 06/09 08h–11h.
+        manutencao({
+          id: 3,
+          tipo: "DRIOX",
+          nivel: null,
+          responsavel: "RITMO",
+          inicioPrevisto: h("2026-09-06T08:00:00"),
+          fimReal: h("2026-09-06T11:00:00"),
+        }),
+      ],
+      de,
+      ate,
+      agora,
+    )
+
+    expect(item.minutosManutencaoWhiteMartins).toBe(0) // a borracharia da WM não entra aqui
+    expect(item.minutosManutencaoRitmo).toBe(4 * 60) // a Driox da Ritmo também não
+    expect(item.minutosBorracharia).toBe(2 * 60)
+    expect(item.minutosDriox).toBe(3 * 60)
+    expect(item.disponibilidade).toBeCloseTo(1 - (9 * 60) / (10 * 24 * 60))
+    expect(item.manutencoes).toBe(3)
+  })
+
   it("só conta até agora, e manutenção em aberto vai até agora", () => {
     const [item] = disponibilidadeDaFrota(
       [cavalo],

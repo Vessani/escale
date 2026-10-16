@@ -14,13 +14,15 @@ import { cn } from "@/lib/utils"
 
 type SearchParamsInput = { de?: string; ate?: string }
 
-/** Barra empilhada: rota (azul), manutenção WM (vermelho), Ritmo (laranja), disponível sem uso (cinza). */
+/** Barra empilhada: rota (azul), manutenção WM (vermelho), Ritmo (laranja), borracharia (rosa), Driox (ciano), disponível sem uso (cinza). */
 function BarraTempo({ item }: { item: DisponibilidadeVeiculo }) {
   const total = Math.max(item.minutosPeriodo, 1)
   const partes = [
     { minutos: item.minutosEmRota, classe: "bg-primary", rotulo: "Em rota" },
     { minutos: item.minutosManutencaoWhiteMartins, classe: "bg-destructive", rotulo: "Manutenção White Martins" },
     { minutos: item.minutosManutencaoRitmo, classe: "bg-warning", rotulo: "Manutenção Ritmo" },
+    { minutos: item.minutosBorracharia, classe: "bg-chart-5", rotulo: "Borracharia" },
+    { minutos: item.minutosDriox, classe: "bg-chart-2", rotulo: "Driox" },
   ]
   return (
     <div
@@ -48,6 +50,8 @@ function TabelaVeiculos({ itens }: { itens: DisponibilidadeVeiculo[] }) {
             <TableHead className="text-right">Em rota</TableHead>
             <TableHead className="text-right">Manut. White Martins</TableHead>
             <TableHead className="text-right">Manut. Ritmo</TableHead>
+            <TableHead className="text-right">Borracharia</TableHead>
+            <TableHead className="text-right">Driox</TableHead>
             <TableHead className="text-right">Disponível sem uso</TableHead>
             <TableHead className="text-right">Disponibilidade</TableHead>
             <TableHead className="text-right">Utilização</TableHead>
@@ -71,6 +75,12 @@ function TabelaVeiculos({ itens }: { itens: DisponibilidadeVeiculo[] }) {
               </TableCell>
               <TableCell className={cn("text-right tabular-nums", item.minutosManutencaoRitmo > 0 && "text-warning")}>
                 {item.minutosManutencaoRitmo ? formatarDuracao(item.minutosManutencaoRitmo) : "—"}
+              </TableCell>
+              <TableCell className={cn("text-right tabular-nums", item.minutosBorracharia > 0 && "text-chart-5")}>
+                {item.minutosBorracharia ? formatarDuracao(item.minutosBorracharia) : "—"}
+              </TableCell>
+              <TableCell className={cn("text-right tabular-nums", item.minutosDriox > 0 && "text-chart-2")}>
+                {item.minutosDriox ? formatarDuracao(item.minutosDriox) : "—"}
               </TableCell>
               <TableCell className="text-right tabular-nums text-muted-foreground">
                 {formatarDuracao(item.minutosDisponivelParado)}
@@ -109,13 +119,14 @@ export default async function DisponibilidadeFrotaPage({ searchParams }: { searc
   const cavalos = itens.filter((item) => item.veiculo === "CAVALO")
   const media = (lista: DisponibilidadeVeiculo[], campo: "disponibilidade" | "utilizacao") =>
     lista.length ? lista.reduce((soma, item) => soma + item[campo], 0) / lista.length : 0
-  const soma = (campo: "minutosManutencaoWhiteMartins" | "minutosManutencaoRitmo") => itens.reduce((total, item) => total + item[campo], 0)
+  const soma = (campo: "minutosManutencaoWhiteMartins" | "minutosManutencaoRitmo" | "minutosBorracharia" | "minutosDriox") =>
+    itens.reduce((total, item) => total + item[campo], 0)
 
   return (
     <div className="space-y-6">
       <CabecalhoRelatorio titulo="Disponibilidade da frota">
-        Como o tempo de cada carreta e cavalo se dividiu no período: em rota, parado em manutenção (por responsável) e disponível sem uso.
-        Conta só até agora. As manutenções vêm da agenda em{" "}
+        Como o tempo de cada carreta e cavalo se dividiu no período: em rota, parado em manutenção (preventiva/corretiva por responsável,
+        borracharia e Driox) e disponível sem uso. Conta só até agora. As manutenções vêm da agenda em{" "}
         <Link href="/frotas/manutencoes" className="underline underline-offset-4">
           Frotas → Manutenções
         </Link>
@@ -129,7 +140,7 @@ export default async function DisponibilidadeFrotaPage({ searchParams }: { searc
         exportarQuery={{ de: periodo.deTexto, ate: periodo.ateTexto }}
       />
 
-      <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+      <div className="grid grid-cols-2 gap-3 lg:grid-cols-3">
         <StatCard rotulo="Disponibilidade média (carretas)" valor={formatarPercentual(media(carretas, "disponibilidade"))} icone={Gauge} />
         <StatCard rotulo="Utilização média (carretas)" valor={formatarPercentual(media(carretas, "utilizacao"))} icone={Route} />
         <StatCard
@@ -144,6 +155,18 @@ export default async function DisponibilidadeFrotaPage({ searchParams }: { searc
           icone={Wrench}
           classeValor={soma("minutosManutencaoRitmo") > 0 ? "text-warning" : undefined}
         />
+        <StatCard
+          rotulo="Parado · Borracharia"
+          valor={formatarDuracao(soma("minutosBorracharia"))}
+          icone={Wrench}
+          classeValor={soma("minutosBorracharia") > 0 ? "text-chart-5" : undefined}
+        />
+        <StatCard
+          rotulo="Parado · Driox"
+          valor={formatarDuracao(soma("minutosDriox"))}
+          icone={Wrench}
+          classeValor={soma("minutosDriox") > 0 ? "text-chart-2" : undefined}
+        />
       </div>
 
       <div className="flex flex-wrap items-center gap-4 text-xs text-muted-foreground">
@@ -155,6 +178,12 @@ export default async function DisponibilidadeFrotaPage({ searchParams }: { searc
         </span>
         <span className="flex items-center gap-1.5">
           <span className="size-2.5 rounded-full bg-warning" /> Manutenção Ritmo
+        </span>
+        <span className="flex items-center gap-1.5">
+          <span className="size-2.5 rounded-full bg-chart-5" /> Borracharia
+        </span>
+        <span className="flex items-center gap-1.5">
+          <span className="size-2.5 rounded-full bg-chart-2" /> Driox
         </span>
         <span className="flex items-center gap-1.5">
           <span className="size-2.5 rounded-full bg-muted ring-1 ring-border" /> Disponível sem uso

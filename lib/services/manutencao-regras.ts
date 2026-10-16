@@ -25,7 +25,17 @@ export type SituacaoManutencao = "AGENDADA" | "EM_ANDAMENTO" | "ATRASADA" | "CON
 
 export const ROTULO_VEICULO: Record<VeiculoManutencao, string> = { CAVALO: "Cavalo", CARRETA: "Carreta" }
 export const ROTULO_RESPONSAVEL: Record<ResponsavelManutencao, string> = { WHITE_MARTINS: "White Martins", RITMO: "Ritmo" }
-const ROTULO_TIPO: Record<TipoManutencao, string> = { PREVENTIVA: "Preventiva", CORRETIVA: "Corretiva" }
+const ROTULO_TIPO: Record<TipoManutencao, string> = {
+  PREVENTIVA: "Preventiva",
+  CORRETIVA: "Corretiva",
+  BORRACHARIA: "Borracharia",
+  DRIOX: "Driox",
+}
+
+/** Tipos na ordem do formulário. O plano (A–D) só existe na preventiva. */
+export const TIPOS_MANUTENCAO = ["PREVENTIVA", "CORRETIVA", "BORRACHARIA", "DRIOX"] as const satisfies readonly TipoManutencao[]
+
+export const OPCOES_TIPO_MANUTENCAO = TIPOS_MANUTENCAO.map((valor) => ({ valor, rotulo: ROTULO_TIPO[valor] }))
 export const ROTULO_SITUACAO: Record<SituacaoManutencao, string> = {
   AGENDADA: "Agendada",
   EM_ANDAMENTO: "Em andamento",
