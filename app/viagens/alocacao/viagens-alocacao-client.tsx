@@ -7,6 +7,7 @@ import type { EditarViagemInput } from "@/lib/types/types"
 import type { ViagemAlocacao } from "@/lib/types/alocacao"
 import { editarViagem } from "@/lib/actions/viagens"
 import { useConflitosAlocacao } from "@/lib/hooks/use-conflitos-alocacao"
+import { semOcupadosEmOutraViagem } from "@/lib/services/alocacao.service"
 import { Alert } from "@/components/ui/alert"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -48,7 +49,7 @@ export default function AlocacaoViagensClient({ viagens }: Props) {
     () => Object.fromEntries(Object.entries(selecoes).map(([id, motoristaId]) => [String(id), motoristaId])),
     [selecoes],
   )
-  const { conflitosPorViagem } = useConflitosAlocacao(itensParaConflito, selecoesPorChave)
+  const { conflitosPorViagem, ocupadosEmOutraViagem } = useConflitosAlocacao(itensParaConflito, selecoesPorChave)
 
   const atualizarSelecao = (viagemId: number, motoristaId: string) => {
     setSelecoes((atual) => ({
@@ -154,7 +155,13 @@ export default function AlocacaoViagensClient({ viagens }: Props) {
       <div className="grid gap-4">
         {viagens.map((viagem) => {
           const motoristaSelecionado = selecoes[viagem.id] || SEM_MOTORISTA
-          const semCompatibilidade = viagem.motoristasCompativeis.length === 0
+          // Sem quem está escolhido agora em outra viagem da lista no mesmo horário.
+          const compativeis = semOcupadosEmOutraViagem(
+            viagem.motoristasCompativeis,
+            ocupadosEmOutraViagem[String(viagem.id)],
+            motoristaSelecionado,
+          )
+          const semCompatibilidade = compativeis.length === 0
           const avisos = [
             ...(viagem.avisoFrotaIndisponivel ? [{ rotulo: "Frota indisponível no horário", detalhe: viagem.avisoFrotaIndisponivel }] : []),
             ...(viagem.avisoFrotaProdutoIncompativel
@@ -205,7 +212,7 @@ export default function AlocacaoViagensClient({ viagens }: Props) {
               <p className="mb-2 text-sm font-medium text-foreground">
                 Motorista{" "}
                 <span className="font-normal text-muted-foreground">
-                  · {viagem.motoristasCompativeis.length} compatíve{viagem.motoristasCompativeis.length === 1 ? "l" : "is"}
+                  · {compativeis.length} compatíve{compativeis.length === 1 ? "l" : "is"}
                 </span>
               </p>
               {semCompatibilidade ? (
@@ -214,7 +221,7 @@ export default function AlocacaoViagensClient({ viagens }: Props) {
                 </Alert>
               ) : (
                 <EscolhaMotorista
-                  compativeis={viagem.motoristasCompativeis}
+                  compativeis={compativeis}
                   sugeridoId={viagem.motoristaSugerido?.id ?? null}
                   valor={motoristaSelecionado}
                   onChange={(valor) => atualizarSelecao(viagem.id, valor)}

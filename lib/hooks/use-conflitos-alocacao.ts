@@ -1,7 +1,7 @@
 "use client"
 
 import { useMemo } from "react"
-import { periodosConflitamComDescanso } from "@/lib/services/alocacao.service"
+import { motoristasOcupadosEmOutraViagem, periodosConflitamComDescanso } from "@/lib/services/alocacao.service"
 
 type ItemParaConflitoAlocacao = {
   /** Identificador único do item na lista em revisão — id da viagem (já existente) ou numViagem (ainda não criada). */
@@ -21,6 +21,9 @@ type ItemParaConflitoAlocacao = {
  *   falta, a sugestão automática);
  * - os conflitos: viagens que têm o mesmo motorista selecionado sem o
  *   descanso mínimo entre elas (ver periodosConflitamComDescanso).
+ * - quem está escolhido em outra viagem com horário em choque, pra tirar
+ *   das listas (ver semOcupadosEmOutraViagem) — acompanha as escolhas, então
+ *   trocar o motorista de uma viagem devolve o anterior às outras listas.
  * Só avisa — não troca nada automaticamente, quem decide é o usuário.
  * Compartilhado entre app/viagens/alocacao/viagens-alocacao-client.tsx e
  * components/viagem/confirmar-lote-viagens.tsx, que tinham essa mesma lógica
@@ -65,5 +68,10 @@ export function useConflitosAlocacao(itens: ItemParaConflitoAlocacao[], selecoes
     return mapa
   }, [itens, selecaoEfetivaPorViagem])
 
-  return { selecaoEfetivaPorViagem, conflitosPorViagem }
+  const ocupadosEmOutraViagem = useMemo(
+    () => motoristasOcupadosEmOutraViagem(itens, selecaoEfetivaPorViagem),
+    [itens, selecaoEfetivaPorViagem],
+  )
+
+  return { selecaoEfetivaPorViagem, conflitosPorViagem, ocupadosEmOutraViagem }
 }

@@ -38,6 +38,12 @@ type SugestaoAlocacaoLote = {
  * se duas viagens têm período sobreposto, a segunda não recebe o motorista já
  * sugerido para a primeira, mesmo que ele também seja compatível para ela.
  * Também exclui motoristas com viagem real conflitante já registrada no banco.
+ *
+ * A reserva do lote vale só pra SUGESTÃO: `motoristasCompativeis` sai sem ela
+ * (só banco, descanso e regra). Quem tira da lista quem está escolhido em
+ * outra viagem do lote é a tela, com as escolhas ATUAIS
+ * (motoristasOcupadosEmOutraViagem) — senão, trocar o motorista de uma
+ * viagem não devolvia o sugerido dela às listas das outras.
  */
 export function sugerirAlocacoesEmLote(
   viagens: ViagemParaSugestaoLote[],
@@ -59,19 +65,19 @@ export function sugerirAlocacoesEmLote(
 
     const motoristasDisponiveis = filtrarMotoristasDisponiveisNoPeriodo(motoristas, viagem.inicioPrevisto, viagem.fimPrevisto, hoje)
 
-    const motoristasCompativeis = filtrarMotoristasCompativeis(motoristasDisponiveis, contexto).filter(
-      (motorista) =>
-        !atribuicoesTentativas.some((atribuicao) => {
-          if (atribuicao.motoristaId !== motorista.id) return false
+    const motoristasCompativeis = filtrarMotoristasCompativeis(motoristasDisponiveis, contexto)
+    const reservadoNoLote = (motorista: MotoristaComAgenda) =>
+      atribuicoesTentativas.some((atribuicao) => {
+        if (atribuicao.motoristaId !== motorista.id) return false
 
-          const minimoHoras = descansoMinimoNecessarioApos(atribuicao.motorista, atribuicao.fim, hoje)
-          return periodosConflitamComDescanso(viagem.inicioPrevisto, viagem.fimPrevisto, atribuicao.inicio, atribuicao.fim, minimoHoras)
-        }),
-    )
+        const minimoHoras = descansoMinimoNecessarioApos(atribuicao.motorista, atribuicao.fim, hoje)
+        return periodosConflitamComDescanso(viagem.inicioPrevisto, viagem.fimPrevisto, atribuicao.inicio, atribuicao.fim, minimoHoras)
+      })
 
     // motoristasCompativeis já está filtrado e ordenado por filtrarMotoristasCompativeis
-    // (mesmo critério usado por sugerirMotoristaAutomatico); o primeiro é o sugerido.
-    const motoristaSugerido = motoristasCompativeis[0] ?? null
+    // (mesmo critério usado por sugerirMotoristaAutomatico); o sugerido é o
+    // primeiro que não ficou com uma viagem anterior do lote no mesmo horário.
+    const motoristaSugerido = motoristasCompativeis.find((motorista) => !reservadoNoLote(motorista)) ?? null
 
     if (motoristaSugerido) {
       atribuicoesTentativas.push({

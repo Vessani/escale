@@ -6,7 +6,7 @@ import type { SugestaoAlocacaoPendente } from "@/lib/types/alocacao"
 import type { NovaViagemFormValues } from "@/lib/validation/viagens"
 import type { ResultadoImportacaoLote } from "@/lib/types/types"
 import { criarViagensEmLoteComAlocacao, sugerirAlocacaoParaViagens } from "@/lib/actions/viagens"
-import { periodoConflita } from "@/lib/services/alocacao.service"
+import { periodoConflita, semOcupadosEmOutraViagem } from "@/lib/services/alocacao.service"
 import { useConflitosAlocacao } from "@/lib/hooks/use-conflitos-alocacao"
 import { viagensCompartilhamFrota } from "@/lib/services/frota-regras"
 import { PRODUTO_OPCOES, ehTipoProduto, formatarProduto } from "@/lib/services/produto.service"
@@ -115,7 +115,7 @@ export default function ConfirmarLoteViagens({ viagens, semProdutoAutorizado = [
       })),
     [viagens],
   )
-  const { conflitosPorViagem } = useConflitosAlocacao(itensParaConflito, selecoes)
+  const { conflitosPorViagem, ocupadosEmOutraViagem } = useConflitosAlocacao(itensParaConflito, selecoes)
 
   // Mesma carreta em duas viagens do próprio lote, em período sobreposto (o
   // aviso de frota do servidor só olha o banco, onde elas ainda não existem).
@@ -240,6 +240,12 @@ export default function ConfirmarLoteViagens({ viagens, semProdutoAutorizado = [
         {viagens.map(({ dados }) => {
           const numViagem = dados.numViagem
           const sugestao = sugestoes[numViagem]
+          // Sem quem está escolhido agora em outra viagem do lote no mesmo horário.
+          const compativeis = semOcupadosEmOutraViagem(
+            sugestao.motoristasCompativeis,
+            ocupadosEmOutraViagem[numViagem],
+            selecoes[numViagem],
+          )
           const produto = produtos[numViagem] ?? ""
           const ocupado = recalculando.has(numViagem)
           const avisos = [
@@ -294,16 +300,16 @@ export default function ConfirmarLoteViagens({ viagens, semProdutoAutorizado = [
               <p className="mb-2 flex items-center gap-2 text-sm font-medium text-foreground">
                 Motorista
                 <span className="font-normal text-muted-foreground">
-                  · {sugestao.motoristasCompativeis.length} compatíve{sugestao.motoristasCompativeis.length === 1 ? "l" : "is"}
+                  · {compativeis.length} compatíve{compativeis.length === 1 ? "l" : "is"}
                   {!produto && " (sem filtrar por produto)"}
                 </span>
                 {ocupado && <Loader2 className="size-3.5 animate-spin text-muted-foreground" aria-label="Recalculando" />}
               </p>
-              {sugestao.motoristasCompativeis.length === 0 ? (
+              {compativeis.length === 0 ? (
                 <Alert variant="warning">Nenhum motorista compatível — a viagem é criada sem motorista; aloque depois.</Alert>
               ) : (
                 <EscolhaMotorista
-                  compativeis={sugestao.motoristasCompativeis}
+                  compativeis={compativeis}
                   sugeridoId={sugestao.motoristaSugerido?.id ?? null}
                   valor={selecoes[numViagem] ?? SEM_MOTORISTA}
                   onChange={(valor) => setSelecoes((atual) => ({ ...atual, [numViagem]: valor }))}

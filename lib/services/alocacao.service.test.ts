@@ -2,6 +2,8 @@ import { describe, expect, it } from "vitest"
 import { calcularDiasEntre } from "@/lib/utils/date-format"
 import type { StatusIntegracao, TipoMotorista, TipoProduto, Turno } from "@prisma/client"
 import {
+  motoristasOcupadosEmOutraViagem,
+  semOcupadosEmOutraViagem,
   calcularAvisoInterjornada,
   calcularDiasDisponiveis,
   calcularFolgaAteIdeal,
@@ -1101,7 +1103,49 @@ describe("alocacao.service", () => {
       expect(resultado[1].motoristaSugerido?.id).toBe(1)
     })
 
-    it("retorna null e lista vazia quando o único compatível já foi usado numa viagem sobreposta", () => {
+    it("caso real: trocar o motorista da viagem longa devolve o sugerido dela às outras listas", () => {
+      const francinei = comAgenda({ id: 1, nome: "Francinei", diasTrabalhados: 1 })
+      const rodrigo = comAgenda({ id: 2, nome: "Rodrigo", diasTrabalhados: 1 })
+      const hoje = new Date("2026-10-16T00:00:00-03:00")
+      const longa = {
+        id: 927493,
+        turno: "MANHA" as Turno,
+        diasViagem: 2,
+        inicioPrevisto: new Date("2026-10-16T08:00:00-03:00"),
+        fimPrevisto: new Date("2026-10-17T07:32:00-03:00"),
+        integracaoExigida: null,
+      }
+      const curta = {
+        id: 926828,
+        turno: "MANHA" as Turno,
+        diasViagem: 1,
+        inicioPrevisto: new Date("2026-10-16T08:00:00-03:00"),
+        fimPrevisto: new Date("2026-10-16T15:22:00-03:00"),
+        integracaoExigida: null,
+      }
+
+      const [sugestaoLonga, sugestaoCurta] = sugerirAlocacoesEmLote([longa, curta], [francinei, rodrigo], hoje)
+      expect(sugestaoLonga.motoristaSugerido?.nome).toBe("Francinei")
+      expect(sugestaoCurta.motoristaSugerido?.nome).toBe("Rodrigo")
+
+      const viagens = [longa, curta].map((viagem) => ({ ...viagem, chave: String(viagem.id) }))
+      const listaDaCurta = (escolhas: Record<string, string>) =>
+        semOcupadosEmOutraViagem(
+          sugestaoCurta.motoristasCompativeis,
+          motoristasOcupadosEmOutraViagem(viagens, escolhas)["926828"],
+          escolhas["926828"],
+        ).map((motorista) => motorista.nome)
+
+      // Como sugerido: Francinei está na longa, então some da curta.
+      expect(listaDaCurta({ "927493": "1", "926828": "2" })).toEqual(["Rodrigo"])
+      // Escalador põe o Rodrigo na longa: Francinei volta pra curta (e o Rodrigo
+      // continua nela por estar escolhido ali — o aviso de conflito avisa).
+      expect(listaDaCurta({ "927493": "2", "926828": "2" })).toEqual(["Francinei", "Rodrigo"])
+      // Trocou a curta pro Francinei: o Rodrigo sai da lista dela.
+      expect(listaDaCurta({ "927493": "2", "926828": "1" })).toEqual(["Francinei"])
+    })
+
+    it("sem sugestão quando o único compatível ficou com uma viagem sobreposta — mas ele continua na lista (a tela filtra pelas escolhas atuais)", () => {
       const unico = comAgenda({ id: 1, nome: "Ana", diasTrabalhados: 1 })
       const hoje = new Date("2026-07-04T00:00:00")
 
@@ -1128,7 +1172,8 @@ describe("alocacao.service", () => {
 
       expect(resultado[0].motoristaSugerido?.id).toBe(1)
       expect(resultado[1].motoristaSugerido).toBeNull()
-      expect(resultado[1].motoristasCompativeis).toEqual([])
+      // Se o escalador tirar a Ana da viagem 10, ela tem que poder ir pra 11.
+      expect(resultado[1].motoristasCompativeis.map((motorista) => motorista.id)).toEqual([1])
     })
   })
 
@@ -1289,5 +1334,37 @@ describe("alocacao.service", () => {
 
       expect(aviso).toBe("Interjornada: motorista teve apenas 0.0h de descanso (mínimo 11h).")
     })
+  })
+})
+
+describe("motoristasOcupadosEmOutraViagem / semOcupadosEmOutraViagem", () => {
+  const viagem = (chave: string, inicio: string, fim: string) => ({
+    chave,
+    inicioPrevisto: new Date(`${inicio}-03:00`),
+    fimPrevisto: new Date(`${fim}-03:00`),
+  })
+  const manha = viagem("A", "2026-10-16T08:00:00", "2026-10-16T15:00:00")
+  const tarde = viagem("B", "2026-10-16T13:00:00", "2026-10-16T20:00:00")
+  const diaSeguinte = viagem("C", "2026-10-17T08:00:00", "2026-10-17T15:00:00") // 12h depois da B
+  const madrugada = viagem("D", "2026-10-17T03:00:00", "2026-10-17T06:00:00") // 7h depois da B
+
+  it("ocupa quem está escolhido em viagem sobreposta ou sem 11h de descanso entre elas", () => {
+    const ocupados = motoristasOcupadosEmOutraViagem([manha, tarde, diaSeguinte, madrugada], { A: "1", B: "2", C: "3", D: "4" })
+
+    expect([...ocupados.A]).toEqual(["2"])
+    expect([...ocupados.B].sort()).toEqual(["1", "4"])
+    expect([...ocupados.C]).toEqual(["4"]) // B terminou 20h, C começa 8h: 12h, livre
+    expect([...ocupados.D].sort()).toEqual(["2", "3"]) // B (7h antes) e C (2h depois); A terminou 12h antes, livre
+  })
+
+  it('sem motorista ("0") ou sem escolha não ocupa ninguém', () => {
+    const ocupados = motoristasOcupadosEmOutraViagem([manha, tarde], { A: "0", B: "" })
+    expect(ocupados.A.size + ocupados.B.size).toBe(0)
+  })
+
+  it("tira os ocupados da lista, mas nunca quem está escolhido nesta viagem", () => {
+    const compativeis = [{ id: 1 }, { id: 2 }, { id: 3 }]
+    expect(semOcupadosEmOutraViagem(compativeis, new Set(["2", "3"]), "3").map((m) => m.id)).toEqual([1, 3])
+    expect(semOcupadosEmOutraViagem(compativeis, undefined, "")).toBe(compativeis)
   })
 })

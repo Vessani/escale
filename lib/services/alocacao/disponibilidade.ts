@@ -178,3 +178,53 @@ export function motoristaEstaDisponivelNoPeriodo(motorista: MotoristaComAgenda, 
 export function filtrarMotoristasDisponiveisNoPeriodo(motoristas: MotoristaComAgenda[], inicioViagem: Date, fimViagem: Date, hoje: Date) {
   return motoristas.filter((motorista) => motoristaEstaDisponivelNoPeriodo(motorista, inicioViagem, fimViagem, hoje))
 }
+
+type ViagemEmRevisao = { chave: string; inicioPrevisto: Date | string; fimPrevisto: Date | string }
+
+/**
+ * Pra cada viagem de uma lista em revisão (lote importado, tela de
+ * alocação), os motoristas escolhidos AGORA em outra viagem da lista com
+ * horário em choque — mesma regra do aviso de conflito (sobreposição ou
+ * menos de 11h entre elas). "0" (sem motorista) e vazio não ocupam ninguém.
+ */
+export function motoristasOcupadosEmOutraViagem(
+  viagens: ViagemEmRevisao[],
+  escolhaPorViagem: Record<string, string>,
+): Record<string, Set<string>> {
+  const ocupados: Record<string, Set<string>> = {}
+  for (const viagem of viagens) {
+    ocupados[viagem.chave] = new Set(
+      viagens
+        .filter((outra) => {
+          const escolhido = escolhaPorViagem[outra.chave]
+          return (
+            outra.chave !== viagem.chave &&
+            Boolean(escolhido) &&
+            escolhido !== "0" &&
+            periodosConflitamComDescanso(
+              new Date(viagem.inicioPrevisto),
+              new Date(viagem.fimPrevisto),
+              new Date(outra.inicioPrevisto),
+              new Date(outra.fimPrevisto),
+            )
+          )
+        })
+        .map((outra) => escolhaPorViagem[outra.chave]),
+    )
+  }
+  return ocupados
+}
+
+/**
+ * Lista de compatíveis de uma viagem sem quem está escolhido em outra com
+ * horário em choque. Quem está escolhido NESTA viagem fica sempre — senão o
+ * seletor perde o valor; o conflito, se houver, aparece no aviso.
+ */
+export function semOcupadosEmOutraViagem<T extends { id: number }>(
+  compativeis: T[],
+  ocupados: Set<string> | undefined,
+  escolhidoAqui: string | undefined,
+): T[] {
+  if (!ocupados || ocupados.size === 0) return compativeis
+  return compativeis.filter((motorista) => String(motorista.id) === escolhidoAqui || !ocupados.has(String(motorista.id)))
+}
