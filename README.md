@@ -136,10 +136,11 @@ proxy.ts                     # proteção de rotas por sessão e papel
 ```bash
 npm install                    # roda prisma generate no postinstall
 cp .env.example .env           # POSTGRES_*, DATABASE_URL, NEXTAUTH_SECRET, NEXTAUTH_URL, TZ
-docker compose up -d           # Postgres 17 em 127.0.0.1:5432 (dados no volume escale-pgdata)
-npx prisma migrate deploy
-npm run dev                    # http://localhost:3000
+scripts/db-local.sh --seed     # Postgres 17 (docker compose) + tabelas + dados de exemplo
+npm run dev                    # http://localhost:3000 — o seed mostra o login do admin e do motorista
 ```
+
+`npx prisma migrate deploy` sozinho não funciona num banco vazio: o histórico de migrations não tem a migration inicial (o banco original nasceu de um `db push`). Num banco vazio, o `scripts/db-local.sh` cria as tabelas pelo `schema.prisma`, os índices únicos parciais e o RLS, e marca as migrations como aplicadas (mesmo estado do Supabase). Num banco que já tem histórico, ele só aplica as migrations novas. Opções: `--reset` apaga o volume e recria do zero (pede confirmação), `--sem-docker` usa um Postgres já rodando. Rodar `--seed` de novo gera senha e PIN novos.
 
 `.env.example` explica cada variável. `DIRECT_URL` só é necessária quando o `DATABASE_URL` passa por pooler em modo transação (Supabase, porta 6543). Para gerar o `NEXTAUTH_SECRET`:
 

@@ -21,6 +21,7 @@ import {
   ChevronsRight,
   FileSpreadsheet,
   History,
+  Hourglass,
 } from "lucide-react"
 import { Session } from "next-auth"
 import { ehGerencia } from "@/lib/papeis"
@@ -63,6 +64,7 @@ const menuItemsOperacional = [
   { href: "/viagens/alocacao", label: "Alocação", icon: Route },
   { href: "/motorista", label: "Motoristas", icon: Users },
   { href: "/motorista/sem-viagem", label: "Motoristas Ociosos", icon: UserX },
+  { href: "/estouros", label: "Estouros de Jornada", icon: Hourglass },
   { href: "/frotas", label: "Frotas", icon: Container },
   { href: "/clientes", label: "Clientes", icon: Building },
   { href: "/relatorios", label: "Relatórios", icon: FileSpreadsheet },

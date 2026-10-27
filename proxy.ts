@@ -39,6 +39,8 @@ export default withAuth(
 export const config = {
   matcher: [
     // Ícones e manifest ficam fora: a aba e a tela de login (sem sessão) precisam deles.
-    "/((?!api|_next/static|_next/image|favicon.ico|icon.svg|apple-icon.png|icone-|manifest.webmanifest|login).*)",
+    // aprovar-estouro: página aberta pelo link do grupo de WhatsApp, sem login —
+    // quem autoriza é o token do link (ver lib/services/estouro-jornada.service.ts).
+    "/((?!api|_next/static|_next/image|favicon.ico|icon.svg|apple-icon.png|icone-|manifest.webmanifest|login|aprovar-estouro).*)",
   ],
 }
