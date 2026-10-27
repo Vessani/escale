@@ -135,7 +135,8 @@ proxy.ts                     # proteção de rotas por sessão e papel
 
 ```bash
 npm install                    # roda prisma generate no postinstall
-cp .env.example .env.local     # DATABASE_URL, NEXTAUTH_SECRET, NEXTAUTH_URL, TZ
+cp .env.example .env           # POSTGRES_*, DATABASE_URL, NEXTAUTH_SECRET, NEXTAUTH_URL, TZ
+docker compose up -d           # Postgres 17 em 127.0.0.1:5432 (dados no volume escale-pgdata)
 npx prisma migrate deploy
 npm run dev                    # http://localhost:3000
 ```
