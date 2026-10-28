@@ -158,7 +158,7 @@ export async function buscarMotoristasParaSelect(filialId: number, turnoDaViagem
  * (folga.service.ts), só que aqui pra listar todo mundo de uma vez em vez
  * de reconciliar reativamente um motorista específico.
  */
-export async function buscarMotoristasSemViagemHoje(filialId: number, dataReferencia = new Date()) {
+export async function buscarMotoristasSemViagemNoDia(filialId: number, dataReferencia = new Date()) {
   const inicioDia = inicioDoDia(dataReferencia)
   const fimDia = fimDoDia(dataReferencia)
   const filtroAtividadeNoDia = {

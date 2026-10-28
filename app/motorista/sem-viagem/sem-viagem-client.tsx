@@ -22,7 +22,7 @@ type MotoristaSemViagem = {
   seva: number
   turno: "MANHA" | "NOITE"
   tipo: TipoMotorista
-  codigoHoje: number
+  codigoNoDia: number
   acao: AcaoSugerida
 }
 
@@ -30,9 +30,11 @@ type Props = {
   motoristas: MotoristaSemViagem[]
   /** Dia de referência no formato YYYY-MM-DD, pra registrar a jornada no dia certo. */
   dataReferencia: string
+  /** "hoje" ou "amanhã" — entra nos textos dos botões e da coluna. */
+  rotuloDia: string
 }
 
-export default function SemViagemClient({ motoristas, dataReferencia }: Props) {
+export default function SemViagemClient({ motoristas, dataReferencia, rotuloDia }: Props) {
   const router = useRouter()
   const [motoristaSalvando, setMotoristaSalvando] = useState<number | null>(null)
   const [mensagemErro, setMensagemErro] = useState("")
@@ -65,7 +67,7 @@ export default function SemViagemClient({ motoristas, dataReferencia }: Props) {
 
   const renderLinhas = (lista: MotoristaSemViagem[]) =>
     lista.map((motorista) => {
-      const statusJornada = obterStatusJornada(motorista.codigoHoje)
+      const statusJornada = obterStatusJornada(motorista.codigoNoDia)
       const salvando = motoristaSalvando === motorista.id
 
       return (
@@ -84,7 +86,7 @@ export default function SemViagemClient({ motoristas, dataReferencia }: Props) {
             </Badge>
           </TableCell>
           <TableCell>
-            <span className={`rounded px-2 py-0.5 text-xs font-semibold ${classeBadgeJornada(motorista.codigoHoje)}`}>
+            <span className={`rounded px-2 py-0.5 text-xs font-semibold ${classeBadgeJornada(motorista.codigoNoDia)}`}>
               {statusJornada.texto}
             </span>
           </TableCell>
@@ -93,7 +95,7 @@ export default function SemViagemClient({ motoristas, dataReferencia }: Props) {
             {!somenteLeitura && motorista.acao.tipo === "DAR_FOLGA" && (
               <div className="flex flex-wrap gap-2">
                 <Button size="sm" variant="outline" disabled={salvando || isPending} onClick={() => aplicarAcao(motorista.id, 7)}>
-                  {salvando ? "Salvando..." : "Dar folga hoje"}
+                  {salvando ? "Salvando..." : `Dar folga ${rotuloDia}`}
                 </Button>
                 <Button size="sm" variant="outline" disabled={salvando || isPending} onClick={() => aplicarAcao(motorista.id, 10)}>
                   Marcar como Interno
@@ -139,7 +141,7 @@ export default function SemViagemClient({ motoristas, dataReferencia }: Props) {
                   <TableHead>Motorista</TableHead>
                   <TableHead>Matrícula</TableHead>
                   <TableHead>Turno</TableHead>
-                  <TableHead>Status hoje</TableHead>
+                  <TableHead>Status {rotuloDia}</TableHead>
                   <TableHead>Sugestão</TableHead>
                   <TableHead>Ação</TableHead>
                 </TableRow>
@@ -160,7 +162,7 @@ export default function SemViagemClient({ motoristas, dataReferencia }: Props) {
                   <TableHead>Motorista</TableHead>
                   <TableHead>Matrícula</TableHead>
                   <TableHead>Turno</TableHead>
-                  <TableHead>Status hoje</TableHead>
+                  <TableHead>Status {rotuloDia}</TableHead>
                   <TableHead>Sugestão</TableHead>
                   <TableHead>Ação</TableHead>
                 </TableRow>
