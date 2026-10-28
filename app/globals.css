@@ -146,3 +146,26 @@
     @apply bg-background text-foreground;
   }
 }
+
+/* Barra de rolagem fina e discreta para fundos escuros (menu lateral). */
+@utility scroll-discreto {
+  scrollbar-width: thin;
+  scrollbar-color: rgb(255 255 255 / 0.15) transparent;
+
+  &::-webkit-scrollbar {
+    width: 6px;
+  }
+  &::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  &::-webkit-scrollbar-thumb {
+    background: rgb(255 255 255 / 0.15);
+    border-radius: 9999px;
+  }
+  &::-webkit-scrollbar-thumb:hover {
+    background: rgb(255 255 255 / 0.3);
+  }
+  &::-webkit-scrollbar-button {
+    display: none;
+  }
+}
