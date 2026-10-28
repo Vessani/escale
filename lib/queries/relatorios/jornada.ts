@@ -1,11 +1,22 @@
 import { prisma } from "@/lib/prisma"
-import type { JornadaReal, MotoristaJornada } from "@/lib/services/relatorios/jornada-analise"
+import {
+  HORAS_ANTECEDENCIA_AUTORIZACAO,
+  type AutorizacaoEstouro,
+  type JornadaReal,
+  type MotoristaJornada,
+} from "@/lib/services/relatorios/jornada-analise"
 import type { ViagemCircadiano } from "@/lib/services/circadiano.service"
 
 const UM_DIA_MS = 24 * 60 * 60 * 1000
 
 /** Dias antes do período carregados a mais: o descanso da 1ª jornada do período depende da última antes dele. */
 const DIAS_ANTES_PARA_DESCANSO = 3
+
+/**
+ * Ciclo de 72h: o ciclo que cruza o início do período pode ter começado bem
+ * antes (6 dias de trabalho + folgas curtas). 3 semanas cobrem com folga.
+ */
+export const DIAS_ANTES_PARA_CICLO = 21
 
 type DadosJornada = {
   motoristas: MotoristaJornada[]
@@ -19,8 +30,13 @@ type DadosJornada = {
  * descanso — e as viagens do Escale nesse intervalo, pra dizer o que cada
  * jornada estava fazendo.
  */
-export async function carregarDadosJornada(filialId: number, de: Date, ate: Date): Promise<DadosJornada> {
-  const desde = new Date(de.getTime() - DIAS_ANTES_PARA_DESCANSO * UM_DIA_MS)
+export async function carregarDadosJornada(
+  filialId: number,
+  de: Date,
+  ate: Date,
+  { diasAntes = DIAS_ANTES_PARA_DESCANSO }: { diasAntes?: number } = {},
+): Promise<DadosJornada> {
+  const desde = new Date(de.getTime() - diasAntes * UM_DIA_MS)
 
   const [motoristas, registros, viagens] = await Promise.all([
     prisma.motorista.findMany({
@@ -75,4 +91,33 @@ export async function carregarDadosJornada(filialId: number, de: Date, ate: Date
   )
 
   return { motoristas, jornadas, viagens }
+}
+
+/**
+ * Pedidos de estouro APROVADOS pelo gestor (link do grupo) que podem cair nas
+ * jornadas de `desde` a `ate` — o "quem autorizou" dos relatórios de estouro.
+ * Vem do pedido pelo app do motorista e do escalador.
+ */
+export async function buscarAutorizacoesEstouro(filialId: number, desde: Date, ate: Date): Promise<AutorizacaoEstouro[]> {
+  return prisma.estouroJornada.findMany({
+    where: {
+      filialId,
+      status: "APROVADO",
+      criadoEm: {
+        gte: new Date(desde.getTime() - HORAS_ANTECEDENCIA_AUTORIZACAO * 60 * 60 * 1000),
+        lte: new Date(ate.getTime() + UM_DIA_MS),
+      },
+    },
+    orderBy: { criadoEm: "asc" },
+    select: {
+      id: true,
+      motoristaId: true,
+      criadoEm: true,
+      decididoEm: true,
+      decididoPorNome: true,
+      minutosExtras: true,
+      motivos: true,
+      pedidoPeloMotorista: true,
+    },
+  })
 }

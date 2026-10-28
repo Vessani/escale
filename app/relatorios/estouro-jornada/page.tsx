@@ -11,11 +11,11 @@ import {
   MolduraTabela,
   textoFrota,
 } from "@/components/relatorio/pagina-relatorio"
-import { carregarDadosJornada } from "@/lib/queries/relatorios/jornada"
+import { carregarEstourosDeJornada } from "@/lib/queries/relatorios/estouros"
+import { AutorizacaoEstouroCelula } from "@/components/relatorio/autorizacao-estouro"
 import { OPCOES_HORAS_ESTOURO_JORNADA, PERIODO_PADRAO, parseHorasEstouroJornada } from "@/lib/relatorios/catalogo"
 import { periodoOuPadrao } from "@/lib/relatorios/periodo"
 import { formatarDiaCurto, formatarDuracao, formatarHorarioRelativo } from "@/lib/relatorios/formato"
-import { estourosDeJornada } from "@/lib/services/relatorios/jornada-analise"
 import { formatarNomeProprio } from "@/lib/utils/texto"
 
 type SearchParamsInput = { de?: string; ate?: string; horas?: string }
@@ -25,13 +25,21 @@ export default async function EstouroJornadaPage({ searchParams }: { searchParam
   const { filialId } = await requireSessaoPaginaComFilial(PAPEIS_LEITURA)
   const periodo = periodoOuPadrao(parametros.de, parametros.ate, PERIODO_PADRAO.estouroJornada)
   const limite = parseHorasEstouroJornada(parametros.horas)
-  const dados = await carregarDadosJornada(filialId, periodo.de, periodo.ate)
-  const ocorrencias = estourosDeJornada(dados.motoristas, dados.jornadas, dados.viagens, periodo.de, periodo.ate, limite)
+  const ocorrencias = await carregarEstourosDeJornada(filialId, periodo, limite)
+  const semAutorizacao = ocorrencias.filter((o) => o.autorizacoes.length === 0).length
 
   return (
     <div className="space-y-6">
       <CabecalhoRelatorio titulo="Estouro de jornada">
-        Jornadas reais (relatório de jornada) que passaram de <strong>{limite}h</strong> do início ao fim.
+        Jornadas reais (relatório de jornada) que passaram de <strong>{limite}h</strong> do início ao fim, e quem autorizou o estouro
+        (pedido aprovado pelo gestor no grupo da filial).
+        {ocorrencias.length > 0 && (
+          <>
+            {" "}
+            <strong className={semAutorizacao > 0 ? "text-warning" : undefined}>{semAutorizacao}</strong> de {ocorrencias.length} sem
+            autorização.
+          </>
+        )}
       </CabecalhoRelatorio>
 
       <FiltroRelatorio
@@ -74,6 +82,7 @@ export default async function EstouroJornadaPage({ searchParams }: { searchParam
                 <TableHead>Fim</TableHead>
                 <TableHead>Duração</TableHead>
                 <TableHead>Passou</TableHead>
+                <TableHead>Autorizado por</TableHead>
                 <TableHead>Atividade</TableHead>
                 <TableHead>Nº Viagem</TableHead>
                 <TableHead>Frota</TableHead>
@@ -91,6 +100,9 @@ export default async function EstouroJornadaPage({ searchParams }: { searchParam
                   <TableCell className="font-mono tabular-nums">{formatarHorarioRelativo(item.fim, item.inicio)}</TableCell>
                   <TableCell className="tabular-nums font-medium">{formatarDuracao(item.duracaoMinutos)}</TableCell>
                   <TableCell className="tabular-nums text-destructive">+{formatarDuracao(item.excedenteMinutos)}</TableCell>
+                  <TableCell>
+                    <AutorizacaoEstouroCelula autorizacoes={item.autorizacoes} />
+                  </TableCell>
                   <TableCell>
                     <BadgeAtividade atividade={item.atividade} />
                   </TableCell>
