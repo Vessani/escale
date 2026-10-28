@@ -14,6 +14,7 @@ import { classeBadgeJornada } from "../jornada-status"
 import type { TipoMotorista } from "@prisma/client"
 import { NomeMotorista } from "@/components/motorista/icone-tipo-motorista"
 import { chamarAcao } from "@/lib/chamar-acao"
+import { useSomenteLeitura } from "@/components/layout/somente-leitura"
 
 type MotoristaSemViagem = {
   id: number
@@ -36,6 +37,8 @@ export default function SemViagemClient({ motoristas, dataReferencia }: Props) {
   const [motoristaSalvando, setMotoristaSalvando] = useState<number | null>(null)
   const [mensagemErro, setMensagemErro] = useState("")
   const [isPending, startTransition] = useTransition()
+  // Torre: vê a sugestão (coluna ao lado), sem os botões que mudam a jornada.
+  const somenteLeitura = useSomenteLeitura()
 
   const { acionaveis, semAcao } = useMemo(() => {
     const acionaveis = motoristas.filter((motorista) => motorista.acao.tipo !== "NENHUMA")
@@ -87,7 +90,7 @@ export default function SemViagemClient({ motoristas, dataReferencia }: Props) {
           </TableCell>
           <TableCell className="max-w-xs whitespace-normal text-foreground/80">{motorista.acao.texto}</TableCell>
           <TableCell>
-            {motorista.acao.tipo === "DAR_FOLGA" && (
+            {!somenteLeitura && motorista.acao.tipo === "DAR_FOLGA" && (
               <div className="flex flex-wrap gap-2">
                 <Button size="sm" variant="outline" disabled={salvando || isPending} onClick={() => aplicarAcao(motorista.id, 7)}>
                   {salvando ? "Salvando..." : "Dar folga hoje"}
@@ -100,12 +103,12 @@ export default function SemViagemClient({ motoristas, dataReferencia }: Props) {
                 </Button>
               </div>
             )}
-            {motorista.acao.tipo === "REVISAR_INTERNO" && (
+            {!somenteLeitura && motorista.acao.tipo === "REVISAR_INTERNO" && (
               <Button size="sm" variant="outline" disabled={salvando || isPending} onClick={() => aplicarAcao(motorista.id, 1)}>
                 {salvando ? "Salvando..." : "Tirar de Interno"}
               </Button>
             )}
-            {motorista.acao.tipo === "REVISAR_MANUTENCAO" && (
+            {!somenteLeitura && motorista.acao.tipo === "REVISAR_MANUTENCAO" && (
               <Button size="sm" variant="outline" disabled={salvando || isPending} onClick={() => aplicarAcao(motorista.id, 1)}>
                 {salvando ? "Salvando..." : "Tirar de Manutenção"}
               </Button>

@@ -1,5 +1,6 @@
 import { BedDouble, CalendarX, Clock, ListOrdered, MoonStar, ShieldCheck, Timer, TriangleAlert, Truck, Users, Wallet } from "lucide-react"
 import { requireSessaoPaginaComFilial } from "@/lib/auth-guard"
+import { PAPEIS_LEITURA } from "@/lib/papeis"
 import { buscarIndicadoresDashboard } from "@/lib/queries/dashboard"
 import { buscarRelatorioCircadiano } from "@/lib/queries/circadiano"
 import { buscarEstourosSetimoDia } from "@/lib/queries/estouro-setimo-dia"
@@ -21,7 +22,7 @@ export default async function RelatoriosPage({ searchParams }: { searchParams?: 
   const periodoCircadiano = periodoOuPadrao(undefined, undefined, PERIODO_PADRAO.circadiano)
   const periodoSetimoDia = periodoOuPadrao(undefined, undefined, PERIODO_PADRAO.estouroSetimoDia)
 
-  const { filialId } = await requireSessaoPaginaComFilial()
+  const { filialId } = await requireSessaoPaginaComFilial(PAPEIS_LEITURA)
   const [indicadores, circadiano, estourosSetimoDia, alertas] = await Promise.all([
     buscarIndicadoresDashboard(filialId, periodoIndicadores.de, periodoIndicadores.ate),
     buscarRelatorioCircadiano(filialId, periodoCircadiano.de, periodoCircadiano.ate),

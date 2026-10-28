@@ -12,12 +12,19 @@ import { cancelarEstouro, cancelarMeuEstouro, reenviarLinkEstouro, reenviarMeuLi
 import { chamarAcao } from "@/lib/chamar-acao"
 import type { LinkGerado } from "@/lib/services/estouro-jornada.service"
 import { PainelEnvioWhatsApp } from "@/components/estouro/painel-envio-whatsapp"
+import { useSomenteLeitura } from "@/components/layout/somente-leitura"
 
 /**
  * Ações de um pedido ainda sem resposta: mandar um link novo ou cancelar.
  * `doMotorista`: usada na área do motorista (actions que só mexem nos pedidos dele).
  */
-export function AcoesEstouro({ id, motorista, doMotorista = false }: { id: number; motorista: string; doMotorista?: boolean }) {
+export function AcoesEstouro(props: { id: number; motorista: string; doMotorista?: boolean }) {
+  // Torre só acompanha: quem reenvia o link ou cancela é a filial.
+  const somenteLeitura = useSomenteLeitura()
+  return somenteLeitura ? null : <AcoesEstouroEditaveis {...props} />
+}
+
+function AcoesEstouroEditaveis({ id, motorista, doMotorista = false }: { id: number; motorista: string; doMotorista?: boolean }) {
   const router = useRouter()
   const [pendente, iniciarTransicao] = useTransition()
   const [erro, setErro] = useState<string | null>(null)

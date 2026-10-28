@@ -1,7 +1,8 @@
 import { getServerSession } from "next-auth"
 import { authOptions } from "@/lib/auth"
 import { NaoAutorizadoError } from "@/lib/errors"
-import { ehMotorista } from "@/lib/papeis"
+import { ehMotorista, ehTorre } from "@/lib/papeis"
+import { filialDaTorre } from "@/lib/torre"
 
 /**
  * Autenticação pra route handlers (app/api/**\/route.ts) — mesma checagem de
@@ -13,14 +14,23 @@ import { ehMotorista } from "@/lib/papeis"
  * resto do app (ver respostaErro em lib/api-response.ts) — SUPERADMIN
  * (sem filial) também cai aqui, já que toda rota exposta hoje é operacional,
  * escopada por filial.
+ *
+ * A torre entra: toda rota daqui é só leitura (GET de listas, relatórios e
+ * Excel), na filial que ela escolheu no menu. Rota nova que grave algo
+ * precisa barrar a torre.
  */
 export async function requireSessaoApi() {
   const session = await getServerSession(authOptions)
 
   // Motorista não usa nenhuma rota de API (relatórios, Excel, listas).
-  if (!session || session.user.filialId === null || ehMotorista(session.user.role)) {
+  if (!session || ehMotorista(session.user.role)) {
     throw new NaoAutorizadoError()
   }
 
-  return { session, filialId: session.user.filialId }
+  const filialId = ehTorre(session.user.role) ? await filialDaTorre() : session.user.filialId
+  if (filialId === null) {
+    throw new NaoAutorizadoError()
+  }
+
+  return { session, filialId }
 }

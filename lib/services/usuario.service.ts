@@ -1,11 +1,11 @@
 import bcrypt from "bcrypt"
 import { prisma } from "@/lib/prisma"
 import { ErroDeDominio } from "@/lib/errors"
-import type { UsuarioFormValues } from "@/lib/validation/usuarios"
+import { PAPEIS_SEM_FILIAL, type UsuarioFormValues } from "@/lib/validation/usuarios"
 import { registrarAuditoria, type Ator } from "./auditoria.service"
 
 /**
- * Usuários do sistema (Superadmin, Admin, Despachante). Usuário nunca é
+ * Usuários do sistema (Superadmin, Admin, Despachante, Torre). Usuário nunca é
  * apagado — a auditoria guarda quem fez cada coisa — e senha/hash nunca vão
  * pra auditoria.
  */
@@ -14,7 +14,7 @@ const CUSTO_HASH_SENHA = 10
 
 export async function criarUsuarioService(dados: UsuarioFormValues, ator: Ator | null) {
   const senhaHash = await bcrypt.hash(dados.senha, CUSTO_HASH_SENHA)
-  const filialId = dados.role === "SUPERADMIN" ? null : dados.filialId
+  const filialId = PAPEIS_SEM_FILIAL.includes(dados.role) ? null : dados.filialId
 
   return prisma.$transaction(async (tx) => {
     // O login ignora maiúsculas no e-mail — então o cadastro também precisa.

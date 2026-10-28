@@ -49,7 +49,7 @@ export default async function UsuariosPage() {
                   <TableCell>
                     <Badge variant="outline">{usuario.role}</Badge>
                   </TableCell>
-                  <TableCell>{usuario.filial?.nome ?? "-"}</TableCell>
+                  <TableCell>{usuario.role === "TORRE" ? "Todas" : (usuario.filial?.nome ?? "-")}</TableCell>
                   <TableCell>
                     {usuario.ativo ? (
                       <Badge

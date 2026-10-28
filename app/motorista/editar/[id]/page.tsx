@@ -5,7 +5,7 @@ import { buscarClientes } from "@/lib/queries/clientes"
 import { buscarHistoricoDaEntidade } from "@/lib/queries/auditoria"
 import FormEditarMotorista from "./form-editar"
 import { HistoricoCard } from "@/components/auditoria/historico-card"
-import { ehGerencia } from "@/lib/papeis"
+import { veHistorico } from "@/lib/papeis"
 import { serializeData } from "@/lib/serialization"
 import { completarFolgasDoRelatorio, mapearRegistrosJornada, projetarCodigoNoDia } from "@/lib/services/jornada.service"
 import { buscarCoberturaRelatorioJornada } from "@/lib/queries/filiais"
@@ -21,8 +21,8 @@ export default async function EditarMotoristaPage({ params }: { params: Promise<
     notFound()
   }
 
-  const { filialId, session } = await requireSessaoPaginaComFilial()
-  const verHistorico = ehGerencia(session.user.role)
+  const { filialId, session } = await requireSessaoPaginaComFilial(undefined, { destinoDaTorre: "/motorista" })
+  const verHistorico = veHistorico(session.user.role)
 
   const [motorista, clientes, historico, acesso, coberturaRelatorio] = await Promise.all([
     buscarMotoristaPorId(filialId, motoristaId),

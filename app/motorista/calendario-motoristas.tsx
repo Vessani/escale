@@ -23,6 +23,7 @@ import { NomeMotorista } from "@/components/motorista/icone-tipo-motorista"
 import { AcoesLinha, BotaoIcone } from "@/components/ui/botao-icone"
 import { Pencil, Trash2 } from "lucide-react"
 import { chamarAcao } from "@/lib/chamar-acao"
+import { useSomenteLeitura } from "@/components/layout/somente-leitura"
 
 type Viagem = {
   id: number
@@ -85,6 +86,8 @@ type Props = {
 }
 
 export default function CalendarioMotoristas({ inicioParam, hojeIso, relatorioJornadaAteIso, dias, motoristas, podeExcluir }: Props) {
+  // Torre: vê o calendário, sem trocar o status do dia nem abrir a edição.
+  const somenteLeitura = useSomenteLeitura()
   const router = useRouter()
   const [celulaEmEdicao, setCelulaEmEdicao] = useState<string | null>(null)
   const [celulaSalvando, setCelulaSalvando] = useState<string | null>(null)
@@ -238,15 +241,23 @@ export default function CalendarioMotoristas({ inicioParam, hojeIso, relatorioJo
                     >
                       <div className="space-y-2">
                         <div className="flex items-center justify-between gap-2">
-                          <Link
-                            href={`/motorista/editar/${motorista.id}`}
-                            className="min-w-0 font-semibold text-foreground hover:text-primary"
-                          >
-                            <NomeMotorista nome={motorista.nome} tipo={motorista.tipo} />
-                          </Link>
+                          {somenteLeitura ? (
+                            <span className="min-w-0 font-semibold text-foreground">
+                              <NomeMotorista nome={motorista.nome} tipo={motorista.tipo} />
+                            </span>
+                          ) : (
+                            <Link
+                              href={`/motorista/editar/${motorista.id}`}
+                              className="min-w-0 font-semibold text-foreground hover:text-primary"
+                            >
+                              <NomeMotorista nome={motorista.nome} tipo={motorista.tipo} />
+                            </Link>
+                          )}
                           <div className="flex shrink-0 items-center gap-1">
                             <AcoesLinha>
-                              <BotaoIcone href={`/motorista/editar/${motorista.id}`} rotulo="Editar motorista" icone={Pencil} />
+                              {!somenteLeitura && (
+                                <BotaoIcone href={`/motorista/editar/${motorista.id}`} rotulo="Editar motorista" icone={Pencil} />
+                              )}
                               {podeExcluir && (
                                 <BotaoIcone
                                   rotulo={motoristaExcluindoId === motorista.id ? "Excluindo..." : "Excluir motorista"}
@@ -325,6 +336,12 @@ export default function CalendarioMotoristas({ inicioParam, hojeIso, relatorioJo
                                     </option>
                                   ))}
                                 </select>
+                              ) : somenteLeitura ? (
+                                <span
+                                  className={`w-full rounded px-2 py-0.5 text-center text-xs font-semibold ${classeBadgeJornada(codigoNoDia)}`}
+                                >
+                                  {statusNoDia.texto}
+                                </span>
                               ) : (
                                 <button
                                   type="button"

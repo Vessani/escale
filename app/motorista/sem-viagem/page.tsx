@@ -1,6 +1,7 @@
 import { UserX } from "lucide-react"
 import { EmptyState } from "@/components/ui/empty-state"
 import { requireSessaoPaginaComFilial } from "@/lib/auth-guard"
+import { PAPEIS_LEITURA } from "@/lib/papeis"
 import { buscarMotoristasSemViagemHoje, contarMotoristasAtivos } from "@/lib/queries/motoristas"
 import { completarFolgasDoRelatorio, mapearRegistrosJornada, projetarCodigoNoDia } from "@/lib/services/jornada.service"
 import { buscarCoberturaRelatorioJornada } from "@/lib/queries/filiais"
@@ -9,7 +10,7 @@ import { formatarDataDia } from "../calendario-utils"
 import SemViagemClient from "./sem-viagem-client"
 
 export default async function MotoristasSemViagemPage() {
-  const { filialId } = await requireSessaoPaginaComFilial()
+  const { filialId } = await requireSessaoPaginaComFilial(PAPEIS_LEITURA)
   const hoje = new Date()
 
   const [motoristas, totalMotoristas, coberturaRelatorio] = await Promise.all([

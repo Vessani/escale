@@ -8,7 +8,7 @@ import { inicioDoDia } from "@/lib/utils/date-format"
 import { notFound } from "next/navigation"
 import FormEditarViagem from "./form-editar"
 import { HistoricoCard } from "@/components/auditoria/historico-card"
-import { ehGerencia } from "@/lib/papeis"
+import { veHistorico } from "@/lib/papeis"
 import { soEntregasDeCliente } from "@/lib/services/entrega-cliente"
 import { serializeData } from "@/lib/serialization"
 import Link from "next/link"
@@ -27,8 +27,9 @@ export default async function EditarViagemPage({ params }: { params: Promise<{ i
     notFound()
   }
 
-  const { filialId, session } = await requireSessaoPaginaComFilial()
-  const verHistorico = ehGerencia(session.user.role)
+  // A torre (só consulta) vê a viagem pelo relatório, que não tem edição.
+  const { filialId, session } = await requireSessaoPaginaComFilial(undefined, { destinoDaTorre: `/viagens/relatorio/${viagemId}` })
+  const verHistorico = veHistorico(session.user.role)
 
   const viagem = await buscarViagemPorId(filialId, viagemId)
 

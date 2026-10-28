@@ -1,6 +1,7 @@
 import Link from "next/link"
 import { TriangleAlert } from "lucide-react"
 import { requireSessaoPaginaComFilial } from "@/lib/auth-guard"
+import { PAPEIS_LEITURA } from "@/lib/papeis"
 import { Alert } from "@/components/ui/alert"
 import { Badge } from "@/components/ui/badge"
 import { EmptyState } from "@/components/ui/empty-state"
@@ -20,7 +21,7 @@ type SearchParamsInput = { de?: string; ate?: string }
 
 export default async function ViagensComAvisoPage({ searchParams }: { searchParams?: Promise<SearchParamsInput> }) {
   const parametros = (await searchParams) ?? {}
-  const { filialId } = await requireSessaoPaginaComFilial()
+  const { filialId } = await requireSessaoPaginaComFilial(PAPEIS_LEITURA)
   const periodo = periodoOuPadrao(parametros.de, parametros.ate, PERIODO_PADRAO.avisos)
   const viagens = await buscarViagensComAviso(filialId, periodo.de, periodo.ate)
 

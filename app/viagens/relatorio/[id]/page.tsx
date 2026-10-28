@@ -5,26 +5,28 @@ import { requireSessaoPaginaComFilial } from "@/lib/auth-guard"
 import { Button } from "@/components/ui/button"
 import { RelatorioViagemConteudo } from "@/components/viagem/relatorio-viagem-conteudo"
 import { carregarRelatorioViagem } from "@/lib/relatorios/relatorio-viagem"
-import { ehGerencia } from "@/lib/papeis"
+import { PAPEIS_LEITURA, ehTorre, veHistorico } from "@/lib/papeis"
 
 export const metadata = { title: "Relatório da viagem" }
 
 /** Escalador: relatório da viagem com "Baixar Excel". */
 export default async function RelatorioViagemPage({ params }: { params: Promise<{ id: string }> }) {
-  const { filialId, session } = await requireSessaoPaginaComFilial()
+  const { filialId, session } = await requireSessaoPaginaComFilial(PAPEIS_LEITURA)
   const id = Number((await params).id)
   const r =
-    Number.isInteger(id) && id > 0 ? await carregarRelatorioViagem(filialId, id, { comLinhaDoTempo: ehGerencia(session.user.role) }) : null
+    Number.isInteger(id) && id > 0 ? await carregarRelatorioViagem(filialId, id, { comLinhaDoTempo: veHistorico(session.user.role) }) : null
   if (!r) notFound()
+  // A torre não abre a edição: volta pra lista.
+  const somenteLeitura = ehTorre(session.user.role)
 
   return (
     <div className="mx-auto max-w-5xl space-y-5">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <Link
-          href={`/viagens/editar/${r.id}`}
+          href={somenteLeitura ? "/viagens" : `/viagens/editar/${r.id}`}
           className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground"
         >
-          <ArrowLeft className="size-4" aria-hidden /> Voltar para a viagem
+          <ArrowLeft className="size-4" aria-hidden /> {somenteLeitura ? "Voltar para as viagens" : "Voltar para a viagem"}
         </Link>
         <Button asChild>
           <a href={`/api/viagens/${r.id}/relatorio`}>

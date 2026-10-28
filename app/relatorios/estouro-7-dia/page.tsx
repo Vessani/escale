@@ -1,5 +1,6 @@
 import { CalendarX } from "lucide-react"
 import { requireSessaoPaginaComFilial } from "@/lib/auth-guard"
+import { PAPEIS_LEITURA } from "@/lib/papeis"
 import { Badge } from "@/components/ui/badge"
 import { EmptyState } from "@/components/ui/empty-state"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
@@ -46,7 +47,7 @@ function Ocorrencia({ estouro }: { estouro: EstouroSetimoDia }) {
 
 export default async function EstouroSetimoDiaPage({ searchParams }: { searchParams?: Promise<SearchParamsInput> }) {
   const parametros = (await searchParams) ?? {}
-  const { filialId } = await requireSessaoPaginaComFilial()
+  const { filialId } = await requireSessaoPaginaComFilial(PAPEIS_LEITURA)
   const periodo = periodoOuPadrao(parametros.de, parametros.ate, PERIODO_PADRAO.estouroSetimoDia)
   const estouros = await buscarEstourosSetimoDia(filialId, periodo.de, periodo.ate)
 

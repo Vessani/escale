@@ -1,6 +1,7 @@
 import Link from "next/link"
 import { BedDouble, Gauge, Route, Ticket } from "lucide-react"
 import { requireSessaoPaginaComFilial } from "@/lib/auth-guard"
+import { PAPEIS_LEITURA } from "@/lib/papeis"
 import { EmptyState } from "@/components/ui/empty-state"
 import { StatCard } from "@/components/ui/stat-card"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
@@ -22,7 +23,7 @@ type SearchParamsInput = { de?: string; ate?: string; motorista?: string }
 /** Todas as viagens do período, uma por linha — o resumo pra conferir km, despesas e por onde passou. */
 export default async function RelatorioViagensPage({ searchParams }: { searchParams?: Promise<SearchParamsInput> }) {
   const parametros = (await searchParams) ?? {}
-  const { filialId } = await requireSessaoPaginaComFilial()
+  const { filialId } = await requireSessaoPaginaComFilial(PAPEIS_LEITURA)
   const periodo = periodoOuPadrao(parametros.de, parametros.ate, PERIODO_PADRAO.viagens)
   const motoristaId = parseMotoristaFiltro(parametros.motorista)
   const [viagens, motoristas] = await Promise.all([

@@ -12,7 +12,7 @@ import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, For
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { PlusCircle } from "lucide-react"
 import { criarUsuario } from "@/lib/actions/usuarios"
-import { usuarioSchema, type UsuarioFormValues } from "@/lib/validation/usuarios"
+import { PAPEIS_SEM_FILIAL, usuarioSchema, type UsuarioFormValues } from "@/lib/validation/usuarios"
 import { chamarAcao } from "@/lib/chamar-acao"
 
 type Props = {
@@ -29,7 +29,7 @@ export default function CriarUsuarioForm({ filiais }: Props) {
   })
 
   const roleSelecionado = useWatch({ control: form.control, name: "role" })
-  const ehSuperAdmin = roleSelecionado === "SUPERADMIN"
+  const semFilial = PAPEIS_SEM_FILIAL.includes(roleSelecionado)
 
   const handleSubmit: SubmitHandler<UsuarioFormValues> = async (dados) => {
     setErro(null)
@@ -49,7 +49,8 @@ export default function CriarUsuarioForm({ filiais }: Props) {
       <CardHeader className="bg-muted border-b">
         <CardTitle className="text-lg">Novo usuário</CardTitle>
         <CardDescription>
-          ADMIN e DESPACHANTE pertencem a uma filial e só enxergam os dados dela. SUPERADMIN não pertence a nenhuma.
+          ADMIN e DESPACHANTE pertencem a uma filial e só enxergam os dados dela. TORRE acompanha todas as filiais, só consultando.
+          SUPERADMIN não pertence a nenhuma.
         </CardDescription>
       </CardHeader>
       <CardContent className="pt-6">
@@ -111,7 +112,7 @@ export default function CriarUsuarioForm({ filiais }: Props) {
                       value={field.value}
                       onValueChange={(value) => {
                         field.onChange(value)
-                        if (value === "SUPERADMIN") {
+                        if (PAPEIS_SEM_FILIAL.includes(value)) {
                           form.setValue("filialId", null)
                         }
                       }}
@@ -124,6 +125,7 @@ export default function CriarUsuarioForm({ filiais }: Props) {
                       <SelectContent>
                         <SelectItem value="DESPACHANTE">Despachante</SelectItem>
                         <SelectItem value="ADMIN">Admin</SelectItem>
+                        <SelectItem value="TORRE">Torre (todas as filiais, só consulta)</SelectItem>
                         <SelectItem value="SUPERADMIN">Superadmin (sem filial)</SelectItem>
                       </SelectContent>
                     </Select>
@@ -139,13 +141,13 @@ export default function CriarUsuarioForm({ filiais }: Props) {
                   <FormItem>
                     <FormLabel>Filial</FormLabel>
                     <Select
-                      disabled={ehSuperAdmin}
+                      disabled={semFilial}
                       value={field.value ? String(field.value) : ""}
                       onValueChange={(value) => field.onChange(Number(value))}
                     >
                       <FormControl>
                         <SelectTrigger>
-                          <SelectValue placeholder={ehSuperAdmin ? "Não se aplica" : "Selecione a filial"} />
+                          <SelectValue placeholder={semFilial ? "Não se aplica" : "Selecione a filial"} />
                         </SelectTrigger>
                       </FormControl>
                       <SelectContent>

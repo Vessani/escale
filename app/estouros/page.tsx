@@ -2,7 +2,7 @@ import Link from "next/link"
 import type { Metadata } from "next"
 import { Hourglass, PlusCircle } from "lucide-react"
 import { requireSessaoPaginaComFilial } from "@/lib/auth-guard"
-import { PAPEIS_ESCALADOR } from "@/lib/papeis"
+import { PAPEIS_LEITURA } from "@/lib/papeis"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { EmptyState } from "@/components/ui/empty-state"
@@ -12,13 +12,14 @@ import { CLASSE_SITUACAO, ROTULO_SITUACAO, formatarMinutos, formatarMotivos } fr
 import { formatarDataHoraPtBr } from "@/lib/utils/date-format"
 import { formatarNomeProprio } from "@/lib/utils/texto"
 import { AcoesEstouro } from "@/components/estouro/acoes-estouro"
+import { SoQuemOpera } from "@/components/layout/somente-leitura"
 
 export const metadata: Metadata = { title: "Estouros de jornada" }
 
 const DIAS_NA_LISTA = 30
 
 export default async function EstourosPage() {
-  const { filialId } = await requireSessaoPaginaComFilial(PAPEIS_ESCALADOR)
+  const { filialId } = await requireSessaoPaginaComFilial(PAPEIS_LEITURA)
   const estouros = await buscarEstouros(filialId, DIAS_NA_LISTA)
 
   return (
@@ -30,12 +31,14 @@ export default async function EstourosPage() {
             Pedidos de hora extra enviados no grupo de WhatsApp da filial — aprovação registrada aqui. Últimos {DIAS_NA_LISTA} dias.
           </p>
         </div>
-        <Link href="/estouros/novo">
-          <Button>
-            <PlusCircle className="w-5 h-5 mr-2" />
-            Pedir estouro
-          </Button>
-        </Link>
+        <SoQuemOpera>
+          <Link href="/estouros/novo">
+            <Button>
+              <PlusCircle className="w-5 h-5 mr-2" />
+              Pedir estouro
+            </Button>
+          </Link>
+        </SoQuemOpera>
       </div>
 
       {estouros.length === 0 ? (
@@ -44,12 +47,14 @@ export default async function EstourosPage() {
           titulo="Nenhum pedido"
           descricao="Nenhum estouro de jornada pedido nos últimos dias."
           acao={
-            <Link href="/estouros/novo">
-              <Button>
-                <PlusCircle className="w-4 h-4 mr-2" />
-                Pedir estouro
-              </Button>
-            </Link>
+            <SoQuemOpera>
+              <Link href="/estouros/novo">
+                <Button>
+                  <PlusCircle className="w-4 h-4 mr-2" />
+                  Pedir estouro
+                </Button>
+              </Link>
+            </SoQuemOpera>
           }
         />
       ) : (

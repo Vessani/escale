@@ -1,5 +1,6 @@
 import Link from "next/link"
 import { requireSessaoPaginaComFilial } from "@/lib/auth-guard"
+import { PAPEIS_LEITURA } from "@/lib/papeis"
 import { Button } from "@/components/ui/button"
 import { EmptyState } from "@/components/ui/empty-state"
 import { ChevronLeft, ChevronRight, PlusCircle, Upload, Users } from "lucide-react"
@@ -9,6 +10,7 @@ import { buscarCoberturaRelatorioJornada } from "@/lib/queries/filiais"
 import { serializeData } from "@/lib/serialization"
 import { fimDoDia, inicioDoDia } from "@/lib/utils/date-format"
 import CalendarioMotoristas from "./calendario-motoristas"
+import { SoQuemOpera } from "@/components/layout/somente-leitura"
 import {
   formatarDataDia,
   formatarIntervaloDias,
@@ -35,7 +37,7 @@ export default async function MotoristasPage({ searchParams }: { searchParams?: 
   const janelaSeguinte = new Date(inicioJanela)
   janelaSeguinte.setDate(janelaSeguinte.getDate() + TAMANHO_JANELA_CALENDARIO)
 
-  const { session, filialId } = await requireSessaoPaginaComFilial()
+  const { session, filialId } = await requireSessaoPaginaComFilial(PAPEIS_LEITURA)
   const podeExcluir = session.user.role === "ADMIN"
   const [motoristas, coberturaRelatorio, semProdutoAutorizado] = await Promise.all([
     buscarMotoristasComAgenda(filialId, inicioJanela, fimJanela),
@@ -92,18 +94,20 @@ export default async function MotoristasPage({ searchParams }: { searchParams?: 
               <ChevronRight className="w-4 h-4 ml-2" />
             </Button>
           </Link>
-          <Link href="/motorista/importar-jornada">
-            <Button variant="outline">
-              <Upload className="w-4 h-4 mr-2" />
-              Importar Jornada
-            </Button>
-          </Link>
-          <Link href="/motorista/novo">
-            <Button className="shadow-sm">
-              <PlusCircle className="w-5 h-5 mr-2" />
-              Novo Motorista
-            </Button>
-          </Link>
+          <SoQuemOpera>
+            <Link href="/motorista/importar-jornada">
+              <Button variant="outline">
+                <Upload className="w-4 h-4 mr-2" />
+                Importar Jornada
+              </Button>
+            </Link>
+            <Link href="/motorista/novo">
+              <Button className="shadow-sm">
+                <PlusCircle className="w-5 h-5 mr-2" />
+                Novo Motorista
+              </Button>
+            </Link>
+          </SoQuemOpera>
         </div>
       </div>
 
@@ -115,12 +119,14 @@ export default async function MotoristasPage({ searchParams }: { searchParams?: 
           titulo="Nenhum motorista"
           descricao="Nenhum motorista cadastrado ainda."
           acao={
-            <Link href="/motorista/novo">
-              <Button>
-                <PlusCircle className="w-4 h-4 mr-2" />
-                Novo motorista
-              </Button>
-            </Link>
+            <SoQuemOpera>
+              <Link href="/motorista/novo">
+                <Button>
+                  <PlusCircle className="w-4 h-4 mr-2" />
+                  Novo motorista
+                </Button>
+              </Link>
+            </SoQuemOpera>
           }
         />
       ) : (

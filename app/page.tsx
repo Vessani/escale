@@ -1,5 +1,6 @@
 import Link from "next/link"
 import { requireSessaoPaginaComFilial } from "@/lib/auth-guard"
+import { PAPEIS_LEITURA } from "@/lib/papeis"
 import { Button } from "@/components/ui/button"
 import { EmptyState } from "@/components/ui/empty-state"
 import { Input } from "@/components/ui/input"
@@ -22,6 +23,7 @@ import { TOLERANCIA_SAIDA_MINUTOS, minutosDeAtraso, saidaAtrasada } from "@/lib/
 import { buscarItensDoDashboard } from "@/lib/queries/dashboard"
 import { ViagensEmAndamentoCards, ViagensEmAndamentoTabela } from "@/components/dashboard/viagens-em-andamento"
 import { ContadorStatus, ResumoTurnos } from "@/components/dashboard/resumo-do-dia"
+import { SoQuemOpera } from "@/components/layout/somente-leitura"
 
 type SearchParamsInput = {
   data?: string
@@ -52,7 +54,7 @@ export default async function DashboardPage({ searchParams }: { searchParams?: P
   const dataTextoInput = parametros.data ?? dataLocalParaInput(new Date())
   const vendoOutroDia = Boolean(parametros.data)
 
-  const { filialId } = await requireSessaoPaginaComFilial()
+  const { filialId } = await requireSessaoPaginaComFilial(PAPEIS_LEITURA)
   const [todosDoDia, quadroObservacoes] = await Promise.all([
     buscarItensDoDashboard(filialId, dataSelecionada),
     buscarQuadroObservacoes(filialId),
@@ -175,12 +177,14 @@ export default async function DashboardPage({ searchParams }: { searchParams?: P
             titulo="Nenhuma viagem em aberto"
             descricao="As viagens do dia já foram finalizadas ou canceladas — ou ainda não foram criadas."
             acao={
-              <Link href="/viagens/nova" className="fora-do-modo-tv">
-                <Button>
-                  <PlusCircle className="mr-2 size-4" />
-                  Nova viagem
-                </Button>
-              </Link>
+              <SoQuemOpera>
+                <Link href="/viagens/nova" className="fora-do-modo-tv">
+                  <Button>
+                    <PlusCircle className="mr-2 size-4" />
+                    Nova viagem
+                  </Button>
+                </Link>
+              </SoQuemOpera>
             }
           />
         ) : (

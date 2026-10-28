@@ -1,8 +1,11 @@
 import { z } from "./zod"
 
-const roleSchema = z.enum(["SUPERADMIN", "ADMIN", "DESPACHANTE"])
+const roleSchema = z.enum(["SUPERADMIN", "ADMIN", "DESPACHANTE", "TORRE"])
 
-/** filialId é obrigatório pra todo papel, exceto SUPERADMIN — ver comentário em prisma/schema.prisma (model Usuario). */
+/** Papéis sem filial no cadastro: SUPERADMIN (não opera) e TORRE (vê todas). */
+export const PAPEIS_SEM_FILIAL: readonly string[] = ["SUPERADMIN", "TORRE"]
+
+/** filialId é obrigatório pra todo papel, exceto SUPERADMIN e TORRE — ver comentário em prisma/schema.prisma (model Usuario). */
 export const usuarioSchema = z
   .object({
     nome: z.string().min(2, "Nome obrigatório").max(100, "Máximo de 100 caracteres"),
@@ -11,7 +14,7 @@ export const usuarioSchema = z
     role: roleSchema,
     filialId: z.number().nullable(),
   })
-  .refine((dados) => dados.role === "SUPERADMIN" || dados.filialId !== null, {
+  .refine((dados) => PAPEIS_SEM_FILIAL.includes(dados.role) || dados.filialId !== null, {
     message: "Selecione uma filial.",
     path: ["filialId"],
   })

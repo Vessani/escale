@@ -24,11 +24,13 @@ import {
   Hourglass,
 } from "lucide-react"
 import { Session } from "next-auth"
-import { ehGerencia } from "@/lib/papeis"
+import { ehTorre, veHistorico } from "@/lib/papeis"
 import { Dialog } from "radix-ui"
 import TrocarSenhaDialog from "@/components/usuario/trocar-senha-dialog"
 import { LogoEscalador } from "@/components/layout/logo-escalador"
 import { Rodape } from "@/components/layout/rodape"
+import { SeletorFilialTorre, type DadosTorre } from "@/components/layout/seletor-filial-torre"
+import { SomenteLeituraProvider } from "@/components/layout/somente-leitura"
 
 const CHAVE_SIDEBAR_COLAPSADA = "escalador:sidebar-colapsada"
 
@@ -61,7 +63,7 @@ function definirColapsadaSalva(valor: boolean) {
 const menuItemsOperacional = [
   { href: "/", label: "Dashboard", icon: LayoutDashboard },
   { href: "/viagens", label: "Gestão de Viagens", icon: Truck },
-  { href: "/viagens/alocacao", label: "Alocação", icon: Route },
+  { href: "/viagens/alocacao", label: "Alocação", icon: Route, soQuemOpera: true },
   { href: "/motorista", label: "Motoristas", icon: Users },
   { href: "/motorista/sem-viagem", label: "Motoristas Ociosos", icon: UserX },
   { href: "/estouros", label: "Estouros de Jornada", icon: Hourglass },
@@ -89,8 +91,13 @@ function LinksDoMenu({
   colapsado?: boolean
   aoNavegar?: () => void
 }) {
+  // Alocação é só tela de escrita: a torre (só consulta) não vê.
   const menuItems =
-    role === "SUPERADMIN" ? menuItemsSuperAdmin : menuItemsOperacional.filter((item) => !("soGerencia" in item) || ehGerencia(role))
+    role === "SUPERADMIN"
+      ? menuItemsSuperAdmin
+      : menuItemsOperacional.filter(
+          (item) => (!("soGerencia" in item) || veHistorico(role)) && (!("soQuemOpera" in item) || !ehTorre(role)),
+        )
 
   return (
     <nav aria-label="Navegação principal" className="flex-1 px-3 py-3 space-y-1 overflow-y-auto">
@@ -135,7 +142,7 @@ function PainelUsuario({ usuario, colapsado = false }: { usuario: Session["user"
         {!colapsado && (
           <div className="ml-3 overflow-hidden">
             <p className="text-sm font-medium text-white truncate">{usuario?.name}</p>
-            <p className="text-xs text-white/60 truncate">{usuario?.role}</p>
+            <p className="text-xs text-white/60 truncate">{ehTorre(usuario?.role) ? "Torre" : usuario?.role}</p>
           </div>
         )}
       </div>
@@ -169,7 +176,16 @@ function PainelUsuario({ usuario, colapsado = false }: { usuario: Session["user"
   )
 }
 
-export function LayoutWrapper({ children, usuario }: { children: ReactNode; usuario: Session["user"] }) {
+export function LayoutWrapper({
+  children,
+  usuario,
+  torre,
+}: {
+  children: ReactNode
+  usuario: Session["user"]
+  /** Só pra torre: as filiais e a que ela está vendo. */
+  torre?: DadosTorre
+}) {
   const pathname = usePathname()
   // Fecha automaticamente ao clicar num link (ver `aoNavegar` passado a LinksDoMenu)
   const [menuAberto, setMenuAberto] = useState(false)
@@ -258,7 +274,10 @@ export function LayoutWrapper({ children, usuario }: { children: ReactNode; usua
 
         {/* flex-col + flex-1 no conteúdo: o rodapé fica no fim da tela mesmo em página curta */}
         <div id="conteudo-principal" className="flex flex-1 flex-col overflow-y-auto p-4 md:p-8">
-          <div className="flex-1">{children}</div>
+          <div className="flex-1">
+            {torre && <SeletorFilialTorre filiais={torre.filiais} filialId={torre.filialId} />}
+            <SomenteLeituraProvider ativo={ehTorre(usuario?.role)}>{children}</SomenteLeituraProvider>
+          </div>
           <Rodape className="mt-12" />
         </div>
       </main>

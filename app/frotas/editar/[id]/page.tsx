@@ -4,7 +4,7 @@ import { buscarFrotaPorId } from "@/lib/queries/frotas"
 import { buscarHistoricoDaEntidade } from "@/lib/queries/auditoria"
 import FormEditarFrota from "./form-editar"
 import { HistoricoCard } from "@/components/auditoria/historico-card"
-import { ehGerencia } from "@/lib/papeis"
+import { veHistorico } from "@/lib/papeis"
 import { serializeData } from "@/lib/serialization"
 
 export default async function EditarFrotaPage({ params }: { params: Promise<{ id: string }> }) {
@@ -15,8 +15,8 @@ export default async function EditarFrotaPage({ params }: { params: Promise<{ id
     notFound()
   }
 
-  const { filialId, session } = await requireSessaoPaginaComFilial()
-  const verHistorico = ehGerencia(session.user.role)
+  const { filialId, session } = await requireSessaoPaginaComFilial(undefined, { destinoDaTorre: "/frotas" })
+  const verHistorico = veHistorico(session.user.role)
 
   const [frota, historico] = await Promise.all([
     buscarFrotaPorId(filialId, frotaId),

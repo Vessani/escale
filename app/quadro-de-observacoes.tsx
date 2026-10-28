@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button"
 import { Textarea } from "@/components/ui/textarea"
 import { atualizarObservacoes } from "@/lib/actions/quadro"
 import { chamarAcao } from "@/lib/chamar-acao"
+import { useSomenteLeitura } from "@/components/layout/somente-leitura"
 
 /** Onde o recado/editor aparece (acima dos contadores do Dashboard). */
 export const ID_SLOT_QUADRO = "slot-quadro-observacoes"
@@ -25,6 +26,8 @@ export default function QuadroDeObservacoes({ textoInicial }: { textoInicial: st
   const [rascunho, setRascunho] = useState(textoInicial)
   const [editando, setEditando] = useState(false)
   const [erro, setErro] = useState("")
+  // Torre: lê o recado, sem editar nem apagar.
+  const somenteLeitura = useSomenteLeitura()
   // O lugar do recado só existe no navegador (no servidor, null → nada é desenhado ali).
   const slot = useSyncExternalStore(
     semAssinatura,
@@ -76,21 +79,23 @@ export default function QuadroDeObservacoes({ textoInicial }: { textoInicial: st
     <section className="flex items-start gap-2 rounded-lg border border-warning/30 bg-warning/10 px-3 py-2 text-sm">
       <ClipboardList className="mt-0.5 size-4 shrink-0 text-warning" aria-hidden />
       <p className="flex-1 whitespace-pre-line text-foreground">{salvo}</p>
-      <span className="fora-do-modo-tv flex shrink-0 items-center">
-        <Button type="button" variant="ghost" size="icon-sm" aria-label="Editar recado" onClick={abrir} disabled={pendente}>
-          <Pencil className="size-4 text-muted-foreground" aria-hidden />
-        </Button>
-        <Button type="button" variant="ghost" size="icon-sm" aria-label="Apagar recado" onClick={() => gravar("")} disabled={pendente}>
-          <X className="size-4 text-muted-foreground" aria-hidden />
-        </Button>
-      </span>
+      {!somenteLeitura && (
+        <span className="fora-do-modo-tv flex shrink-0 items-center">
+          <Button type="button" variant="ghost" size="icon-sm" aria-label="Editar recado" onClick={abrir} disabled={pendente}>
+            <Pencil className="size-4 text-muted-foreground" aria-hidden />
+          </Button>
+          <Button type="button" variant="ghost" size="icon-sm" aria-label="Apagar recado" onClick={() => gravar("")} disabled={pendente}>
+            <X className="size-4 text-muted-foreground" aria-hidden />
+          </Button>
+        </span>
+      )}
       {erro && <p className="text-xs text-destructive">{erro}</p>}
     </section>
   ) : null
 
   return (
     <>
-      {!salvo && !editando && (
+      {!salvo && !editando && !somenteLeitura && (
         <Button type="button" variant="outline" size="sm" className="fora-do-modo-tv" onClick={abrir}>
           <Plus className="mr-2 size-4" aria-hidden />
           Observação

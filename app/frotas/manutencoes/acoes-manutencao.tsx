@@ -12,6 +12,7 @@ import { concluirManutencao, excluirManutencao, iniciarManutencao, reabrirManute
 import { formatDateTimeForInput } from "@/lib/utils/date-format"
 import type { SituacaoManutencao } from "@/lib/services/manutencao-regras"
 import { chamarAcao } from "@/lib/chamar-acao"
+import { useSomenteLeitura } from "@/components/layout/somente-leitura"
 
 type Props = {
   id: number
@@ -109,7 +110,13 @@ function RegistrarHorario({
   )
 }
 
-export default function AcoesManutencao({ id, descricaoCurta, situacao, sugestaoFim }: Props) {
+export default function AcoesManutencao(props: Props) {
+  // Torre só acompanha a manutenção: não inicia, conclui, edita nem exclui.
+  const somenteLeitura = useSomenteLeitura()
+  return somenteLeitura ? null : <AcoesManutencaoEditaveis {...props} />
+}
+
+function AcoesManutencaoEditaveis({ id, descricaoCurta, situacao, sugestaoFim }: Props) {
   const router = useRouter()
   const [excluindo, setExcluindo] = useState(false)
   const [erroExcluir, setErroExcluir] = useState<string | null>(null)
