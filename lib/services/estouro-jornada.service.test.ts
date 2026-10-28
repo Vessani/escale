@@ -17,10 +17,8 @@ import {
   criarSolicitacaoEstouro,
   decidirEstouroPorToken,
   gerarNovoLinkEstouro,
-  gerarTokenEstouro,
-  hashDoToken,
-  urlDeAprovacao,
 } from "./estouro-jornada.service"
+import { hashDoToken } from "./link-aprovacao"
 
 const FILIAL = 3
 const ator = { usuarioId: "u1", usuarioNome: "Alan" }
@@ -51,22 +49,6 @@ beforeEach(() => {
   vi.mocked(prisma.estouroJornada.findFirst).mockResolvedValue(null)
   tx.estouroJornada.create.mockImplementation(({ data }: { data: Record<string, unknown> }) => Promise.resolve({ id: 5, ...data }))
   tx.estouroJornada.updateMany.mockResolvedValue({ count: 1 })
-})
-
-describe("token do link", () => {
-  it("é aleatório, de 43 caracteres base64url, e só o hash SHA-256 vai pro banco", () => {
-    const a = gerarTokenEstouro()
-    const b = gerarTokenEstouro()
-    expect(a.token).toMatch(/^[A-Za-z0-9_-]{43}$/)
-    expect(a.token).not.toBe(b.token)
-    expect(a.tokenHash).toBe(hashDoToken(a.token))
-    expect(a.tokenHash).toMatch(/^[0-9a-f]{64}$/)
-    expect(a.tokenHash).not.toContain(a.token)
-  })
-
-  it("monta a URL pública a partir do NEXTAUTH_URL, sem barra dupla", () => {
-    expect(urlDeAprovacao("abc", "https://escalador.test/")).toBe("https://escalador.test/aprovar-estouro/abc")
-  })
 })
 
 describe("criarSolicitacaoEstouro", () => {

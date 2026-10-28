@@ -5,12 +5,8 @@ import { requireSessaoMotorista, requireSessionComFilial } from "@/lib/auth-guar
 import { errorToMessage } from "@/lib/action-error"
 import { atorDaSessao } from "@/lib/services/auditoria.service"
 import { AREA_MOTORISTA, PAPEIS_ESCALADOR } from "@/lib/papeis"
-import {
-  cancelarSolicitacaoEstouro,
-  criarSolicitacaoEstouro,
-  gerarNovoLinkEstouro,
-  type LinkGerado,
-} from "@/lib/services/estouro-jornada.service"
+import { cancelarSolicitacaoEstouro, criarSolicitacaoEstouro, gerarNovoLinkEstouro } from "@/lib/services/estouro-jornada.service"
+import type { LinkGerado } from "@/lib/services/link-aprovacao"
 import {
   esquemaSolicitacaoEstouro,
   esquemaSolicitacaoMotorista,

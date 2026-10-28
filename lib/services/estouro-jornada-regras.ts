@@ -1,9 +1,11 @@
 /**
  * Regras do estouro de jornada sem banco nem Node — usadas no servidor e na
  * tela (montar o link do WhatsApp, mostrar "2h30", decidir se o link já
- * expirou). O que mexe no banco fica em estouro-jornada.service.ts.
+ * expirou). O que mexe no banco fica em estouro-jornada.service.ts; o que é
+ * comum a todo pedido por link (validade, situação, wa.me), em
+ * link-aprovacao-regras.ts.
  */
-import type { MotivoEstouro, StatusEstouro } from "@prisma/client"
+import type { MotivoEstouro } from "@prisma/client"
 
 /**
  * Teto do pedido: 2h, o que a Lei 13.103/2015 (Lei do Motorista) permite
@@ -14,9 +16,6 @@ export const LIMITE_MINUTOS_ESTOURO = 120
 
 /** Passo das opções do formulário (0h30, 1h00, 1h30...). */
 export const PASSO_MINUTOS_ESTOURO = 30
-
-/** Por quanto tempo o link vale. Passou disso, gera-se outro. */
-export const VALIDADE_LINK_HORAS = 12
 
 /** Quantos motivos o pedido pode marcar. */
 export const MAXIMO_MOTIVOS_ESTOURO = 3
@@ -40,9 +39,6 @@ export function formatarMotivos(motivos: readonly MotivoEstouro[]): string {
     .join(", ")
 }
 
-export const TAMANHO_MAXIMO_OBSERVACAO_GESTOR = 300
-export const TAMANHO_MAXIMO_NOME_DECISOR = 80
-
 /** Caminho público (sem login) da página de aprovação — fora do proxy de autenticação. */
 export const CAMINHO_APROVACAO = "/aprovar-estouro"
 
@@ -57,31 +53,6 @@ export function formatarMinutos(minutos: number): string {
   const resto = minutos % 60
   if (horas === 0) return `${resto}min`
   return resto === 0 ? `${horas}h` : `${horas}h${String(resto).padStart(2, "0")}`
-}
-
-type SituacaoEstouro = StatusEstouro | "EXPIRADO"
-
-/** Status pra mostrar: pendente com link vencido aparece como expirado. */
-export function situacaoDoEstouro(estouro: { status: StatusEstouro; expiraEm: Date }, agora = new Date()): SituacaoEstouro {
-  if (estouro.status === "PENDENTE" && estouro.expiraEm.getTime() <= agora.getTime()) return "EXPIRADO"
-  return estouro.status
-}
-
-export const ROTULO_SITUACAO: Record<SituacaoEstouro, string> = {
-  PENDENTE: "Aguardando gestor",
-  APROVADO: "Aprovado",
-  RECUSADO: "Recusado",
-  CANCELADO: "Cancelado",
-  EXPIRADO: "Link expirado",
-}
-
-/** Badge outline com a paleta sutil das outras telas (ver CLASSE_SITUACAO em app/frotas/manutencoes/page.tsx). */
-export const CLASSE_SITUACAO: Record<SituacaoEstouro, string> = {
-  PENDENTE: "border-warning/30 bg-warning/10 text-warning",
-  APROVADO: "border-success/30 bg-success/10 text-success",
-  RECUSADO: "border-destructive/30 bg-destructive/10 text-destructive",
-  CANCELADO: "border-border bg-muted text-muted-foreground",
-  EXPIRADO: "border-border bg-muted text-muted-foreground",
 }
 
 type DadosMensagem = {
@@ -105,13 +76,4 @@ export function montarMensagemWhatsApp(d: DadosMensagem): string {
     "",
     `Gestor, aprove ou recuse: ${d.url}`,
   ].join("\n")
-}
-
-/**
- * Link de compartilhamento do WhatsApp (gratuito, sem API). Sem número:
- * o wa.me não abre grupo direto, então o WhatsApp mostra as conversas e a
- * pessoa escolhe o grupo da filial.
- */
-export function montarLinkWhatsApp(mensagem: string): string {
-  return `https://wa.me/?text=${encodeURIComponent(mensagem)}`
 }

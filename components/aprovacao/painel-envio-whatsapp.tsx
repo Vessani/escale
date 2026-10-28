@@ -3,12 +3,12 @@
 import { useState } from "react"
 import { Check, Copy, MessageCircle } from "lucide-react"
 import { Button } from "@/components/ui/button"
-import type { LinkGerado } from "@/lib/services/estouro-jornada.service"
-import { VALIDADE_LINK_HORAS } from "@/lib/services/estouro-jornada-regras"
+import type { LinkGerado } from "@/lib/services/link-aprovacao"
+import { VALIDADE_LINK_HORAS } from "@/lib/services/link-aprovacao-regras"
 import { cn } from "@/lib/utils"
 
 /**
- * Depois de criar (ou renovar) o pedido: abre o WhatsApp com a mensagem
+ * Depois de criar (ou renovar) o pedido (estouro, Uber): abre o WhatsApp com a mensagem
  * pronta pra postar no grupo da filial. É um link de verdade (e não
  * window.open depois da action), senão o navegador do celular bloqueia como
  * pop-up. `grande`: botão do tamanho do celular (área do motorista).

@@ -4,10 +4,9 @@ import {
   OPCOES_MINUTOS_ESTOURO,
   formatarMinutos,
   formatarMotivos,
-  montarLinkWhatsApp,
   montarMensagemWhatsApp,
-  situacaoDoEstouro,
 } from "./estouro-jornada-regras"
+import { montarLinkWhatsApp } from "./link-aprovacao-regras"
 
 describe("formatarMinutos", () => {
   it("mostra horas e minutos do jeito que a operação fala", () => {
@@ -30,19 +29,6 @@ describe("formatarMotivos", () => {
     expect(formatarMotivos(["ABASTECER", "CLIENTE_PRIORITARIO"])).toBe("Cliente prioritário, Abastecer")
     expect(formatarMotivos(["CHEGAR_HOTEL"])).toBe("Chegar no hotel")
     expect(formatarMotivos(["ABASTECER", "CHEGAR_CDL"])).toBe("Chegar ao CDL, Abastecer")
-  })
-})
-
-describe("situacaoDoEstouro", () => {
-  const agora = new Date("2026-10-27T12:00:00Z")
-
-  it("pendente com link vencido aparece como expirado", () => {
-    expect(situacaoDoEstouro({ status: "PENDENTE", expiraEm: new Date("2026-10-27T11:59:59Z") }, agora)).toBe("EXPIRADO")
-    expect(situacaoDoEstouro({ status: "PENDENTE", expiraEm: new Date("2026-10-27T12:00:01Z") }, agora)).toBe("PENDENTE")
-  })
-
-  it("decidido continua decidido mesmo depois da validade", () => {
-    expect(situacaoDoEstouro({ status: "APROVADO", expiraEm: new Date("2026-10-26T00:00:00Z") }, agora)).toBe("APROVADO")
   })
 })
 

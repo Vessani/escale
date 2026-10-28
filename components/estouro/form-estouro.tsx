@@ -9,7 +9,7 @@ import { Button } from "@/components/ui/button"
 import { ControleSegmentado } from "@/components/ui/controle-segmentado"
 import { pedirMeuEstouro, solicitarEstouro } from "@/lib/actions/estouro-jornada"
 import { chamarAcao } from "@/lib/chamar-acao"
-import type { LinkGerado } from "@/lib/services/estouro-jornada.service"
+import type { LinkGerado } from "@/lib/services/link-aprovacao"
 import {
   LIMITE_MINUTOS_ESTOURO,
   MAXIMO_MOTIVOS_ESTOURO,
@@ -20,7 +20,7 @@ import {
 import { formatarDiaMesHora } from "@/lib/utils/date-format"
 import { formatarNomeProprio } from "@/lib/utils/texto"
 import { cn } from "@/lib/utils"
-import { PainelEnvioWhatsApp } from "@/components/estouro/painel-envio-whatsapp"
+import { PainelEnvioWhatsApp } from "@/components/aprovacao/painel-envio-whatsapp"
 
 type Viagem = {
   id: number

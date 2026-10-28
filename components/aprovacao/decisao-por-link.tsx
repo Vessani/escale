@@ -6,13 +6,16 @@ import { Alert } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
-import { decidirEstouro } from "@/lib/actions/estouro-jornada-publico"
 import { chamarAcao } from "@/lib/chamar-acao"
-import { TAMANHO_MAXIMO_NOME_DECISOR, TAMANHO_MAXIMO_OBSERVACAO_GESTOR } from "@/lib/services/estouro-jornada-regras"
+import { TAMANHO_MAXIMO_NOME_DECISOR, TAMANHO_MAXIMO_OBSERVACAO_GESTOR } from "@/lib/services/link-aprovacao-regras"
+import type { EntradaDecisaoLink } from "@/lib/validation/link-aprovacao"
+import type { RespostaAcao } from "@/lib/types/types"
 
 type Decisao = "APROVADO" | "RECUSADO"
 
-// Nome de quem decide, lembrado neste celular — o gestor não precisa digitar toda vez.
+// Nome de quem decide, lembrado neste celular — o gestor não precisa digitar
+// toda vez. Uma chave só pra todo tipo de pedido (o nome "estouro" é de
+// quando só existia ele; trocar faria o gestor digitar o nome de novo).
 const CHAVE_NOME = "escalador:estouro-nome-decisor"
 
 // Lido com useSyncExternalStore (mesmo padrão da sidebar em layout-wrapper.tsx):
@@ -31,9 +34,18 @@ const semInscricao = () => () => {}
 /**
  * Botões de quem decide. Dois toques de propósito (escolher → confirmar): um
  * toque acidental no celular não aprova nada. O link circula no grupo, então
- * o nome é obrigatório — fica no registro junto com o IP.
+ * o nome é obrigatório — fica no registro junto com o IP. `decidir` é a
+ * action pública do tipo de pedido (decidirEstouro, decidirUber).
  */
-export function DecisaoEstouro({ token, expiraEm }: { token: string; expiraEm: string }) {
+export function DecisaoPorLink({
+  token,
+  expiraEm,
+  decidir,
+}: {
+  token: string
+  expiraEm: string
+  decidir: (dados: EntradaDecisaoLink) => Promise<RespostaAcao>
+}) {
   const router = useRouter()
   const [pendente, iniciarTransicao] = useTransition()
   const [escolha, setEscolha] = useState<Decisao | null>(null)
@@ -48,7 +60,7 @@ export function DecisaoEstouro({ token, expiraEm }: { token: string; expiraEm: s
     if (!escolha) return
     setErro("")
     iniciarTransicao(async () => {
-      const resposta = await chamarAcao(() => decidirEstouro({ token, decisao: escolha, nome, observacao }))
+      const resposta = await chamarAcao(() => decidir({ token, decisao: escolha, nome, observacao }))
       if (!resposta.sucesso) {
         setErro(resposta.erro)
         return

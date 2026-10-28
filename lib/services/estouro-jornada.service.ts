@@ -1,16 +1,19 @@
-import { createHash, randomBytes } from "node:crypto"
 import type { MotivoEstouro } from "@prisma/client"
 import { prisma } from "@/lib/prisma"
 import { ErroDeDominio } from "@/lib/errors"
 import { registrarAuditoria, type Ator } from "@/lib/services/auditoria.service"
 import { STATUS_A_INICIAR, STATUS_EM_ANDAMENTO } from "@/lib/services/viagem-status.service"
+import { CAMINHO_APROVACAO, montarMensagemWhatsApp } from "@/lib/services/estouro-jornada-regras"
+import { montarLinkWhatsApp, situacaoDoPedido } from "@/lib/services/link-aprovacao-regras"
 import {
-  CAMINHO_APROVACAO,
-  VALIDADE_LINK_HORAS,
-  montarLinkWhatsApp,
-  montarMensagemWhatsApp,
-  situacaoDoEstouro,
-} from "@/lib/services/estouro-jornada-regras"
+  conferirMotoristaEViagem,
+  expiracaoDoLink,
+  gerarTokenLink,
+  hashDoToken,
+  semToken,
+  urlDeAprovacao,
+  type LinkGerado,
+} from "@/lib/services/link-aprovacao"
 
 /**
  * Estouro de jornada aprovado por link.
@@ -21,40 +24,10 @@ import {
  * link (página pública, sem login), digita o nome e aprova ou recusa →
  * fica gravado quem pediu, quem decidiu, quando, de qual IP e a observação.
  *
- * Segurança do link: o token tem 256 bits (impossível de adivinhar), só o
- * hash dele vai pro banco, vale VALIDADE_LINK_HORAS e serve pra UMA decisão.
- * Abrir a página (GET) nunca decide nada — o WhatsApp abre o link sozinho pra
- * montar a prévia, então a decisão só acontece no clique (POST da action).
- * Limite conhecido: o link circula no grupo, então qualquer membro consegue
- * decidir — o nome é declarado por quem clicou; o IP fica junto como rastro.
+ * Segurança do link (token, validade, uso único): ver lib/services/link-aprovacao.ts.
  */
 
 const ENTIDADE = "EstouroJornada"
-
-/** Token novo + o hash que vai pro banco. O token em claro só existe na resposta. */
-export function gerarTokenEstouro(): { token: string; tokenHash: string } {
-  const token = randomBytes(32).toString("base64url")
-  return { token, tokenHash: hashDoToken(token) }
-}
-
-export function hashDoToken(token: string): string {
-  return createHash("sha256").update(token).digest("hex")
-}
-
-function expiracao(agora: Date): Date {
-  return new Date(agora.getTime() + VALIDADE_LINK_HORAS * 60 * 60 * 1000)
-}
-
-/**
- * Endereço do sistema pra montar o link. NEXTAUTH_URL já é obrigatória (ver
- * .env.example). Em teste local, "localhost" não abre no celular — pra
- * testar no celular, use o IP da máquina na rede (ex:
- * http://192.168.0.10:3000) em NEXTAUTH_URL.
- */
-export function urlDeAprovacao(token: string, base = process.env.NEXTAUTH_URL): string {
-  if (!base) throw new ErroDeDominio("URL_SISTEMA_AUSENTE", "Endereço do sistema não configurado (NEXTAUTH_URL).")
-  return `${base.replace(/\/+$/, "")}${CAMINHO_APROVACAO}/${token}`
-}
 
 type DadosSolicitacao = {
   motoristaId: number
@@ -63,34 +36,13 @@ type DadosSolicitacao = {
   motivos: MotivoEstouro[]
 }
 
-export type LinkGerado = { id: number; url: string; linkWhatsApp: string }
-
 export async function criarSolicitacaoEstouro(
   filialId: number,
   dados: DadosSolicitacao,
   ator: Ator,
   { pedidoPeloMotorista = false, agora = new Date() }: { pedidoPeloMotorista?: boolean; agora?: Date } = {},
 ): Promise<LinkGerado> {
-  const motorista = await prisma.motorista.findFirst({
-    where: { id: dados.motoristaId, filialId, deletadoEm: null },
-    select: { id: true, nome: true },
-  })
-  if (!motorista) throw new ErroDeDominio("MOTORISTA_NAO_ENCONTRADO", "Motorista não encontrado nesta filial.")
-
-  let numViagem: string | null = null
-  if (dados.viagemId !== null) {
-    const viagem = await prisma.viagem.findFirst({
-      where: {
-        id: dados.viagemId,
-        filialId,
-        deletadoEm: null,
-        OR: [{ motoristaId: motorista.id }, { motoristaAcompanhanteId: motorista.id }],
-      },
-      select: { numViagem: true },
-    })
-    if (!viagem) throw new ErroDeDominio("VIAGEM_NAO_E_DO_MOTORISTA", "Essa viagem não é desse motorista.")
-    numViagem = viagem.numViagem
-  }
+  const { motorista, numViagem } = await conferirMotoristaEViagem(filialId, dados.motoristaId, dados.viagemId)
 
   // Um pedido em aberto por motorista: evita dois links no grupo pro mesmo
   // estouro e o gestor aprovar o errado. Link vencido não conta — dá pra
@@ -106,8 +58,8 @@ export async function criarSolicitacaoEstouro(
     )
   }
 
-  const { token, tokenHash } = gerarTokenEstouro()
-  const url = urlDeAprovacao(token)
+  const { token, tokenHash } = gerarTokenLink()
+  const url = urlDeAprovacao(CAMINHO_APROVACAO, token)
 
   const estouro = await prisma.$transaction(async (tx) => {
     const criado = await tx.estouroJornada.create({
@@ -118,7 +70,7 @@ export async function criarSolicitacaoEstouro(
         minutosExtras: dados.minutosExtras,
         motivos: dados.motivos,
         tokenHash,
-        expiraEm: expiracao(agora),
+        expiraEm: expiracaoDoLink(agora),
         solicitadoPorId: ator.usuarioId,
         solicitadoPorNome: ator.usuarioNome,
         pedidoPeloMotorista,
@@ -163,13 +115,13 @@ export async function gerarNovoLinkEstouro(
   if (antes.status !== "PENDENTE")
     throw new ErroDeDominio("ESTOURO_JA_DECIDIDO", "Esse pedido já foi encerrado — não dá pra gerar outro link.")
 
-  const { token, tokenHash } = gerarTokenEstouro()
-  const url = urlDeAprovacao(token)
+  const { token, tokenHash } = gerarTokenLink()
+  const url = urlDeAprovacao(CAMINHO_APROVACAO, token)
 
   await prisma.$transaction(async (tx) => {
     const { count } = await tx.estouroJornada.updateMany({
       where: { ...filtro, status: "PENDENTE" },
-      data: { tokenHash, expiraEm: expiracao(agora) },
+      data: { tokenHash, expiraEm: expiracaoDoLink(agora) },
     })
     if (count === 0) throw new ErroDeDominio("ESTOURO_MUDOU", "O pedido foi respondido nesse meio-tempo. Atualize a tela.")
     const depois = await tx.estouroJornada.findUniqueOrThrow({ where: { id } })
@@ -235,7 +187,7 @@ export async function buscarEstouroPorToken(token: string, agora = new Date()) {
     },
   })
   if (!estouro) return null
-  return { ...estouro, situacao: situacaoDoEstouro(estouro, agora) }
+  return { ...estouro, situacao: situacaoDoPedido(estouro, agora) }
 }
 
 /**
@@ -253,7 +205,7 @@ export async function decidirEstouroPorToken(
   const antes = await prisma.estouroJornada.findUnique({ where: { tokenHash } })
   if (!antes) throw new ErroDeDominio("LINK_INVALIDO", "Link inválido ou substituído por um mais novo. Peça um novo link a quem pediu.")
 
-  const situacao = situacaoDoEstouro(antes, agora)
+  const situacao = situacaoDoPedido(antes, agora)
   if (situacao === "EXPIRADO") throw new ErroDeDominio("LINK_EXPIRADO", "Esse link expirou. Peça um novo a quem pediu.")
   if (situacao !== "PENDENTE") throw new ErroDeDominio("ESTOURO_JA_DECIDIDO", "Esse pedido já foi respondido ou cancelado.")
 
@@ -309,7 +261,7 @@ export async function buscarEstouros(
     take: 200,
     select: CAMPOS_LISTA,
   })
-  return estouros.map((e) => ({ ...e, situacao: situacaoDoEstouro(e, agora) }))
+  return estouros.map((e) => ({ ...e, situacao: situacaoDoPedido(e, agora) }))
 }
 
 const VIAGEM_ABERTA = { deletadoEm: null, status: { in: [...STATUS_A_INICIAR, ...STATUS_EM_ANDAMENTO] } }
@@ -335,11 +287,4 @@ export async function buscarViagensAbertasDoMotorista(filialId: number, motorist
     orderBy: { inicioPrevisto: "asc" },
     select: CAMPOS_VIAGEM,
   })
-}
-
-/** A auditoria guarda o antes/depois — sem o hash do token, que não serve pra nada no log. */
-function semToken<T extends { tokenHash?: string }>(registro: T): Omit<T, "tokenHash"> {
-  const copia: Partial<T> = { ...registro }
-  delete copia.tokenHash
-  return copia as Omit<T, "tokenHash">
 }

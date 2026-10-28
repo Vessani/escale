@@ -1,5 +1,5 @@
 import Link from "next/link"
-import { ArrowLeft, FileText, Hourglass } from "lucide-react"
+import { ArrowLeft, CarTaxiFront, FileText, Hourglass } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Alert } from "@/components/ui/alert"
@@ -128,11 +128,18 @@ export default async function MinhaViagemPage({ params }: { params: Promise<{ id
         substitutos={souPrincipal ? await buscarSubstitutosPossiveis(filialId, motoristaId, viagem.produto) : []}
       />
       {[...STATUS_A_INICIAR, ...STATUS_EM_ANDAMENTO].includes(viagem.status) && (
-        <Button asChild variant="outline" className="h-11 w-full">
-          <Link href={`/minhas-viagens/estouro?viagem=${viagem.id}`}>
-            <Hourglass className="mr-2 size-4" aria-hidden /> Pedir estouro de jornada
-          </Link>
-        </Button>
+        <>
+          <Button asChild variant="outline" className="h-11 w-full">
+            <Link href={`/minhas-viagens/estouro?viagem=${viagem.id}`}>
+              <Hourglass className="mr-2 size-4" aria-hidden /> Pedir estouro de jornada
+            </Link>
+          </Button>
+          <Button asChild variant="outline" className="h-11 w-full">
+            <Link href={`/minhas-viagens/uber?viagem=${viagem.id}`}>
+              <CarTaxiFront className="mr-2 size-4" aria-hidden /> Pedir Uber
+            </Link>
+          </Button>
+        </>
       )}
       <Button asChild variant="outline" className="h-11 w-full">
         <Link href={`/minhas-viagens/${viagem.id}/relatorio`}>

@@ -1,5 +1,5 @@
 import Link from "next/link"
-import { ChevronRight, Clock, Hourglass, MapPin, Truck } from "lucide-react"
+import { CarTaxiFront, ChevronRight, Clock, Hourglass, MapPin, Truck } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { EmptyState } from "@/components/ui/empty-state"
@@ -72,11 +72,18 @@ export default async function MinhasViagensPage() {
       <AtualizacaoAutomatica segundos={60} />
       <div className="flex items-center justify-between gap-3">
         <h1 className="text-xl font-semibold tracking-tight">Minhas viagens</h1>
-        <Button asChild variant="outline" size="sm">
-          <Link href="/minhas-viagens/estouro">
-            <Hourglass className="mr-1.5 size-4" aria-hidden /> Pedir estouro
-          </Link>
-        </Button>
+        <div className="flex flex-wrap justify-end gap-2">
+          <Button asChild variant="outline" size="sm">
+            <Link href="/minhas-viagens/estouro">
+              <Hourglass className="mr-1.5 size-4" aria-hidden /> Pedir estouro
+            </Link>
+          </Button>
+          <Button asChild variant="outline" size="sm">
+            <Link href="/minhas-viagens/uber">
+              <CarTaxiFront className="mr-1.5 size-4" aria-hidden /> Pedir Uber
+            </Link>
+          </Button>
+        </div>
       </div>
       {grupos.length === 0 ? (
         <EmptyState
