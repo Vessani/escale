@@ -101,11 +101,18 @@ function LinksDoMenu({
           (item) => (!("soGerencia" in item) || veHistorico(role)) && (!("soQuemOpera" in item) || !ehTorre(role)),
         )
 
+  // Só o item mais específico fica ativo: em /motorista/sem-viagem acende
+  // "Motoristas Ociosos", não "Motoristas" junto (idem /viagens/alocacao).
+  const casa = (href: string) => pathname === href || pathname.startsWith(`${href}/`)
+  const hrefAtivo = menuItems
+    .filter((item) => casa(item.href))
+    .reduce<string | undefined>((maior, item) => (!maior || item.href.length > maior.length ? item.href : maior), undefined)
+
   return (
     <nav aria-label="Navegação principal" className="flex-1 px-3 py-3 space-y-1 overflow-y-auto">
       {menuItems.map((item) => {
         const Icon = item.icon
-        const isActive = pathname === item.href || pathname.startsWith(`${item.href}/`)
+        const isActive = item.href === hrefAtivo
 
         return (
           <Link
