@@ -1,5 +1,5 @@
 import Link from "next/link"
-import { ArrowLeft, FileText } from "lucide-react"
+import { ArrowLeft, CarTaxiFront, FileText, Hourglass } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Alert } from "@/components/ui/alert"
@@ -8,7 +8,7 @@ import { requireSessaoPaginaMotorista } from "@/lib/auth-guard"
 import { buscarMinhaViagem } from "@/lib/services/minhas-viagens.service"
 import { chegadaEmNumeros } from "@/lib/services/descarga"
 import { buscarSubstitutosPossiveis } from "@/lib/services/troca-motorista.service"
-import { formatarStatusViagem } from "@/lib/services/viagem-status.service"
+import { STATUS_A_INICIAR, STATUS_EM_ANDAMENTO, formatarStatusViagem } from "@/lib/services/viagem-status.service"
 import { formatarCodigoFrota } from "@/lib/services/frota-regras"
 import { formatarProduto } from "@/lib/services/produto.service"
 import { formatarNomeProprio } from "@/lib/utils/texto"
@@ -127,6 +127,20 @@ export default async function MinhaViagemPage({ params }: { params: Promise<{ id
         agoraServidor={agora.toISOString()}
         substitutos={souPrincipal ? await buscarSubstitutosPossiveis(filialId, motoristaId, viagem.produto) : []}
       />
+      {[...STATUS_A_INICIAR, ...STATUS_EM_ANDAMENTO].includes(viagem.status) && (
+        <>
+          <Button asChild variant="outline" className="h-11 w-full">
+            <Link href={`/minhas-viagens/estouro?viagem=${viagem.id}`}>
+              <Hourglass className="mr-2 size-4" aria-hidden /> Pedir estouro de jornada
+            </Link>
+          </Button>
+          <Button asChild variant="outline" className="h-11 w-full">
+            <Link href={`/minhas-viagens/uber?viagem=${viagem.id}`}>
+              <CarTaxiFront className="mr-2 size-4" aria-hidden /> Pedir Uber
+            </Link>
+          </Button>
+        </>
+      )}
       <Button asChild variant="outline" className="h-11 w-full">
         <Link href={`/minhas-viagens/${viagem.id}/relatorio`}>
           <FileText className="mr-2 size-4" aria-hidden /> Relatório da viagem

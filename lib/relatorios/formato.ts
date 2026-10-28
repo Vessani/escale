@@ -1,4 +1,6 @@
 import { formatarDataHoraPtBr, formatarHoraLocal } from "@/lib/utils/date-format"
+import { formatarMinutos, formatarMotivos } from "@/lib/services/estouro-jornada-regras"
+import type { AutorizacaoEstouro } from "@/lib/services/relatorios/jornada-analise"
 
 /** "29/09" */
 export function formatarDiaCurto(data: Date | string): string {
@@ -42,4 +44,21 @@ export function formatarDuracaoLonga(minutos: number): string {
   const dias = Math.floor(total / (24 * 60))
   const resto = total - dias * 24 * 60
   return resto === 0 ? `${dias}d` : `${dias}d ${formatarDuracao(resto)}`
+}
+
+/**
+ * Quem autorizou o estouro, pro Excel: "Roberto em 27/10 14:05 · +1h30 (Trânsito lento) · pedido pelo motorista".
+ * Mais de um pedido na mesma jornada/ciclo: separados por " | ". Sem pedido: "Sem autorização".
+ */
+export function descreverAutorizacoes(autorizacoes: readonly AutorizacaoEstouro[]): string {
+  if (autorizacoes.length === 0) return "Sem autorização"
+  return autorizacoes
+    .map((a) =>
+      [
+        `${a.decididoPorNome ?? "—"}${a.decididoEm ? ` em ${formatarDiaCurto(a.decididoEm)} ${formatarHoraLocal(a.decididoEm)}` : ""}`,
+        `+${formatarMinutos(a.minutosExtras)} (${formatarMotivos(a.motivos)})`,
+        a.pedidoPeloMotorista ? "pedido pelo motorista" : "pedido pelo escalador",
+      ].join(" · "),
+    )
+    .join(" | ")
 }

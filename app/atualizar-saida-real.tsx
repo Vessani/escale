@@ -12,6 +12,7 @@ import { cn } from "@/lib/utils"
 import { TOLERANCIA_SAIDA_MINUTOS, minutosDeAtraso, saidaAtrasada } from "@/lib/services/pontualidade"
 import { MOTIVOS_ATRASO } from "@/lib/services/motivos-atraso"
 import { chamarAcao } from "@/lib/chamar-acao"
+import { useSomenteLeitura } from "@/components/layout/somente-leitura"
 
 type Props = {
   viagemId: number
@@ -35,7 +36,46 @@ function formatarAtraso(minutos: number): string {
  * campos de formulário sempre abertos em cada linha, que alargavam a tabela
  * e mostravam "dd/mm/aaaa --:--" nas viagens que ainda não saíram.
  */
-export default function AtualizarSaidaReal({ viagemId, inicioPrevisto, horarioRealSaidaInicial, motivoAtrasoInicial }: Props) {
+export default function AtualizarSaidaReal(props: Props) {
+  const somenteLeitura = useSomenteLeitura()
+  return somenteLeitura ? <SaidaSomenteLeitura {...props} /> : <EditorSaidaReal {...props} />
+}
+
+/** Só consulta (torre): horário, atraso e observação, sem abrir o painel de edição. */
+function SaidaSomenteLeitura({ inicioPrevisto, horarioRealSaidaInicial, motivoAtrasoInicial }: Props) {
+  const minutosAtraso = horarioRealSaidaInicial ? minutosDeAtraso(inicioPrevisto, horarioRealSaidaInicial) : 0
+  return (
+    <div className="flex w-full min-w-0 flex-col items-start gap-0.5 px-1.5 py-1 text-left">
+      {horarioRealSaidaInicial ? (
+        <span className="flex items-center gap-1.5">
+          <span className="font-mono text-xs font-medium tabular-nums text-foreground">{formatarHoraLocal(horarioRealSaidaInicial)}</span>
+          {minutosAtraso > 0 && (
+            <span
+              className={cn(
+                "text-[10px] tabular-nums",
+                saidaAtrasada(minutosAtraso)
+                  ? "rounded-full bg-warning/10 px-1.5 py-0.5 font-medium text-warning"
+                  : "text-muted-foreground",
+              )}
+            >
+              {formatarAtraso(minutosAtraso)}
+            </span>
+          )}
+        </span>
+      ) : (
+        <span className="text-xs text-muted-foreground">Não saiu</span>
+      )}
+      {motivoAtrasoInicial && (
+        <span className="flex w-full min-w-0 items-center gap-1 text-[11px] text-muted-foreground" title={motivoAtrasoInicial}>
+          <MessageSquare aria-hidden className="size-3 shrink-0" />
+          <span className="truncate">{motivoAtrasoInicial}</span>
+        </span>
+      )}
+    </div>
+  )
+}
+
+function EditorSaidaReal({ viagemId, inicioPrevisto, horarioRealSaidaInicial, motivoAtrasoInicial }: Props) {
   const router = useRouter()
   const [isPending, startTransition] = useTransition()
   const [aberto, setAberto] = useState(false)

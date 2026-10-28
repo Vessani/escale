@@ -1,5 +1,6 @@
 import Link from "next/link"
 import { requireSessaoPaginaComFilial } from "@/lib/auth-guard"
+import { PAPEIS_LEITURA } from "@/lib/papeis"
 import { Button } from "@/components/ui/button"
 import { EmptyState } from "@/components/ui/empty-state"
 import { Badge } from "@/components/ui/badge"
@@ -20,6 +21,7 @@ import { formatarDataHoraPtBr } from "@/lib/utils/date-format"
 import ExcluirFrotaButton from "./excluir-frota-button"
 import { AcoesLinha, BotaoIcone } from "@/components/ui/botao-icone"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
+import { SoQuemOpera } from "@/components/layout/somente-leitura"
 
 type Frota = Awaited<ReturnType<typeof buscarFrotas>>[number]
 
@@ -79,12 +81,14 @@ function StatusFrotaBadge({ frota, agora, manutencoes }: { frota: Frota; agora: 
 function AcoesFrota({ frota, podeExcluir }: { frota: Frota; podeExcluir: boolean }) {
   return (
     <AcoesLinha>
-      <BotaoIcone
-        href={`/frotas/manutencoes/nova?cavalo=${encodeURIComponent(frota.cavalo)}&carreta=${encodeURIComponent(frota.carreta)}`}
-        rotulo="Agendar manutenção"
-        icone={Wrench}
-      />
-      <BotaoIcone href={`/frotas/editar/${frota.id}`} rotulo="Editar conjunto" icone={Pencil} />
+      <SoQuemOpera>
+        <BotaoIcone
+          href={`/frotas/manutencoes/nova?cavalo=${encodeURIComponent(frota.cavalo)}&carreta=${encodeURIComponent(frota.carreta)}`}
+          rotulo="Agendar manutenção"
+          icone={Wrench}
+        />
+        <BotaoIcone href={`/frotas/editar/${frota.id}`} rotulo="Editar conjunto" icone={Pencil} />
+      </SoQuemOpera>
       {podeExcluir && <ExcluirFrotaButton frotaId={frota.id} cavalo={frota.cavalo} carreta={frota.carreta} />}
     </AcoesLinha>
   )
@@ -167,7 +171,7 @@ function FrotasCards({
 }
 
 export default async function FrotasPage() {
-  const { session, filialId } = await requireSessaoPaginaComFilial()
+  const { session, filialId } = await requireSessaoPaginaComFilial(PAPEIS_LEITURA)
   const podeExcluir = session.user.role === "ADMIN"
   const [frotas, manutencoes] = await Promise.all([buscarFrotas(filialId), buscarManutencoesEmAberto(filialId)])
   const agora = new Date()
@@ -186,12 +190,14 @@ export default async function FrotasPage() {
               Manutenções
             </Button>
           </Link>
-          <Link href="/frotas/novo">
-            <Button>
-              <PlusCircle className="w-5 h-5 mr-2" />
-              Novo Conjunto
-            </Button>
-          </Link>
+          <SoQuemOpera>
+            <Link href="/frotas/novo">
+              <Button>
+                <PlusCircle className="w-5 h-5 mr-2" />
+                Novo Conjunto
+              </Button>
+            </Link>
+          </SoQuemOpera>
         </div>
       </div>
 
@@ -201,12 +207,14 @@ export default async function FrotasPage() {
           titulo="Nenhum conjunto"
           descricao="Nenhum conjunto (cavalo/carreta) cadastrado ainda."
           acao={
-            <Link href="/frotas/novo">
-              <Button>
-                <PlusCircle className="w-4 h-4 mr-2" />
-                Novo conjunto
-              </Button>
-            </Link>
+            <SoQuemOpera>
+              <Link href="/frotas/novo">
+                <Button>
+                  <PlusCircle className="w-4 h-4 mr-2" />
+                  Novo conjunto
+                </Button>
+              </Link>
+            </SoQuemOpera>
           }
         />
       ) : (

@@ -143,6 +143,8 @@
     frotas           Frota[]
     manutencoes      Manutencao[]
     quadroObservacao QuadroObservacao?
+    estourosJornada  EstouroJornada[]
+    solicitacoesUber SolicitacaoUber[]
   }
 
   model Viagem {
@@ -230,6 +232,8 @@
     problemaMecanico   String?   @db.VarChar(300)
     problemaMecanicoEm DateTime?
     trocas             TrocaMotorista[]
+    estourosJornada    EstouroJornada[]
+    solicitacoesUber   SolicitacaoUber[]
 
     @@index([motoristaId])
     @@index([motoristaAcompanhanteId])
@@ -378,6 +382,8 @@
     trocasSaiu      TrocaMotorista[] @relation("TrocaAnterior")
     trocasEntrou    TrocaMotorista[] @relation("TrocaNovo")
     registrosJornada RegistroJornada[]
+    estourosJornada EstouroJornada[]
+    solicitacoesUber SolicitacaoUber[]
     /** Acesso do próprio motorista (área "Minhas viagens"), se o despacho criou. */
     acesso          Usuario?
 
@@ -677,3 +683,125 @@
     @@index([motoristaNovoId])
   }
 
+
+  // Estouro de jornada: o motorista ou o escalador pede, o link vai pro grupo
+  // de WhatsApp da filial e o gestor aprova ou recusa por ele (sem login).
+  // Substitui o "ok" solto na conversa por um registro com quem pediu, quem
+  // decidiu, quando e por quê.
+  // "Expirado" não é status: é PENDENTE com expiraEm no passado (ver
+  // situacaoDoEstouro em lib/services/estouro-jornada-regras.ts) — assim
+  // não precisa de rotina agendada pra virar o status.
+  enum StatusEstouro {
+    PENDENTE
+    APROVADO
+    RECUSADO
+    CANCELADO
+  }
+
+  // Motivos fixos do pedido (o motorista marca até 3) — rótulos em
+  // MOTIVOS_ESTOURO (lib/services/estouro-jornada-regras.ts).
+  enum MotivoEstouro {
+    CLIENTE_PRIORITARIO
+    TRANSITO_LENTO
+    CHEGAR_HOTEL
+    CHEGAR_CLIENTE
+    CHEGAR_CDL
+    ABASTECER
+  }
+
+  model EstouroJornada {
+    id              Int           @id @default(autoincrement())
+    filialId        Int
+    filial          Filial        @relation(fields: [filialId], references: [id])
+    motoristaId     Int
+    motorista       Motorista     @relation(fields: [motoristaId], references: [id])
+    // Opcional: o estouro pode não estar ligado a uma viagem do sistema.
+    viagemId        Int?
+    viagem          Viagem?       @relation(fields: [viagemId], references: [id])
+    // Em minutos (inteiro), como os centavos de DespesaViagem — sem
+    // arredondamento de decimal. Teto em LIMITE_MINUTOS_ESTOURO.
+    minutosExtras   Int
+    // De 1 a MAXIMO_MOTIVOS_ESTOURO, sem repetir (validado no Zod).
+    motivos         MotivoEstouro[]
+    status          StatusEstouro @default(PENDENTE)
+    // Só o hash (SHA-256) do token do link fica no banco: quem ler a tabela
+    // não consegue montar um link válido. Trocado a cada "gerar novo link".
+    tokenHash       String        @unique @db.VarChar(64)
+    expiraEm        DateTime      @db.Timestamp(6)
+    // Denormalizado, como na auditoria: o nome de quando pediu.
+    solicitadoPorId   String?
+    solicitadoPorNome String?
+    // true = o próprio motorista pediu pela área dele; false = o escalador.
+    pedidoPeloMotorista Boolean   @default(false)
+    decididoEm      DateTime?     @db.Timestamp(6)
+    // Nome que quem decidiu digitou na página do link. O link circula no
+    // grupo e não tem login: é declarado, não comprovado (por isso o IP junto).
+    decididoPorNome String?       @db.VarChar(80)
+    observacaoGestor String?      @db.VarChar(300)
+    // IP de quem clicou em aprovar/recusar — rastro mínimo, já que o link não tem login.
+    decisaoIp       String?       @db.VarChar(100)
+    criadoEm        DateTime      @default(now())
+    atualizadoEm    DateTime      @updatedAt
+
+    // Lista da tela (filial + mais recentes primeiro).
+    @@index([filialId, criadoEm])
+    @@index([motoristaId])
+    @@index([viagemId])
+  }
+
+
+  // Pedido de Uber: mesmo fluxo do estouro de jornada (o motorista ou o
+  // escalador pede, o link vai pro grupo de WhatsApp da filial e o gestor
+  // aprova ou recusa por ele, sem login). O sistema só registra a
+  // autorização — a corrida é chamada no app do Uber depois de aprovada.
+  // Mesmos status do estouro; "expirado" é PENDENTE com expiraEm no passado.
+  enum StatusUber {
+    PENDENTE
+    APROVADO
+    RECUSADO
+    CANCELADO
+  }
+
+  // Motivo fixo do pedido (um por pedido) — rótulos em MOTIVOS_UBER
+  // (lib/services/uber-regras.ts).
+  enum MotivoUber {
+    PERNOITE
+    MANUTENCAO
+    BUSCAR_FROTA
+    RENDER_MOTORISTA
+  }
+
+  model SolicitacaoUber {
+    id              Int         @id @default(autoincrement())
+    filialId        Int
+    filial          Filial      @relation(fields: [filialId], references: [id])
+    // Quem vai na corrida.
+    motoristaId     Int
+    motorista       Motorista   @relation(fields: [motoristaId], references: [id])
+    // Opcional: a corrida pode não estar ligada a uma viagem do sistema.
+    viagemId        Int?
+    viagem          Viagem?     @relation(fields: [viagemId], references: [id])
+    // Texto livre (endereço, posto, cidade) — teto em TAMANHO_MAXIMO_LOCAL_UBER.
+    origem          String      @db.VarChar(150)
+    destino         String      @db.VarChar(150)
+    motivo          MotivoUber
+    status          StatusUber  @default(PENDENTE)
+    // Só o hash (SHA-256) do token do link fica no banco (ver lib/services/link-aprovacao.ts).
+    tokenHash       String      @unique @db.VarChar(64)
+    expiraEm        DateTime    @db.Timestamp(6)
+    solicitadoPorId   String?
+    solicitadoPorNome String?
+    // true = o próprio motorista pediu pela área dele; false = o escalador.
+    pedidoPeloMotorista Boolean @default(false)
+    decididoEm      DateTime?   @db.Timestamp(6)
+    // Nome digitado na página do link: declarado, não comprovado (por isso o IP junto).
+    decididoPorNome String?     @db.VarChar(80)
+    observacaoGestor String?    @db.VarChar(300)
+    decisaoIp       String?     @db.VarChar(100)
+    criadoEm        DateTime    @default(now())
+    atualizadoEm    DateTime    @updatedAt
+
+    @@index([filialId, criadoEm])
+    @@index([motoristaId])
+    @@index([viagemId])
+  }

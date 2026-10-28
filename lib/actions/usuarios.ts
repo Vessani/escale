@@ -1,6 +1,7 @@
 "use server"
 import { revalidatePath } from "next/cache"
 import { requireSession } from "@/lib/auth-guard"
+import { PAPEIS_LEITURA } from "@/lib/papeis"
 import { errorToMessage } from "@/lib/action-error"
 import { usuarioSchema, trocarSenhaSchema, type UsuarioFormValues, type TrocarSenhaFormValues } from "@/lib/validation/usuarios"
 import type { RespostaAcao } from "@/lib/types/types"
@@ -31,10 +32,10 @@ export async function alterarUsuarioAtivo(usuarioId: string, ativo: boolean): Pr
   }
 }
 
-/** Troca de senha self-service — qualquer papel autenticado troca a própria senha, mediante confirmação da atual. */
+/** Troca de senha self-service — todo papel com e-mail e senha (a torre também) troca a própria, mediante confirmação da atual. */
 export async function trocarSenhaPropria(dados: TrocarSenhaFormValues): Promise<RespostaAcao> {
   try {
-    const session = await requireSession()
+    const session = await requireSession(["SUPERADMIN", ...PAPEIS_LEITURA])
     await trocarSenhaPropriaService(atorDaSessao(session), session.user.filialId ?? null, trocarSenhaSchema.parse(dados))
     return { sucesso: true }
   } catch (erro) {

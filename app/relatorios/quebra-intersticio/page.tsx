@@ -1,6 +1,7 @@
 import Link from "next/link"
 import { BedDouble } from "lucide-react"
 import { requireSessaoPaginaComFilial } from "@/lib/auth-guard"
+import { PAPEIS_LEITURA } from "@/lib/papeis"
 import { EmptyState } from "@/components/ui/empty-state"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import {
@@ -23,7 +24,7 @@ type SearchParamsInput = { de?: string; ate?: string }
 
 export default async function QuebraIntersticioPage({ searchParams }: { searchParams?: Promise<SearchParamsInput> }) {
   const parametros = (await searchParams) ?? {}
-  const { filialId } = await requireSessaoPaginaComFilial()
+  const { filialId } = await requireSessaoPaginaComFilial(PAPEIS_LEITURA)
   const periodo = periodoOuPadrao(parametros.de, parametros.ate, PERIODO_PADRAO.quebraIntersticio)
   const dados = await carregarDadosJornada(filialId, periodo.de, periodo.ate)
   const ocorrencias = quebrasDeIntersticio(dados.motoristas, dados.jornadas, dados.viagens, periodo.de, periodo.ate)

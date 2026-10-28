@@ -20,6 +20,7 @@ import {
   type StatusViagemSelecionavel,
 } from "@/lib/services/viagem-status.service"
 import { chamarAcao } from "@/lib/chamar-acao"
+import { useSomenteLeitura } from "@/components/layout/somente-leitura"
 
 type Props = {
   viagemId: number
@@ -34,7 +35,25 @@ type Props = {
   opcoesPermitidas?: readonly StatusViagem[]
 }
 
-export default function AtualizarStatusRapido({ viagemId, statusAtual, inicioPrevisto, fimPrevisto, opcoesPermitidas }: Props) {
+/** Só consulta (torre): a mesma etiqueta colorida, sem o seletor. */
+function StatusSomenteLeitura({ statusAtual }: { statusAtual: StatusViagem }) {
+  const status = normalizarStatusViagem(statusAtual)
+  return (
+    <span
+      className={cn("inline-flex h-7 items-center gap-2 rounded-md border px-2.5 text-xs font-medium", classeBadgeStatusViagem(status))}
+    >
+      <span aria-hidden className={cn("size-1.5 shrink-0 rounded-full", classePontoStatusViagem(status))} />
+      {formatarStatusViagem(status)}
+    </span>
+  )
+}
+
+export default function AtualizarStatusRapido(props: Props) {
+  const somenteLeitura = useSomenteLeitura()
+  return somenteLeitura ? <StatusSomenteLeitura statusAtual={props.statusAtual} /> : <SeletorStatusRapido {...props} />
+}
+
+function SeletorStatusRapido({ viagemId, statusAtual, inicioPrevisto, fimPrevisto, opcoesPermitidas }: Props) {
   const router = useRouter()
   const [isPending, startTransition] = useTransition()
   const [erro, setErro] = useState("")

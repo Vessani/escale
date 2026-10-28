@@ -1,4 +1,4 @@
-import type { TipoMotorista, Turno } from "@prisma/client"
+import type { MotivoEstouro, TipoMotorista, Turno } from "@prisma/client"
 import { inicioDoDia } from "@/lib/utils/date-format"
 import { MAX_DIAS_SEM_FOLGA, folgaEstourada } from "@/lib/services/dias-sem-folga"
 import { MINIMO_HORAS_ENTRE_FOLGAS, MINIMO_HORAS_ENTRE_JORNADAS } from "@/lib/services/alocacao/disponibilidade"
@@ -7,8 +7,8 @@ import { ocorrenciasRealizadas, viagemDaJornada, type ViagemCircadiano } from "@
 /**
  * Análises sobre o que o Relatório de Jornada mostra que ACONTECEU (horários
  * reais), não sobre o planejado no Escale — base dos relatórios de
- * quebra de interstício, estouro de 7º dia, estouro de jornada e do painel
- * por motorista.
+ * quebra de interstício, estouro de 7º dia, estouro de jornada, ciclo de
+ * 72h e do painel por motorista.
  */
 
 /** Limite padrão do relatório de estouro de jornada. */
@@ -246,6 +246,52 @@ export function juntarEstourosSetimoDia(setimos: SetimoDiaTrabalhado[], folgasCu
 }
 
 // ---------------------------------------------------------------------------
+// Autorizações: o pedido de estouro aprovado pelo gestor (link do grupo)
+// ---------------------------------------------------------------------------
+
+/** Pedido de estouro APROVADO (ver EstouroJornada) — quem autorizou o estouro da jornada. */
+export type AutorizacaoEstouro = {
+  id: number
+  motoristaId: number
+  criadoEm: Date
+  decididoEm: Date | null
+  decididoPorNome: string | null
+  minutosExtras: number
+  motivos: MotivoEstouro[]
+  pedidoPeloMotorista: boolean
+}
+
+/** Pedido feito no descanso, antes de a jornada começar, vale pra jornada que começa até esse tanto depois. */
+export const HORAS_ANTECEDENCIA_AUTORIZACAO = 12
+
+const chaveJornada = (motoristaId: number, inicio: Date) => `${motoristaId}-${inicio.getTime()}`
+
+/**
+ * Liga cada pedido aprovado a UMA jornada do motorista: a que estava em
+ * andamento quando ele foi pedido, ou, se foi pedido antes de começar, a
+ * próxima que começa em até HORAS_ANTECEDENCIA_AUTORIZACAO. Não usa a viagem
+ * do pedido: numa viagem de vários dias, isso marcaria todos os dias como
+ * autorizados. Devolve jornada (motorista + início) → pedidos.
+ */
+function autorizacoesPorJornada(jornadas: JornadaReal[], autorizacoes: AutorizacaoEstouro[]): Map<string, AutorizacaoEstouro[]> {
+  const mapa = new Map<string, AutorizacaoEstouro[]>()
+  const jornadasDoMotorista = porMotorista(jornadas)
+  const antecedencia = HORAS_ANTECEDENCIA_AUTORIZACAO * 60 * UM_MINUTO_MS
+
+  for (const pedido of autorizacoes) {
+    const lista = jornadasDoMotorista.get(pedido.motoristaId) ?? []
+    const instante = pedido.criadoEm.getTime()
+    const jornada =
+      lista.find((j) => j.inicioJornada.getTime() <= instante && instante <= j.fimJornada.getTime()) ??
+      lista.find((j) => j.inicioJornada.getTime() > instante && j.inicioJornada.getTime() - instante <= antecedencia)
+    if (!jornada) continue
+    const chave = chaveJornada(jornada.motoristaId, jornada.inicioJornada)
+    mapa.set(chave, [...(mapa.get(chave) ?? []), pedido])
+  }
+  return mapa
+}
+
+// ---------------------------------------------------------------------------
 // 3. Estouro de jornada
 // ---------------------------------------------------------------------------
 
@@ -257,9 +303,11 @@ type EstouroJornada = {
   fim: Date
   duracaoMinutos: number
   excedenteMinutos: number
+  /** Pedidos de estouro aprovados pra essa jornada (vazio = sem autorização). */
+  autorizacoes: AutorizacaoEstouro[]
 } & DadosDaViagem
 
-/** Jornadas reais que passaram do limite de horas escolhido. */
+/** Jornadas reais que passaram do limite de horas escolhido, com quem autorizou (se alguém autorizou). */
 export function estourosDeJornada(
   motoristas: MotoristaJornada[],
   jornadas: JornadaReal[],
@@ -267,8 +315,10 @@ export function estourosDeJornada(
   de: Date,
   ate: Date,
   limiteHoras = HORAS_ESTOURO_JORNADA_PADRAO,
+  autorizacoes: AutorizacaoEstouro[] = [],
 ): EstouroJornada[] {
   const porId = new Map(motoristas.map((motorista) => [motorista.id, motorista]))
+  const autorizadas = autorizacoesPorJornada(jornadas, autorizacoes)
   const ocorrencias: EstouroJornada[] = []
 
   for (const jornada of jornadas) {
@@ -286,11 +336,128 @@ export function estourosDeJornada(
       fim: jornada.fimJornada,
       duracaoMinutos,
       excedenteMinutos: duracaoMinutos - limiteHoras * 60,
+      autorizacoes: autorizadas.get(chaveJornada(motorista.id, jornada.inicioJornada)) ?? [],
       ...dadosDaViagem(viagens, motorista.id, jornada.inicioJornada, jornada.fimJornada),
     })
   }
 
   return ocorrencias.sort((a, b) => b.inicio.getTime() - a.inicio.getTime())
+}
+
+// ---------------------------------------------------------------------------
+// 3b. Ciclo de 72h (horas trabalhadas até a folga de 35h)
+// ---------------------------------------------------------------------------
+
+/**
+ * Teto de horas trabalhadas entre duas folgas de 35h: 6 dias de 12h. A soma
+ * é das jornadas (início→fim de cada uma), sem os descansos entre elas.
+ */
+export const HORAS_LIMITE_CICLO = 72
+
+/** A partir de quanto o motorista entra no relatório como "perto das 72h". */
+export const HORAS_ALERTA_CICLO_PADRAO = 60
+
+type CicloDeTrabalho = {
+  motoristaId: number
+  motorista: string
+  turno: Turno
+  /** Primeira jornada depois da última folga de 35h. */
+  inicio: Date
+  /** Fim da última jornada do ciclo (até onde o relatório de jornada cobre). */
+  fim: Date
+  jornadas: number
+  horasMinutos: number
+  /** Quanto falta pras 72h (0 se já passou). */
+  faltamMinutos: number
+  /** Quanto passou das 72h (0 se não passou). */
+  excedenteMinutos: number
+  /** Quando a soma passou das 72h (no meio da jornada em que passou); null se não passou. */
+  passouEm: Date | null
+  /** true = já houve a folga de 35h depois (ciclo encerrado); false = o motorista segue no ciclo. */
+  encerrado: boolean
+  /** Estouros de jornada aprovados pelo gestor dentro do ciclo. */
+  autorizacoes: AutorizacaoEstouro[]
+} & DadosDaViagem
+
+/**
+ * Ciclos de trabalho (entre folgas de 35h) que chegaram perto das 72h
+ * trabalhadas. O ciclo começa na primeira jornada depois de um descanso de
+ * 35h ou mais — folga menor que 35h não zera a conta. `coberturaAte`: até que
+ * dia o relatório de jornada importado vai; sem jornada depois, o ciclo só
+ * conta como encerrado se as 35h de folga já couberem até lá. Ciclo que
+ * cruza o período entra inteiro. Os mais carregados primeiro.
+ */
+export function ciclosDe72h(
+  motoristas: MotoristaJornada[],
+  jornadas: JornadaReal[],
+  viagens: ViagemCircadiano[],
+  de: Date,
+  ate: Date,
+  {
+    alertaHoras = HORAS_ALERTA_CICLO_PADRAO,
+    autorizacoes = [],
+    coberturaAte = null,
+  }: { alertaHoras?: number; autorizacoes?: AutorizacaoEstouro[]; coberturaAte?: Date | null } = {},
+): CicloDeTrabalho[] {
+  const porId = new Map(motoristas.map((motorista) => [motorista.id, motorista]))
+  const autorizadas = autorizacoesPorJornada(jornadas, autorizacoes)
+  const folgaMs = MINIMO_HORAS_ENTRE_FOLGAS * 60 * UM_MINUTO_MS
+  const limite = HORAS_LIMITE_CICLO * 60
+  // Fim do último dia coberto pelo relatório de jornada.
+  const fimDaCobertura = coberturaAte ? coberturaAte.getTime() + 24 * 60 * 60 * 1000 : null
+  const ciclos: CicloDeTrabalho[] = []
+
+  for (const [motoristaId, lista] of porMotorista(jornadas)) {
+    const motorista = porId.get(motoristaId)
+    if (!motorista) continue
+
+    // Fatia as jornadas em ciclos: um descanso de 35h+ fecha o anterior.
+    const grupos: JornadaReal[][] = []
+    for (const jornada of lista) {
+      const atual = grupos.at(-1)
+      const ultima = atual?.at(-1)
+      if (atual && ultima && jornada.inicioJornada.getTime() - ultima.fimJornada.getTime() < folgaMs) atual.push(jornada)
+      else grupos.push([jornada])
+    }
+
+    grupos.forEach((grupo, indice) => {
+      const primeira = grupo[0]
+      const ultima = grupo[grupo.length - 1]
+      if (primeira.inicioJornada > ate || ultima.fimJornada < de) return
+
+      let horasMinutos = 0
+      let passouEm: Date | null = null
+      for (const jornada of grupo) {
+        const duracao = Math.max(0, minutosEntre(jornada.inicioJornada, jornada.fimJornada))
+        if (passouEm === null && horasMinutos + duracao > limite) {
+          passouEm = new Date(jornada.inicioJornada.getTime() + (limite - horasMinutos) * UM_MINUTO_MS)
+        }
+        horasMinutos += duracao
+      }
+      if (horasMinutos < alertaHoras * 60) return
+
+      const temProximo = indice < grupos.length - 1
+      const folgaJaCabe = fimDaCobertura !== null && fimDaCobertura - ultima.fimJornada.getTime() >= folgaMs
+      ciclos.push({
+        motoristaId: motorista.id,
+        motorista: motorista.nome,
+        turno: motorista.turno,
+        inicio: primeira.inicioJornada,
+        fim: ultima.fimJornada,
+        jornadas: grupo.length,
+        horasMinutos,
+        faltamMinutos: Math.max(0, limite - horasMinutos),
+        excedenteMinutos: Math.max(0, horasMinutos - limite),
+        passouEm,
+        encerrado: temProximo || folgaJaCabe,
+        autorizacoes: grupo.flatMap((j) => autorizadas.get(chaveJornada(motorista.id, j.inicioJornada)) ?? []),
+        // O que fazia na última jornada do ciclo.
+        ...dadosDaViagem(viagens, motorista.id, ultima.inicioJornada, ultima.fimJornada),
+      })
+    })
+  }
+
+  return ciclos.sort((a, b) => b.horasMinutos - a.horasMinutos || b.fim.getTime() - a.fim.getTime())
 }
 
 // ---------------------------------------------------------------------------

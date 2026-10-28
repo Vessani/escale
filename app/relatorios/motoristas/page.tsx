@@ -1,6 +1,7 @@
 import Link from "next/link"
 import { AlertTriangle, CalendarCheck, Clock, UserX, Users } from "lucide-react"
 import { requireSessaoPaginaComFilial } from "@/lib/auth-guard"
+import { PAPEIS_LEITURA } from "@/lib/papeis"
 import { EmptyState } from "@/components/ui/empty-state"
 import { StatCard } from "@/components/ui/stat-card"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
@@ -32,7 +33,7 @@ function CelulaAlerta({ valor, relatorio, periodo }: { valor: number; relatorio:
 
 export default async function PainelMotoristasPage({ searchParams }: { searchParams?: Promise<SearchParamsInput> }) {
   const parametros = (await searchParams) ?? {}
-  const { filialId } = await requireSessaoPaginaComFilial()
+  const { filialId } = await requireSessaoPaginaComFilial(PAPEIS_LEITURA)
   const periodo = periodoOuPadrao(parametros.de, parametros.ate, PERIODO_PADRAO.motoristas)
   const dados = await carregarDadosJornada(filialId, periodo.de, periodo.ate)
   const linhas = painelPorMotorista(dados.motoristas, dados.jornadas, dados.viagens, periodo.de, periodo.ate)

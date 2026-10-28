@@ -1,5 +1,5 @@
 import type { PeriodoPadrao } from "./periodo"
-import { HORAS_ESTOURO_JORNADA_PADRAO } from "@/lib/services/relatorios/jornada-analise"
+import { HORAS_ALERTA_CICLO_PADRAO, HORAS_ESTOURO_JORNADA_PADRAO } from "@/lib/services/relatorios/jornada-analise"
 import { DIAS_INTEGRACAO_PADRAO } from "@/lib/services/relatorios/operacao"
 
 /** Período padrão de cada relatório (quando a URL não traz ?de/?ate). */
@@ -8,6 +8,7 @@ export const PERIODO_PADRAO = {
   estouroSetimoDia: { diasAntes: 30, diasDepois: 0 },
   quebraIntersticio: { diasAntes: 30, diasDepois: 0 },
   estouroJornada: { diasAntes: 30, diasDepois: 0 },
+  ciclo72h: { diasAntes: 30, diasDepois: 0 },
   motoristas: "MES_ATUAL",
   pontualidade: { diasAntes: 30, diasDepois: 0 },
   avisos: { diasAntes: 30, diasDepois: 0 },
@@ -18,6 +19,8 @@ export const PERIODO_PADRAO = {
 
 export const OPCOES_HORAS_ESTOURO_JORNADA = [10, 11, 12, 13, 14] as const
 export const OPCOES_DIAS_INTEGRACAO = [15, 30, 60, 90] as const
+/** "Perto das 72h" a partir de: o filtro do relatório de ciclo de 72h. */
+export const OPCOES_HORAS_ALERTA_CICLO = [48, 60, 66, 72] as const
 
 function inteiroEntre<T extends readonly number[]>(texto: string | null | undefined, opcoes: T, padrao: T[number]): T[number] {
   const valor = Number(texto)
@@ -32,4 +35,9 @@ export function parseHorasEstouroJornada(texto: string | null | undefined): numb
 /** ?dias= do relatório de integrações. */
 export function parseDiasIntegracao(texto: string | null | undefined): number {
   return inteiroEntre(texto, OPCOES_DIAS_INTEGRACAO, DIAS_INTEGRACAO_PADRAO as 30)
+}
+
+/** ?horas= do relatório de ciclo de 72h — só aceita as opções da tela. */
+export function parseHorasAlertaCiclo(texto: string | null | undefined): number {
+  return inteiroEntre(texto, OPCOES_HORAS_ALERTA_CICLO, HORAS_ALERTA_CICLO_PADRAO as 60)
 }

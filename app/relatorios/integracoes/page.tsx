@@ -1,6 +1,7 @@
 import Link from "next/link"
 import { ShieldCheck } from "lucide-react"
 import { requireSessaoPaginaComFilial } from "@/lib/auth-guard"
+import { PAPEIS_LEITURA } from "@/lib/papeis"
 import { Badge } from "@/components/ui/badge"
 import { EmptyState } from "@/components/ui/empty-state"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
@@ -23,7 +24,7 @@ const STATUS_TEXTO = { ATIVO: "Ativo", INATIVO: "Inativo", PENDENTE: "Pendente" 
 
 export default async function IntegracoesPage({ searchParams }: { searchParams?: Promise<SearchParamsInput> }) {
   const parametros = (await searchParams) ?? {}
-  const { filialId } = await requireSessaoPaginaComFilial()
+  const { filialId } = await requireSessaoPaginaComFilial(PAPEIS_LEITURA)
   const dias = parseDiasIntegracao(parametros.dias)
   const integracoes = integracoesVencendo(await buscarIntegracoesParaRelatorio(filialId, dias), new Date(), dias)
   const vencidas = integracoes.filter((integracao) => integracao.situacao === "VENCIDA").length

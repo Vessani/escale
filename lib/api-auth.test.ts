@@ -9,6 +9,10 @@ vi.mock("@/lib/auth", () => ({
   authOptions: {},
 }))
 
+vi.mock("@/lib/torre", () => ({
+  filialDaTorre: vi.fn(async () => 5),
+}))
+
 import { requireSessaoApi } from "@/lib/api-auth"
 import { NaoAutorizadoError } from "@/lib/errors"
 
@@ -27,6 +31,12 @@ describe("requireSessaoApi", () => {
     vi.mocked(getServerSession).mockResolvedValue({ user: { id: "1", role: "SUPERADMIN", filialId: null } } as never)
 
     await expect(requireSessaoApi()).rejects.toBeInstanceOf(NaoAutorizadoError)
+  })
+
+  it("torre (sem filial no cadastro) usa a filial escolhida no menu — as rotas são só leitura", async () => {
+    vi.mocked(getServerSession).mockResolvedValue({ user: { id: "t1", role: "TORRE", filialId: null } } as never)
+
+    await expect(requireSessaoApi()).resolves.toMatchObject({ filialId: 5 })
   })
 
   it("devolve session e filialId com sessão válida", async () => {

@@ -9,6 +9,10 @@ describe("determinarAcaoSugerida", () => {
     })
   })
 
+  it("o texto fala do dia olhado (a tela abre em amanhã)", () => {
+    expect(determinarAcaoSugerida(3, "MOTORISTA", "amanhã").texto).toBe("Sem viagem amanhã — considere dar folga.")
+  })
+
   it("não sugere nada pra quem já está de folga (7)", () => {
     expect(determinarAcaoSugerida(7, "MOTORISTA").tipo).toBe("NENHUMA")
   })

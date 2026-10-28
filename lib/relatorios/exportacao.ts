@@ -9,7 +9,8 @@ import {
   buscarViagensComAviso,
   buscarViagensPontualidade,
 } from "@/lib/queries/relatorios/operacao"
-import { estourosDeJornada, painelPorMotorista, quebrasDeIntersticio } from "@/lib/services/relatorios/jornada-analise"
+import { painelPorMotorista, quebrasDeIntersticio } from "@/lib/services/relatorios/jornada-analise"
+import { carregarCiclos72h, carregarEstourosDeJornada } from "@/lib/queries/relatorios/estouros"
 import {
   TOLERANCIA_SAIDA_MINUTOS,
   analisarPontualidade,
@@ -28,8 +29,9 @@ import { formatarReais } from "@/lib/utils/dinheiro"
 import type { OcorrenciaCircadiano } from "@/lib/services/circadiano.service"
 import { ROTULO_RESPONSAVEL, ROTULO_SITUACAO, ROTULO_VEICULO, descreverTipo, situacaoManutencao } from "@/lib/services/manutencao-regras"
 import { aba, type AbaPronta, type Coluna } from "@/lib/excel/planilha"
-import { PERIODO_PADRAO, parseDiasIntegracao, parseHorasEstouroJornada } from "./catalogo"
-import { formatarDiaCompleto, formatarDuracao, rotuloTurno } from "./formato"
+import { PERIODO_PADRAO, parseDiasIntegracao, parseHorasAlertaCiclo, parseHorasEstouroJornada } from "./catalogo"
+import { descreverAutorizacoes, formatarDiaCompleto, formatarDuracao, rotuloTurno } from "./formato"
+import { HORAS_LIMITE_CICLO } from "@/lib/services/relatorios/jornada-analise"
 import { resolverPeriodo, type Periodo, type PeriodoPadrao } from "./periodo"
 
 type ResultadoExportacao = { arquivo: string; abas: AbaPronta[] }
@@ -278,15 +280,17 @@ export const EXPORTADORES_RELATORIO: Record<string, Exportador> = {
 
   "estouro-jornada": comPeriodo(PERIODO_PADRAO.estouroJornada, "estouro-jornada", async (filialId, periodo, params) => {
     const limite = parseHorasEstouroJornada(params.get("horas"))
-    const dados = await carregarDadosJornada(filialId, periodo.de, periodo.ate)
-    const ocorrencias = estourosDeJornada(dados.motoristas, dados.jornadas, dados.viagens, periodo.de, periodo.ate, limite)
+    const ocorrencias = await carregarEstourosDeJornada(filialId, periodo, limite)
     type Ocorrencia = (typeof ocorrencias)[number]
     return [
       aba<Ocorrencia>({
         nome: `Acima de ${limite}h`,
         titulo: `Estouro de jornada · acima de ${limite}h`,
         subtitulo: textoPeriodo(periodo),
-        resumo: [{ rotulo: "Jornadas", valor: ocorrencias.length }],
+        resumo: [
+          { rotulo: "Jornadas", valor: ocorrencias.length },
+          { rotulo: "Sem autorização", valor: ocorrencias.filter((o) => o.autorizacoes.length === 0).length },
+        ],
         linhas: ocorrencias,
         destaque: (o) => (o.excedenteMinutos >= 120 ? "perigo" : "alerta"),
         vazio: `Nenhuma jornada passou de ${limite}h.`,
@@ -298,7 +302,47 @@ export const EXPORTADORES_RELATORIO: Record<string, Exportador> = {
           { titulo: "Fim", valor: (o) => o.fim, tipo: "dataHora" },
           { titulo: "Duração", valor: (o) => formatarDuracao(o.duracaoMinutos) },
           { titulo: "Passou", valor: (o) => formatarDuracao(o.excedenteMinutos) },
+          { titulo: "Autorizado por", valor: (o) => descreverAutorizacoes(o.autorizacoes), largura: 48 },
           ...colunasAtividade<Ocorrencia>(),
+        ],
+      }),
+    ]
+  }),
+
+  "estouro-72h": comPeriodo(PERIODO_PADRAO.ciclo72h, "estouro-72h", async (filialId, periodo, params) => {
+    const alerta = parseHorasAlertaCiclo(params.get("horas"))
+    const { ciclos } = await carregarCiclos72h(filialId, periodo, alerta)
+    type Ciclo = (typeof ciclos)[number]
+    return [
+      aba<Ciclo>({
+        nome: "Estouro de 72h",
+        titulo: `Estouro de 72h · a partir de ${alerta}h no ciclo`,
+        subtitulo: `${textoPeriodo(periodo)} · soma das jornadas desde a última folga de 35h (teto ${HORAS_LIMITE_CICLO}h)`,
+        resumo: [
+          { rotulo: "Ciclos", valor: ciclos.length },
+          { rotulo: `Passaram de ${HORAS_LIMITE_CICLO}h`, valor: ciclos.filter((c) => c.excedenteMinutos > 0).length },
+          { rotulo: "Ainda sem a folga de 35h", valor: ciclos.filter((c) => !c.encerrado).length },
+        ],
+        linhas: ciclos,
+        destaque: (c) => (c.excedenteMinutos > 0 ? "perigo" : "alerta"),
+        vazio: `Ninguém passou de ${alerta}h no ciclo.`,
+        colunas: [
+          { titulo: "Motorista", valor: (c) => nome(c.motorista) },
+          { titulo: "Turno", valor: (c) => rotuloTurno(c.turno) },
+          { titulo: "Início do ciclo", valor: (c) => c.inicio, tipo: "dataHora" },
+          { titulo: "Fim da última jornada", valor: (c) => c.fim, tipo: "dataHora" },
+          { titulo: "Jornadas", valor: (c) => c.jornadas },
+          { titulo: "Horas no ciclo", valor: (c) => formatarDuracao(c.horasMinutos) },
+          { titulo: `Passou de ${HORAS_LIMITE_CICLO}h`, valor: (c) => (c.excedenteMinutos > 0 ? formatarDuracao(c.excedenteMinutos) : "") },
+          { titulo: `Passou das ${HORAS_LIMITE_CICLO}h em`, valor: (c) => c.passouEm, tipo: "dataHora" },
+          { titulo: `Faltam pras ${HORAS_LIMITE_CICLO}h`, valor: (c) => (c.faltamMinutos > 0 ? formatarDuracao(c.faltamMinutos) : "") },
+          { titulo: "Folga de 35h", valor: (c) => (c.encerrado ? "Folgou" : "Ainda não folgou") },
+          {
+            titulo: "Estouros autorizados",
+            valor: (c) => (c.excedenteMinutos > 0 || c.autorizacoes.length > 0 ? descreverAutorizacoes(c.autorizacoes) : ""),
+            largura: 48,
+          },
+          ...colunasAtividade<Ciclo>(),
         ],
       }),
     ]

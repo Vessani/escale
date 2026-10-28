@@ -18,7 +18,7 @@ import { soEntregasDeCliente } from "@/lib/services/entrega-cliente"
 const nome = (texto: string | null | undefined) => (texto ? formatarNomeProprio(texto) : null)
 const rotuloDespesa = (tipo: "PEDAGIO" | "PERNOITE") => (tipo === "PEDAGIO" ? "Pedágio" : "Pernoite")
 
-/** comLinhaDoTempo: só pra gerência (ver ehGerencia) — sem ela, linhaDoTempo vem null. */
+/** comLinhaDoTempo: só pra quem vê histórico (ver veHistorico) — sem ela, linhaDoTempo vem null. */
 export async function carregarRelatorioViagem(filialId: number, viagemId: number, { comLinhaDoTempo }: { comLinhaDoTempo: boolean }) {
   const dados = await buscarRelatorioViagem(filialId, viagemId, comLinhaDoTempo)
   if (!dados) return null

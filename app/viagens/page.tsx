@@ -1,10 +1,11 @@
 import Link from "next/link"
 import { requireSessaoPaginaComFilial } from "@/lib/auth-guard"
+import { PAPEIS_LEITURA } from "@/lib/papeis"
 import { Button } from "@/components/ui/button"
 import { EmptyState } from "@/components/ui/empty-state"
 import { Badge } from "@/components/ui/badge"
 import { Alert } from "@/components/ui/alert"
-import { Download, Pencil, PlusCircle, Truck } from "lucide-react"
+import { Download, FileText, Pencil, PlusCircle, Truck } from "lucide-react"
 import { AcoesLinha, BotaoIcone } from "@/components/ui/botao-icone"
 import { buscarViagensPaginadas } from "@/lib/queries/viagens"
 import { STATUS_VIAGEM_OPCOES, formatarStatusViagem } from "@/lib/services/viagem-status.service"
@@ -17,6 +18,7 @@ import { classeBadgeTurno } from "./badge-styles"
 import { formatDateForDateInput, formatarDataHoraPtBr } from "@/lib/utils/date-format"
 import { formatarCodigoFrota } from "@/lib/services/frota-regras"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
+import { SoNaTorre, SoQuemOpera } from "@/components/layout/somente-leitura"
 
 type Viagem = Awaited<ReturnType<typeof buscarViagensPaginadas>>["viagens"][number]
 
@@ -68,7 +70,12 @@ function AcoesViagem({ viagem, podeExcluir }: { viagem: Viagem; podeExcluir: boo
     <AcoesLinha>
       {/* prefetch desligado: é um download de arquivo, não uma página. */}
       <BotaoIcone href={`/api/viagens/${viagem.id}/excel`} prefetch={false} rotulo="Baixar ordem de viagem (Excel)" icone={Download} />
-      <BotaoIcone href={`/viagens/editar/${viagem.id}`} rotulo="Editar viagem" icone={Pencil} />
+      <SoQuemOpera>
+        <BotaoIcone href={`/viagens/editar/${viagem.id}`} rotulo="Editar viagem" icone={Pencil} />
+      </SoQuemOpera>
+      <SoNaTorre>
+        <BotaoIcone href={`/viagens/relatorio/${viagem.id}`} rotulo="Relatório da viagem" icone={FileText} />
+      </SoNaTorre>
       {podeExcluir && <ExcluirViagemButton viagemId={viagem.id} numeroViagem={viagem.numViagem} />}
     </AcoesLinha>
   )
@@ -281,7 +288,7 @@ type SearchParamsInput = {
 export default async function ViagensPage({ searchParams }: { searchParams?: Promise<SearchParamsInput> }) {
   const filtro = parseFiltroListaViagens((await searchParams) ?? {})
   const filtroStatus = filtro.status
-  const { session, filialId } = await requireSessaoPaginaComFilial()
+  const { session, filialId } = await requireSessaoPaginaComFilial(PAPEIS_LEITURA)
   const podeExcluir = session.user.role === "ADMIN"
   const { viagens: viagensFiltradas, total, totalPaginas } = await buscarViagensPaginadas(filialId, filtro)
 
@@ -301,15 +308,17 @@ export default async function ViagensPage({ searchParams }: { searchParams?: Pro
               <Button variant={filtroStatus === status.valor ? "default" : "outline"}>{status.label}</Button>
             </Link>
           ))}
-          <Link href="/viagens/alocacao">
-            <Button variant="outline">Alocação Manual</Button>
-          </Link>
-          <Link href="/viagens/nova">
-            <Button>
-              <PlusCircle className="w-5 h-5 mr-2" />
-              Nova Viagem
-            </Button>
-          </Link>
+          <SoQuemOpera>
+            <Link href="/viagens/alocacao">
+              <Button variant="outline">Alocação Manual</Button>
+            </Link>
+            <Link href="/viagens/nova">
+              <Button>
+                <PlusCircle className="w-5 h-5 mr-2" />
+                Nova Viagem
+              </Button>
+            </Link>
+          </SoQuemOpera>
         </div>
       </div>
 
@@ -321,12 +330,14 @@ export default async function ViagensPage({ searchParams }: { searchParams?: Pro
           titulo="Nenhuma viagem"
           descricao={filtro.busca ? "Nenhuma viagem com esse número." : "Nenhuma viagem nesse período para este filtro."}
           acao={
-            <Link href="/viagens/nova">
-              <Button>
-                <PlusCircle className="w-4 h-4 mr-2" />
-                Nova viagem
-              </Button>
-            </Link>
+            <SoQuemOpera>
+              <Link href="/viagens/nova">
+                <Button>
+                  <PlusCircle className="w-4 h-4 mr-2" />
+                  Nova viagem
+                </Button>
+              </Link>
+            </SoQuemOpera>
           }
         />
       ) : (

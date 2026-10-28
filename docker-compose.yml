@@ -1,0 +1,27 @@
+# Postgres local para desenvolvimento e teste.
+# Credenciais vêm do .env (POSTGRES_USER, POSTGRES_PASSWORD, POSTGRES_DB),
+# que não vai pro git. Subir: docker compose up -d
+services:
+  db:
+    image: postgres:17
+    container_name: escale-db
+    restart: unless-stopped
+    # Sem valor: o Compose pega de cada uma do .env (ou do shell).
+    environment:
+      - POSTGRES_USER
+      - POSTGRES_PASSWORD
+      - POSTGRES_DB
+    ports:
+      # Só localhost: o banco não fica exposto na rede.
+      - "127.0.0.1:5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+volumes:
+  pgdata:
+    name: escale-pgdata

@@ -24,6 +24,11 @@ vi.mock("@/lib/auth", () => ({
   authOptions: {},
 }))
 
+// Filial que a torre escolheu no menu (cookie + banco, ver lib/torre.ts).
+vi.mock("@/lib/torre", () => ({
+  filialDaTorre: vi.fn(async () => 5),
+}))
+
 describe("auth-guard", () => {
   beforeEach(() => {
     vi.mocked(getServerSession).mockReset()
@@ -140,6 +145,46 @@ describe("requireSessaoPagina / requireSessaoPaginaComFilial", () => {
 
       vi.mocked(getServerSession).mockResolvedValue({ user: { id: "m2", role: "MOTORISTA", filialId: 3, motoristaId: null } } as never)
       await expect(requireSessaoMotorista()).rejects.toThrow("Não autorizado.")
+    })
+  })
+
+  describe("perfil TORRE", () => {
+    const torre = { user: { id: "t1", role: "TORRE", filialId: null, motoristaId: null } }
+
+    it("é barrada em toda action que não libera TORRE de propósito — inclusive as de 'qualquer usuário logado'", async () => {
+      vi.mocked(getServerSession).mockResolvedValue(torre as never)
+
+      await expect(requireSession()).rejects.toThrow("Não autorizado.")
+      await expect(requireSessionComFilial()).rejects.toThrow("Não autorizado.")
+      await expect(requireSessionComFilial(["ADMIN", "DESPACHANTE"])).rejects.toThrow("Não autorizado.")
+      await expect(requireSessaoMotorista()).rejects.toThrow("Não autorizado.")
+    })
+
+    it("tela de escrita manda pro Dashboard, ou pra versão só leitura indicada", async () => {
+      vi.mocked(getServerSession).mockResolvedValue(torre as never)
+
+      await expect(requireSessaoPagina()).rejects.toThrow("REDIRECT:/")
+      await expect(requireSessaoPaginaComFilial()).rejects.toThrow("REDIRECT:/")
+      await expect(requireSessaoPaginaComFilial(undefined, { destinoDaTorre: "/viagens/relatorio/8" })).rejects.toThrow(
+        "REDIRECT:/viagens/relatorio/8",
+      )
+    })
+
+    it("telas liberadas usam a filial escolhida no menu", async () => {
+      vi.mocked(getServerSession).mockResolvedValue(torre as never)
+
+      await expect(requireSessaoPaginaComFilial(["ADMIN", "DESPACHANTE", "TORRE"])).resolves.toEqual({ session: torre, filialId: 5 })
+      await expect(requireSessionComFilial(["TORRE"])).resolves.toEqual({ session: torre, filialId: 5 })
+    })
+
+    it("o destino da torre não muda nada pros outros papéis", async () => {
+      const sessao = { user: { role: "DESPACHANTE", filialId: 3 } }
+      vi.mocked(getServerSession).mockResolvedValue(sessao as never)
+
+      await expect(requireSessaoPaginaComFilial(undefined, { destinoDaTorre: "/viagens/relatorio/8" })).resolves.toEqual({
+        session: sessao,
+        filialId: 3,
+      })
     })
   })
 })

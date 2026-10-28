@@ -1,5 +1,6 @@
 import { MoonStar } from "lucide-react"
 import { requireSessaoPaginaComFilial } from "@/lib/auth-guard"
+import { PAPEIS_LEITURA } from "@/lib/papeis"
 import { EmptyState } from "@/components/ui/empty-state"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import {
@@ -69,7 +70,7 @@ function TabelaOcorrencias({ ocorrencias }: { ocorrencias: OcorrenciaCircadiano[
 
 export default async function CircadianoPage({ searchParams }: { searchParams?: Promise<SearchParamsInput> }) {
   const parametros = (await searchParams) ?? {}
-  const { filialId } = await requireSessaoPaginaComFilial()
+  const { filialId } = await requireSessaoPaginaComFilial(PAPEIS_LEITURA)
   const periodo = periodoOuPadrao(parametros.de, parametros.ate, PERIODO_PADRAO.circadiano)
   const relatorio = await buscarRelatorioCircadiano(filialId, periodo.de, periodo.ate)
 

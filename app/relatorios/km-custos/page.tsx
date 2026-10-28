@@ -1,6 +1,7 @@
 import Link from "next/link"
 import { Coins, Gauge, Receipt, Route, Wallet } from "lucide-react"
 import { requireSessaoPaginaComFilial } from "@/lib/auth-guard"
+import { PAPEIS_LEITURA } from "@/lib/papeis"
 import { EmptyState } from "@/components/ui/empty-state"
 import { StatCard } from "@/components/ui/stat-card"
 import { Badge } from "@/components/ui/badge"
@@ -24,7 +25,7 @@ type SearchParamsInput = { de?: string; ate?: string; motorista?: string; regist
 
 export default async function KmCustosPage({ searchParams }: { searchParams?: Promise<SearchParamsInput> }) {
   const parametros = (await searchParams) ?? {}
-  const { filialId } = await requireSessaoPaginaComFilial()
+  const { filialId } = await requireSessaoPaginaComFilial(PAPEIS_LEITURA)
   const periodo = periodoOuPadrao(parametros.de, parametros.ate, PERIODO_PADRAO.kmCustos)
   const motoristaId = parseMotoristaFiltro(parametros.motorista)
   const [viagens, motoristas] = await Promise.all([

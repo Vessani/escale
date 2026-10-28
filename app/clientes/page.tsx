@@ -1,5 +1,6 @@
 import Link from "next/link"
 import { requireSessaoPaginaComFilial } from "@/lib/auth-guard"
+import { PAPEIS_LEITURA } from "@/lib/papeis"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
@@ -10,7 +11,7 @@ import ExcluirClienteButton from "./excluir-cliente-button"
 import { AcoesLinha, BotaoIcone } from "@/components/ui/botao-icone"
 
 export default async function ClientesPage() {
-  const { session } = await requireSessaoPaginaComFilial()
+  const { session } = await requireSessaoPaginaComFilial(PAPEIS_LEITURA)
   const clientes = await buscarClientes()
   const podeGerenciar = session.user.role === "ADMIN"
 

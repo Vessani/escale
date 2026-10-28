@@ -1,9 +1,25 @@
-import { BedDouble, CalendarX, Clock, ListOrdered, MoonStar, ShieldCheck, Timer, TriangleAlert, Truck, Users, Wallet } from "lucide-react"
+import {
+  BedDouble,
+  CalendarX,
+  Clock,
+  Gauge,
+  ListOrdered,
+  MoonStar,
+  ShieldCheck,
+  Timer,
+  TriangleAlert,
+  Truck,
+  Users,
+  Wallet,
+} from "lucide-react"
 import { requireSessaoPaginaComFilial } from "@/lib/auth-guard"
+import { PAPEIS_LEITURA } from "@/lib/papeis"
 import { buscarIndicadoresDashboard } from "@/lib/queries/dashboard"
 import { buscarRelatorioCircadiano } from "@/lib/queries/circadiano"
 import { buscarEstourosSetimoDia } from "@/lib/queries/estouro-setimo-dia"
 import { contarAlertasOperacao } from "@/lib/queries/relatorios/operacao"
+import { carregarCiclos72h } from "@/lib/queries/relatorios/estouros"
+import { HORAS_ALERTA_CICLO_PADRAO } from "@/lib/services/relatorios/jornada-analise"
 import { PERIODO_PADRAO } from "@/lib/relatorios/catalogo"
 import { periodoOuPadrao } from "@/lib/relatorios/periodo"
 import { DIAS_INTEGRACAO_PADRAO } from "@/lib/services/relatorios/operacao"
@@ -20,13 +36,15 @@ export default async function RelatoriosPage({ searchParams }: { searchParams?: 
   const periodoIndicadores = periodoOuPadrao(parametros.de, parametros.ate, { diasAntes: 30, diasDepois: 0 })
   const periodoCircadiano = periodoOuPadrao(undefined, undefined, PERIODO_PADRAO.circadiano)
   const periodoSetimoDia = periodoOuPadrao(undefined, undefined, PERIODO_PADRAO.estouroSetimoDia)
+  const periodoCiclo = periodoOuPadrao(undefined, undefined, PERIODO_PADRAO.ciclo72h)
 
-  const { filialId } = await requireSessaoPaginaComFilial()
-  const [indicadores, circadiano, estourosSetimoDia, alertas] = await Promise.all([
+  const { filialId } = await requireSessaoPaginaComFilial(PAPEIS_LEITURA)
+  const [indicadores, circadiano, estourosSetimoDia, alertas, { ciclos }] = await Promise.all([
     buscarIndicadoresDashboard(filialId, periodoIndicadores.de, periodoIndicadores.ate),
     buscarRelatorioCircadiano(filialId, periodoCircadiano.de, periodoCircadiano.ate),
     buscarEstourosSetimoDia(filialId, periodoSetimoDia.de, periodoSetimoDia.ate),
     contarAlertasOperacao(filialId, DIAS_INTEGRACAO_PADRAO),
+    carregarCiclos72h(filialId, periodoCiclo, HORAS_ALERTA_CICLO_PADRAO),
   ])
 
   return (
@@ -65,8 +83,17 @@ export default async function RelatoriosPage({ searchParams }: { searchParams?: 
           {
             href: "/relatorios/estouro-jornada",
             titulo: "Estouro de jornada",
-            descricao: "Jornadas reais acima de um limite de horas, com a viagem que o motorista fazia.",
+            descricao: "Jornadas reais acima de um limite de horas, com a viagem que o motorista fazia e quem autorizou o estouro.",
             icone: Timer,
+          },
+          {
+            href: "/relatorios/estouro-72h",
+            titulo: "Estouro de 72h",
+            descricao: "Quem está perto (ou passou) das 72h trabalhadas antes da folga de 35h, e os estouros autorizados no ciclo.",
+            icone: Gauge,
+            // Quem ainda está no ciclo (não folgou 35h) e já passou do alerta.
+            contagem: ciclos.filter((c) => !c.encerrado).length,
+            contagemTexto: `sem a folga de 35h, com ${HORAS_ALERTA_CICLO_PADRAO}h ou mais`,
           },
           {
             href: "/relatorios/motoristas",

@@ -1,6 +1,7 @@
 import Link from "next/link"
 import { ArrowLeft, PlusCircle, Wrench } from "lucide-react"
 import { requireSessaoPaginaComFilial } from "@/lib/auth-guard"
+import { PAPEIS_LEITURA } from "@/lib/papeis"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { EmptyState } from "@/components/ui/empty-state"
@@ -20,6 +21,7 @@ import { formatDateTimeForInput, formatarDataHoraPtBr } from "@/lib/utils/date-f
 import { formatarDuracao } from "@/lib/relatorios/formato"
 import { cn } from "@/lib/utils"
 import AcoesManutencao from "./acoes-manutencao"
+import { SoQuemOpera } from "@/components/layout/somente-leitura"
 
 type Manutencao = Awaited<ReturnType<typeof buscarManutencoes>>[number]
 
@@ -120,7 +122,7 @@ function TabelaManutencoes({
 }
 
 export default async function ManutencoesPage() {
-  const { filialId } = await requireSessaoPaginaComFilial()
+  const { filialId } = await requireSessaoPaginaComFilial(PAPEIS_LEITURA)
   const [manutencoes, conjuntos] = await Promise.all([buscarManutencoes(filialId), buscarVeiculosCadastrados(filialId)])
   const agora = new Date()
 
@@ -148,12 +150,14 @@ export default async function ManutencoesPage() {
             concluir, continua parado e aparece em vermelho.
           </p>
         </div>
-        <Link href="/frotas/manutencoes/nova">
-          <Button>
-            <PlusCircle className="w-5 h-5 mr-2" />
-            Agendar manutenção
-          </Button>
-        </Link>
+        <SoQuemOpera>
+          <Link href="/frotas/manutencoes/nova">
+            <Button>
+              <PlusCircle className="w-5 h-5 mr-2" />
+              Agendar manutenção
+            </Button>
+          </Link>
+        </SoQuemOpera>
       </div>
 
       {manutencoes.length === 0 ? (

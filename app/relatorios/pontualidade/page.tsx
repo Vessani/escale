@@ -1,6 +1,7 @@
 import Link from "next/link"
 import { AlarmClock, CircleCheck, Clock, FileQuestion } from "lucide-react"
 import { requireSessaoPaginaComFilial } from "@/lib/auth-guard"
+import { PAPEIS_LEITURA } from "@/lib/papeis"
 import { EmptyState } from "@/components/ui/empty-state"
 import { StatCard } from "@/components/ui/stat-card"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
@@ -59,7 +60,7 @@ function TabelaGrupo({
 
 export default async function PontualidadePage({ searchParams }: { searchParams?: Promise<SearchParamsInput> }) {
   const parametros = (await searchParams) ?? {}
-  const { filialId } = await requireSessaoPaginaComFilial()
+  const { filialId } = await requireSessaoPaginaComFilial(PAPEIS_LEITURA)
   const periodo = periodoOuPadrao(parametros.de, parametros.ate, PERIODO_PADRAO.pontualidade)
   const resultado = analisarPontualidade(await buscarViagensPontualidade(filialId, periodo.de, periodo.ate))
 
