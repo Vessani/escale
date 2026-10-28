@@ -109,7 +109,7 @@ function LinksDoMenu({
     .reduce<string | undefined>((maior, item) => (!maior || item.href.length > maior.length ? item.href : maior), undefined)
 
   return (
-    <nav aria-label="Navegação principal" className="flex-1 px-3 py-3 space-y-1 overflow-y-auto">
+    <nav aria-label="Navegação principal" className="flex-1 px-3 py-3 space-y-1 overflow-y-auto scroll-discreto">
       {menuItems.map((item) => {
         const Icon = item.icon
         const isActive = item.href === hrefAtivo
