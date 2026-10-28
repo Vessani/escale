@@ -32,12 +32,24 @@ export function expiracaoDoLink(agora: Date): Date {
 }
 
 /**
- * Endereço da página pública de aprovação (`caminho`, ex: /aprovar-uber).
- * NEXTAUTH_URL já é obrigatória (ver .env.example). Em teste local,
- * "localhost" não abre no celular — pra testar no celular, use o IP da
- * máquina na rede (ex: http://192.168.0.10:3000) em NEXTAUTH_URL.
+ * Endereço público do sistema, base dos links de aprovação.
+ * Usa NEXTAUTH_URL (ver .env.example). Na Vercel, se ela não estiver
+ * configurada, cai no domínio de produção que a própria Vercel expõe
+ * (VERCEL_PROJECT_PRODUCTION_URL, sem "https://") — o link vai pro grupo,
+ * então tem de ser o de produção, nunca o de um preview.
  */
-export function urlDeAprovacao(caminho: string, token: string, base = process.env.NEXTAUTH_URL): string {
+export function enderecoDoSistema(env: Record<string, string | undefined> = process.env): string | undefined {
+  if (env.NEXTAUTH_URL) return env.NEXTAUTH_URL
+  if (env.VERCEL_PROJECT_PRODUCTION_URL) return `https://${env.VERCEL_PROJECT_PRODUCTION_URL}`
+  return undefined
+}
+
+/**
+ * Endereço da página pública de aprovação (`caminho`, ex: /aprovar-uber).
+ * Em teste local, "localhost" não abre no celular — pra testar no celular,
+ * use o IP da máquina na rede (ex: http://192.168.0.10:3000) em NEXTAUTH_URL.
+ */
+export function urlDeAprovacao(caminho: string, token: string, base = enderecoDoSistema()): string {
   if (!base) throw new ErroDeDominio("URL_SISTEMA_AUSENTE", "Endereço do sistema não configurado (NEXTAUTH_URL).")
   return `${base.replace(/\/+$/, "")}${caminho}/${token}`
 }

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest"
-import { expiracaoDoLink, gerarTokenLink, hashDoToken, semToken, urlDeAprovacao } from "./link-aprovacao"
+import { enderecoDoSistema, expiracaoDoLink, gerarTokenLink, hashDoToken, semToken, urlDeAprovacao } from "./link-aprovacao"
 import { montarLinkWhatsApp, situacaoDoPedido } from "./link-aprovacao-regras"
 
 describe("token do link", () => {
@@ -17,6 +17,12 @@ describe("token do link", () => {
     expect(urlDeAprovacao("/aprovar-estouro", "abc", "https://escalador.test/")).toBe("https://escalador.test/aprovar-estouro/abc")
     expect(urlDeAprovacao("/aprovar-uber", "abc", "https://escalador.test")).toBe("https://escalador.test/aprovar-uber/abc")
     expect(() => urlDeAprovacao("/aprovar-uber", "abc", "")).toThrow("NEXTAUTH_URL")
+  })
+
+  it("sem NEXTAUTH_URL, usa o domínio de produção da Vercel", () => {
+    expect(enderecoDoSistema({ NEXTAUTH_URL: "https://a.test", VERCEL_PROJECT_PRODUCTION_URL: "b.test" })).toBe("https://a.test")
+    expect(enderecoDoSistema({ VERCEL_PROJECT_PRODUCTION_URL: "escale-sepia.vercel.app" })).toBe("https://escale-sepia.vercel.app")
+    expect(enderecoDoSistema({})).toBeUndefined()
   })
 
   it("vale 12h", () => {
