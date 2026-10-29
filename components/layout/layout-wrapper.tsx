@@ -32,6 +32,7 @@ import { LogoEscalador } from "@/components/layout/logo-escalador"
 import { Rodape } from "@/components/layout/rodape"
 import { SeletorFilialTorre, type DadosTorre } from "@/components/layout/seletor-filial-torre"
 import { SomenteLeituraProvider } from "@/components/layout/somente-leitura"
+import { gravarLocal, lerLocal } from "@/lib/armazenamento-local"
 
 const CHAVE_SIDEBAR_COLAPSADA = "escalador:sidebar-colapsada"
 
@@ -43,7 +44,7 @@ const CHAVE_SIDEBAR_COLAPSADA = "escalador:sidebar-colapsada"
 const ouvintesColapsada = new Set<() => void>()
 
 function lerColapsadaSalva() {
-  return window.localStorage.getItem(CHAVE_SIDEBAR_COLAPSADA) === "true"
+  return lerLocal(CHAVE_SIDEBAR_COLAPSADA) === "true"
 }
 
 function lerColapsadaNoServidor() {
@@ -56,7 +57,7 @@ function inscreverColapsada(ouvinte: () => void) {
 }
 
 function definirColapsadaSalva(valor: boolean) {
-  window.localStorage.setItem(CHAVE_SIDEBAR_COLAPSADA, String(valor))
+  gravarLocal(CHAVE_SIDEBAR_COLAPSADA, String(valor))
   ouvintesColapsada.forEach((ouvinte) => ouvinte())
 }
 

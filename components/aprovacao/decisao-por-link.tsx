@@ -10,6 +10,7 @@ import { chamarAcao } from "@/lib/chamar-acao"
 import { TAMANHO_MAXIMO_NOME_DECISOR, TAMANHO_MAXIMO_OBSERVACAO_GESTOR } from "@/lib/services/link-aprovacao-regras"
 import type { EntradaDecisaoLink } from "@/lib/validation/link-aprovacao"
 import type { RespostaAcao } from "@/lib/types/types"
+import { gravarLocal, lerLocal } from "@/lib/armazenamento-local"
 
 type Decisao = "APROVADO" | "RECUSADO"
 
@@ -22,11 +23,7 @@ const CHAVE_NOME = "escalador:estouro-nome-decisor"
 // no servidor é sempre vazio, no navegador o valor salvo — sem mismatch de
 // hidratação e sem setState dentro de effect.
 function lerNomeSalvo(): string {
-  try {
-    return window.localStorage.getItem(CHAVE_NOME) ?? ""
-  } catch {
-    return "" // localStorage indisponível (aba anônima, bloqueado): só não preenche.
-  }
+  return lerLocal(CHAVE_NOME) ?? ""
 }
 const nadaNoServidor = () => ""
 const semInscricao = () => () => {}
@@ -65,11 +62,7 @@ export function DecisaoPorLink({
         setErro(resposta.erro)
         return
       }
-      try {
-        window.localStorage.setItem(CHAVE_NOME, nome.trim())
-      } catch {
-        // localStorage indisponível: só não lembra pra próxima.
-      }
+      gravarLocal(CHAVE_NOME, nome.trim())
       router.refresh()
     })
   }

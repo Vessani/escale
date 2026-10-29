@@ -1,3 +1,4 @@
+import { apagarLocal, armazenamentoLocal, gravarLocal, lerLocal, type Armazenamento } from "@/lib/armazenamento-local"
 import { entregaMudouDesdeAVista, type EntregaVista } from "@/lib/services/trava-chegada"
 
 /**
@@ -17,120 +18,8 @@ export const VALIDADE_RASCUNHO_HORAS = 24
 const VERSAO = 1
 const PREFIXO = "escalador:rascunho-chegada"
 
-/** Os campos do formulário, como texto (do jeito que estão na tela). */
-export type CamposRascunho = {
-  km: string
-  quando: string
-  medicao: "MANOMETRO" | "BALANCA" | null
-  fator: string
-  polInicial: string
-  polFinal: string
-  m3Inicial: string
-  m3Final: string
-  kgInicial: string
-  kgFinal: string
-  pctInicial: string
-  pctFinal: string
-  inicial: string
-  final: string
-}
-
-export type RascunhoChegada = {
-  versao: typeof VERSAO
-  salvoEm: number
-  /** O cliente que o motorista estava vendo quando abriu (ver EntradaEntregaVista). */
-  vista: EntregaVista & { id: number }
-  campos: CamposRascunho
-}
-
-/** O mínimo de Storage que o rascunho usa — o localStorage, ou um falso nos testes. */
-type Armazenamento = Pick<Storage, "getItem" | "setItem" | "removeItem">
-
-export function chaveDoRascunho(chaveViagem: string, entregaId: number): string {
-  return `${PREFIXO}:${chaveViagem}:e${entregaId}`
-}
-
-/** Algum campo de leitura preenchido — rascunho só com a data e hora padrão não vale guardar. */
-export function rascunhoTemConteudo(campos: CamposRascunho): boolean {
-  // A data e hora vêm preenchidas sozinhas: não contam como "digitou algo".
-  const { medicao, ...texto } = campos
-  return medicao !== null || Object.entries(texto).some(([campo, valor]) => campo !== "quando" && valor.trim() !== "")
-}
-
-/**
- * O localStorage pode não existir ou lançar (aba anônima, armazenamento
- * cheio ou bloqueado): o rascunho é um extra — se falhar, a tela segue
- * funcionando como antes.
- */
-function armazenamentoPadrao(): Armazenamento | null {
-  try {
-    return typeof window === "undefined" ? null : window.localStorage
-  } catch {
-    return null
-  }
-}
-
-export function salvarRascunho(
-  chave: string,
-  vista: RascunhoChegada["vista"],
-  campos: CamposRascunho,
-  { agora = Date.now(), armazenamento = armazenamentoPadrao() }: { agora?: number; armazenamento?: Armazenamento | null } = {},
-) {
-  if (!armazenamento) return
-  try {
-    if (!rascunhoTemConteudo(campos)) {
-      armazenamento.removeItem(chave)
-      return
-    }
-    const rascunho: RascunhoChegada = { versao: VERSAO, salvoEm: agora, vista, campos }
-    armazenamento.setItem(chave, JSON.stringify(rascunho))
-  } catch {
-    // Sem espaço ou bloqueado: segue sem rascunho.
-  }
-}
-
-export function apagarRascunho(chave: string, armazenamento: Armazenamento | null = armazenamentoPadrao()) {
-  try {
-    armazenamento?.removeItem(chave)
-  } catch {
-    // idem
-  }
-}
-
-/**
- * O rascunho dessa entrega, se ainda vale. Descarta (e apaga) o que venceu,
- * o que está num formato antigo/estragado e o de uma entrega que mudou de
- * cliente desde então — a medição foi feita no cliente de antes, então não
- * pode reaparecer em outro.
- */
-export function lerRascunho(
-  chave: string,
-  entregaAtual: EntregaVista & { id: number },
-  { agora = Date.now(), armazenamento = armazenamentoPadrao() }: { agora?: number; armazenamento?: Armazenamento | null } = {},
-): RascunhoChegada | null {
-  if (!armazenamento) return null
-  let texto: string | null
-  try {
-    texto = armazenamento.getItem(chave)
-  } catch {
-    return null
-  }
-  if (!texto) return null
-
-  const rascunho = interpretar(texto)
-  const valido =
-    rascunho !== null &&
-    agora - rascunho.salvoEm <= VALIDADE_RASCUNHO_HORAS * 60 * 60 * 1000 &&
-    rascunho.vista.id === entregaAtual.id &&
-    !entregaMudouDesdeAVista(entregaAtual, rascunho.vista)
-  if (!valido) {
-    apagarRascunho(chave, armazenamento)
-    return null
-  }
-  return rascunho
-}
-
-const CAMPOS_TEXTO = [
+/** Os campos de texto do formulário de chegada, do jeito que estão na tela. */
+export const CAMPOS_TEXTO_CHEGADA = [
   "km",
   "quando",
   "fator",
@@ -146,6 +35,72 @@ const CAMPOS_TEXTO = [
   "final",
 ] as const
 
+export type CampoTextoChegada = (typeof CAMPOS_TEXTO_CHEGADA)[number]
+
+/** O formulário inteiro: os campos de texto + o tipo de medida. */
+export type CamposRascunho = Record<CampoTextoChegada, string> & { medicao: "MANOMETRO" | "BALANCA" | null }
+
+export type RascunhoChegada = {
+  versao: typeof VERSAO
+  salvoEm: number
+  /** O cliente que o motorista estava vendo quando abriu (ver EntradaEntregaVista). */
+  vista: EntregaVista & { id: number }
+  campos: CamposRascunho
+}
+
+export function chaveDoRascunho(chaveViagem: string, entregaId: number): string {
+  return `${PREFIXO}:${chaveViagem}:e${entregaId}`
+}
+
+/** Algum campo de leitura preenchido — rascunho só com a data e hora padrão não vale guardar. */
+export function rascunhoTemConteudo(campos: CamposRascunho): boolean {
+  // A data e hora vêm preenchidas sozinhas: não contam como "digitou algo".
+  const { medicao, ...texto } = campos
+  return medicao !== null || Object.entries(texto).some(([campo, valor]) => campo !== "quando" && valor.trim() !== "")
+}
+
+export function salvarRascunho(
+  chave: string,
+  vista: RascunhoChegada["vista"],
+  campos: CamposRascunho,
+  { agora = Date.now(), armazenamento = armazenamentoLocal() }: { agora?: number; armazenamento?: Armazenamento | null } = {},
+) {
+  if (!rascunhoTemConteudo(campos)) return apagarLocal(chave, armazenamento)
+  const rascunho: RascunhoChegada = { versao: VERSAO, salvoEm: agora, vista, campos }
+  gravarLocal(chave, JSON.stringify(rascunho), armazenamento)
+}
+
+export function apagarRascunho(chave: string, armazenamento: Armazenamento | null = armazenamentoLocal()) {
+  apagarLocal(chave, armazenamento)
+}
+
+/**
+ * O rascunho dessa entrega, se ainda vale. Descarta (e apaga) o que venceu,
+ * o que está num formato antigo/estragado e o de uma entrega que mudou de
+ * cliente desde então — a medição foi feita no cliente de antes, então não
+ * pode reaparecer em outro.
+ */
+export function lerRascunho(
+  chave: string,
+  entregaAtual: EntregaVista & { id: number },
+  { agora = Date.now(), armazenamento = armazenamentoLocal() }: { agora?: number; armazenamento?: Armazenamento | null } = {},
+): RascunhoChegada | null {
+  const texto = lerLocal(chave, armazenamento)
+  if (!texto) return null
+
+  const rascunho = interpretar(texto)
+  const valido =
+    rascunho !== null &&
+    agora - rascunho.salvoEm <= VALIDADE_RASCUNHO_HORAS * 60 * 60 * 1000 &&
+    rascunho.vista.id === entregaAtual.id &&
+    !entregaMudouDesdeAVista(entregaAtual, rascunho.vista)
+  if (!valido) {
+    apagarRascunho(chave, armazenamento)
+    return null
+  }
+  return rascunho
+}
+
 function interpretar(texto: string): RascunhoChegada | null {
   try {
     const dado = JSON.parse(texto) as Partial<RascunhoChegada>
@@ -153,7 +108,7 @@ function interpretar(texto: string): RascunhoChegada | null {
     const vista = dado.vista as Record<string, unknown> | undefined
     if (dado.versao !== VERSAO || typeof dado.salvoEm !== "number" || !campos || !vista) return null
     if (typeof vista.id !== "number" || !["cliente", "cidade", "uf"].every((k) => typeof vista[k] === "string")) return null
-    if (!CAMPOS_TEXTO.every((k) => typeof campos[k] === "string")) return null
+    if (!CAMPOS_TEXTO_CHEGADA.every((k) => typeof campos[k] === "string")) return null
     if (campos.medicao !== null && campos.medicao !== "MANOMETRO" && campos.medicao !== "BALANCA") return null
     return dado as RascunhoChegada
   } catch {

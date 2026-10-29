@@ -22,7 +22,15 @@ import { formatDateTimeForInput, formatarDataHoraPtBr } from "@/lib/utils/date-f
 import { cn } from "@/lib/utils"
 import type { RespostaAcao } from "@/lib/types/types"
 import type { EntradaChegada, EntradaEntregaVista } from "@/lib/validation/chegada"
-import { apagarRascunho, chaveDoRascunho, criarLeitorRascunhos, salvarRascunho, type RascunhoChegada } from "@/lib/rascunho-chegada"
+import {
+  apagarRascunho,
+  chaveDoRascunho,
+  criarLeitorRascunhos,
+  salvarRascunho,
+  type CampoTextoChegada,
+  type CamposRascunho,
+  type RascunhoChegada,
+} from "@/lib/rascunho-chegada"
 
 /** Grava a chegada de uma entrega — a action do motorista ou a do escalador (correção). */
 /** Recebe a entrega como estava na tela quando a chegada foi aberta (não a da última atualização). */
@@ -113,6 +121,35 @@ function CampoGrade({ rotulo, valor, onChange }: { rotulo: string; valor: string
   )
 }
 
+/**
+ * Campos ao abrir a chegada: vazios na nova (data e hora = agora, pelo relógio
+ * do servidor, horário de Brasília — não o do celular, que pode estar em
+ * outro fuso ou adiantado); os da chegada registrada na correção.
+ */
+function camposIniciais(anterior: ChegadaDoPainel | null, biometano: boolean, agoraServidor: string): CamposRascunho {
+  // Chegadas antigas (uma leitura só, em nivelInicial/Final): manômetro vira
+  // a linha pol, balança a linha kg. GRADE (08–09/10) não tinha medida: escolher de novo.
+  const manometroAntigo = !biometano && anterior?.medicao === "MANOMETRO" && anterior.polInicial === null
+  const balancaAntiga = !biometano && anterior?.medicao === "BALANCA" && (anterior.kgInicial ?? null) === null
+  return {
+    km: anterior ? String(anterior.km) : "",
+    quando: formatDateTimeForInput(anterior ? anterior.chegadaEm : agoraServidor),
+    medicao: anterior?.medicao === "MANOMETRO" || anterior?.medicao === "BALANCA" ? anterior.medicao : null,
+    fator: anterior?.medicao === "MANOMETRO" ? numeroCampo(anterior.fator) : "",
+    polInicial: numeroCampo(manometroAntigo ? anterior.nivelInicial : anterior?.polInicial),
+    polFinal: numeroCampo(manometroAntigo ? anterior.nivelFinal : anterior?.polFinal),
+    m3Inicial: numeroCampo(anterior?.m3Inicial),
+    m3Final: numeroCampo(anterior?.m3Final),
+    kgInicial: numeroCampo(balancaAntiga ? anterior.nivelInicial : anterior?.kgInicial),
+    kgFinal: numeroCampo(balancaAntiga ? anterior.nivelFinal : anterior?.kgFinal),
+    pctInicial: numeroCampo(anterior?.pctInicial),
+    pctFinal: numeroCampo(anterior?.pctFinal),
+    // Biometano: nível do tanque do caminhão em m³ (as polegadas usam polInicial/polFinal).
+    inicial: biometano ? numeroCampo(anterior?.nivelInicial) : "",
+    final: biometano ? numeroCampo(anterior?.nivelFinal) : "",
+  }
+}
+
 function FormChegada({
   salvar,
   entrega,
@@ -145,68 +182,17 @@ function FormChegada({
   const [entregaVista] = useState<EntradaEntregaVista>(
     () => rascunho?.vista ?? { id: entrega.id, cliente: entrega.cliente, cidade: entrega.cidade, uf: entrega.uf },
   )
-  const r = rascunho?.campos
-
-  const [km, setKm] = useState(r?.km ?? (anterior ? String(anterior.km) : ""))
-  // Horário de Brasília (como o resto do sistema), a partir do relógio do
-  // servidor — não do celular, que pode estar em outro fuso ou adiantado.
-  const [quando, setQuando] = useState(() => r?.quando || formatDateTimeForInput(anterior ? anterior.chegadaEm : agoraServidor))
-  // Chegadas antigas (uma leitura só, em nivelInicial/Final): manômetro vira
-  // a linha pol, balança a linha kg. GRADE (08–09/10) não tinha medida: escolher de novo.
-  const medidaAnterior = anterior?.medicao === "MANOMETRO" || anterior?.medicao === "BALANCA" ? anterior.medicao : null
-  const manometroAntigo = !biometano && anterior?.medicao === "MANOMETRO" && anterior.polInicial === null
-  const balancaAntiga = !biometano && anterior?.medicao === "BALANCA" && (anterior.kgInicial ?? null) === null
-  const [medicao, setMedicao] = useState<Medida | null>(r ? r.medicao : medidaAnterior)
-  const [fator, setFator] = useState(r?.fator ?? (anterior?.medicao === "MANOMETRO" ? numeroCampo(anterior.fator) : ""))
-  const [polInicial, setPolInicial] = useState(r?.polInicial ?? numeroCampo(manometroAntigo ? anterior.nivelInicial : anterior?.polInicial))
-  const [polFinal, setPolFinal] = useState(r?.polFinal ?? numeroCampo(manometroAntigo ? anterior.nivelFinal : anterior?.polFinal))
-  const [m3Inicial, setM3Inicial] = useState(r?.m3Inicial ?? numeroCampo(anterior?.m3Inicial))
-  const [m3Final, setM3Final] = useState(r?.m3Final ?? numeroCampo(anterior?.m3Final))
-  const [kgInicial, setKgInicial] = useState(r?.kgInicial ?? numeroCampo(balancaAntiga ? anterior.nivelInicial : anterior?.kgInicial))
-  const [kgFinal, setKgFinal] = useState(r?.kgFinal ?? numeroCampo(balancaAntiga ? anterior.nivelFinal : anterior?.kgFinal))
-  const [pctInicial, setPctInicial] = useState(r?.pctInicial ?? numeroCampo(anterior?.pctInicial))
-  const [pctFinal, setPctFinal] = useState(r?.pctFinal ?? numeroCampo(anterior?.pctFinal))
-  // Biometano: nível do tanque do caminhão em m³ (as polegadas usam polInicial/polFinal).
-  const [inicial, setInicial] = useState(r?.inicial ?? (biometano ? numeroCampo(anterior?.nivelInicial) : ""))
-  const [final, setFinal] = useState(r?.final ?? (biometano ? numeroCampo(anterior?.nivelFinal) : ""))
+  // Todos os campos num estado só: é o mesmo objeto que vai pro rascunho do celular.
+  const [campos, setCampos] = useState<CamposRascunho>(() => rascunho?.campos ?? camposIniciais(anterior, biometano, agoraServidor))
+  const alterar = (campo: CampoTextoChegada) => (valor: string) => setCampos((atuais) => ({ ...atuais, [campo]: valor }))
+  const setMedicao = (medicao: Medida | null) => setCampos((atuais) => ({ ...atuais, medicao }))
+  const { km, quando, medicao, fator, polInicial, polFinal, m3Inicial, m3Final, kgInicial, kgFinal, pctInicial, pctFinal, inicial, final } =
+    campos
 
   // Cada mudança vai pro rascunho do celular (só na chegada nova do motorista).
   useEffect(() => {
-    if (!chaveRascunho) return
-    salvarRascunho(chaveRascunho, entregaVista, {
-      km,
-      quando,
-      medicao,
-      fator,
-      polInicial,
-      polFinal,
-      m3Inicial,
-      m3Final,
-      kgInicial,
-      kgFinal,
-      pctInicial,
-      pctFinal,
-      inicial,
-      final,
-    })
-  }, [
-    chaveRascunho,
-    entregaVista,
-    km,
-    quando,
-    medicao,
-    fator,
-    polInicial,
-    polFinal,
-    m3Inicial,
-    m3Final,
-    kgInicial,
-    kgFinal,
-    pctInicial,
-    pctFinal,
-    inicial,
-    final,
-  ])
+    if (chaveRascunho) salvarRascunho(chaveRascunho, entregaVista, campos)
+  }, [chaveRascunho, entregaVista, campos])
 
   const encerrar = () => {
     if (chaveRascunho) apagarRascunho(chaveRascunho)
@@ -241,10 +227,10 @@ function FormChegada({
   }
 
   const camposDaLinha: Record<LinhaMedicao, [string, (v: string) => void, string, (v: string) => void]> = {
-    POL: [polInicial, setPolInicial, polFinal, setPolFinal],
-    M3: [m3Inicial, setM3Inicial, m3Final, setM3Final],
-    KG: [kgInicial, setKgInicial, kgFinal, setKgFinal],
-    PCT: [pctInicial, setPctInicial, pctFinal, setPctFinal],
+    POL: [polInicial, alterar("polInicial"), polFinal, alterar("polFinal")],
+    M3: [m3Inicial, alterar("m3Inicial"), m3Final, alterar("m3Final")],
+    KG: [kgInicial, alterar("kgInicial"), kgFinal, alterar("kgFinal")],
+    PCT: [pctInicial, alterar("pctInicial"), pctFinal, alterar("pctFinal")],
   }
 
   const enviar = () => {
@@ -269,7 +255,7 @@ function FormChegada({
             autoComplete="off"
             placeholder={kmInicial !== null ? `≥ ${kmInicial}` : undefined}
             value={km}
-            onChange={(e) => setKm(e.target.value.replace(/\D/g, "").slice(0, 7))}
+            onChange={(e) => alterar("km")(e.target.value.replace(/\D/g, "").slice(0, 7))}
             className="h-11 text-base tabular-nums text-foreground"
           />
         </label>
@@ -278,7 +264,7 @@ function FormChegada({
           <Input
             type="datetime-local"
             value={quando}
-            onChange={(e) => setQuando(e.target.value)}
+            onChange={(e) => alterar("quando")(e.target.value)}
             className="h-11 text-sm text-foreground"
           />
         </label>
@@ -287,12 +273,12 @@ function FormChegada({
       {biometano ? (
         <div className="space-y-2">
           <div className="grid grid-cols-2 gap-2">
-            <CampoNumero rotulo="Nível inicial" valor={polInicial} onChange={setPolInicial} sufixo="pol" />
-            <CampoNumero rotulo="Nível final" valor={polFinal} onChange={setPolFinal} sufixo="pol" />
+            <CampoNumero rotulo="Nível inicial" valor={polInicial} onChange={alterar("polInicial")} sufixo="pol" />
+            <CampoNumero rotulo="Nível final" valor={polFinal} onChange={alterar("polFinal")} sufixo="pol" />
           </div>
           <div className="grid grid-cols-2 gap-2">
-            <CampoNumero rotulo="Nível inicial" valor={inicial} onChange={setInicial} sufixo="m³" />
-            <CampoNumero rotulo="Nível final" valor={final} onChange={setFinal} sufixo="m³" />
+            <CampoNumero rotulo="Nível inicial" valor={inicial} onChange={alterar("inicial")} sufixo="m³" />
+            <CampoNumero rotulo="Nível final" valor={final} onChange={alterar("final")} sufixo="m³" />
           </div>
         </div>
       ) : (
@@ -347,7 +333,7 @@ function FormChegada({
                 {fatorProduto !== null &&
                   (fatorProduto === 1 ? " kg sem conversão (CO2)." : ` kg → m³: × ${formatarNumero(fatorProduto, 4)}.`)}
               </p>
-              {medicao === "MANOMETRO" && <CampoNumero rotulo="Conversão do cliente" valor={fator} onChange={setFator} />}
+              {medicao === "MANOMETRO" && <CampoNumero rotulo="Conversão do cliente" valor={fator} onChange={alterar("fator")} />}
             </div>
           )}
         </>
