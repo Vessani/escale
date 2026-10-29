@@ -2,7 +2,13 @@ import type { ReactNode } from "react"
 import Link from "next/link"
 import { ArrowLeft, type LucideIcon } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
-import { CLASSE_SITUACAO, ROTULO_SITUACAO, type SituacaoPedido } from "@/lib/services/link-aprovacao-regras"
+import {
+  CLASSE_SITUACAO,
+  ROTULO_SITUACAO,
+  frotaDaViagem,
+  type SituacaoPedido,
+  type ViagemDoPedidoComFrota,
+} from "@/lib/services/link-aprovacao-regras"
 import { formatarDataHoraPtBr } from "@/lib/utils/date-format"
 
 /**
@@ -63,7 +69,7 @@ export function CartaoMeuPedido({
 }: {
   pedido: {
     situacao: SituacaoPedido
-    numViagem?: string | null
+    viagem: ViagemDoPedidoComFrota | null
     decididoEm: Date | null
     decididoPorNome: string | null
     observacaoGestor: string | null
@@ -77,7 +83,12 @@ export function CartaoMeuPedido({
       <div className="flex flex-wrap items-center justify-between gap-2">
         <span className="font-semibold tabular-nums">
           {titulo}
-          {pedido.numViagem && <span className="ml-2 font-mono font-normal text-muted-foreground">{pedido.numViagem}</span>}
+          {pedido.viagem && (
+            <span className="ml-2 font-mono font-normal text-muted-foreground">
+              {pedido.viagem.numViagem}
+              {frotaDaViagem(pedido.viagem) && ` · ${frotaDaViagem(pedido.viagem)}`}
+            </span>
+          )}
         </span>
         <Badge variant="outline" className={CLASSE_SITUACAO[pedido.situacao]}>
           {ROTULO_SITUACAO[pedido.situacao]}

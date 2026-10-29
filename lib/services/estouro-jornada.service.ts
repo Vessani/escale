@@ -7,6 +7,7 @@ import { CAMINHO_APROVACAO, montarMensagemWhatsApp } from "@/lib/services/estour
 import { montarLinkWhatsApp, situacaoDoPedido } from "@/lib/services/link-aprovacao-regras"
 import {
   CAMPOS_PUBLICOS_DO_PEDIDO,
+  CAMPOS_VIAGEM_DA_MENSAGEM,
   conferirMotoristaEViagem,
   expiracaoDoLink,
   gerarTokenLink,
@@ -43,7 +44,7 @@ export async function criarSolicitacaoEstouro(
   ator: Ator,
   { pedidoPeloMotorista = false, agora = new Date() }: { pedidoPeloMotorista?: boolean; agora?: Date } = {},
 ): Promise<LinkGerado> {
-  const { motorista, numViagem } = await conferirMotoristaEViagem(filialId, dados.motoristaId, dados.viagemId)
+  const { motorista, viagem } = await conferirMotoristaEViagem(filialId, dados.motoristaId, dados.viagemId)
 
   // Um pedido em aberto por motorista: evita dois links no grupo pro mesmo
   // estouro e o gestor aprovar o errado. Link vencido não conta — dá pra
@@ -83,7 +84,7 @@ export async function criarSolicitacaoEstouro(
 
   const mensagem = montarMensagemWhatsApp({
     motorista: motorista.nome,
-    numViagem,
+    viagem,
     minutosExtras: estouro.minutosExtras,
     motivos: estouro.motivos,
     solicitante: ator.usuarioNome,
@@ -110,7 +111,7 @@ export async function gerarNovoLinkEstouro(
   const filtro = filtroPedido(filialId, id, doMotorista)
   const antes = await prisma.estouroJornada.findFirst({
     where: filtro,
-    include: { motorista: { select: { nome: true } }, viagem: { select: { numViagem: true } } },
+    include: { motorista: { select: { nome: true } }, viagem: { select: CAMPOS_VIAGEM_DA_MENSAGEM } },
   })
   if (!antes) throw new ErroDeDominio("ESTOURO_NAO_ENCONTRADO", "Pedido de estouro não encontrado.")
   if (antes.status !== "PENDENTE")
@@ -139,7 +140,7 @@ export async function gerarNovoLinkEstouro(
 
   const mensagem = montarMensagemWhatsApp({
     motorista: antes.motorista.nome,
-    numViagem: antes.viagem?.numViagem ?? null,
+    viagem: antes.viagem,
     minutosExtras: antes.minutosExtras,
     motivos: antes.motivos,
     solicitante: ator.usuarioNome,
@@ -233,7 +234,7 @@ const CAMPOS_LISTA = {
   decididoPorNome: true,
   observacaoGestor: true,
   motorista: { select: { nome: true } },
-  viagem: { select: { numViagem: true } },
+  viagem: { select: CAMPOS_VIAGEM_DA_MENSAGEM },
 } as const
 
 /** Pedidos dos últimos `dias`, mais recentes primeiro — da filial toda ou só de um motorista. */
@@ -253,7 +254,17 @@ export async function buscarEstouros(
 }
 
 const VIAGEM_ABERTA = { deletadoEm: null, status: { in: [...STATUS_A_INICIAR, ...STATUS_EM_ANDAMENTO] } }
-const CAMPOS_VIAGEM = { id: true, numViagem: true, inicioPrevisto: true, motoristaId: true, motoristaAcompanhanteId: true } as const
+/** Viagens que dá pra ligar ao pedido: com status pra sugerir a que está na estrada (ver viagemSugerida). */
+const CAMPOS_VIAGEM = {
+  id: true,
+  numViagem: true,
+  cavalo: true,
+  carreta: true,
+  inicioPrevisto: true,
+  status: true,
+  motoristaId: true,
+  motoristaAcompanhanteId: true,
+} as const
 
 /** Opções do formulário do escalador: motoristas que viajam e as viagens ainda abertas. */
 export async function buscarOpcoesSolicitacao(filialId: number) {

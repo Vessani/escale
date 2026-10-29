@@ -14,6 +14,7 @@ import { formatarDataHoraPtBr } from "@/lib/utils/date-format"
 import { formatarNomeProprio } from "@/lib/utils/texto"
 import { AcoesUber } from "@/components/uber/acoes-uber"
 import { SoQuemOpera } from "@/components/layout/somente-leitura"
+import { CelulaViagemDoPedido } from "@/components/aprovacao/pagina-aprovacao"
 
 export const metadata: Metadata = { title: "Pedidos de Uber" }
 
@@ -86,7 +87,9 @@ export default async function UberPage() {
                     )}
                   </TableCell>
                   <TableCell className="font-medium">{formatarNomeProprio(p.motorista.nome)}</TableCell>
-                  <TableCell className="font-mono tabular-nums">{p.viagem?.numViagem ?? "—"}</TableCell>
+                  <TableCell className="font-mono tabular-nums whitespace-nowrap">
+                    <CelulaViagemDoPedido viagem={p.viagem} />
+                  </TableCell>
                   <TableCell className="max-w-72">
                     <div className="truncate" title={p.origem}>
                       {p.origem}

@@ -6,6 +6,7 @@
  * link-aprovacao-regras.ts.
  */
 import type { MotivoEstouro } from "@prisma/client"
+import { linhasDaViagem, type ViagemDoPedidoComFrota } from "@/lib/services/link-aprovacao-regras"
 
 /**
  * Teto do pedido: 2h, o que a Lei 13.103/2015 (Lei do Motorista) permite
@@ -57,7 +58,7 @@ export function formatarMinutos(minutos: number): string {
 
 type DadosMensagem = {
   motorista: string
-  numViagem: string | null
+  viagem: ViagemDoPedidoComFrota | null
   minutosExtras: number
   motivos: readonly MotivoEstouro[]
   solicitante: string | null
@@ -69,7 +70,7 @@ export function montarMensagemWhatsApp(d: DadosMensagem): string {
   return [
     "*Solicitação de estouro de jornada*",
     `Motorista: ${d.motorista}`,
-    ...(d.numViagem ? [`Viagem: ${d.numViagem}`] : []),
+    ...linhasDaViagem(d.viagem),
     `Horas extras: ${formatarMinutos(d.minutosExtras)}`,
     `Motivo: ${formatarMotivos(d.motivos)}`,
     ...(d.solicitante ? [`Pedido por: ${d.solicitante}`] : []),

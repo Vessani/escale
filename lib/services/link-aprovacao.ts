@@ -1,7 +1,7 @@
 import { createHash, randomBytes } from "node:crypto"
 import { prisma } from "@/lib/prisma"
 import { ErroDeDominio } from "@/lib/errors"
-import { VALIDADE_LINK_HORAS } from "@/lib/services/link-aprovacao-regras"
+import { VALIDADE_LINK_HORAS, type ViagemDoPedidoComFrota } from "@/lib/services/link-aprovacao-regras"
 
 /**
  * O link de aprovação, comum a todo pedido que vai pro grupo da filial
@@ -20,6 +20,9 @@ export type LinkGerado = { id: number; url: string; linkWhatsApp: string }
 /** Resposta das actions que geram link (pedir, reenviar) — estouro e Uber. */
 export type RespostaLink = { sucesso: true; link: LinkGerado } | { sucesso: false; erro: string }
 
+/** Da viagem, o que vai pra mensagem do grupo e pras listas: número e frota (ver linhasDaViagem). */
+export const CAMPOS_VIAGEM_DA_MENSAGEM = { numViagem: true, cavalo: true, carreta: true } as const
+
 /**
  * Campos comuns que a página pública de aprovação mostra, de qualquer tipo de
  * pedido (estouro, Uber) — nunca ids, IP nem dados de outra solicitação. Cada
@@ -34,7 +37,7 @@ export const CAMPOS_PUBLICOS_DO_PEDIDO = {
   decididoPorNome: true,
   observacaoGestor: true,
   motorista: { select: { nome: true } },
-  viagem: { select: { numViagem: true, inicioPrevisto: true, fimPrevisto: true } },
+  viagem: { select: { ...CAMPOS_VIAGEM_DA_MENSAGEM, inicioPrevisto: true, fimPrevisto: true } },
   filial: { select: { nome: true } },
 } as const
 
@@ -78,7 +81,7 @@ export function urlDeAprovacao(caminho: string, token: string, base = enderecoDo
 /**
  * Confere quem vai no pedido: o motorista tem de ser da filial, e a viagem
  * (opcional) tem de ser dele, como principal ou acompanhante. Devolve o nome
- * e o número da viagem pra mensagem do grupo.
+ * e a viagem (número e frota) pra mensagem do grupo.
  */
 export async function conferirMotoristaEViagem(filialId: number, motoristaId: number, viagemId: number | null) {
   const motorista = await prisma.motorista.findFirst({
@@ -87,21 +90,20 @@ export async function conferirMotoristaEViagem(filialId: number, motoristaId: nu
   })
   if (!motorista) throw new ErroDeDominio("MOTORISTA_NAO_ENCONTRADO", "Motorista não encontrado nesta filial.")
 
-  let numViagem: string | null = null
+  let viagem: ViagemDoPedidoComFrota | null = null
   if (viagemId !== null) {
-    const viagem = await prisma.viagem.findFirst({
+    viagem = await prisma.viagem.findFirst({
       where: {
         id: viagemId,
         filialId,
         deletadoEm: null,
         OR: [{ motoristaId: motorista.id }, { motoristaAcompanhanteId: motorista.id }],
       },
-      select: { numViagem: true },
+      select: CAMPOS_VIAGEM_DA_MENSAGEM,
     })
     if (!viagem) throw new ErroDeDominio("VIAGEM_NAO_E_DO_MOTORISTA", "Essa viagem não é desse motorista.")
-    numViagem = viagem.numViagem
   }
-  return { motorista, numViagem }
+  return { motorista, viagem }
 }
 
 /** A auditoria guarda o antes/depois — sem o hash do token, que não serve pra nada no log. */

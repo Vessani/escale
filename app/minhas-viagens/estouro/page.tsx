@@ -32,7 +32,7 @@ export default async function MeuEstouroPage({ searchParams }: { searchParams: P
       {pedidos.map((p) => (
         <CartaoMeuPedido
           key={p.id}
-          pedido={{ ...p, numViagem: p.viagem?.numViagem }}
+          pedido={p}
           titulo={formatarMinutos(p.minutosExtras)}
           detalhes={
             <p className="text-muted-foreground">

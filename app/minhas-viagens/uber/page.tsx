@@ -33,7 +33,7 @@ export default async function MeuUberPage({ searchParams }: { searchParams: Prom
       {pedidos.map((p) => (
         <CartaoMeuPedido
           key={p.id}
-          pedido={{ ...p, numViagem: p.viagem?.numViagem }}
+          pedido={p}
           titulo={formatarMotivoUber(p.motivo)}
           detalhes={
             <>

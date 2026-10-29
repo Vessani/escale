@@ -6,6 +6,7 @@ import { CAMINHO_APROVACAO_UBER, montarMensagemUber } from "@/lib/services/uber-
 import { montarLinkWhatsApp, situacaoDoPedido } from "@/lib/services/link-aprovacao-regras"
 import {
   CAMPOS_PUBLICOS_DO_PEDIDO,
+  CAMPOS_VIAGEM_DA_MENSAGEM,
   conferirMotoristaEViagem,
   expiracaoDoLink,
   gerarTokenLink,
@@ -42,7 +43,7 @@ export async function criarSolicitacaoUber(
   ator: Ator,
   { pedidoPeloMotorista = false, agora = new Date() }: { pedidoPeloMotorista?: boolean; agora?: Date } = {},
 ): Promise<LinkGerado> {
-  const { motorista, numViagem } = await conferirMotoristaEViagem(filialId, dados.motoristaId, dados.viagemId)
+  const { motorista, viagem } = await conferirMotoristaEViagem(filialId, dados.motoristaId, dados.viagemId)
 
   // Um pedido em aberto por motorista: evita dois links no grupo pra mesma
   // corrida e o gestor aprovar o errado. Link vencido não conta.
@@ -80,7 +81,7 @@ export async function criarSolicitacaoUber(
     return criado
   })
 
-  const mensagem = montarMensagemUber({ ...pedido, motorista: motorista.nome, numViagem, solicitante: ator.usuarioNome, url })
+  const mensagem = montarMensagemUber({ ...pedido, motorista: motorista.nome, viagem, solicitante: ator.usuarioNome, url })
   return { id: pedido.id, url, linkWhatsApp: montarLinkWhatsApp(mensagem) }
 }
 
@@ -99,7 +100,7 @@ export async function gerarNovoLinkUber(
   const filtro = filtroPedido(filialId, id, doMotorista)
   const antes = await prisma.solicitacaoUber.findFirst({
     where: filtro,
-    include: { motorista: { select: { nome: true } }, viagem: { select: { numViagem: true } } },
+    include: { motorista: { select: { nome: true } }, viagem: { select: CAMPOS_VIAGEM_DA_MENSAGEM } },
   })
   if (!antes) throw new ErroDeDominio("UBER_NAO_ENCONTRADO", "Pedido de Uber não encontrado.")
   if (antes.status !== "PENDENTE")
@@ -129,7 +130,7 @@ export async function gerarNovoLinkUber(
   const mensagem = montarMensagemUber({
     ...antes,
     motorista: antes.motorista.nome,
-    numViagem: antes.viagem?.numViagem ?? null,
+    viagem: antes.viagem,
     solicitante: ator.usuarioNome,
     url,
   })
@@ -233,7 +234,7 @@ export async function buscarSolicitacoesUber(
       decididoPorNome: true,
       observacaoGestor: true,
       motorista: { select: { nome: true } },
-      viagem: { select: { numViagem: true } },
+      viagem: { select: CAMPOS_VIAGEM_DA_MENSAGEM },
     },
   })
   return pedidos.map((p) => ({ ...p, situacao: situacaoDoPedido(p, agora) }))
