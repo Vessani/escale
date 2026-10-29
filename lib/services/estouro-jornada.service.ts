@@ -6,6 +6,7 @@ import { STATUS_A_INICIAR, STATUS_EM_ANDAMENTO } from "@/lib/services/viagem-sta
 import { CAMINHO_APROVACAO, montarMensagemWhatsApp } from "@/lib/services/estouro-jornada-regras"
 import { montarLinkWhatsApp, situacaoDoPedido } from "@/lib/services/link-aprovacao-regras"
 import {
+  CAMPOS_PUBLICOS_DO_PEDIDO,
   conferirMotoristaEViagem,
   expiracaoDoLink,
   gerarTokenLink,
@@ -171,20 +172,7 @@ export async function cancelarSolicitacaoEstouro(filialId: number, id: number, a
 export async function buscarEstouroPorToken(token: string, agora = new Date()) {
   const estouro = await prisma.estouroJornada.findUnique({
     where: { tokenHash: hashDoToken(token) },
-    select: {
-      status: true,
-      expiraEm: true,
-      minutosExtras: true,
-      motivos: true,
-      solicitadoPorNome: true,
-      criadoEm: true,
-      decididoEm: true,
-      decididoPorNome: true,
-      observacaoGestor: true,
-      motorista: { select: { nome: true } },
-      viagem: { select: { numViagem: true, inicioPrevisto: true, fimPrevisto: true } },
-      filial: { select: { nome: true } },
-    },
+    select: { ...CAMPOS_PUBLICOS_DO_PEDIDO, minutosExtras: true, motivos: true },
   })
   if (!estouro) return null
   return { ...estouro, situacao: situacaoDoPedido(estouro, agora) }

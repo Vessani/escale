@@ -1,5 +1,6 @@
 import { lerPlanilhaDoArquivo } from "@/lib/excel/ler-arquivo-planilha"
 import { formatarHoraLocal, inicioDoDia, parseDataHoraBr } from "@/lib/utils/date-format"
+import { MINIMO_HORAS_ENTRE_FOLGAS, MINIMO_HORAS_ENTRE_JORNADAS } from "@/lib/services/descanso-minimo"
 
 /**
  * Um registro por (matrícula, dia) pronto pra importar: o relatório lista
@@ -104,10 +105,10 @@ const DURACAO_MAXIMA_BATIDA_MS = 5 * MINUTO_MS
 const DURACAO_MAXIMA_PAR_DA_BATIDA_MS = 60 * MINUTO_MS
 /** Distância máxima entre a batida de entrada e a de saída do mesmo turno. */
 const INTERVALO_MAXIMO_ENTRE_BATIDAS_MS = 20 * HORA_MS
-/** Batida solta a menos disso do fim da jornada anterior não é uma jornada nova (seria quebra de interstício) — é batida a mais. Mesmo valor de MINIMO_HORAS_ENTRE_JORNADAS. */
-const INTERVALO_MAXIMO_BATIDA_EXTRA_MS = 11 * HORA_MS
-/** Descanso que caracteriza folga — mesmo valor de MINIMO_HORAS_ENTRE_FOLGAS (lib/services/alocacao/disponibilidade.ts), não importado de lá pra não puxar @prisma/client pro bundle do cliente. */
-const DESCANSO_MINIMO_FOLGA_MS = 35 * HORA_MS
+/** Batida solta a menos disso do fim da jornada anterior não é uma jornada nova (seria quebra de interstício) — é batida a mais. */
+const INTERVALO_MAXIMO_BATIDA_EXTRA_MS = MINIMO_HORAS_ENTRE_JORNADAS * HORA_MS
+/** Descanso que caracteriza folga. */
+const DESCANSO_MINIMO_FOLGA_MS = MINIMO_HORAS_ENTRE_FOLGAS * HORA_MS
 
 type LinhaEmTrabalho = LinhaJornadaBruta & { inicioMs: number; fimMs: number; editada: boolean; original: { inicio: string; fim: string } }
 

@@ -9,12 +9,10 @@ import { Button } from "@/components/ui/button"
 import { AcoesLinha, BotaoIcone } from "@/components/ui/botao-icone"
 import { ConfirmDialog } from "@/components/ui/confirm-dialog"
 import { chamarAcao } from "@/lib/chamar-acao"
-import type { LinkGerado } from "@/lib/services/link-aprovacao"
+import type { LinkGerado, RespostaLink } from "@/lib/services/link-aprovacao"
 import type { RespostaAcao } from "@/lib/types/types"
 import { PainelEnvioWhatsApp } from "@/components/aprovacao/painel-envio-whatsapp"
 import { useSomenteLeitura } from "@/components/layout/somente-leitura"
-
-type RespostaLink = { sucesso: true; link: LinkGerado } | { sucesso: false; erro: string }
 
 type Props = {
   motorista: string

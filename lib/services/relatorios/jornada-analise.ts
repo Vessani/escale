@@ -351,8 +351,9 @@ export function estourosDeJornada(
 /**
  * Teto de horas trabalhadas entre duas folgas de 35h: 6 dias de 12h. A soma
  * é das jornadas (início→fim de cada uma), sem os descansos entre elas.
+ * Amarrado em MAX_DIAS_SEM_FOLGA pra não ficar 72 fixo se o ciclo mudar.
  */
-export const HORAS_LIMITE_CICLO = 72
+export const HORAS_LIMITE_CICLO = MAX_DIAS_SEM_FOLGA * 12
 
 /** A partir de quanto o motorista entra no relatório como "perto das 72h". */
 export const HORAS_ALERTA_CICLO_PADRAO = 60

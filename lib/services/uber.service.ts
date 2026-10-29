@@ -5,6 +5,7 @@ import { registrarAuditoria, type Ator } from "@/lib/services/auditoria.service"
 import { CAMINHO_APROVACAO_UBER, montarMensagemUber } from "@/lib/services/uber-regras"
 import { montarLinkWhatsApp, situacaoDoPedido } from "@/lib/services/link-aprovacao-regras"
 import {
+  CAMPOS_PUBLICOS_DO_PEDIDO,
   conferirMotoristaEViagem,
   expiracaoDoLink,
   gerarTokenLink,
@@ -159,21 +160,7 @@ export async function cancelarSolicitacaoUber(filialId: number, id: number, ator
 export async function buscarUberPorToken(token: string, agora = new Date()) {
   const pedido = await prisma.solicitacaoUber.findUnique({
     where: { tokenHash: hashDoToken(token) },
-    select: {
-      status: true,
-      expiraEm: true,
-      origem: true,
-      destino: true,
-      motivo: true,
-      solicitadoPorNome: true,
-      criadoEm: true,
-      decididoEm: true,
-      decididoPorNome: true,
-      observacaoGestor: true,
-      motorista: { select: { nome: true } },
-      viagem: { select: { numViagem: true, inicioPrevisto: true, fimPrevisto: true } },
-      filial: { select: { nome: true } },
-    },
+    select: { ...CAMPOS_PUBLICOS_DO_PEDIDO, origem: true, destino: true, motivo: true },
   })
   if (!pedido) return null
   return { ...pedido, situacao: situacaoDoPedido(pedido, agora) }
