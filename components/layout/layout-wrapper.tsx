@@ -23,6 +23,7 @@ import {
   History,
   Hourglass,
   CarTaxiFront,
+  BedDouble,
 } from "lucide-react"
 import { Session } from "next-auth"
 import { ehTorre, veHistorico } from "@/lib/papeis"
@@ -69,6 +70,7 @@ const menuItemsOperacional = [
   { href: "/motorista/sem-viagem", label: "Motoristas Ociosos", icon: UserX },
   { href: "/estouros", label: "Estouros de Jornada", icon: Hourglass },
   { href: "/uber", label: "Pedidos de Uber", icon: CarTaxiFront },
+  { href: "/hotel", label: "Pedidos de Hotel", icon: BedDouble },
   { href: "/frotas", label: "Frotas", icon: Container },
   { href: "/clientes", label: "Clientes", icon: Building },
   { href: "/relatorios", label: "Relatórios", icon: FileSpreadsheet },

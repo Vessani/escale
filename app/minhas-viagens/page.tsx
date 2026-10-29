@@ -1,5 +1,5 @@
 import Link from "next/link"
-import { CarTaxiFront, ChevronRight, Clock, Hourglass, MapPin, Truck } from "lucide-react"
+import { BedDouble, CarTaxiFront, ChevronRight, Clock, Hourglass, MapPin, Truck } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { EmptyState } from "@/components/ui/empty-state"
@@ -81,6 +81,11 @@ export default async function MinhasViagensPage() {
           <Button asChild variant="outline" size="sm">
             <Link href="/minhas-viagens/uber">
               <CarTaxiFront className="mr-1.5 size-4" aria-hidden /> Pedir Uber
+            </Link>
+          </Button>
+          <Button asChild variant="outline" size="sm">
+            <Link href="/minhas-viagens/hotel">
+              <BedDouble className="mr-1.5 size-4" aria-hidden /> Pedir hotel
             </Link>
           </Button>
         </div>
