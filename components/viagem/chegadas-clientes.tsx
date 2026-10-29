@@ -312,11 +312,10 @@ function FormChegada({
       {preenchido && !resultado.ok && <p className="text-sm text-destructive">{resultado.erro}</p>}
 
       <div className="flex gap-2">
-        {anterior && (
-          <Button type="button" variant="ghost" className="h-12" onClick={aoTerminar} disabled={pendente}>
-            Cancelar
-          </Button>
-        )}
+        {/* Abriu o cliente errado ou desistiu: fecha sem gravar (abrir outro não fecha mais este). */}
+        <Button type="button" variant="ghost" className="h-12" onClick={aoTerminar} disabled={pendente}>
+          Cancelar
+        </Button>
         <Button
           type="button"
           className="h-12 flex-1 text-base"
@@ -378,7 +377,17 @@ export function ChegadasClientes({
   kmInicial: number | null
   agoraServidor: string
 }) {
-  const [aberta, setAberta] = useState<number | null>(null)
+  // Várias abertas ao mesmo tempo: abrir o próximo cliente NÃO fecha o
+  // anterior — antes, abrir a 2ª entrega descartava sem aviso o que o
+  // motorista já tinha digitado na 1ª e não tinha registrado.
+  const [abertas, setAbertas] = useState<ReadonlySet<number>>(new Set())
+  const abrir = (id: number) => setAbertas((atuais) => new Set(atuais).add(id))
+  const fechar = (id: number) =>
+    setAbertas((atuais) => {
+      const novas = new Set(atuais)
+      novas.delete(id)
+      return novas
+    })
 
   return (
     <ol className="space-y-2">
@@ -394,7 +403,10 @@ export function ChegadasClientes({
                 </p>
               </div>
             </div>
-            {entrega.chegada && aberta !== entrega.id && (
+            {!entrega.chegada && abertas.has(entrega.id) && (
+              <span className="shrink-0 rounded-full bg-warning/10 px-2 py-0.5 text-xs font-medium text-warning">Não registrada</span>
+            )}
+            {entrega.chegada && !abertas.has(entrega.id) && (
               <span className="flex shrink-0 items-center gap-1">
                 <CircleCheck className="size-4 text-success" aria-label="Chegada registrada" />
                 <Button
@@ -402,7 +414,7 @@ export function ChegadasClientes({
                   variant="ghost"
                   size="icon-sm"
                   aria-label={`Corrigir chegada em ${entrega.cliente}`}
-                  onClick={() => setAberta(entrega.id)}
+                  onClick={() => abrir(entrega.id)}
                 >
                   <Pencil className="size-4 text-muted-foreground" aria-hidden />
                 </Button>
@@ -411,21 +423,21 @@ export function ChegadasClientes({
             )}
           </div>
 
-          {aberta === entrega.id ? (
+          {abertas.has(entrega.id) ? (
             <FormChegada
               salvar={salvar}
               entrega={entrega}
               produto={produto}
               kmInicial={kmInicial}
               agoraServidor={agoraServidor}
-              aoTerminar={() => setAberta(null)}
+              aoTerminar={() => fechar(entrega.id)}
             />
           ) : entrega.chegada ? (
             <div className="mt-2">
               <ResumoChegada chegada={entrega.chegada} />
             </div>
           ) : (
-            <Button type="button" variant="outline" className="mt-2 h-11 w-full" onClick={() => setAberta(entrega.id)}>
+            <Button type="button" variant="outline" className="mt-2 h-11 w-full" onClick={() => abrir(entrega.id)}>
               Registrar chegada
             </Button>
           )}

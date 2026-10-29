@@ -43,7 +43,10 @@ const selecaoViagem = {
   motorista: { select: { nome: true } },
   motoristaAcompanhante: { select: { nome: true } },
   entregas: {
-    orderBy: { dataEntrega: "asc" as const },
+    // A planilha costuma trazer todas as entregas no mesmo dia/hora: sem o
+    // desempate por id, a ordem ficava por conta do banco e mudava depois de
+    // uma edição (o 1º cliente ia parar no fim da lista do motorista).
+    orderBy: [{ dataEntrega: "asc" as const }, { id: "asc" as const }],
     select: {
       id: true,
       cliente: true,

@@ -211,6 +211,13 @@ describe("consulta", () => {
     ])
   })
 
+  it("entregas na ordem da rota, com desempate fixo quando todas têm a mesma data (planilha)", async () => {
+    vi.mocked(prisma.viagem.findFirst).mockResolvedValue(null)
+    await buscarMinhaViagem(FILIAL, ZE, 7)
+    const select = vi.mocked(prisma.viagem.findFirst).mock.calls[0][0]?.select as { entregas: { orderBy: unknown } }
+    expect(select.entregas.orderBy).toEqual([{ dataEntrega: "asc" }, { id: "asc" }])
+  })
+
   it("o motorista só vê como entrega o cliente com SAP code e número white (a origem some)", async () => {
     const entregas = [
       { id: 1, cliente: "BASE RITMO", cidade: "JOINVILLE", sapcode: "", codewhite: "" },
@@ -359,6 +366,49 @@ describe("registrarChegadaCliente", () => {
       "menor que o inicial",
     )
     expect(tx.chegadaEntrega.upsert).not.toHaveBeenCalled()
+  })
+})
+
+describe("registrarChegadaCliente — viagem com 10 entregas", () => {
+  it("cada chegada grava na própria entrega: a 2ª não apaga nem sobrescreve a 1ª", async () => {
+    const agora = h("2026-10-02T18:00:00")
+    for (let i = 1; i <= 10; i++) {
+      vi.mocked(prisma.entrega.findFirst).mockResolvedValue({
+        id: 100 + i,
+        sapcode: `S${i}`,
+        codewhite: `W${i}`,
+        chegada: null,
+        viagem: { id: 1, status: "INICIADA", produto: "OXIGENIO", kmInicial: 152300, horarioRealSaida: h("2026-10-02T07:00:00") },
+      } as never)
+      await registrarChegadaCliente(
+        FILIAL,
+        ZE,
+        1,
+        100 + i,
+        VISTA,
+        {
+          km: 152300 + i * 10,
+          chegadaEm: h(`2026-10-02T${String(7 + i).padStart(2, "0")}:00:00`),
+          medicao: "BALANCA",
+          fatorCliente: null,
+          kgInicial: 1000,
+          kgFinal: 400,
+          m3Inicial: null,
+          m3Final: null,
+          pctInicial: null,
+          pctFinal: null,
+          polInicial: null,
+          polFinal: null,
+        },
+        ator,
+        agora,
+      )
+    }
+
+    const gravacoes = tx.chegadaEntrega.upsert.mock.calls.map(([args]) => ({ entregaId: args.where.entregaId, km: args.create.km }))
+    expect(gravacoes).toHaveLength(10)
+    expect(gravacoes.map((g) => g.entregaId)).toEqual([101, 102, 103, 104, 105, 106, 107, 108, 109, 110])
+    expect(gravacoes.map((g) => g.km)).toEqual([152310, 152320, 152330, 152340, 152350, 152360, 152370, 152380, 152390, 152400])
   })
 })
 
