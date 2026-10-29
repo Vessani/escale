@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useTransition } from "react"
+import { useEffect, useState, useSyncExternalStore, useTransition } from "react"
 import { useRouter } from "next/navigation"
 import { CircleCheck, MapPin, Pencil } from "lucide-react"
 import { Alert } from "@/components/ui/alert"
@@ -22,6 +22,7 @@ import { formatDateTimeForInput, formatarDataHoraPtBr } from "@/lib/utils/date-f
 import { cn } from "@/lib/utils"
 import type { RespostaAcao } from "@/lib/types/types"
 import type { EntradaChegada, EntradaEntregaVista } from "@/lib/validation/chegada"
+import { apagarRascunho, chaveDoRascunho, criarLeitorRascunhos, salvarRascunho, type RascunhoChegada } from "@/lib/rascunho-chegada"
 
 /** Grava a chegada de uma entrega — a action do motorista ou a do escalador (correção). */
 /** Recebe a entrega como estava na tela quando a chegada foi aberta (não a da última atualização). */
@@ -95,6 +96,9 @@ function CampoNumero({
   )
 }
 
+/** O rascunho só é lido ao abrir a tela — nada muda depois sem a própria tela saber. */
+const semInscricao = () => () => {}
+
 /** Campo da grade: sem rótulo próprio (a linha e a coluna dizem o que é). */
 function CampoGrade({ rotulo, valor, onChange }: { rotulo: string; valor: string; onChange: (v: string) => void }) {
   return (
@@ -116,6 +120,8 @@ function FormChegada({
   kmInicial,
   agoraServidor,
   aoTerminar,
+  chaveRascunho,
+  rascunho,
 }: {
   salvar: SalvarChegada
   entrega: EntregaDoPainel
@@ -123,6 +129,10 @@ function FormChegada({
   kmInicial: number | null
   agoraServidor: string
   aoTerminar: () => void
+  /** Só na chegada nova do motorista: onde guardar o rascunho no celular (ver rascunho-chegada.ts). */
+  chaveRascunho?: string
+  /** Rascunho recuperado deste celular ao abrir a tela. */
+  rascunho?: RascunhoChegada
 }) {
   const router = useRouter()
   const [pendente, iniciarTransicao] = useTransition()
@@ -132,35 +142,76 @@ function FormChegada({
   // Congelada ao abrir: a tela se atualiza sozinha a cada minuto, e se o
   // escalador trocar o cliente no meio-tempo o rótulo muda, mas a medição foi
   // feita no cliente de antes — o servidor compara com isto e recusa.
-  const [entregaVista] = useState<EntradaEntregaVista>(() => ({
-    id: entrega.id,
-    cliente: entrega.cliente,
-    cidade: entrega.cidade,
-    uf: entrega.uf,
-  }))
+  const [entregaVista] = useState<EntradaEntregaVista>(
+    () => rascunho?.vista ?? { id: entrega.id, cliente: entrega.cliente, cidade: entrega.cidade, uf: entrega.uf },
+  )
+  const r = rascunho?.campos
 
-  const [km, setKm] = useState(anterior ? String(anterior.km) : "")
+  const [km, setKm] = useState(r?.km ?? (anterior ? String(anterior.km) : ""))
   // Horário de Brasília (como o resto do sistema), a partir do relógio do
   // servidor — não do celular, que pode estar em outro fuso ou adiantado.
-  const [quando, setQuando] = useState(() => formatDateTimeForInput(anterior ? anterior.chegadaEm : agoraServidor))
+  const [quando, setQuando] = useState(() => r?.quando || formatDateTimeForInput(anterior ? anterior.chegadaEm : agoraServidor))
   // Chegadas antigas (uma leitura só, em nivelInicial/Final): manômetro vira
   // a linha pol, balança a linha kg. GRADE (08–09/10) não tinha medida: escolher de novo.
   const medidaAnterior = anterior?.medicao === "MANOMETRO" || anterior?.medicao === "BALANCA" ? anterior.medicao : null
   const manometroAntigo = !biometano && anterior?.medicao === "MANOMETRO" && anterior.polInicial === null
   const balancaAntiga = !biometano && anterior?.medicao === "BALANCA" && (anterior.kgInicial ?? null) === null
-  const [medicao, setMedicao] = useState<Medida | null>(medidaAnterior)
-  const [fator, setFator] = useState(anterior?.medicao === "MANOMETRO" ? numeroCampo(anterior.fator) : "")
-  const [polInicial, setPolInicial] = useState(numeroCampo(manometroAntigo ? anterior.nivelInicial : anterior?.polInicial))
-  const [polFinal, setPolFinal] = useState(numeroCampo(manometroAntigo ? anterior.nivelFinal : anterior?.polFinal))
-  const [m3Inicial, setM3Inicial] = useState(numeroCampo(anterior?.m3Inicial))
-  const [m3Final, setM3Final] = useState(numeroCampo(anterior?.m3Final))
-  const [kgInicial, setKgInicial] = useState(numeroCampo(balancaAntiga ? anterior.nivelInicial : anterior?.kgInicial))
-  const [kgFinal, setKgFinal] = useState(numeroCampo(balancaAntiga ? anterior.nivelFinal : anterior?.kgFinal))
-  const [pctInicial, setPctInicial] = useState(numeroCampo(anterior?.pctInicial))
-  const [pctFinal, setPctFinal] = useState(numeroCampo(anterior?.pctFinal))
+  const [medicao, setMedicao] = useState<Medida | null>(r ? r.medicao : medidaAnterior)
+  const [fator, setFator] = useState(r?.fator ?? (anterior?.medicao === "MANOMETRO" ? numeroCampo(anterior.fator) : ""))
+  const [polInicial, setPolInicial] = useState(r?.polInicial ?? numeroCampo(manometroAntigo ? anterior.nivelInicial : anterior?.polInicial))
+  const [polFinal, setPolFinal] = useState(r?.polFinal ?? numeroCampo(manometroAntigo ? anterior.nivelFinal : anterior?.polFinal))
+  const [m3Inicial, setM3Inicial] = useState(r?.m3Inicial ?? numeroCampo(anterior?.m3Inicial))
+  const [m3Final, setM3Final] = useState(r?.m3Final ?? numeroCampo(anterior?.m3Final))
+  const [kgInicial, setKgInicial] = useState(r?.kgInicial ?? numeroCampo(balancaAntiga ? anterior.nivelInicial : anterior?.kgInicial))
+  const [kgFinal, setKgFinal] = useState(r?.kgFinal ?? numeroCampo(balancaAntiga ? anterior.nivelFinal : anterior?.kgFinal))
+  const [pctInicial, setPctInicial] = useState(r?.pctInicial ?? numeroCampo(anterior?.pctInicial))
+  const [pctFinal, setPctFinal] = useState(r?.pctFinal ?? numeroCampo(anterior?.pctFinal))
   // Biometano: nível do tanque do caminhão em m³ (as polegadas usam polInicial/polFinal).
-  const [inicial, setInicial] = useState(biometano ? numeroCampo(anterior?.nivelInicial) : "")
-  const [final, setFinal] = useState(biometano ? numeroCampo(anterior?.nivelFinal) : "")
+  const [inicial, setInicial] = useState(r?.inicial ?? (biometano ? numeroCampo(anterior?.nivelInicial) : ""))
+  const [final, setFinal] = useState(r?.final ?? (biometano ? numeroCampo(anterior?.nivelFinal) : ""))
+
+  // Cada mudança vai pro rascunho do celular (só na chegada nova do motorista).
+  useEffect(() => {
+    if (!chaveRascunho) return
+    salvarRascunho(chaveRascunho, entregaVista, {
+      km,
+      quando,
+      medicao,
+      fator,
+      polInicial,
+      polFinal,
+      m3Inicial,
+      m3Final,
+      kgInicial,
+      kgFinal,
+      pctInicial,
+      pctFinal,
+      inicial,
+      final,
+    })
+  }, [
+    chaveRascunho,
+    entregaVista,
+    km,
+    quando,
+    medicao,
+    fator,
+    polInicial,
+    polFinal,
+    m3Inicial,
+    m3Final,
+    kgInicial,
+    kgFinal,
+    pctInicial,
+    pctFinal,
+    inicial,
+    final,
+  ])
+
+  const encerrar = () => {
+    if (chaveRascunho) apagarRascunho(chaveRascunho)
+    aoTerminar()
+  }
 
   const linha = (texto: string) => (biometano ? null : parseNumeroDecimal(texto))
   const dados = {
@@ -201,7 +252,7 @@ function FormChegada({
     iniciarTransicao(async () => {
       const resposta = await chamarAcao(() => salvar(entregaVista, { km: Number(km), chegadaEm: quando, ...dados }))
       if (!resposta.sucesso) return setErro(resposta.erro)
-      aoTerminar()
+      encerrar()
       router.refresh()
     })
   }
@@ -209,6 +260,7 @@ function FormChegada({
   return (
     <div className="space-y-3 border-t pt-3">
       {erro && <Alert variant="error">{erro}</Alert>}
+      {rascunho && <Alert variant="info">Recuperamos o que você tinha digitado neste celular. Confira e toque em Registrar chegada.</Alert>}
       <div className="grid gap-2">
         <label className="grid gap-1 text-xs font-medium text-muted-foreground">
           Km na chegada
@@ -313,7 +365,7 @@ function FormChegada({
 
       <div className="flex gap-2">
         {/* Abriu o cliente errado ou desistiu: fecha sem gravar (abrir outro não fecha mais este). */}
-        <Button type="button" variant="ghost" className="h-12" onClick={aoTerminar} disabled={pendente}>
+        <Button type="button" variant="ghost" className="h-12" onClick={encerrar} disabled={pendente}>
           Cancelar
         </Button>
         <Button
@@ -368,9 +420,16 @@ export function ChegadasClientes({
   kmInicial,
   agoraServidor,
   acoes,
+  chaveViagemRascunho,
 }: {
   salvar: SalvarChegada
   entregas: EntregaDoPainel[]
+  /**
+   * Liga o rascunho no celular (área do motorista): identifica motorista e
+   * viagem na chave, pra um rascunho nunca aparecer pra outro motorista no
+   * mesmo aparelho. Sem isto (correção do escalador), não guarda rascunho.
+   */
+  chaveViagemRascunho?: string
   /** Botões extras ao lado do "corrigir" de uma chegada registrada (ex: o escalador apagar). */
   acoes?: (entrega: EntregaDoPainel) => React.ReactNode
   produto: Produto | null
@@ -382,12 +441,22 @@ export function ChegadasClientes({
   // motorista já tinha digitado na 1ª e não tinha registrado.
   const [abertas, setAbertas] = useState<ReadonlySet<number>>(new Set())
   const abrir = (id: number) => setAbertas((atuais) => new Set(atuais).add(id))
-  const fechar = (id: number) =>
+  // Rascunho recuperado já registrado ou cancelado: não volta ao abrir de novo.
+  const [descartados, setDescartados] = useState<ReadonlySet<number>>(new Set())
+  const fechar = (id: number) => {
     setAbertas((atuais) => {
       const novas = new Set(atuais)
       novas.delete(id)
       return novas
     })
+    setDescartados((atuais) => new Set(atuais).add(id))
+  }
+
+  // Ao abrir a tela: as chegadas que ficaram pela metade neste celular voltam
+  // abertas e preenchidas (lidas uma vez, ver criarLeitorRascunhos).
+  const [leitor] = useState(() => criarLeitorRascunhos(chaveViagemRascunho, entregas))
+  const recuperados = useSyncExternalStore(semInscricao, leitor.ler, leitor.noServidor)
+  const estaAberta = (id: number) => abertas.has(id) || (recuperados.has(id) && !descartados.has(id))
 
   return (
     <ol className="space-y-2">
@@ -403,10 +472,10 @@ export function ChegadasClientes({
                 </p>
               </div>
             </div>
-            {!entrega.chegada && abertas.has(entrega.id) && (
+            {!entrega.chegada && estaAberta(entrega.id) && (
               <span className="shrink-0 rounded-full bg-warning/10 px-2 py-0.5 text-xs font-medium text-warning">Não registrada</span>
             )}
-            {entrega.chegada && !abertas.has(entrega.id) && (
+            {entrega.chegada && !estaAberta(entrega.id) && (
               <span className="flex shrink-0 items-center gap-1">
                 <CircleCheck className="size-4 text-success" aria-label="Chegada registrada" />
                 <Button
@@ -423,7 +492,7 @@ export function ChegadasClientes({
             )}
           </div>
 
-          {abertas.has(entrega.id) ? (
+          {estaAberta(entrega.id) ? (
             <FormChegada
               salvar={salvar}
               entrega={entrega}
@@ -431,6 +500,8 @@ export function ChegadasClientes({
               kmInicial={kmInicial}
               agoraServidor={agoraServidor}
               aoTerminar={() => fechar(entrega.id)}
+              chaveRascunho={chaveViagemRascunho && !entrega.chegada ? chaveDoRascunho(chaveViagemRascunho, entrega.id) : undefined}
+              rascunho={entrega.chegada || descartados.has(entrega.id) ? undefined : recuperados.get(entrega.id)}
             />
           ) : entrega.chegada ? (
             <div className="mt-2">

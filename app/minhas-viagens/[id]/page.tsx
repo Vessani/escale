@@ -125,6 +125,7 @@ export default async function MinhaViagemPage({ params }: { params: Promise<{ id
         viagem={dadosPainel}
         souPrincipal={souPrincipal}
         agoraServidor={agora.toISOString()}
+        motoristaId={motoristaId}
         substitutos={souPrincipal ? await buscarSubstitutosPossiveis(filialId, motoristaId, viagem.produto) : []}
       />
       {[...STATUS_A_INICIAR, ...STATUS_EM_ANDAMENTO].includes(viagem.status) && (
