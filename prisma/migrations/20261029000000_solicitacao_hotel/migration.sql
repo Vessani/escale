@@ -11,6 +11,7 @@ CREATE TABLE "SolicitacaoHotel" (
     "viagemId" INTEGER,
     "cidade" VARCHAR(100) NOT NULL,
     "nomeHotel" VARCHAR(150) NOT NULL,
+    "dataPernoite" DATE NOT NULL,
     "status" "StatusHotel" NOT NULL DEFAULT 'PENDENTE',
     "tokenHash" VARCHAR(64) NOT NULL,
     "expiraEm" TIMESTAMP(6) NOT NULL,

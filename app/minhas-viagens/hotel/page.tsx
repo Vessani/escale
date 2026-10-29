@@ -2,6 +2,7 @@ import { BedDouble } from "lucide-react"
 import { requireSessaoPaginaMotorista } from "@/lib/auth-guard"
 import { buscarViagensAbertasDoMotorista } from "@/lib/services/estouro-jornada.service"
 import { buscarSolicitacoesHotel } from "@/lib/services/hotel.service"
+import { formatarDataPernoite } from "@/lib/services/hotel-regras"
 import { formatarDataHoraPtBr } from "@/lib/utils/date-format"
 import { formatarNomeProprio } from "@/lib/utils/texto"
 import { CartaoMeuPedido, TelaPedidoMotorista } from "@/components/aprovacao/pedido-motorista"
@@ -33,7 +34,7 @@ export default async function MeuHotelPage({ searchParams }: { searchParams: Pro
         <CartaoMeuPedido
           key={p.id}
           pedido={{ ...p, numViagem: p.viagem?.numViagem }}
-          titulo={p.cidade}
+          titulo={`${p.cidade} · ${formatarDataPernoite(p.dataPernoite)}`}
           detalhes={
             <>
               <p className="text-foreground/80">{p.nomeHotel}</p>

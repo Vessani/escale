@@ -3,7 +3,14 @@
 import { useState } from "react"
 import { Alert } from "@/components/ui/alert"
 import { pedirMeuHotel, solicitarHotel } from "@/lib/actions/hotel"
-import { TAMANHO_MAXIMO_CIDADE_HOTEL, TAMANHO_MAXIMO_NOME_HOTEL } from "@/lib/services/hotel-regras"
+import {
+  DIAS_MAXIMOS_ANTECEDENCIA_HOTEL,
+  TAMANHO_MAXIMO_CIDADE_HOTEL,
+  TAMANHO_MAXIMO_NOME_HOTEL,
+  diaEmBrasilia,
+  formatarDataPernoite,
+  parseDataPernoite,
+} from "@/lib/services/hotel-regras"
 import {
   CamposMotoristaViagem,
   PedidoRegistrado,
@@ -14,7 +21,7 @@ import {
 } from "@/components/aprovacao/form-pedido-link"
 
 /**
- * Pedido de hotel pro pernoite: cidade e nome do hotel. O resto (motorista,
+ * Pedido de hotel pro pernoite: cidade, data e nome do hotel. O resto (motorista,
  * viagem, envio, link do WhatsApp) é comum com os pedidos de Uber e de
  * estouro — ver form-pedido-link.tsx.
  */
@@ -34,19 +41,27 @@ export function FormHotel({
   const pedido = usePedidoLink({ modo, viagens, motoristas, viagemInicial })
   const [cidade, setCidade] = useState("")
   const [nomeHotel, setNomeHotel] = useState("")
+  // Hoje por padrão: o mais comum é pedir o hotel do dia. O intervalo aceito vem das mesmas regras do service.
+  const [hoje] = useState(() => new Date())
+  const [dataPernoite, setDataPernoite] = useState(() => diaEmBrasilia(hoje))
   const { campo, rotulo, linha } = pedido.classes
 
-  const completo = Boolean(pedido.temMotorista && cidade.trim().length >= 2 && nomeHotel.trim().length >= 2)
+  const completo = Boolean(pedido.temMotorista && cidade.trim().length >= 2 && nomeHotel.trim().length >= 2 && dataPernoite !== "")
 
   const enviar = () =>
     pedido.enviar(({ motoristaId, viagemId }) => {
-      const dados = { viagemId, cidade, nomeHotel }
+      const dados = { viagemId, cidade, nomeHotel, dataPernoite }
       return motoristaId === null ? pedirMeuHotel(dados) : solicitarHotel({ ...dados, motoristaId })
     })
 
   if (pedido.link) {
     return (
-      <PedidoRegistrado pedido={pedido} link={pedido.link} voltarHref={voltarHref} resumo={`${nomeHotel.trim()} em ${cidade.trim()}.`} />
+      <PedidoRegistrado
+        pedido={pedido}
+        link={pedido.link}
+        voltarHref={voltarHref}
+        resumo={`${nomeHotel.trim()} em ${cidade.trim()}, ${formatarDataPernoite(parseDataPernoite(dataPernoite))}.`}
+      />
     )
   }
 
@@ -68,6 +83,20 @@ export function FormHotel({
             className={campo}
           />
         </label>
+        <label className={rotulo}>
+          Data do pernoite
+          <input
+            type="date"
+            value={dataPernoite}
+            onChange={(e) => setDataPernoite(e.target.value)}
+            min={diaEmBrasilia(hoje, -1)}
+            max={diaEmBrasilia(hoje, DIAS_MAXIMOS_ANTECEDENCIA_HOTEL)}
+            className={campo}
+          />
+        </label>
+      </div>
+
+      <div className={linha}>
         <label className={rotulo}>
           Nome do hotel
           <input

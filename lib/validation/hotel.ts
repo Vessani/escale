@@ -9,6 +9,8 @@ export const esquemaHotelMotorista = z.object({
   viagemId: z.number().int().positive().nullable(),
   cidade: texto("Cidade", "a cidade do pernoite", TAMANHO_MAXIMO_CIDADE_HOTEL),
   nomeHotel: texto("Hotel", "o nome do hotel", TAMANHO_MAXIMO_NOME_HOTEL),
+  // "AAAA-MM-DD" do <input type="date">; o intervalo (ontem até +30 dias) é conferido no service, que sabe o "hoje".
+  dataPernoite: z.iso.date({ error: "Informe a data do pernoite." }),
 })
 
 /** O que o escalador preenche: o mesmo, escolhendo o motorista. */

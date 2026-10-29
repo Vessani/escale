@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button"
 import { EmptyState } from "@/components/ui/empty-state"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { buscarSolicitacoesHotel } from "@/lib/services/hotel.service"
+import { formatarDataPernoite } from "@/lib/services/hotel-regras"
 import { CLASSE_SITUACAO, ROTULO_SITUACAO } from "@/lib/services/link-aprovacao-regras"
 import { formatarDataHoraPtBr } from "@/lib/utils/date-format"
 import { formatarNomeProprio } from "@/lib/utils/texto"
@@ -66,6 +67,7 @@ export default async function HotelPage() {
                 <TableHead>Pedido em</TableHead>
                 <TableHead>Motorista</TableHead>
                 <TableHead>Viagem</TableHead>
+                <TableHead>Pernoite</TableHead>
                 <TableHead>Cidade</TableHead>
                 <TableHead>Hotel</TableHead>
                 <TableHead>Situação</TableHead>
@@ -86,6 +88,7 @@ export default async function HotelPage() {
                   </TableCell>
                   <TableCell className="font-medium">{formatarNomeProprio(p.motorista.nome)}</TableCell>
                   <TableCell className="font-mono tabular-nums">{p.viagem?.numViagem ?? "—"}</TableCell>
+                  <TableCell className="whitespace-nowrap tabular-nums">{formatarDataPernoite(p.dataPernoite)}</TableCell>
                   <TableCell className="max-w-48 truncate font-medium" title={p.cidade}>
                     {p.cidade}
                   </TableCell>

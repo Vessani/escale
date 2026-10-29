@@ -834,6 +834,9 @@
     // Texto livre — tetos em TAMANHO_MAXIMO_CIDADE_HOTEL / TAMANHO_MAXIMO_NOME_HOTEL.
     cidade          String      @db.VarChar(100)
     nomeHotel       String      @db.VarChar(150)
+    // A noite do pernoite (dia do check-in). Coluna date: meia-noite UTC do
+    // dia calendário — ler/gravar via formatarDataPernoite / parseDataPernoite.
+    dataPernoite    DateTime    @db.Date
     status          StatusHotel @default(PENDENTE)
     // Só o hash (SHA-256) do token do link fica no banco (ver lib/services/link-aprovacao.ts).
     tokenHash       String      @unique @db.VarChar(64)

@@ -1,7 +1,13 @@
 import { prisma } from "@/lib/prisma"
 import { ErroDeDominio } from "@/lib/errors"
 import { registrarAuditoria, type Ator } from "@/lib/services/auditoria.service"
-import { CAMINHO_APROVACAO_HOTEL, montarMensagemHotel } from "@/lib/services/hotel-regras"
+import {
+  CAMINHO_APROVACAO_HOTEL,
+  DIAS_MAXIMOS_ANTECEDENCIA_HOTEL,
+  diaEmBrasilia,
+  montarMensagemHotel,
+  parseDataPernoite,
+} from "@/lib/services/hotel-regras"
 import { montarLinkWhatsApp, situacaoDoPedido } from "@/lib/services/link-aprovacao-regras"
 import {
   CAMPOS_PUBLICOS_DO_PEDIDO,
@@ -33,6 +39,19 @@ type DadosSolicitacao = {
   viagemId: number | null
   cidade: string
   nomeHotel: string
+  /** "AAAA-MM-DD". */
+  dataPernoite: string
+}
+
+/** O pernoite tem de ser de ontem (pedido feito de madrugada) até DIAS_MAXIMOS_ANTECEDENCIA_HOTEL dias pra frente. */
+function conferirDataPernoite(dataPernoite: string, agora: Date) {
+  // Texto "AAAA-MM-DD" compara certo em ordem alfabética.
+  if (dataPernoite < diaEmBrasilia(agora, -1)) {
+    throw new ErroDeDominio("HOTEL_DATA_PASSADA", "A data do pernoite já passou.")
+  }
+  if (dataPernoite > diaEmBrasilia(agora, DIAS_MAXIMOS_ANTECEDENCIA_HOTEL)) {
+    throw new ErroDeDominio("HOTEL_DATA_DISTANTE", `Peça o hotel com até ${DIAS_MAXIMOS_ANTECEDENCIA_HOTEL} dias de antecedência.`)
+  }
 }
 
 export async function criarSolicitacaoHotel(
@@ -41,6 +60,7 @@ export async function criarSolicitacaoHotel(
   ator: Ator,
   { pedidoPeloMotorista = false, agora = new Date() }: { pedidoPeloMotorista?: boolean; agora?: Date } = {},
 ): Promise<LinkGerado> {
+  conferirDataPernoite(dados.dataPernoite, agora)
   const { motorista, numViagem } = await conferirMotoristaEViagem(filialId, dados.motoristaId, dados.viagemId)
 
   // Um pedido em aberto por motorista: evita dois links no grupo pro mesmo
@@ -67,6 +87,7 @@ export async function criarSolicitacaoHotel(
         viagemId: dados.viagemId,
         cidade: dados.cidade,
         nomeHotel: dados.nomeHotel,
+        dataPernoite: parseDataPernoite(dados.dataPernoite),
         tokenHash,
         expiraEm: expiracaoDoLink(agora),
         solicitadoPorId: ator.usuarioId,
@@ -158,7 +179,7 @@ export async function cancelarSolicitacaoHotel(filialId: number, id: number, ato
 export async function buscarHotelPorToken(token: string, agora = new Date()) {
   const pedido = await prisma.solicitacaoHotel.findUnique({
     where: { tokenHash: hashDoToken(token) },
-    select: { ...CAMPOS_PUBLICOS_DO_PEDIDO, cidade: true, nomeHotel: true },
+    select: { ...CAMPOS_PUBLICOS_DO_PEDIDO, cidade: true, nomeHotel: true, dataPernoite: true },
   })
   if (!pedido) return null
   return { ...pedido, situacao: situacaoDoPedido(pedido, agora) }
@@ -223,6 +244,7 @@ export async function buscarSolicitacoesHotel(
       expiraEm: true,
       cidade: true,
       nomeHotel: true,
+      dataPernoite: true,
       solicitadoPorNome: true,
       pedidoPeloMotorista: true,
       criadoEm: true,

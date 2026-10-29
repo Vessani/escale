@@ -33,6 +33,7 @@ const dados = (parcial: Record<string, unknown> = {}) => ({
   viagemId: null as number | null,
   cidade: "Curitiba",
   nomeHotel: "Hotel Ibis Curitiba Centro",
+  dataPernoite: "2026-10-27",
   ...parcial,
 })
 
@@ -56,6 +57,7 @@ describe("criarSolicitacaoHotel", () => {
       motoristaId: 7,
       cidade: "Curitiba",
       nomeHotel: "Hotel Ibis Curitiba Centro",
+      dataPernoite: new Date("2026-10-27T00:00:00Z"),
       solicitadoPorNome: "Alan",
       pedidoPeloMotorista: false,
       expiraEm: new Date("2026-10-28T00:00:00Z"),
@@ -68,6 +70,7 @@ describe("criarSolicitacaoHotel", () => {
     expect(mensagem).toContain("Motorista: JOÃO DA SILVA")
     expect(mensagem).toContain("Cidade: Curitiba")
     expect(mensagem).toContain("Hotel: Hotel Ibis Curitiba Centro")
+    expect(mensagem).toContain("Pernoite: 27/10/2026 (ter)")
     expect(mensagem).toContain(link.url)
 
     // A auditoria nunca recebe o hash do token.
@@ -86,6 +89,18 @@ describe("criarSolicitacaoHotel", () => {
     vi.mocked(prisma.motorista.findFirst).mockResolvedValue(null)
     await expect(criarSolicitacaoHotel(FILIAL, dados(), ator, { agora })).rejects.toThrow("Motorista não encontrado")
     expect(tx.solicitacaoHotel.create).not.toHaveBeenCalled()
+  })
+
+  it("data do pernoite: de ontem até 30 dias pra frente, no dia de Brasília", async () => {
+    // 12:00 UTC = 09:00 em Brasília, dia 27/10.
+    await expect(criarSolicitacaoHotel(FILIAL, dados({ dataPernoite: "2026-10-26" }), ator, { agora })).resolves.toBeDefined()
+    await expect(criarSolicitacaoHotel(FILIAL, dados({ dataPernoite: "2026-11-26" }), ator, { agora })).resolves.toBeDefined()
+    await expect(criarSolicitacaoHotel(FILIAL, dados({ dataPernoite: "2026-10-25" }), ator, { agora })).rejects.toThrow("já passou")
+    await expect(criarSolicitacaoHotel(FILIAL, dados({ dataPernoite: "2026-11-27" }), ator, { agora })).rejects.toThrow("30 dias")
+
+    // 02:00 UTC do dia 28 ainda é 23:00 do dia 27 em Brasília: "ontem" é 26/10.
+    const madrugadaUtc = new Date("2026-10-28T02:00:00Z")
+    await expect(criarSolicitacaoHotel(FILIAL, dados({ dataPernoite: "2026-10-26" }), ator, { agora: madrugadaUtc })).resolves.toBeDefined()
   })
 
   it("não deixa abrir um segundo pedido enquanto o primeiro está com o gestor", async () => {
@@ -155,6 +170,7 @@ describe("gerarNovoLinkHotel / cancelarSolicitacaoHotel", () => {
     status: "PENDENTE",
     cidade: "Lages",
     nomeHotel: "Hotel Serrano",
+    dataPernoite: new Date("2026-10-28T00:00:00Z"),
     tokenHash: "antigo",
     motorista: { nome: "JOÃO" },
     viagem: null,
