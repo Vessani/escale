@@ -17,6 +17,27 @@ import { VALIDADE_LINK_HORAS } from "@/lib/services/link-aprovacao-regras"
 
 export type LinkGerado = { id: number; url: string; linkWhatsApp: string }
 
+/** Resposta das actions que geram link (pedir, reenviar) — estouro e Uber. */
+export type RespostaLink = { sucesso: true; link: LinkGerado } | { sucesso: false; erro: string }
+
+/**
+ * Campos comuns que a página pública de aprovação mostra, de qualquer tipo de
+ * pedido (estouro, Uber) — nunca ids, IP nem dados de outra solicitação. Cada
+ * tipo soma os campos dele (ver buscarEstouroPorToken, buscarUberPorToken).
+ */
+export const CAMPOS_PUBLICOS_DO_PEDIDO = {
+  status: true,
+  expiraEm: true,
+  solicitadoPorNome: true,
+  criadoEm: true,
+  decididoEm: true,
+  decididoPorNome: true,
+  observacaoGestor: true,
+  motorista: { select: { nome: true } },
+  viagem: { select: { numViagem: true, inicioPrevisto: true, fimPrevisto: true } },
+  filial: { select: { nome: true } },
+} as const
+
 /** Token novo + o hash que vai pro banco. O token em claro só existe na resposta. */
 export function gerarTokenLink(): { token: string; tokenHash: string } {
   const token = randomBytes(32).toString("base64url")

@@ -1,12 +1,11 @@
 "use server"
 
-import { revalidatePath } from "next/cache"
 import { requireSessaoMotorista, requireSessionComFilial } from "@/lib/auth-guard"
-import { errorToMessage } from "@/lib/action-error"
+import { actionsDePedidoLink } from "@/lib/actions/pedido-link"
 import { atorDaSessao } from "@/lib/services/auditoria.service"
 import { AREA_MOTORISTA, PAPEIS_ESCALADOR } from "@/lib/papeis"
 import { cancelarSolicitacaoEstouro, criarSolicitacaoEstouro, gerarNovoLinkEstouro } from "@/lib/services/estouro-jornada.service"
-import type { LinkGerado } from "@/lib/services/link-aprovacao"
+import type { RespostaLink } from "@/lib/services/link-aprovacao"
 import {
   esquemaSolicitacaoEstouro,
   esquemaSolicitacaoMotorista,
@@ -16,35 +15,10 @@ import {
 import { z } from "@/lib/validation/zod"
 import type { RespostaAcao } from "@/lib/types/types"
 
-type RespostaLink = { sucesso: true; link: LinkGerado } | { sucesso: false; erro: string }
-
 const id = z.number().int().positive()
 
 /** O pedido aparece nas duas telas: a lista do escalador e a do motorista. */
-function revalidarTelas() {
-  revalidatePath("/estouros")
-  revalidatePath(`${AREA_MOTORISTA}/estouro`)
-}
-
-async function comLink(acao: () => Promise<LinkGerado>, fallback: string): Promise<RespostaLink> {
-  try {
-    const link = await acao()
-    revalidarTelas()
-    return { sucesso: true, link }
-  } catch (erro) {
-    return { sucesso: false, erro: errorToMessage(erro, fallback) }
-  }
-}
-
-async function semRetorno(acao: () => Promise<unknown>, fallback: string): Promise<RespostaAcao> {
-  try {
-    await acao()
-    revalidarTelas()
-    return { sucesso: true }
-  } catch (erro) {
-    return { sucesso: false, erro: errorToMessage(erro, fallback) }
-  }
-}
+const { comLink, semRetorno } = actionsDePedidoLink(["/estouros", `${AREA_MOTORISTA}/estouro`])
 
 // ------------------------------------------------------------ escalador
 

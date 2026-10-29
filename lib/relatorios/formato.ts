@@ -47,18 +47,30 @@ export function formatarDuracaoLonga(minutos: number): string {
 }
 
 /**
+ * As partes de "quem autorizou o estouro", uma fonte só pra tela
+ * (AutorizacaoEstouroCelula) e pro Excel (descreverAutorizacoes).
+ */
+export function partesDaAutorizacao(a: AutorizacaoEstouro) {
+  return {
+    quem: a.decididoPorNome ?? "—",
+    /** "27/10 14:05"; null se ainda não tem data de decisão. */
+    quando: a.decididoEm ? `${formatarDiaCurto(a.decididoEm)} ${formatarHoraLocal(a.decididoEm)}` : null,
+    extras: `+${formatarMinutos(a.minutosExtras)}`,
+    motivos: formatarMotivos(a.motivos),
+    pedidoPor: a.pedidoPeloMotorista ? "pelo motorista" : "pelo escalador",
+  }
+}
+
+/**
  * Quem autorizou o estouro, pro Excel: "Roberto em 27/10 14:05 · +1h30 (Trânsito lento) · pedido pelo motorista".
  * Mais de um pedido na mesma jornada/ciclo: separados por " | ". Sem pedido: "Sem autorização".
  */
 export function descreverAutorizacoes(autorizacoes: readonly AutorizacaoEstouro[]): string {
   if (autorizacoes.length === 0) return "Sem autorização"
   return autorizacoes
-    .map((a) =>
-      [
-        `${a.decididoPorNome ?? "—"}${a.decididoEm ? ` em ${formatarDiaCurto(a.decididoEm)} ${formatarHoraLocal(a.decididoEm)}` : ""}`,
-        `+${formatarMinutos(a.minutosExtras)} (${formatarMotivos(a.motivos)})`,
-        a.pedidoPeloMotorista ? "pedido pelo motorista" : "pedido pelo escalador",
-      ].join(" · "),
-    )
+    .map((a) => {
+      const { quem, quando, extras, motivos, pedidoPor } = partesDaAutorizacao(a)
+      return [`${quem}${quando ? ` em ${quando}` : ""}`, `${extras} (${motivos})`, `pedido ${pedidoPor}`].join(" · ")
+    })
     .join(" | ")
 }

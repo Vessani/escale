@@ -1,15 +1,10 @@
 "use client"
 
-import { useMemo, useState, useTransition } from "react"
-import Link from "next/link"
-import { Check, CheckCircle2 } from "lucide-react"
+import { useState } from "react"
 import type { MotivoEstouro } from "@prisma/client"
 import { Alert } from "@/components/ui/alert"
-import { Button } from "@/components/ui/button"
 import { ControleSegmentado } from "@/components/ui/controle-segmentado"
 import { pedirMeuEstouro, solicitarEstouro } from "@/lib/actions/estouro-jornada"
-import { chamarAcao } from "@/lib/chamar-acao"
-import type { LinkGerado } from "@/lib/services/link-aprovacao"
 import {
   LIMITE_MINUTOS_ESTOURO,
   MAXIMO_MOTIVOS_ESTOURO,
@@ -17,26 +12,22 @@ import {
   OPCOES_MINUTOS_ESTOURO,
   formatarMinutos,
 } from "@/lib/services/estouro-jornada-regras"
-import { formatarDiaMesHora } from "@/lib/utils/date-format"
-import { formatarNomeProprio } from "@/lib/utils/texto"
-import { cn } from "@/lib/utils"
-import { PainelEnvioWhatsApp } from "@/components/aprovacao/painel-envio-whatsapp"
-
-type Viagem = {
-  id: number
-  numViagem: string
-  inicioPrevisto: Date | string
-  motoristaId: number | null
-  motoristaAcompanhanteId: number | null
-}
+import {
+  CamposMotoristaViagem,
+  OpcaoMarcavel,
+  PedidoRegistrado,
+  RodapePedido,
+  usePedidoLink,
+  type ModoPedido,
+  type ViagemDoPedido,
+} from "@/components/aprovacao/form-pedido-link"
 
 const OPCOES_HORAS = OPCOES_MINUTOS_ESTOURO.map((m) => ({ valor: String(m), rotulo: formatarMinutos(m) }))
 
 /**
- * Pedido de estouro de jornada. `modo="motorista"`: o pedido é do próprio
- * motorista (viagens já vêm só as dele, campos grandes pro celular);
- * `modo="escalador"`: escolhe o motorista. Nos dois, depois de registrar,
- * mostra o botão de enviar no grupo de WhatsApp da filial.
+ * Pedido de estouro de jornada: horas extras e motivos. O resto (motorista,
+ * viagem, envio, link do WhatsApp) é comum com o pedido de Uber — ver
+ * form-pedido-link.tsx.
  */
 export function FormEstouro({
   modo,
@@ -45,116 +36,41 @@ export function FormEstouro({
   viagemInicial,
   voltarHref,
 }: {
-  modo: "escalador" | "motorista"
-  viagens: Viagem[]
+  modo: ModoPedido
+  viagens: ViagemDoPedido[]
   motoristas?: Array<{ id: number; nome: string }>
   viagemInicial?: number
   voltarHref: string
 }) {
-  const [pendente, iniciarTransicao] = useTransition()
-  const [erro, setErro] = useState("")
-  const [link, setLink] = useState<LinkGerado | null>(null)
-
-  const [motoristaId, setMotoristaId] = useState("")
-  const [viagemId, setViagemId] = useState(viagemInicial && viagens.some((v) => v.id === viagemInicial) ? String(viagemInicial) : "")
+  const pedido = usePedidoLink({ modo, viagens, motoristas, viagemInicial })
   const [minutos, setMinutos] = useState<string | null>(null)
   const [motivos, setMotivos] = useState<MotivoEstouro[]>([])
+  const { rotulo } = pedido.classes
 
-  const grande = modo === "motorista"
-  const campo = cn("rounded-md border border-input bg-background px-2 text-foreground", grande ? "h-11 text-base" : "h-9 text-sm")
-  const rotulo = "grid gap-1 text-xs font-medium text-muted-foreground"
-
-  const viagensDisponiveis = useMemo(() => {
-    if (modo === "motorista") return viagens
-    const id = Number(motoristaId)
-    return id ? viagens.filter((v) => v.motoristaId === id || v.motoristaAcompanhanteId === id) : []
-  }, [modo, motoristaId, viagens])
-
-  const completo = (modo === "motorista" || motoristaId) && minutos && motivos.length > 0
-  const nomeMotorista = motoristas.find((m) => String(m.id) === motoristaId)?.nome
+  const completo = Boolean(pedido.temMotorista && minutos && motivos.length > 0)
 
   const alternarMotivo = (motivo: MotivoEstouro) =>
     setMotivos((atuais) =>
       atuais.includes(motivo) ? atuais.filter((m) => m !== motivo) : atuais.length < MAXIMO_MOTIVOS_ESTOURO ? [...atuais, motivo] : atuais,
     )
 
-  const enviar = () => {
-    setErro("")
-    const dados = { viagemId: viagemId ? Number(viagemId) : null, minutosExtras: Number(minutos), motivos }
-    iniciarTransicao(async () => {
-      const resposta = await chamarAcao(() =>
-        modo === "motorista" ? pedirMeuEstouro(dados) : solicitarEstouro({ ...dados, motoristaId: Number(motoristaId) }),
-      )
-      if (!resposta.sucesso) {
-        setErro(resposta.erro)
-        return
-      }
-      setLink(resposta.link)
+  const enviar = () =>
+    pedido.enviar(({ motoristaId, viagemId }) => {
+      const dados = { viagemId, minutosExtras: Number(minutos), motivos }
+      return motoristaId === null ? pedirMeuEstouro(dados) : solicitarEstouro({ ...dados, motoristaId })
     })
-  }
 
-  if (link) {
+  if (pedido.link) {
     return (
-      <div className="space-y-3">
-        <Alert variant="success">
-          <span className="flex items-center gap-1.5 font-medium">
-            <CheckCircle2 className="size-4" aria-hidden /> Pedido registrado
-          </span>
-          {nomeMotorista && `${formatarNomeProprio(nomeMotorista)} · `}
-          {formatarMinutos(Number(minutos))} extras. Agora envie no grupo — a resposta do gestor aparece na lista.
-        </Alert>
-        <PainelEnvioWhatsApp link={link} grande={grande} />
-        <Button asChild variant="outline" className={cn("w-full", grande && "h-11")}>
-          <Link href={voltarHref}>Voltar para a lista</Link>
-        </Button>
-      </div>
+      <PedidoRegistrado pedido={pedido} link={pedido.link} voltarHref={voltarHref} resumo={`${formatarMinutos(Number(minutos))} extras.`} />
     )
   }
 
   return (
     <div className="space-y-4">
-      {erro && <Alert variant="error">{erro}</Alert>}
+      {pedido.erro && <Alert variant="error">{pedido.erro}</Alert>}
 
-      <div className={cn("grid gap-3", !grande && "sm:grid-cols-2")}>
-        {modo === "escalador" && (
-          <label className={rotulo}>
-            Motorista
-            <select
-              value={motoristaId}
-              onChange={(e) => {
-                setMotoristaId(e.target.value)
-                setViagemId("")
-              }}
-              className={campo}
-            >
-              <option value="">Escolha o motorista</option>
-              {motoristas.map((m) => (
-                <option key={m.id} value={m.id}>
-                  {formatarNomeProprio(m.nome)}
-                </option>
-              ))}
-            </select>
-          </label>
-        )}
-        <label className={rotulo}>
-          Viagem (opcional)
-          <select
-            value={viagemId}
-            onChange={(e) => setViagemId(e.target.value)}
-            disabled={(modo === "escalador" && !motoristaId) || viagensDisponiveis.length === 0}
-            className={cn(campo, "disabled:opacity-60")}
-          >
-            <option value="">
-              {(modo === "motorista" || motoristaId) && viagensDisponiveis.length === 0 ? "Nenhuma viagem aberta" : "Sem viagem vinculada"}
-            </option>
-            {viagensDisponiveis.map((v) => (
-              <option key={v.id} value={v.id}>
-                {v.numViagem} — {formatarDiaMesHora(v.inicioPrevisto)}
-              </option>
-            ))}
-          </select>
-        </label>
-      </div>
+      <CamposMotoristaViagem pedido={pedido} motoristas={motoristas} />
 
       <div className={rotulo}>
         Horas extras (até {formatarMinutos(LIMITE_MINUTOS_ESTOURO)})
@@ -171,38 +87,22 @@ export function FormEstouro({
         <div role="group" aria-label="Motivos" className="grid gap-1 rounded-lg border bg-muted/40 p-1 sm:grid-cols-2">
           {MOTIVOS_ESTOURO.map((motivo) => {
             const marcado = motivos.includes(motivo.valor)
-            const bloqueado = !marcado && motivos.length >= MAXIMO_MOTIVOS_ESTOURO
             return (
-              <button
+              <OpcaoMarcavel
                 key={motivo.valor}
-                type="button"
-                aria-pressed={marcado}
-                disabled={bloqueado}
+                marcado={marcado}
+                bloqueado={!marcado && motivos.length >= MAXIMO_MOTIVOS_ESTOURO}
+                grande={pedido.grande}
                 onClick={() => alternarMotivo(motivo.valor)}
-                className={cn(
-                  "flex items-center gap-2 rounded-md px-3 text-left text-sm transition-colors disabled:opacity-50",
-                  grande ? "py-2.5" : "py-1.5",
-                  marcado
-                    ? "bg-background font-medium text-foreground shadow-sm ring-1 ring-border"
-                    : "text-muted-foreground hover:text-foreground",
-                )}
               >
-                <Check className={cn("size-4 shrink-0 text-primary", !marcado && "invisible")} aria-hidden />
                 {motivo.rotulo}
-              </button>
+              </OpcaoMarcavel>
             )
           })}
         </div>
       </div>
 
-      <div className="flex gap-2">
-        <Button asChild variant="ghost" className={grande ? "h-12" : undefined}>
-          <Link href={voltarHref}>Cancelar</Link>
-        </Button>
-        <Button type="button" className={cn("flex-1", grande && "h-12 text-base")} disabled={pendente || !completo} onClick={enviar}>
-          {pendente ? "Registrando..." : "Registrar e gerar link"}
-        </Button>
-      </div>
+      <RodapePedido pedido={pedido} voltarHref={voltarHref} completo={completo} onEnviar={enviar} />
     </div>
   )
 }

@@ -1,10 +1,11 @@
 import { formatarDiaMesHora, inicioDoDia } from "@/lib/utils/date-format"
 import { codigoConhecidoNoDia } from "../jornada.service"
 import { MAX_DIAS_CONSECUTIVOS } from "./compatibilidade"
+import { MINIMO_HORAS_ENTRE_FOLGAS, MINIMO_HORAS_ENTRE_JORNADAS } from "../descanso-minimo"
 import type { MotoristaComAgenda, MotoristaParaAlocacao, ViagemParaDisponibilidade } from "./tipos"
 
-export const MINIMO_HORAS_ENTRE_JORNADAS = 11
-export const MINIMO_HORAS_ENTRE_FOLGAS = 35
+// Reexportadas: o resto da alocação e os relatórios importam daqui.
+export { MINIMO_HORAS_ENTRE_FOLGAS, MINIMO_HORAS_ENTRE_JORNADAS }
 
 export function periodoConflita(inicioA: Date, fimA: Date, inicioB: Date, fimB: Date) {
   return inicioA < fimB && fimA > inicioB
