@@ -145,6 +145,7 @@
     quadroObservacao QuadroObservacao?
     estourosJornada  EstouroJornada[]
     solicitacoesUber SolicitacaoUber[]
+    solicitacoesHotel SolicitacaoHotel[]
   }
 
   model Viagem {
@@ -234,6 +235,7 @@
     trocas             TrocaMotorista[]
     estourosJornada    EstouroJornada[]
     solicitacoesUber   SolicitacaoUber[]
+    solicitacoesHotel  SolicitacaoHotel[]
 
     @@index([motoristaId])
     @@index([motoristaAcompanhanteId])
@@ -384,6 +386,7 @@
     registrosJornada RegistroJornada[]
     estourosJornada EstouroJornada[]
     solicitacoesUber SolicitacaoUber[]
+    solicitacoesHotel SolicitacaoHotel[]
     /** Acesso do próprio motorista (área "Minhas viagens"), se o despacho criou. */
     acesso          Usuario?
 
@@ -786,6 +789,55 @@
     destino         String      @db.VarChar(150)
     motivo          MotivoUber
     status          StatusUber  @default(PENDENTE)
+    // Só o hash (SHA-256) do token do link fica no banco (ver lib/services/link-aprovacao.ts).
+    tokenHash       String      @unique @db.VarChar(64)
+    expiraEm        DateTime    @db.Timestamp(6)
+    solicitadoPorId   String?
+    solicitadoPorNome String?
+    // true = o próprio motorista pediu pela área dele; false = o escalador.
+    pedidoPeloMotorista Boolean @default(false)
+    decididoEm      DateTime?   @db.Timestamp(6)
+    // Nome digitado na página do link: declarado, não comprovado (por isso o IP junto).
+    decididoPorNome String?     @db.VarChar(80)
+    observacaoGestor String?    @db.VarChar(300)
+    decisaoIp       String?     @db.VarChar(100)
+    criadoEm        DateTime    @default(now())
+    atualizadoEm    DateTime    @updatedAt
+
+    @@index([filialId, criadoEm])
+    @@index([motoristaId])
+    @@index([viagemId])
+  }
+
+
+  // Pedido de hotel pro pernoite: mesmo fluxo do Uber e do estouro (o
+  // motorista ou o escalador pede, o link vai pro grupo de WhatsApp da
+  // filial e o gestor aprova ou recusa por ele, sem login). O sistema só
+  // registra a autorização — a reserva é feita fora depois de aprovada.
+  enum StatusHotel {
+    PENDENTE
+    APROVADO
+    RECUSADO
+    CANCELADO
+  }
+
+  model SolicitacaoHotel {
+    id              Int         @id @default(autoincrement())
+    filialId        Int
+    filial          Filial      @relation(fields: [filialId], references: [id])
+    // Quem vai pernoitar.
+    motoristaId     Int
+    motorista       Motorista   @relation(fields: [motoristaId], references: [id])
+    // Opcional: o pernoite pode não estar ligado a uma viagem do sistema.
+    viagemId        Int?
+    viagem          Viagem?     @relation(fields: [viagemId], references: [id])
+    // Texto livre — tetos em TAMANHO_MAXIMO_CIDADE_HOTEL / TAMANHO_MAXIMO_NOME_HOTEL.
+    cidade          String      @db.VarChar(100)
+    nomeHotel       String      @db.VarChar(150)
+    // A noite do pernoite (dia do check-in). Coluna date: meia-noite UTC do
+    // dia calendário — ler/gravar via formatarDataPernoite / parseDataPernoite.
+    dataPernoite    DateTime    @db.Date
+    status          StatusHotel @default(PENDENTE)
     // Só o hash (SHA-256) do token do link fica no banco (ver lib/services/link-aprovacao.ts).
     tokenHash       String      @unique @db.VarChar(64)
     expiraEm        DateTime    @db.Timestamp(6)

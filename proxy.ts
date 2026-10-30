@@ -39,9 +39,9 @@ export default withAuth(
 export const config = {
   matcher: [
     // Ícones e manifest ficam fora: a aba e a tela de login (sem sessão) precisam deles.
-    // aprovar-estouro, aprovar-uber: páginas abertas pelo link do grupo de
+    // aprovar-estouro, aprovar-uber, aprovar-hotel: páginas abertas pelo link do grupo de
     // WhatsApp, sem login — quem autoriza é o token do link (ver
     // lib/services/link-aprovacao.ts).
-    "/((?!api|_next/static|_next/image|favicon.ico|icon.svg|apple-icon.png|icone-|manifest.webmanifest|login|aprovar-estouro|aprovar-uber).*)",
+    "/((?!api|_next/static|_next/image|favicon.ico|icon.svg|apple-icon.png|icone-|manifest.webmanifest|login|aprovar-estouro|aprovar-uber|aprovar-hotel).*)",
   ],
 }

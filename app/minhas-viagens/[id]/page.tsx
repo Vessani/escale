@@ -1,5 +1,5 @@
 import Link from "next/link"
-import { ArrowLeft, CarTaxiFront, FileText, Hourglass } from "lucide-react"
+import { ArrowLeft, BedDouble, CarTaxiFront, FileText, Hourglass } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Alert } from "@/components/ui/alert"
@@ -137,6 +137,11 @@ export default async function MinhaViagemPage({ params }: { params: Promise<{ id
           <Button asChild variant="outline" className="h-11 w-full">
             <Link href={`/minhas-viagens/uber?viagem=${viagem.id}`}>
               <CarTaxiFront className="mr-2 size-4" aria-hidden /> Pedir Uber
+            </Link>
+          </Button>
+          <Button asChild variant="outline" className="h-11 w-full">
+            <Link href={`/minhas-viagens/hotel?viagem=${viagem.id}`}>
+              <BedDouble className="mr-2 size-4" aria-hidden /> Pedir hotel (pernoite)
             </Link>
           </Button>
         </>
