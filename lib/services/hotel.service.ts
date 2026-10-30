@@ -11,6 +11,7 @@ import {
 import { montarLinkWhatsApp, situacaoDoPedido } from "@/lib/services/link-aprovacao-regras"
 import {
   CAMPOS_PUBLICOS_DO_PEDIDO,
+  CAMPOS_VIAGEM_DA_MENSAGEM,
   conferirMotoristaEViagem,
   expiracaoDoLink,
   gerarTokenLink,
@@ -61,7 +62,7 @@ export async function criarSolicitacaoHotel(
   { pedidoPeloMotorista = false, agora = new Date() }: { pedidoPeloMotorista?: boolean; agora?: Date } = {},
 ): Promise<LinkGerado> {
   conferirDataPernoite(dados.dataPernoite, agora)
-  const { motorista, numViagem } = await conferirMotoristaEViagem(filialId, dados.motoristaId, dados.viagemId)
+  const { motorista, viagem } = await conferirMotoristaEViagem(filialId, dados.motoristaId, dados.viagemId)
 
   // Um pedido em aberto por motorista: evita dois links no grupo pro mesmo
   // pernoite e o gestor aprovar o errado. Link vencido não conta.
@@ -99,7 +100,7 @@ export async function criarSolicitacaoHotel(
     return criado
   })
 
-  const mensagem = montarMensagemHotel({ ...pedido, motorista: motorista.nome, numViagem, solicitante: ator.usuarioNome, url })
+  const mensagem = montarMensagemHotel({ ...pedido, motorista: motorista.nome, viagem, solicitante: ator.usuarioNome, url })
   return { id: pedido.id, url, linkWhatsApp: montarLinkWhatsApp(mensagem) }
 }
 
@@ -118,7 +119,7 @@ export async function gerarNovoLinkHotel(
   const filtro = filtroPedido(filialId, id, doMotorista)
   const antes = await prisma.solicitacaoHotel.findFirst({
     where: filtro,
-    include: { motorista: { select: { nome: true } }, viagem: { select: { numViagem: true } } },
+    include: { motorista: { select: { nome: true } }, viagem: { select: CAMPOS_VIAGEM_DA_MENSAGEM } },
   })
   if (!antes) throw new ErroDeDominio("HOTEL_NAO_ENCONTRADO", "Pedido de hotel não encontrado.")
   if (antes.status !== "PENDENTE")
@@ -148,7 +149,7 @@ export async function gerarNovoLinkHotel(
   const mensagem = montarMensagemHotel({
     ...antes,
     motorista: antes.motorista.nome,
-    numViagem: antes.viagem?.numViagem ?? null,
+    viagem: antes.viagem,
     solicitante: ator.usuarioNome,
     url,
   })
@@ -252,7 +253,7 @@ export async function buscarSolicitacoesHotel(
       decididoPorNome: true,
       observacaoGestor: true,
       motorista: { select: { nome: true } },
-      viagem: { select: { numViagem: true } },
+      viagem: { select: CAMPOS_VIAGEM_DA_MENSAGEM },
     },
   })
   return pedidos.map((p) => ({ ...p, situacao: situacaoDoPedido(p, agora) }))

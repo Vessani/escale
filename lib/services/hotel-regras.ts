@@ -4,6 +4,8 @@
  * por link (validade, situação, wa.me), em link-aprovacao-regras.ts.
  */
 
+import { linhasDaViagem, type ViagemDoPedidoComFrota } from "@/lib/services/link-aprovacao-regras"
+
 /** Cidade do pernoite e nome do hotel são texto livre — limites das colunas. */
 export const TAMANHO_MAXIMO_CIDADE_HOTEL = 100
 export const TAMANHO_MAXIMO_NOME_HOTEL = 150
@@ -38,7 +40,7 @@ export const CAMINHO_APROVACAO_HOTEL = "/aprovar-hotel"
 
 type DadosMensagem = {
   motorista: string
-  numViagem: string | null
+  viagem: ViagemDoPedidoComFrota | null
   cidade: string
   nomeHotel: string
   dataPernoite: Date
@@ -51,7 +53,7 @@ export function montarMensagemHotel(d: DadosMensagem): string {
   return [
     "*Solicitação de hotel (pernoite)*",
     `Motorista: ${d.motorista}`,
-    ...(d.numViagem ? [`Viagem: ${d.numViagem}`] : []),
+    ...linhasDaViagem(d.viagem),
     `Cidade: ${d.cidade}`,
     `Pernoite: ${formatarDataPernoite(d.dataPernoite)}`,
     `Hotel: ${d.nomeHotel}`,
