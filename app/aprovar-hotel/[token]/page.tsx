@@ -1,10 +1,9 @@
 import type { Metadata } from "next"
-import { PaginaAprovacao } from "@/components/aprovacao/pagina-aprovacao"
+import { MotoristaEViagemAprovacao, PaginaAprovacao } from "@/components/aprovacao/pagina-aprovacao"
 import { decidirHotel } from "@/lib/actions/hotel-publico"
 import { buscarHotelPorToken } from "@/lib/services/hotel.service"
 import { formatarDataPernoite } from "@/lib/services/hotel-regras"
 import { esquemaTokenLink } from "@/lib/validation/link-aprovacao"
-import { formatarDataHoraPtBr } from "@/lib/utils/date-format"
 import { formatarNomeProprio } from "@/lib/utils/texto"
 
 /**
@@ -28,19 +27,7 @@ export default async function AprovarHotelPage({ params }: { params: Promise<{ t
     <PaginaAprovacao titulo="Pedido de hotel (pernoite)" token={token} pedido={pedido} decidir={decidirHotel}>
       {pedido && (
         <>
-          <dt className="text-muted-foreground">Motorista</dt>
-          <dd className="font-medium">{formatarNomeProprio(pedido.motorista.nome)}</dd>
-          {pedido.viagem && (
-            <>
-              <dt className="text-muted-foreground">Viagem</dt>
-              <dd className="font-mono tabular-nums">
-                {pedido.viagem.numViagem}
-                <span className="block font-sans text-xs text-muted-foreground">
-                  {formatarDataHoraPtBr(pedido.viagem.inicioPrevisto)} → {formatarDataHoraPtBr(pedido.viagem.fimPrevisto)}
-                </span>
-              </dd>
-            </>
-          )}
+          <MotoristaEViagemAprovacao motorista={formatarNomeProprio(pedido.motorista.nome)} viagem={pedido.viagem} />
           <dt className="text-muted-foreground">Cidade</dt>
           <dd className="font-medium">{pedido.cidade}</dd>
           <dt className="text-muted-foreground">Pernoite</dt>

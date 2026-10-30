@@ -33,7 +33,7 @@ export default async function MeuHotelPage({ searchParams }: { searchParams: Pro
       {pedidos.map((p) => (
         <CartaoMeuPedido
           key={p.id}
-          pedido={{ ...p, numViagem: p.viagem?.numViagem }}
+          pedido={p}
           titulo={`${p.cidade} · ${formatarDataPernoite(p.dataPernoite)}`}
           detalhes={
             <>
