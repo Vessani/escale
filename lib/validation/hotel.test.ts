@@ -49,7 +49,7 @@ describe("montarMensagemHotel", () => {
   it("leva motorista, viagem, cidade, hotel, quem pediu e o link", () => {
     const texto = montarMensagemHotel({
       motorista: "JOÃO",
-      numViagem: "V123",
+      viagem: { numViagem: "V123", cavalo: "ABC1D23", carreta: "DEF4G56" },
       cidade: "Curitiba",
       nomeHotel: "Hotel Ibis",
       dataPernoite: parseDataPernoite("2026-10-29"),
@@ -59,7 +59,7 @@ describe("montarMensagemHotel", () => {
     expect(texto.split("\n")).toEqual([
       "*Solicitação de hotel (pernoite)*",
       "Motorista: JOÃO",
-      "Viagem: V123",
+      "Viagem: V123 · Frota ABC1D23 / DEF4G56",
       "Cidade: Curitiba",
       "Pernoite: 29/10/2026 (qui)",
       "Hotel: Hotel Ibis",
@@ -72,7 +72,7 @@ describe("montarMensagemHotel", () => {
   it("sem viagem nem solicitante, não põe as linhas", () => {
     const texto = montarMensagemHotel({
       motorista: "JOÃO",
-      numViagem: null,
+      viagem: null,
       cidade: "Lages",
       nomeHotel: "Serrano",
       dataPernoite: parseDataPernoite("2026-10-29"),
