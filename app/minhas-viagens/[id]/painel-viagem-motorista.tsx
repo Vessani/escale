@@ -82,11 +82,14 @@ export function PainelViagemMotorista({
   souPrincipal,
   agoraServidor,
   substitutos,
+  motoristaId,
 }: {
   viagem: ViagemDoPainel
   substitutos: Array<{ id: number; nome: string }>
   souPrincipal: boolean
   agoraServidor: string
+  /** O motorista logado — o rascunho das chegadas no celular é dele (ver rascunho-chegada.ts). */
+  motoristaId: number
 }) {
   const router = useRouter()
   const [pendente, iniciarTransicao] = useTransition()
@@ -226,6 +229,7 @@ export function PainelViagemMotorista({
                 produto={viagem.produto}
                 kmInicial={viagem.kmInicial}
                 agoraServidor={agoraServidor}
+                chaveViagemRascunho={`m${motoristaId}-v${viagem.id}`}
               />
             </Cartao>
           )}
