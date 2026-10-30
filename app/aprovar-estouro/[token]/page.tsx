@@ -1,10 +1,9 @@
 import type { Metadata } from "next"
-import { PaginaAprovacao } from "@/components/aprovacao/pagina-aprovacao"
+import { MotoristaEViagemAprovacao, PaginaAprovacao } from "@/components/aprovacao/pagina-aprovacao"
 import { decidirEstouro } from "@/lib/actions/estouro-jornada-publico"
 import { buscarEstouroPorToken } from "@/lib/services/estouro-jornada.service"
 import { formatarMinutos, formatarMotivos } from "@/lib/services/estouro-jornada-regras"
 import { esquemaTokenLink } from "@/lib/validation/link-aprovacao"
-import { formatarDataHoraPtBr } from "@/lib/utils/date-format"
 import { formatarNomeProprio } from "@/lib/utils/texto"
 
 /**
@@ -29,19 +28,7 @@ export default async function AprovarEstouroPage({ params }: { params: Promise<{
     <PaginaAprovacao titulo="Estouro de jornada" token={token} pedido={estouro} decidir={decidirEstouro}>
       {estouro && (
         <>
-          <dt className="text-muted-foreground">Motorista</dt>
-          <dd className="font-medium">{formatarNomeProprio(estouro.motorista.nome)}</dd>
-          {estouro.viagem && (
-            <>
-              <dt className="text-muted-foreground">Viagem</dt>
-              <dd className="font-mono tabular-nums">
-                {estouro.viagem.numViagem}
-                <span className="block font-sans text-xs text-muted-foreground">
-                  {formatarDataHoraPtBr(estouro.viagem.inicioPrevisto)} → {formatarDataHoraPtBr(estouro.viagem.fimPrevisto)}
-                </span>
-              </dd>
-            </>
-          )}
+          <MotoristaEViagemAprovacao motorista={formatarNomeProprio(estouro.motorista.nome)} viagem={estouro.viagem} />
           <dt className="text-muted-foreground">Horas extras</dt>
           <dd className="text-2xl font-semibold tabular-nums">{formatarMinutos(estouro.minutosExtras)}</dd>
           <dt className="text-muted-foreground">Motivos</dt>

@@ -36,13 +36,13 @@ describe("mensagem e link do WhatsApp", () => {
   it("monta o texto com a viagem quando tem, e o link de compartilhar (sem número: a pessoa escolhe o grupo)", () => {
     const mensagem = montarMensagemWhatsApp({
       motorista: "JOÃO DA SILVA",
-      numViagem: "123456",
+      viagem: { numViagem: "123456", cavalo: "ABC1D23", carreta: "DEF4G56" },
       minutosExtras: 90,
       motivos: ["TRANSITO_LENTO", "CHEGAR_CLIENTE"],
       solicitante: "Alan",
       url: "https://escalador.app/aprovar-estouro/abc",
     })
-    expect(mensagem).toContain("Viagem: 123456")
+    expect(mensagem).toContain("Viagem: 123456 · Frota ABC1D23 / DEF4G56")
     expect(mensagem).toContain("Horas extras: 1h30")
     expect(mensagem).toContain("Motivo: Trânsito lento, Chegar no cliente")
     expect(mensagem.endsWith("Gestor, aprove ou recuse: https://escalador.app/aprovar-estouro/abc")).toBe(true)
@@ -55,7 +55,7 @@ describe("mensagem e link do WhatsApp", () => {
   it("sem viagem, não põe a linha da viagem", () => {
     const mensagem = montarMensagemWhatsApp({
       motorista: "X",
-      numViagem: null,
+      viagem: null,
       minutosExtras: 30,
       motivos: ["ABASTECER"],
       solicitante: null,

@@ -14,6 +14,7 @@ import { formatarDataHoraPtBr } from "@/lib/utils/date-format"
 import { formatarNomeProprio } from "@/lib/utils/texto"
 import { AcoesEstouro } from "@/components/estouro/acoes-estouro"
 import { SoQuemOpera } from "@/components/layout/somente-leitura"
+import { CelulaViagemDoPedido } from "@/components/aprovacao/pagina-aprovacao"
 
 export const metadata: Metadata = { title: "Estouros de jornada" }
 
@@ -85,7 +86,9 @@ export default async function EstourosPage() {
                     )}
                   </TableCell>
                   <TableCell className="font-medium">{formatarNomeProprio(e.motorista.nome)}</TableCell>
-                  <TableCell className="font-mono tabular-nums">{e.viagem?.numViagem ?? "—"}</TableCell>
+                  <TableCell className="font-mono tabular-nums whitespace-nowrap">
+                    <CelulaViagemDoPedido viagem={e.viagem} />
+                  </TableCell>
                   <TableCell className="tabular-nums">{formatarMinutos(e.minutosExtras)}</TableCell>
                   <TableCell className="max-w-64">{formatarMotivos(e.motivos)}</TableCell>
                   <TableCell>

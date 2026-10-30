@@ -4,6 +4,7 @@
  * por link (validade, situação, wa.me), em link-aprovacao-regras.ts.
  */
 import type { MotivoUber } from "@prisma/client"
+import { linhasDaViagem, type ViagemDoPedidoComFrota } from "@/lib/services/link-aprovacao-regras"
 
 /** Origem e destino são texto livre (endereço, posto, cidade) — limite da coluna. */
 export const TAMANHO_MAXIMO_LOCAL_UBER = 150
@@ -27,7 +28,7 @@ export const CAMINHO_APROVACAO_UBER = "/aprovar-uber"
 
 type DadosMensagem = {
   motorista: string
-  numViagem: string | null
+  viagem: ViagemDoPedidoComFrota | null
   origem: string
   destino: string
   motivo: MotivoUber
@@ -40,7 +41,7 @@ export function montarMensagemUber(d: DadosMensagem): string {
   return [
     "*Solicitação de Uber*",
     `Motorista: ${d.motorista}`,
-    ...(d.numViagem ? [`Viagem: ${d.numViagem}`] : []),
+    ...linhasDaViagem(d.viagem),
     `Origem: ${d.origem}`,
     `Destino: ${d.destino}`,
     `Motivo: ${formatarMotivoUber(d.motivo)}`,

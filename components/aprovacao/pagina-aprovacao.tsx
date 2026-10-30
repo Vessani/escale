@@ -3,7 +3,7 @@ import { CheckCircle2, Clock, XCircle } from "lucide-react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Rodape } from "@/components/layout/rodape"
 import { DecisaoPorLink } from "@/components/aprovacao/decisao-por-link"
-import type { SituacaoPedido } from "@/lib/services/link-aprovacao-regras"
+import { frotaDaViagem, type SituacaoPedido, type ViagemDoPedidoComFrota } from "@/lib/services/link-aprovacao-regras"
 import type { EntradaDecisaoLink } from "@/lib/validation/link-aprovacao"
 import type { RespostaAcao } from "@/lib/types/types"
 import { formatarDataHoraPtBr } from "@/lib/utils/date-format"
@@ -125,5 +125,51 @@ function Resultado({ icone, texto, quando, obs }: { icone: ReactNode; texto: str
       {quando && <p className="mt-1 text-muted-foreground">em {formatarDataHoraPtBr(quando)}</p>}
       {obs && <p className="mt-1 text-foreground/80">“{obs}”</p>}
     </div>
+  )
+}
+
+/** Motorista e viagem (número, frota e horário) do pedido — o começo comum da página de aprovação. */
+export function MotoristaEViagemAprovacao({
+  motorista,
+  viagem,
+}: {
+  motorista: string
+  viagem: (ViagemDoPedidoComFrota & { inicioPrevisto: Date; fimPrevisto: Date }) | null
+}) {
+  const frota = viagem && frotaDaViagem(viagem)
+  return (
+    <>
+      <dt className="text-muted-foreground">Motorista</dt>
+      <dd className="font-medium">{motorista}</dd>
+      {viagem && (
+        <>
+          <dt className="text-muted-foreground">Viagem</dt>
+          <dd className="font-mono tabular-nums">
+            {viagem.numViagem}
+            <span className="block font-sans text-xs text-muted-foreground">
+              {formatarDataHoraPtBr(viagem.inicioPrevisto)} → {formatarDataHoraPtBr(viagem.fimPrevisto)}
+            </span>
+          </dd>
+          {frota && (
+            <>
+              <dt className="text-muted-foreground">Frota</dt>
+              <dd className="font-mono tabular-nums">{frota}</dd>
+            </>
+          )}
+        </>
+      )}
+    </>
+  )
+}
+
+/** Número da viagem com a frota embaixo, pras listas de pedidos; "—" sem viagem. */
+export function CelulaViagemDoPedido({ viagem }: { viagem: ViagemDoPedidoComFrota | null }) {
+  if (!viagem) return <>—</>
+  const frota = frotaDaViagem(viagem)
+  return (
+    <>
+      {viagem.numViagem}
+      {frota && <span className="block text-xs text-muted-foreground">{frota}</span>}
+    </>
   )
 }

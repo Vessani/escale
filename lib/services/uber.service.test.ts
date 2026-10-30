@@ -81,6 +81,12 @@ describe("criarSolicitacaoUber", () => {
     expect(tx.solicitacaoUber.create.mock.calls[0][0].data.pedidoPeloMotorista).toBe(true)
   })
 
+  it("com viagem, a mensagem leva o número e a frota", async () => {
+    vi.mocked(prisma.viagem.findFirst).mockResolvedValue({ numViagem: "123456", cavalo: "ABC1D23", carreta: "DEF4G56" } as never)
+    const link = await criarSolicitacaoUber(FILIAL, dados({ viagemId: 9 }), ator, { agora })
+    expect(decodeURIComponent(link.linkWhatsApp)).toContain("Viagem: 123456 · Frota ABC1D23 / DEF4G56")
+  })
+
   it("recusa viagem que não é do motorista e motorista de outra filial", async () => {
     vi.mocked(prisma.viagem.findFirst).mockResolvedValue(null)
     await expect(criarSolicitacaoUber(FILIAL, dados({ viagemId: 99 }), ator, { agora })).rejects.toThrow("não é desse motorista")

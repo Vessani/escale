@@ -1,12 +1,14 @@
 "use client"
 
 import { useMemo, useState, useTransition, type ReactNode } from "react"
+import type { StatusViagem } from "@prisma/client"
 import Link from "next/link"
 import { Check, CheckCircle2 } from "lucide-react"
 import { Alert } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
 import { chamarAcao } from "@/lib/chamar-acao"
 import type { LinkGerado, RespostaLink } from "@/lib/services/link-aprovacao"
+import { frotaDaViagem, viagemSugerida } from "@/lib/services/link-aprovacao-regras"
 import { formatarDiaMesHora } from "@/lib/utils/date-format"
 import { formatarNomeProprio } from "@/lib/utils/texto"
 import { cn } from "@/lib/utils"
@@ -21,6 +23,10 @@ import { PainelEnvioWhatsApp } from "@/components/aprovacao/painel-envio-whatsap
  *
  * `modo="motorista"`: o pedido é do próprio motorista (viagens já vêm só as
  * dele, campos grandes pro celular); `modo="escalador"`: escolhe o motorista.
+ *
+ * A viagem já vem marcada quando dá pra saber qual é (ver viagemSugerida): a
+ * que o motorista está fazendo agora, ou a única aberta dele. Quem pede
+ * pode trocar ou tirar.
  */
 
 export type ModoPedido = "escalador" | "motorista"
@@ -28,7 +34,10 @@ export type ModoPedido = "escalador" | "motorista"
 export type ViagemDoPedido = {
   id: number
   numViagem: string
+  cavalo: string
+  carreta: string
   inicioPrevisto: Date | string
+  status: StatusViagem
   motoristaId: number | null
   motoristaAcompanhanteId: number | null
 }
@@ -54,19 +63,22 @@ export function usePedidoLink({
   const [link, setLink] = useState<LinkGerado | null>(null)
 
   const [motoristaId, setMotoristaId] = useState("")
-  const [viagemId, setViagemId] = useState(viagemInicial && viagens.some((v) => v.id === viagemInicial) ? String(viagemInicial) : "")
+  const [viagemId, setViagemId] = useState(() => {
+    if (viagemInicial && viagens.some((v) => v.id === viagemInicial)) return String(viagemInicial)
+    // No modo motorista as viagens já são só as dele; no escalador, espera escolher o motorista.
+    return modo === "motorista" ? idDaSugerida(viagens) : ""
+  })
 
   const grande = modo === "motorista"
 
-  const viagensDisponiveis = useMemo(() => {
-    if (modo === "motorista") return viagens
-    const id = Number(motoristaId)
-    return id ? viagens.filter((v) => v.motoristaId === id || v.motoristaAcompanhanteId === id) : []
-  }, [modo, motoristaId, viagens])
+  const viagensDisponiveis = useMemo(
+    () => (modo === "motorista" ? viagens : viagensDoMotorista(viagens, Number(motoristaId))),
+    [modo, motoristaId, viagens],
+  )
 
   const escolherMotorista = (id: string) => {
     setMotoristaId(id)
-    setViagemId("")
+    setViagemId(idDaSugerida(viagensDoMotorista(viagens, Number(id))))
   }
 
   const enviar = (acao: (destinatario: Destinatario) => Promise<RespostaLink>) => {
@@ -108,7 +120,22 @@ export function usePedidoLink({
   }
 }
 
+function viagensDoMotorista(viagens: ViagemDoPedido[], motoristaId: number) {
+  return motoristaId ? viagens.filter((v) => v.motoristaId === motoristaId || v.motoristaAcompanhanteId === motoristaId) : []
+}
+
+function idDaSugerida(viagens: ViagemDoPedido[]) {
+  const sugerida = viagemSugerida(viagens)
+  return sugerida ? String(sugerida.id) : ""
+}
+
 type Pedido = ReturnType<typeof usePedidoLink>
+
+/** "123456 — 29/10 08:00 · ABC1D23 / DEF4G56": número, saída e frota, pra escolher a viagem certa. */
+function rotuloDaViagem(v: ViagemDoPedido) {
+  const frota = frotaDaViagem(v)
+  return `${v.numViagem} — ${formatarDiaMesHora(v.inicioPrevisto)}${frota ? ` · ${frota}` : ""}`
+}
 
 /** Seletor de motorista (só no modo escalador) e de viagem (opcional). */
 export function CamposMotoristaViagem({ pedido, motoristas }: { pedido: Pedido; motoristas: MotoristaDoPedido[] }) {
@@ -141,7 +168,7 @@ export function CamposMotoristaViagem({ pedido, motoristas }: { pedido: Pedido; 
           </option>
           {viagensDisponiveis.map((v) => (
             <option key={v.id} value={v.id}>
-              {v.numViagem} — {formatarDiaMesHora(v.inicioPrevisto)}
+              {rotuloDaViagem(v)}
             </option>
           ))}
         </select>
