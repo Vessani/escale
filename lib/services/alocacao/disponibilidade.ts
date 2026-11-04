@@ -1,7 +1,7 @@
 import { formatarDiaMesHora, inicioDoDia } from "@/lib/utils/date-format"
 import { codigoConhecidoNoDia } from "../jornada.service"
 import { MAX_DIAS_CONSECUTIVOS } from "./compatibilidade"
-import { MINIMO_HORAS_ENTRE_FOLGAS, MINIMO_HORAS_ENTRE_JORNADAS } from "../descanso-minimo"
+import { calcularHorarioIdealChegada, MINIMO_HORAS_ENTRE_FOLGAS, MINIMO_HORAS_ENTRE_JORNADAS } from "../descanso-minimo"
 import type { MotoristaComAgenda, MotoristaParaAlocacao, ViagemParaDisponibilidade } from "./tipos"
 
 // Reexportadas: o resto da alocação e os relatórios importam daqui.
@@ -96,6 +96,8 @@ export function fimEfetivoViagem(viagem: ViagemParaDisponibilidade): Date {
  * hora exata, não por dia calendário: antes disso, uma viagem terminando
  * 23h59 "liberava" o motorista a partir de 00h01 do dia seguinte — pouco mais
  * de 2 minutos de descanso real, mesmo contando como "1 dia" de folga.
+ * O descanso vai até a APRESENTAÇÃO da viagem seguinte (1h antes dela, ver
+ * calcularHorarioIdealChegada), não até o horário da viagem.
  */
 export function periodosConflitamComDescanso(
   inicioA: Date,
@@ -112,7 +114,10 @@ export function periodosConflitamComDescanso(
   // intervalo entre elas é a diferença entre o fim da que veio antes e o
   // início da que veio depois (a ordem cronológica é confiável aqui, já que
   // periodoConflita já descartou qualquer sobreposição).
-  const gapMs = inicioA <= inicioB ? inicioB.getTime() - fimA.getTime() : inicioA.getTime() - fimB.getTime()
+  const gapMs =
+    inicioA <= inicioB
+      ? calcularHorarioIdealChegada(inicioB).getTime() - fimA.getTime()
+      : calcularHorarioIdealChegada(inicioA).getTime() - fimB.getTime()
 
   return gapMs < minimoHoras * 60 * 60 * 1000
 }

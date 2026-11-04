@@ -1,9 +1,11 @@
 import { calcularDescansoAntesDaViagem, type MotoristaParaDescanso } from "./descanso"
 import { MINIMO_HORAS_ENTRE_FOLGAS, MINIMO_HORAS_ENTRE_JORNADAS } from "./disponibilidade"
+import { calcularHorarioIdealChegada } from "../descanso-minimo"
 
 /**
  * Aviso de descanso insuficiente entre o fim do trabalho anterior e o início
- * da nova viagem: menos que `minimoHoras` — 11h de interjornada, ou 35h de
+ * da nova jornada (`inicioNovaViagem` — quem chama passa o horário de
+ * APRESENTAÇÃO, ver calcularAvisoDescanso): menos que `minimoHoras` — 11h de interjornada, ou 35h de
  * descanso semanal depois do 6º dia (ver descansoMinimoNecessarioApos).
  * É só aviso — não desqualifica o motorista da sugestão, sinaliza depois de
  * escolhido, pra o time negociar nível de serviço com o cliente se precisar.
@@ -33,7 +35,9 @@ export function calcularAvisoInterjornada(
  * Aviso de descanso gravado na viagem — mesma regra única que ordena a
  * sugestão e mostra o "libera às" na tela (ver calcularDescansoAntesDaViagem):
  * o motorista sugerido em primeiro lugar nunca ganha este aviso por causa de
- * um critério diferente.
+ * um critério diferente. O descanso é medido até a APRESENTAÇÃO (1h antes da
+ * viagem, ver calcularHorarioIdealChegada), igual à sugestão: fim às 20:30 com
+ * viagem às 08:00 = apresentação às 07:00 = 10,5h, gera aviso.
  */
 export function calcularAvisoDescanso(
   motorista: MotoristaParaDescanso,
@@ -47,5 +51,5 @@ export function calcularAvisoDescanso(
     return null
   }
 
-  return calcularAvisoInterjornada(descanso.fimTrabalhoAnterior, inicioViagem, descanso.minimoHoras)
+  return calcularAvisoInterjornada(descanso.fimTrabalhoAnterior, calcularHorarioIdealChegada(inicioViagem), descanso.minimoHoras)
 }
