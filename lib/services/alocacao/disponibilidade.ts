@@ -1,7 +1,12 @@
 import { formatarDiaMesHora, inicioDoDia } from "@/lib/utils/date-format"
 import { codigoConhecidoNoDia } from "../jornada.service"
 import { MAX_DIAS_CONSECUTIVOS } from "./compatibilidade"
-import { calcularHorarioIdealChegada, MINIMO_HORAS_ENTRE_FOLGAS, MINIMO_HORAS_ENTRE_JORNADAS } from "../descanso-minimo"
+import {
+  calcularHorarioIdealChegada,
+  calcularInicioViagemPelaApresentacao,
+  MINIMO_HORAS_ENTRE_FOLGAS,
+  MINIMO_HORAS_ENTRE_JORNADAS,
+} from "../descanso-minimo"
 import type { MotoristaComAgenda, MotoristaParaAlocacao, ViagemParaDisponibilidade } from "./tipos"
 
 // Reexportadas: o resto da alocação e os relatórios importam daqui.
@@ -170,8 +175,11 @@ export function motivoIndisponivel(motorista: MotoristaComAgenda, inicioViagem: 
         ? `Em viagem até ${formatarDiaMesHora(fimExistente)}`
         : `Outra viagem às ${formatarDiaMesHora(inicioExistente)}`
     }
+    // O descanso acaba na apresentação; a viagem só pode ser 1h depois (checklist).
+    const fimDescanso = new Date(fimExistente.getTime() + minimoHoras * HORA_MS)
+    const viagemAPartirDe = calcularInicioViagemPelaApresentacao(fimDescanso)
     return inicioExistente <= inicioViagem
-      ? `Descanso até ${formatarDiaMesHora(new Date(fimExistente.getTime() + minimoHoras * HORA_MS))}${horas}`
+      ? `Descanso até ${formatarDiaMesHora(fimDescanso)}${horas} (viagem a partir de ${formatarDiaMesHora(viagemAPartirDe)})`
       : `Viagem às ${formatarDiaMesHora(inicioExistente)} sem ${minimoHoras}h de descanso depois desta`
   }
   return null

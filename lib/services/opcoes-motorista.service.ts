@@ -19,7 +19,7 @@ type OpcaoMotoristaServidor = {
   situacao: SituacaoMotorista
   /**
    * O porquê da cor, ao lado do nome: verde "5 dias disponíveis", laranja
-   * "Em viagem até 05/10 17:00" / "Descanso até 06/10 04:00", branco/vermelho
+   * "Em viagem até 05/10 17:00" / "Descanso até 06/10 04:00 (viagem a partir de 06/10 05:00)", branco/vermelho
    * "Folga em 06/10", "Turno Noite"...
    */
   motivo: string | null

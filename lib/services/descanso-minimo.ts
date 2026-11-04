@@ -11,7 +11,7 @@ export const MINIMO_HORAS_ENTRE_JORNADAS = 11
 export const MINIMO_HORAS_ENTRE_FOLGAS = 35
 
 /** O motorista se apresenta 1h antes do horário da viagem, pro checklist. */
-export const HORAS_ANTECEDENCIA_CHECKLIST = 1
+const HORAS_ANTECEDENCIA_CHECKLIST = 1
 
 /**
  * Horário de apresentação do motorista pra uma viagem: o início da jornada
@@ -22,4 +22,9 @@ export const HORAS_ANTECEDENCIA_CHECKLIST = 1
  */
 export function calcularHorarioIdealChegada(dataInicioViagem: Date): Date {
   return new Date(dataInicioViagem.getTime() - HORAS_ANTECEDENCIA_CHECKLIST * 60 * 60 * 1000)
+}
+
+/** Inverso de calcularHorarioIdealChegada: horário de viagem pra quem se apresenta em `apresentacao`. */
+export function calcularInicioViagemPelaApresentacao(apresentacao: Date): Date {
+  return new Date(apresentacao.getTime() + HORAS_ANTECEDENCIA_CHECKLIST * 60 * 60 * 1000)
 }
