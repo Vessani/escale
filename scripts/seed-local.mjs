@@ -61,11 +61,16 @@ try {
     const ids = []
     for (const [nome, seva] of motoristas) {
       const r = await client.query(
-        `INSERT INTO "Motorista" (nome, seva, "diasTrabalhados", turno, tipo, "produtosAutorizados", "filialId", "atualizadoEm")
-         VALUES ($1, $2, 0, 'MANHA', 'MOTORISTA', ARRAY['OXIGENIO','NITROGENIO']::"TipoProduto"[], $3, now()) RETURNING id`,
+        `INSERT INTO "Motorista" (nome, seva, turno, tipo, "produtosAutorizados", "filialId", "atualizadoEm")
+         VALUES ($1, $2, 'MANHA', 'MOTORISTA', ARRAY['OXIGENIO','NITROGENIO']::"TipoProduto"[], $3, now()) RETURNING id`,
         [nome, seva, filialId],
       )
       ids.push(r.rows[0].id)
+      await client.query(
+        `INSERT INTO "RegistroJornada" ("motoristaId", data, codigo, "atualizadoEm")
+         VALUES ($1, ((now() AT TIME ZONE 'UTC') - interval '3 hours')::date, 1, now())`,
+        [r.rows[0].id],
+      )
     }
 
     // Acesso do primeiro motorista à área "Minhas viagens" (login = SEVA + PIN).

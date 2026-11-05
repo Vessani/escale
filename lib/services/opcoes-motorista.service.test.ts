@@ -8,7 +8,6 @@ function motorista(parcial: Record<string, unknown> = {}) {
     id: 1,
     nome: "ANA",
     turno: "MANHA" as const,
-    diasTrabalhados: 1,
     tipo: "MOTORISTA" as const,
     produtosAutorizados: ["CO2" as const],
     jornadaRelatorioInicio: null,
@@ -136,7 +135,7 @@ describe("montarOpcoesDaEdicao — lista acompanhando o formulário antes de sal
 
   it("dias da viagem saem das datas do formulário, não do número salvo", () => {
     // Ciclo no 5º dia: cabe 1 dia de viagem, mas não 3.
-    const quintoDia = motorista({ diasTrabalhados: 5 })
+    const quintoDia = motorista({ registrosJornada: [{ data: new Date(HOJE.getTime() - 3 * 3_600_000), codigo: 5, fimJornada: null }] })
     const tresDias = agenda({ fimPrevisto: new Date("2026-10-02T18:00:00-03:00") })
     expect(montarOpcoesDaEdicao([quintoDia], VIAGEM_SALVA, SEM_SAP, HOJE)[0].situacao).toBe("OK")
     expect(montarOpcoesDaEdicao([quintoDia], VIAGEM_SALVA, SEM_SAP, HOJE, tresDias)[0].situacao).toBe("FORA_DA_REGRA")

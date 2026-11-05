@@ -29,7 +29,6 @@ type MotoristaComAgendaBruta = {
   id: number
   nome: string
   turno: Turno
-  diasTrabalhados: number
   tipo: TipoMotorista
   produtosAutorizados: TipoProduto[]
   jornadaRelatorioInicio: Date | string | null

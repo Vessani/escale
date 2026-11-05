@@ -30,7 +30,6 @@ function criarViagem(parcial: Partial<ViagemMock> = {}): ViagemMock {
 /** Motorista com agenda — sem relatório importado por padrão, então o descanso vem só das viagens. */
 function criarMotorista(
   parcial: {
-    diasTrabalhados?: number
     viagens?: ViagemMock[]
     registrosJornada?: Array<{ data: Date; codigo: number; fimJornada?: Date | null }>
   } = {},
@@ -39,7 +38,6 @@ function criarMotorista(
     id: 1,
     nome: "Motorista Teste",
     turno: "MANHA" as const,
-    diasTrabalhados: 3,
     tipo: "MOTORISTA" as const,
     integracao: [],
     registrosJornada: [],
@@ -115,7 +113,10 @@ describe("finalizar a viagem libera o motorista (descanso conta da finalização
     })
 
     it("no 6º dia exige 35h contadas da finalização", () => {
-      const motorista = criarMotorista({ diasTrabalhados: 6, viagens: [finalizadaCedo] })
+      const motorista = criarMotorista({
+        registrosJornada: [{ data: new Date("2026-07-08T00:00:00"), codigo: 6, fimJornada: null }],
+        viagens: [finalizadaCedo],
+      })
 
       // 14h (08/07) + 35h = 01h de 10/07 → apresentação às 01h = viagem às 02h.
       expect(motoristaEstaDisponivelNoPeriodo(motorista, new Date("2026-07-10T01:00:00"), new Date("2026-07-10T12:00:00"), hoje)).toBe(
@@ -144,7 +145,10 @@ describe("finalizar a viagem libera o motorista (descanso conta da finalização
     })
 
     it("no 6º dia avisa o descanso semanal de 35h", () => {
-      const motorista = criarMotorista({ diasTrabalhados: 6, viagens: [finalizadaCedo] })
+      const motorista = criarMotorista({
+        registrosJornada: [{ data: new Date("2026-07-08T00:00:00"), codigo: 6, fimJornada: null }],
+        viagens: [finalizadaCedo],
+      })
       const viagemDepoisDeAmanha = { id: 2, inicioPrevisto: new Date("2026-07-09T20:00:00") }
 
       expect(calcularAvisoDescanso(motorista, viagemDepoisDeAmanha, hoje)).toBe(
@@ -191,7 +195,7 @@ describe("recalcularAvisosInterjornada", () => {
   }
 
   function motoristaDoBanco(viagens: Array<ViagemMock & { avisoInterjornada: string | null }>, acompanhante: ViagemMock[] = []) {
-    return { id: 1, diasTrabalhados: 3, registrosJornada: [], viagens, viagensComoAcompanhante: acompanhante }
+    return { id: 1, registrosJornada: [], viagens, viagensComoAcompanhante: acompanhante }
   }
 
   it("sem motorista envolvido, não consulta nada", async () => {

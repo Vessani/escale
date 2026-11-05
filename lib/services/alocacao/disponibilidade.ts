@@ -141,7 +141,7 @@ export function periodosConflitamComDescanso(
  * entre atribuições dentro do mesmo lote (ver sugerirAlocacoesEmLote).
  */
 export function descansoMinimoNecessarioApos(
-  motorista: Pick<MotoristaParaAlocacao, "registrosJornada" | "diasTrabalhados">,
+  motorista: Pick<MotoristaParaAlocacao, "registrosJornada">,
   inicioTrabalho: Date,
   fimTrabalho: Date,
   hoje: Date,

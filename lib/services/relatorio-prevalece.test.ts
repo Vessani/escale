@@ -43,7 +43,6 @@ function nunes(parcial: Record<string, unknown> = {}) {
     id: 1,
     nome: "Nunes",
     turno: "MANHA" as const,
-    diasTrabalhados: 1,
     tipo: "MOTORISTA" as const,
     integracao: [],
     jornadaRelatorioInicio: null,
@@ -124,7 +123,6 @@ describe("Relatório de Jornada prevalece sobre viagem do Escale", () => {
         findMany: vi.fn().mockResolvedValue([
           {
             id: 1,
-            diasTrabalhados: 1,
             filial: { relatorioJornadaAte: new Date("2026-09-29T00:00:00.000Z") },
             registrosJornada: registrosDoBanco,
             viagens: [

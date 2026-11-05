@@ -12,8 +12,8 @@ import {
   type PontoRegistroJornada,
 } from "@/lib/services/jornada.service"
 
-const projetarCodigoNoDia = (registrosJornada: PontoRegistroJornada[], dia: Date, hoje: Date, diasTrabalhados: number) =>
-  situacaoDoDia({ registrosJornada, diasTrabalhados }, dia, hoje).codigo
+const projetarCodigoNoDia = (registrosJornada: PontoRegistroJornada[], dia: Date, hoje: Date) =>
+  situacaoDoDia({ registrosJornada }, dia, hoje).codigo
 
 describe("jornada.service", () => {
   describe("situacaoDoDia", () => {
@@ -26,7 +26,7 @@ describe("jornada.service", () => {
       fimJornada: null,
       ...extra,
     })
-    const jornada = (...registrosJornada: PontoRegistroJornada[]) => ({ registrosJornada, diasTrabalhados: 1 })
+    const jornada = (...registrosJornada: PontoRegistroJornada[]) => ({ registrosJornada })
 
     it("dia com horário do relatório vale o relatório", () => {
       const situacao = situacaoDoDia(jornada(registro("05", 3, { fimJornada: dia("05") })), dia("05"), hoje)
@@ -54,11 +54,11 @@ describe("jornada.service", () => {
       expect(situacaoDoDia(jornada(registro("06", 1)), dia("05"), hoje).conhecido).toBe(false)
     })
 
-    it("sem histórico, o cadastro vale de hoje em diante, não pra trás", () => {
+    it("sem nenhum registro, não se sabe: nem hoje, nem pra frente", () => {
       const semHistorico = jornada()
 
-      expect(situacaoDoDia(semHistorico, dia("10"), hoje).conhecido).toBe(true)
-      expect(situacaoDoDia(semHistorico, dia("09"), hoje).conhecido).toBe(false)
+      expect(situacaoDoDia(semHistorico, dia("10"), hoje)).toEqual({ codigo: 1, fonte: "PROJECAO", conhecido: false })
+      expect(situacaoDoDia(semHistorico, dia("12"), hoje).conhecido).toBe(false)
     })
 
     describe("com viagem no dia", () => {
@@ -373,17 +373,17 @@ describe("jornada.service", () => {
 
     it("usa o registro exato do dia quando ele existe", () => {
       const registros = [{ data: new Date("2026-07-08T00:00:00"), codigo: 3 }]
-      expect(projetarCodigoNoDia(registros, new Date("2026-07-08T00:00:00"), hoje, 1)).toBe(3)
+      expect(projetarCodigoNoDia(registros, new Date("2026-07-08T00:00:00"), hoje)).toBe(3)
     })
 
     it("projeta pra frente a partir do registro mais recente igual ou anterior ao dia pedido", () => {
       const registros = [{ data: new Date("2026-07-08T00:00:00"), codigo: 3 }]
-      expect(projetarCodigoNoDia(registros, new Date("2026-07-10T00:00:00"), hoje, 1)).toBe(5)
+      expect(projetarCodigoNoDia(registros, new Date("2026-07-10T00:00:00"), hoje)).toBe(5)
     })
 
     it("projeta pra trás quando o dia pedido é anterior ao registro mais antigo", () => {
       const registros = [{ data: new Date("2026-07-08T00:00:00"), codigo: 3 }]
-      expect(projetarCodigoNoDia(registros, new Date("2026-07-06T00:00:00"), hoje, 1)).toBe(1)
+      expect(projetarCodigoNoDia(registros, new Date("2026-07-06T00:00:00"), hoje)).toBe(1)
     })
 
     it("escolhe o registro mais próximo (não necessariamente o último) quando há vários no histórico", () => {
@@ -393,7 +393,7 @@ describe("jornada.service", () => {
         { data: new Date("2026-07-20T00:00:00"), codigo: 2 },
       ]
       // Dia 10 fica entre o registro de dia 8 e o de dia 20: âncora é o de dia 8.
-      expect(projetarCodigoNoDia(registros, new Date("2026-07-10T00:00:00"), hoje, 1)).toBe(5)
+      expect(projetarCodigoNoDia(registros, new Date("2026-07-10T00:00:00"), hoje)).toBe(5)
     })
 
     it("editar um dia futuro não muda a projeção de hoje nem de dias anteriores", () => {
@@ -403,8 +403,8 @@ describe("jornada.service", () => {
         { data: new Date("2026-07-09T00:00:00"), codigo: 7 },
       ]
 
-      expect(projetarCodigoNoDia(registros, new Date("2026-07-08T00:00:00"), hoje, 1)).toBe(3)
-      expect(projetarCodigoNoDia(registros, new Date("2026-07-07T00:00:00"), hoje, 1)).toBe(2)
+      expect(projetarCodigoNoDia(registros, new Date("2026-07-08T00:00:00"), hoje)).toBe(3)
+      expect(projetarCodigoNoDia(registros, new Date("2026-07-07T00:00:00"), hoje)).toBe(2)
     })
 
     it("reinicia o ciclo no dia seguinte a uma folga inserida manualmente no meio da semana", () => {
@@ -413,14 +413,9 @@ describe("jornada.service", () => {
         { data: new Date("2026-07-09T00:00:00"), codigo: 7 },
       ]
 
-      expect(projetarCodigoNoDia(registros, new Date("2026-07-09T00:00:00"), hoje, 1)).toBe(7)
-      expect(projetarCodigoNoDia(registros, new Date("2026-07-10T00:00:00"), hoje, 1)).toBe(1)
-      expect(projetarCodigoNoDia(registros, new Date("2026-07-11T00:00:00"), hoje, 1)).toBe(2)
-    })
-
-    it("sem nenhum registro no histórico, cai no fallback rotacionado a partir de hoje", () => {
-      expect(projetarCodigoNoDia([], new Date("2026-07-08T00:00:00-03:00"), hoje, 3)).toBe(3)
-      expect(projetarCodigoNoDia([], new Date("2026-07-10T00:00:00-03:00"), hoje, 3)).toBe(5)
+      expect(projetarCodigoNoDia(registros, new Date("2026-07-09T00:00:00"), hoje)).toBe(7)
+      expect(projetarCodigoNoDia(registros, new Date("2026-07-10T00:00:00"), hoje)).toBe(1)
+      expect(projetarCodigoNoDia(registros, new Date("2026-07-11T00:00:00"), hoje)).toBe(2)
     })
 
     it("é indiferente à ordem dos registros na lista de entrada", () => {
@@ -431,7 +426,7 @@ describe("jornada.service", () => {
       const registrosForaDeOrdem = [...registrosEmOrdem].reverse()
 
       const dia = new Date("2026-07-10T00:00:00")
-      expect(projetarCodigoNoDia(registrosForaDeOrdem, dia, hoje, 1)).toBe(projetarCodigoNoDia(registrosEmOrdem, dia, hoje, 1))
+      expect(projetarCodigoNoDia(registrosForaDeOrdem, dia, hoje)).toBe(projetarCodigoNoDia(registrosEmOrdem, dia, hoje))
     })
 
     it("de ponta a ponta com dados vindos do banco (@db.Date, via mapearRegistrosJornada) — não projeta um motorista de folga amanhã como se ele estivesse fresco (código 1), bug real em produção quando o processo roda em UTC", () => {
@@ -448,8 +443,8 @@ describe("jornada.service", () => {
       const hojeReal = new Date(Date.UTC(2026, 8, 2, 12, 0, 0))
       const amanhaReal = new Date(Date.UTC(2026, 8, 3, 12, 0, 0))
 
-      expect(projetarCodigoNoDia(registrosProjetados, hojeReal, hojeReal, 3)).toBe(3)
-      expect(projetarCodigoNoDia(registrosProjetados, amanhaReal, hojeReal, 3)).toBe(7)
+      expect(projetarCodigoNoDia(registrosProjetados, hojeReal, hojeReal)).toBe(3)
+      expect(projetarCodigoNoDia(registrosProjetados, amanhaReal, hojeReal)).toBe(7)
     })
   })
 })
@@ -462,20 +457,20 @@ describe("completarFolgasDoRelatorio (dia coberto pelo relatório sem registro =
   it("caso real: 4º dia em 03/10, não apareceu em 04/10 → no 06/10 está no 1º dia, não em Folga", () => {
     const registros = [trabalhou("2026-10-01", 2), trabalhou("2026-10-02", 3), trabalhou("2026-10-03", 4)]
     // sem a cobertura, a projeção supunha que ele seguiu trabalhando
-    expect(projetarCodigoNoDia(registros, d("2026-10-06"), hoje, 1)).toBe(7)
+    expect(projetarCodigoNoDia(registros, d("2026-10-06"), hoje)).toBe(7)
 
     const completos = completarFolgasDoRelatorio(registros, d("2026-10-05"))
     // 04/10 vira Folga; 05/10 (último dia do relatório) fica de fora
     expect(completos.filter((r) => r.fimJornada === null).map((r) => r.data)).toEqual([d("2026-10-04")])
-    expect(projetarCodigoNoDia(completos, d("2026-10-05"), hoje, 1)).toBe(1)
-    expect(projetarCodigoNoDia(completos, d("2026-10-06"), hoje, 1)).toBe(2)
+    expect(projetarCodigoNoDia(completos, d("2026-10-05"), hoje)).toBe(1)
+    expect(projetarCodigoNoDia(completos, d("2026-10-06"), hoje)).toBe(2)
   })
 
   it("último dia do relatório é incompleto (noturno entra às 20h): a ausência ali segue a projeção normal", () => {
     const registros = [trabalhou("2026-10-04", 3)]
     const completos = completarFolgasDoRelatorio(registros, d("2026-10-05"))
     expect(completos).toBe(registros)
-    expect(projetarCodigoNoDia(completos, d("2026-10-05"), hoje, 1)).toBe(4)
+    expect(projetarCodigoNoDia(completos, d("2026-10-05"), hoje)).toBe(4)
   })
 
   it("depois de um Interno, dia sem registro coberto pelo relatório também é folga", () => {

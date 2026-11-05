@@ -52,7 +52,7 @@ export default function NovoMotoristaClient({ clientes }: Props) {
           nome: "",
           cpf: "",
           seva: 0,
-          diasTrabalhados: 1,
+          codigoHoje: 1,
           turno: "MANHA",
           tipo: "MOTORISTA",
           produtosAutorizados: [],

@@ -52,7 +52,6 @@ export default async function MotoristasPage({ searchParams }: { searchParams?: 
       nome: motorista.nome,
       turno: motorista.turno,
       seva: motorista.seva,
-      diasTrabalhados: motorista.diasTrabalhados,
       tipo: motorista.tipo,
       viagens: motorista.viagens.map((viagem) => ({
         id: viagem.id,

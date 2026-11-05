@@ -118,9 +118,7 @@ export async function buscarMotoristaPorId(filialId: number, id: number) {
     },
     include: {
       integracao: true,
-      // Histórico de jornada: permite projetar o código de hoje a partir do
-      // registro real mais recente, em vez do cache diasTrabalhados (que só
-      // é atualizado quando algo escreve explicitamente no dia de hoje).
+      // Histórico de jornada: de onde sai o código de hoje (ver situacaoDoDia).
       registrosJornada: {
         select: { data: true, codigo: true },
         orderBy: { data: "asc" },
@@ -143,7 +141,6 @@ export async function buscarMotoristasParaSelect(filialId: number, turnoDaViagem
       id: true,
       nome: true,
       turno: true,
-      diasTrabalhados: true,
       tipo: true,
       produtosAutorizados: true,
       jornadaRelatorioInicio: true,
@@ -199,7 +196,6 @@ export async function buscarMotoristasSemViagemNoDia(filialId: number, dataRefer
       nome: true,
       seva: true,
       turno: true,
-      diasTrabalhados: true,
       tipo: true,
       registrosJornada: {
         where: filtroJanelaJornada(desde),

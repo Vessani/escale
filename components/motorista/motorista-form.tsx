@@ -128,7 +128,7 @@ export default function MotoristaForm({ defaultValues, onSubmit, submitLabel, su
 
               <FormField
                 control={form.control}
-                name="diasTrabalhados"
+                name="codigoHoje"
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Código de Jornada Atual</FormLabel>

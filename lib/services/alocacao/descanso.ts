@@ -6,7 +6,7 @@ import type { MotoristaParaAlocacao, ViagemParaDisponibilidade } from "./tipos"
  * Motorista com o que a regra de descanso precisa. `viagens` é opcional:
  * sem agenda carregada, só o relatório de jornada conta.
  */
-export type MotoristaParaDescanso = Pick<MotoristaParaAlocacao, "registrosJornada" | "diasTrabalhados" | "relatorioJornadaAte"> & {
+export type MotoristaParaDescanso = Pick<MotoristaParaAlocacao, "registrosJornada" | "relatorioJornadaAte"> & {
   viagens?: ViagemParaDisponibilidade[]
 }
 
@@ -56,7 +56,7 @@ function encontrarTrabalhoAnterior(motorista: MotoristaParaDescanso, inicioViage
  * - o aviso gravado na viagem olhava relatório + viagens do Escale;
  * - a ordenação da sugestão (priorizacao.ts) olhava só o relatório;
  * - o "libera às" mostrado na tela de alocação decidia 11h/35h pelo código
- *   de HOJE (diasTrabalhados), não pelo do dia em que o motorista parou.
+ *   de HOJE, não pelo do dia em que o motorista parou.
  * Resultado: a sugestão podia indicar um motorista e, ao gravar, a viagem
  * ganhar aviso de interjornada. Agora aviso, ordenação e tela usam esta
  * função. `null` = sem nenhum trabalho anterior conhecido.

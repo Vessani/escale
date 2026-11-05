@@ -173,7 +173,6 @@ export async function buscarSubstitutosPossiveis(
       nome: true,
       tipo: true,
       produtosAutorizados: true,
-      diasTrabalhados: true,
       filial: { select: { relatorioJornadaAte: true } },
       registrosJornada: {
         where: filtroJanelaJornada(desde),
@@ -186,7 +185,7 @@ export async function buscarSubstitutosPossiveis(
   return motoristas
     .filter((m) => podeSerPrincipal(m.tipo) && (!produto || motoristaAutorizadoParaProduto(m.produtosAutorizados, produto)))
     .map((m) => {
-      const jornada = { diasTrabalhados: m.diasTrabalhados, ...prepararJornadaDoMotorista(m) }
+      const jornada = prepararJornadaDoMotorista(m)
       // A troca é agora: quem escolhe precisa ver que está tirando alguém da folga.
       return { id: m.id, nome: m.nome, parado: ROTULO_CODIGO_PARADO[situacaoDoDia(jornada, agora, agora).codigo] ?? null }
     })

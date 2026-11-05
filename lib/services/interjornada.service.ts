@@ -43,7 +43,6 @@ export async function recalcularAvisosInterjornada(
     where: { id: { in: ids }, filialId },
     select: {
       id: true,
-      diasTrabalhados: true,
       filial: { select: { relatorioJornadaAte: true } },
       registrosJornada: {
         where: filtroJanelaJornada(desde),
@@ -64,7 +63,6 @@ export async function recalcularAvisosInterjornada(
 
   for (const motorista of motoristas) {
     const agenda = {
-      diasTrabalhados: motorista.diasTrabalhados,
       ...prepararJornadaDoMotorista(motorista),
       viagens: [...motorista.viagens, ...motorista.viagensComoAcompanhante],
     }

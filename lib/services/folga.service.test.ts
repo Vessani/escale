@@ -17,7 +17,8 @@ type ViagemFake = { deletadoEm: Date | null; status: string; inicioPrevisto: Dat
 type MotoristaFake = {
   id: number
   deletadoEm?: Date | null
-  diasTrabalhados: number
+  /** Vira o registro de jornada do dia, se `registrosJornada` não vier. */
+  codigoHoje?: number
   viagens?: ViagemFake[]
   /** Viagens onde ele é acompanhante — também contam como atividade hoje (ver folga.service.ts). */
   viagensComoAcompanhante?: ViagemFake[]
@@ -35,7 +36,8 @@ type FiltroViagem = {
  * verdade o filtro de atividade contra as viagens em memória, em vez de
  * decidir a resposta na mão — assim o teste pega um erro na conta de "hoje".
  */
-function criarFindManyFiel(motoristas: MotoristaFake[]) {
+function criarFindManyFiel(motoristas: MotoristaFake[], dia = new Date()) {
+  const colunaDoDia = new Date(`${new Date(dia.getTime() - 3 * 3_600_000).toISOString().slice(0, 10)}T00:00:00.000Z`)
   return vi.fn((args: { where: { id: { in: number[] } }; select: { viagens: { where: FiltroViagem } } }) => {
     const filtro = args.select.viagens.where
     const [ativa, finalizada] = filtro.OR
@@ -57,9 +59,8 @@ function criarFindManyFiel(motoristas: MotoristaFake[]) {
         .filter((m) => args.where.id.in.includes(m.id) && !m.deletadoEm)
         .map((m) => ({
           id: m.id,
-          diasTrabalhados: m.diasTrabalhados,
           filial: null,
-          registrosJornada: m.registrosJornada ?? [],
+          registrosJornada: m.registrosJornada ?? (m.codigoHoje ? [{ data: colunaDoDia, codigo: m.codigoHoje, fimJornada: null }] : []),
           viagens: daAtividade(m.viagens),
           viagensComoAcompanhante: daAtividade(m.viagensComoAcompanhante),
         })),
@@ -74,7 +75,7 @@ async function reconciliar(
   ids: Array<number | null> = motoristas.map((m) => m.id),
 ) {
   const tx = criarTx()
-  tx.motorista.findMany = criarFindManyFiel(motoristas) as never
+  tx.motorista.findMany = criarFindManyFiel(motoristas, dataReferencia) as never
   await reconciliarFolgaMotoristasNoDiaAtual(tx as never, ids, janelas, dataReferencia)
   return tx
 }
@@ -114,13 +115,12 @@ describe("folga.service", () => {
       const agora = new Date()
       const viagem = viagemEm(agora, agora)
 
-      const tx = await reconciliar([{ id: 5, diasTrabalhados: 7, viagens: [viagem] }], [viagem], agora)
+      const tx = await reconciliar([{ id: 5, codigoHoje: 7, viagens: [viagem] }], [viagem], agora)
 
       expect(tx.registroJornada.upsert).toHaveBeenCalledTimes(1)
       const upsertArgs = vi.mocked(tx.registroJornada.upsert).mock.calls[0][0] as { where: { motoristaId_data: { motoristaId: number } } }
       expect(upsertArgs.where.motoristaId_data.motoristaId).toBe(5)
       expect(codigoGravado(tx)).toBe(1)
-      expect(tx.motorista.update).toHaveBeenCalledWith({ where: { id: 5 }, data: { diasTrabalhados: 1 } })
     })
 
     it("nunca marca Folga em quem ficou sem viagem hoje, em nenhum dia do ciclo", async () => {
@@ -128,7 +128,7 @@ describe("folga.service", () => {
       const cancelada = viagemEm(agora, agora, { status: "CANCELADA" })
 
       for (let dia = 1; dia <= 6; dia++) {
-        const tx = await reconciliar([{ id: 8, diasTrabalhados: dia, viagens: [cancelada] }], [cancelada], agora)
+        const tx = await reconciliar([{ id: 8, codigoHoje: dia, viagens: [cancelada] }], [cancelada], agora)
 
         expect(tx.registroJornada.upsert).not.toHaveBeenCalled()
         expect(tx.motorista.update).not.toHaveBeenCalled()
@@ -156,12 +156,12 @@ describe("folga.service", () => {
       const hoje = bsb("2026-10-06T01:30:00")
       const daNoiteDeOntem = viagemEm(bsb("2026-10-05T20:00:00"), bsb("2026-10-06T03:00:00"), { status: "INICIADA" })
 
-      const naoSai = await reconciliar([{ id: 5, diasTrabalhados: 7, viagens: [daNoiteDeOntem] }], [daNoiteDeOntem], hoje)
+      const naoSai = await reconciliar([{ id: 5, codigoHoje: 7, viagens: [daNoiteDeOntem] }], [daNoiteDeOntem], hoje)
       expect(naoSai.registroJornada.upsert).not.toHaveBeenCalled()
 
       // Já se a chegada passa das 04:00, é trabalho no dia: sai da folga.
       const chegaDepois = { ...daNoiteDeOntem, fimPrevisto: bsb("2026-10-06T06:00:00") }
-      const sai = await reconciliar([{ id: 5, diasTrabalhados: 7, viagens: [chegaDepois] }], [chegaDepois], hoje)
+      const sai = await reconciliar([{ id: 5, codigoHoje: 7, viagens: [chegaDepois] }], [chegaDepois], hoje)
       expect(sai.registroJornada.upsert).toHaveBeenCalledTimes(1)
     })
 
@@ -173,7 +173,7 @@ describe("folga.service", () => {
       it("encerrar a viagem de hoje não marca Folga em quem trabalhou hoje", async () => {
         const viagem = finalizada("2026-10-06T08:00:00", "2026-10-06T18:00:00", "2026-10-06T18:30:00")
 
-        const tx = await reconciliar([{ id: 5, diasTrabalhados: 2, viagens: [viagem] }], [viagem], hoje)
+        const tx = await reconciliar([{ id: 5, codigoHoje: 2, viagens: [viagem] }], [viagem], hoje)
 
         expect(tx.registroJornada.upsert).not.toHaveBeenCalled()
       })
@@ -181,7 +181,7 @@ describe("folga.service", () => {
       it("encerrar hoje a viagem que veio de ontem também não marca Folga", async () => {
         const viagem = finalizada("2026-10-05T08:00:00", "2026-10-06T18:00:00", "2026-10-06T10:00:00")
 
-        const tx = await reconciliar([{ id: 5, diasTrabalhados: 2, viagens: [viagem] }], [viagem], hoje)
+        const tx = await reconciliar([{ id: 5, codigoHoje: 2, viagens: [viagem] }], [viagem], hoje)
 
         expect(tx.registroJornada.upsert).not.toHaveBeenCalled()
       })
@@ -189,7 +189,7 @@ describe("folga.service", () => {
       it("viagem prevista até hoje, mas encerrada ontem, não tira o motorista da folga de hoje", async () => {
         const viagem = finalizada("2026-10-04T08:00:00", "2026-10-06T18:00:00", "2026-10-05T16:00:00")
 
-        const tx = await reconciliar([{ id: 5, diasTrabalhados: 7, viagens: [viagem] }], [viagem], hoje)
+        const tx = await reconciliar([{ id: 5, codigoHoje: 7, viagens: [viagem] }], [viagem], hoje)
 
         expect(tx.registroJornada.upsert).not.toHaveBeenCalled()
       })
@@ -197,29 +197,29 @@ describe("folga.service", () => {
       it("viagem da noite encerrada de madrugada não tira o motorista da folga de hoje", async () => {
         const viagem = finalizada("2026-10-05T20:00:00", "2026-10-06T03:00:00", "2026-10-06T03:10:00")
 
-        const tx = await reconciliar([{ id: 5, diasTrabalhados: 7, viagens: [viagem] }], [viagem], hoje)
+        const tx = await reconciliar([{ id: 5, codigoHoje: 7, viagens: [viagem] }], [viagem], hoje)
 
         expect(tx.registroJornada.upsert).not.toHaveBeenCalled()
       })
     })
 
-    describe("decide pelo código projetado, não pelo cache diasTrabalhados", () => {
+    describe("decide pelo código do dia", () => {
       const hoje = bsb("2026-10-06T12:00:00")
       const viagemDeHoje = viagemEm(bsb("2026-10-06T08:00:00"), bsb("2026-10-06T18:00:00"))
       const janela = [viagemDeHoje]
 
-      it("cache 7 parado não zera o ciclo de quem está no 4º dia", async () => {
+      it("registro antigo de Folga não zera o ciclo de quem está no 4º dia", async () => {
         const registrosJornada = [noDia("2026-10-02", 7), noDia("2026-10-03", 1), noDia("2026-10-04", 2), noDia("2026-10-05", 3)]
 
-        const tx = await reconciliar([{ id: 5, diasTrabalhados: 7, viagens: [viagemDeHoje], registrosJornada }], janela, hoje)
+        const tx = await reconciliar([{ id: 5, codigoHoje: 7, viagens: [viagemDeHoje], registrosJornada }], janela, hoje)
 
         expect(tx.registroJornada.upsert).not.toHaveBeenCalled()
       })
 
-      it("Folga projetada sai da folga mesmo com o cache num dia de trabalho", async () => {
+      it("Folga marcada hoje sai da folga quando há viagem", async () => {
         const registrosJornada = [noDia("2026-10-05", 7), noDia("2026-10-06", 7)]
 
-        const tx = await reconciliar([{ id: 5, diasTrabalhados: 3, viagens: [viagemDeHoje], registrosJornada }], janela, hoje)
+        const tx = await reconciliar([{ id: 5, codigoHoje: 3, viagens: [viagemDeHoje], registrosJornada }], janela, hoje)
 
         expect(codigoGravado(tx)).toBe(1)
       })
@@ -229,7 +229,7 @@ describe("folga.service", () => {
       const hoje = bsb("2026-10-06T12:00:00")
       const viagemDeHoje = viagemEm(bsb("2026-10-06T08:00:00"), bsb("2026-10-06T18:00:00"))
       const trabalhandoCom = (registrosJornada: MotoristaFake["registrosJornada"]) =>
-        reconciliar([{ id: 5, diasTrabalhados: 7, viagens: [viagemDeHoje], registrosJornada }], [viagemDeHoje], hoje)
+        reconciliar([{ id: 5, codigoHoje: 7, viagens: [viagemDeHoje], registrosJornada }], [viagemDeHoje], hoje)
 
       it("depois do 6º dia continua no 6: não esconde o 7º dia seguido zerando o ciclo", async () => {
         expect(codigoGravado(await trabalhandoCom([noDia("2026-10-05", 6)]))).toBe(6)
@@ -250,28 +250,28 @@ describe("folga.service", () => {
       const noDiaDeHoje = (codigo: number) => [noDia("2026-10-06", codigo)]
       async function marcar(motorista: MotoristaFake, viagemAntes: ViagemFake = viagemDeHoje) {
         const tx = criarTx()
-        tx.motorista.findMany = criarFindManyFiel([motorista]) as never
+        tx.motorista.findMany = criarFindManyFiel([motorista], hoje) as never
         await marcarInternoQuemSaiuDaEscala(tx as never, [motorista.id], viagemAntes, hoje)
         return tx
       }
 
       it("quem estava no meio do ciclo e perdeu a viagem de hoje fica Interno", async () => {
-        expect(codigoGravado(await marcar({ id: 5, diasTrabalhados: 3 }))).toBe(10)
+        expect(codigoGravado(await marcar({ id: 5, codigoHoje: 3 }))).toBe(10)
       })
 
       it("quem estava de Folga e foi escalado também fica Interno, sem voltar à folga", async () => {
-        expect(codigoGravado(await marcar({ id: 5, diasTrabalhados: 7, registrosJornada: noDiaDeHoje(7) }))).toBe(10)
+        expect(codigoGravado(await marcar({ id: 5, codigoHoje: 7, registrosJornada: noDiaDeHoje(7) }))).toBe(10)
       })
 
       it("se ainda tem outra viagem hoje, não muda nada", async () => {
         const outra = viagemEm(bsb("2026-10-06T19:00:00"), bsb("2026-10-06T22:00:00"))
 
-        expect((await marcar({ id: 5, diasTrabalhados: 3, viagens: [outra] })).registroJornada.upsert).not.toHaveBeenCalled()
+        expect((await marcar({ id: 5, codigoHoje: 3, viagens: [outra] })).registroJornada.upsert).not.toHaveBeenCalled()
       })
 
       it("Férias, Exames e Manutenção não viram Interno", async () => {
         for (const codigo of [8, 9, 11]) {
-          const tx = await marcar({ id: 5, diasTrabalhados: 3, registrosJornada: noDiaDeHoje(codigo) })
+          const tx = await marcar({ id: 5, codigoHoje: 3, registrosJornada: noDiaDeHoje(codigo) })
 
           expect(tx.registroJornada.upsert).not.toHaveBeenCalled()
         }
@@ -282,7 +282,7 @@ describe("folga.service", () => {
         const daMadrugada = viagemEm(bsb("2026-10-05T20:00:00"), bsb("2026-10-06T03:00:00"))
 
         for (const viagem of [deAmanha, daMadrugada]) {
-          const tx = await marcar({ id: 5, diasTrabalhados: 3 }, viagem)
+          const tx = await marcar({ id: 5, codigoHoje: 3 }, viagem)
 
           expect(tx.motorista.findMany).not.toHaveBeenCalled()
         }
@@ -294,7 +294,7 @@ describe("folga.service", () => {
       const viagem = viagemEm(new Date("2026-07-11T08:00:00"), new Date("2026-07-11T20:00:00"))
 
       // A janela relevante é a da viagem que disparou a chamada (amanhã) — não toca hoje.
-      const tx = await reconciliar([{ id: 5, diasTrabalhados: 7, viagens: [viagem] }], [viagem], hoje)
+      const tx = await reconciliar([{ id: 5, codigoHoje: 7, viagens: [viagem] }], [viagem], hoje)
 
       expect(tx.registroJornada.upsert).not.toHaveBeenCalled()
       expect(tx.motorista.update).not.toHaveBeenCalled()
@@ -309,7 +309,7 @@ describe("folga.service", () => {
 
       // A viagem que disparou a chamada é daqui a 4 dias — não toca hoje.
       const tx = await reconciliar(
-        [{ id: 9, diasTrabalhados: 3 }],
+        [{ id: 9, codigoHoje: 3 }],
         [{ inicioPrevisto: new Date("2026-07-14T08:00:00"), fimPrevisto: new Date("2026-07-14T20:00:00") }],
         hoje,
       )
@@ -323,28 +323,9 @@ describe("folga.service", () => {
       const hoje = new Date("2026-07-10T12:00:00")
       const viagem = viagemEm(new Date("2026-07-10T08:00:00"), new Date("2026-07-10T20:00:00"))
 
-      const tx = await reconciliar([{ id: 5, diasTrabalhados: 7, viagensComoAcompanhante: [viagem] }], [viagem], hoje)
+      const tx = await reconciliar([{ id: 5, codigoHoje: 7, viagensComoAcompanhante: [viagem] }], [viagem], hoje)
 
       expect(codigoGravado(tx)).toBe(1)
-    })
-
-    it("atualiza o cache quando a reconciliação roda no próprio dia da viagem", async () => {
-      // registrarJornadaNoDia só atualiza o cache diasTrabalhados quando o dia
-      // registrado é "hoje" de verdade (new Date() interno) — por isso fixamos
-      // o relógio no dia da viagem, simulando a reconciliação rodando nesse dia.
-      vi.useFakeTimers()
-      vi.setSystemTime(new Date("2026-07-11T09:00:00"))
-
-      try {
-        const viagem = viagemEm(new Date("2026-07-11T08:00:00"), new Date("2026-07-11T20:00:00"))
-
-        const tx = await reconciliar([{ id: 5, diasTrabalhados: 7, viagens: [viagem] }], [viagem])
-
-        expect(tx.registroJornada.upsert).toHaveBeenCalledTimes(1)
-        expect(tx.motorista.update).toHaveBeenCalledWith({ where: { id: 5 }, data: { diasTrabalhados: 1 } })
-      } finally {
-        vi.useRealTimers()
-      }
     })
   })
 })

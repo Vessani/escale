@@ -45,7 +45,7 @@ const motoristaValido = {
   nome: "João da Silva",
   cpf: "11144477735",
   seva: 12345,
-  diasTrabalhados: 1,
+  codigoHoje: 1,
   turno: "MANHA",
   tipo: "MOTORISTA" as const,
   produtosAutorizados: ["CO2"],

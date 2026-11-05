@@ -42,10 +42,7 @@ export default async function MotoristasSemViagemPage({ searchParams }: { search
   ])
 
   const motoristasComAcao = motoristas.map((motorista) => {
-    const jornada = {
-      diasTrabalhados: motorista.diasTrabalhados,
-      ...prepararJornadaDoMotorista({ ...motorista, filial: { relatorioJornadaAte: coberturaRelatorio } }),
-    }
+    const jornada = prepararJornadaDoMotorista({ ...motorista, filial: { relatorioJornadaAte: coberturaRelatorio } })
     const { codigo: codigoNoDia } = situacaoDoDia(jornada, dataDoDia, agora)
     return {
       id: motorista.id,

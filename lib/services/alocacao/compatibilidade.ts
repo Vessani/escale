@@ -26,12 +26,12 @@ function normalizarCliente(cliente: string) {
  * seguinte, quando a rotação o traz de volta ao início do ciclo (ver
  * `jornada.service.ts`).
  */
-export function calcularDiasDisponiveis(diasTrabalhados: number) {
-  if (diasTrabalhados < 1 || diasTrabalhados > MAX_DIAS_CONSECUTIVOS) {
+export function calcularDiasDisponiveis(codigo: number) {
+  if (codigo < 1 || codigo > MAX_DIAS_CONSECUTIVOS) {
     return 0
   }
 
-  return MAX_DIAS_CONSECUTIVOS - diasTrabalhados + 1
+  return MAX_DIAS_CONSECUTIVOS - codigo + 1
 }
 
 /**

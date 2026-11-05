@@ -83,7 +83,6 @@ type Motorista = {
   nome: string
   turno: "MANHA" | "NOITE"
   seva: number
-  diasTrabalhados: number
   tipo: TipoMotorista
   viagens: Viagem[]
   registrosJornada: RegistroJornada[]
@@ -114,20 +113,14 @@ export default function CalendarioMotoristas({ inicioParam, hojeIso, relatorioJo
 
   const hoje = useMemo(() => new Date(hojeIso), [hojeIso])
 
-  // Código de hoje projetado a partir do histórico real (mesma conta que a
-  // coluna "Hoje" da grade usa) — não o cache motorista.diasTrabalhados, que só
-  // é atualizado quando algo escreve explicitamente no dia de hoje e por isso
-  // pode ficar parado enquanto os dias passam sem nenhum evento.
+  // Código de hoje: a mesma conta que a coluna "Hoje" da grade usa.
   const motoristasComHoje = useMemo(
     () =>
       motoristas.map((motorista) => {
         // jornada alimenta só o código do dia (situacaoDoDia);
         // motorista.registrosJornada (bruto, preservado pelo spread) é usado à parte
         // pra achar o horário real de um dia exato — ver buscarJornadaRealNoDia.
-        const jornada = {
-          diasTrabalhados: motorista.diasTrabalhados,
-          ...prepararJornadaDoMotorista({ ...motorista, filial: { relatorioJornadaAte: relatorioJornadaAteIso } }),
-        }
+        const jornada = prepararJornadaDoMotorista({ ...motorista, filial: { relatorioJornadaAte: relatorioJornadaAteIso } })
         return { ...motorista, jornada, codigoHoje: codigoNoCalendario(jornada, motorista.viagens, hoje, hoje) }
       }),
     [motoristas, hoje, relatorioJornadaAteIso],
