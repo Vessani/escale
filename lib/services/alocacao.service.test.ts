@@ -246,6 +246,75 @@ describe("alocacao.service", () => {
     })
   })
 
+  describe("descanso curto vale igual venha do relatório ou da viagem", () => {
+    const b = (iso: string) => new Date(`${iso}-03:00`)
+    const hoje = b("2026-11-04T00:00:00")
+    const inicio = b("2026-11-05T08:00:00")
+    const fim = b("2026-11-05T18:00:00")
+    const contexto = {
+      turnoViagem: "MANHA" as Turno,
+      diasViagem: 1,
+      dataInicioViagem: inicio,
+      fimViagem: fim,
+      integracaoExigida: null,
+      hoje,
+    }
+    const pararamAs = (hora: string) => ({
+      ...criarMotorista({ registrosJornada: comFimJornadaAnterior(b(`2026-11-04T${hora}:00`)) }),
+      viagens: [],
+    })
+    const viagemDoDia = (fimPrevisto: string, extra = {}) => ({
+      ...criarMotorista({}),
+      viagens: [
+        {
+          id: 5,
+          status: "ALOCADA" as const,
+          inicioPrevisto: b("2026-11-04T08:00:00"),
+          fimPrevisto: b(`2026-11-04T${fimPrevisto}:00`),
+          ...extra,
+        },
+      ],
+    })
+
+    it("encerrou às 20:00, viagem às 08:00: exatamente 11h até a apresentação, passa", () => {
+      const motorista = pararamAs("20:00")
+
+      expect(motivoIndisponivel(motorista, inicio, fim, hoje)).toBeNull()
+      expect(sugerirMotoristaAutomatico([motorista], fim, contexto)).not.toBeNull()
+    })
+
+    it("pelo relatório às 20:30 sai da sugestão, como pela viagem", () => {
+      const relatorio = pararamAs("20:30")
+      const viagem = viagemDoDia("20:30")
+
+      expect(motivoIndisponivel(relatorio, inicio, fim, hoje)).toBe(motivoIndisponivel(viagem, inicio, fim, hoje))
+      expect(sugerirMotoristaAutomatico([relatorio], fim, contexto)).toBeNull()
+      const lote = { id: 9, turno: "MANHA" as Turno, diasViagem: 1, inicioPrevisto: inicio, fimPrevisto: fim, integracaoExigida: null }
+      expect(sugerirAlocacoesEmLote([lote], [relatorio], hoje)[0].motoristaSugerido).toBeNull()
+    })
+
+    it("escolhido à mão, continua ganhando o aviso", () => {
+      expect(calcularAvisoDescanso(pararamAs("20:30"), { inicioPrevisto: inicio }, hoje)).toBe(
+        "Interjornada: motorista teve apenas 10.5h de descanso (mínimo 11h).",
+      )
+    })
+
+    it("o aviso arredonda pra baixo: 20:01 não vira '11.0h (mínimo 11h)'", () => {
+      expect(calcularAvisoDescanso(pararamAs("20:01"), { inicioPrevisto: inicio }, hoje)).toBe(
+        "Interjornada: motorista teve apenas 10.9h de descanso (mínimo 11h).",
+      )
+    })
+
+    it("atraso conta: prevista até 18:00, finalizada às 21:00, sai da sugestão e ganha aviso", () => {
+      const motorista = viagemDoDia("18:00", { status: "FINALIZADA" as const, finalizadoEm: b("2026-11-04T21:00:00") })
+
+      expect(motivoIndisponivel(motorista, inicio, fim, hoje)).toMatch(/^Descanso até 05\/11 08:00/)
+      expect(calcularAvisoDescanso(motorista, { inicioPrevisto: inicio }, hoje)).toBe(
+        "Interjornada: motorista teve apenas 10.0h de descanso (mínimo 11h).",
+      )
+    })
+  })
+
   describe("viagem antes do primeiro registro: não bloqueia por palpite", () => {
     const bsb = (iso: string) => new Date(`${iso}-03:00`)
     const contexto = (dia: string) => ({

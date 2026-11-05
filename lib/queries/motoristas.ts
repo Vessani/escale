@@ -32,7 +32,11 @@ export function filtroViagemAtiva(agora: Date) {
     deletadoEm: null,
     OR: [
       { status: { notIn: ["CANCELADA", "FINALIZADA"] } },
-      { status: "FINALIZADA", fimPrevisto: { gte: limiteFinalizadaRelevante(agora) } },
+      // Pelo que vier por último: quem atrasou descansa a partir do fim real.
+      {
+        status: "FINALIZADA",
+        OR: [{ fimPrevisto: { gte: limiteFinalizadaRelevante(agora) } }, { finalizadoEm: { gte: limiteFinalizadaRelevante(agora) } }],
+      },
     ],
   } satisfies Prisma.ViagemWhereInput
 }
@@ -42,8 +46,7 @@ export function filtroViagemAtiva(agora: Date) {
  * passa das 04:00 — quem chega de madrugada ainda está na jornada do dia
  * anterior (ver instanteDoUltimoDiaDeJornada). CANCELADA nunca conta.
  * FINALIZADA conta: encerrar a viagem não apaga o dia trabalhado. Quem veio de
- * antes só conta se o fim efetivo chegou até o dia (ver fimEfetivoViagem) —
- * encerrar antes do previsto libera o motorista antes. Fonte única de
+ * antes só conta se o fim real chegou até o dia (ver fimEfetivoViagem). Fonte única de
  * "atividade no dia": reconciliarFolgaMotoristasNoDiaAtual e a tela de
  * motoristas sem viagem.
  */
@@ -56,7 +59,7 @@ export function filtroAtividadeNoDia(dia: Date) {
     inicioPrevisto: { lte: fimDoDia(dia) },
     OR: [
       { status: { notIn: ["CANCELADA", "FINALIZADA"] }, OR: [comecouNoDia, { fimPrevisto: { gte: inicioDaJornada } }] },
-      { status: "FINALIZADA", OR: [comecouNoDia, { fimPrevisto: { gte: inicioDaJornada }, finalizadoEm: { gte: inicioDaJornada } }] },
+      { status: "FINALIZADA", OR: [comecouNoDia, { finalizadoEm: { gte: inicioDaJornada } }] },
     ],
   } satisfies Prisma.ViagemWhereInput
 }

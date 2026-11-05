@@ -88,10 +88,11 @@ describe("lib/queries/motoristas — isolamento por filial e filtro de viagem at
     const chamada = vi.mocked(prisma.motorista.findMany).mock.calls[0][0] as { include: { viagens: { where: ViagemWhere } } }
     const filtro = filtroViagemDaChamada(chamada.include as never)
     const condicaoFinalizada = filtro.OR!.find((c) => (c as { status?: string }).status === "FINALIZADA") as
-      { status: string; fimPrevisto: { gte: Date } } | undefined
+      { status: string; OR: Array<{ fimPrevisto?: { gte: Date }; finalizadoEm?: { gte: Date } }> } | undefined
 
-    expect(condicaoFinalizada).toBeDefined()
-    expect(condicaoFinalizada!.fimPrevisto.gte).toBeInstanceOf(Date)
+    // Pelo previsto ou pelo fim real: quem atrasou ainda precisa descansar.
+    expect(condicaoFinalizada!.OR[0].fimPrevisto?.gte).toBeInstanceOf(Date)
+    expect(condicaoFinalizada!.OR[1].finalizadoEm?.gte).toBeInstanceOf(Date)
   })
 
   it("buscarMotoristaPorId usa findFirst com id + filialId", async () => {

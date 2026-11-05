@@ -1,5 +1,5 @@
 import { formatarDiaMesHora, inicioDoDia } from "@/lib/utils/date-format"
-import { posicaoNoCiclo, situacaoDoDia } from "../jornada.service"
+import { encontrarJornadaAnterior, posicaoNoCiclo, situacaoDoDia } from "../jornada.service"
 import { instanteDoUltimoDiaDeJornada } from "../turno"
 import { MAX_DIAS_CONSECUTIVOS } from "./compatibilidade"
 import {
@@ -71,25 +71,22 @@ export function viagemDesmentidaPeloRelatorio(
 }
 
 /**
- * Quando o motorista de fato ficou livre de uma viagem: marcar FINALIZADA
- * libera o motorista a partir desse instante (`finalizadoEm`), se for antes
- * do fim previsto — a rota encerrou mais cedo e quem escala sabe disso. O
- * descanso mínimo (11h/35h) continua contando, só que a partir daqui, não do
- * fim planejado. Nunca antes do início previsto (finalizar por engano antes
- * de a viagem começar não cria um "fim" anterior ao início). Viagem não
+ * Quando o motorista de fato ficou livre de uma viagem: a hora em que ela foi
+ * finalizada (`finalizadoEm`), antes ou depois do fim previsto. Chegar mais
+ * cedo libera antes; atrasar empurra o descanso, sem limite — a viagem pode ter
+ * vários problemas e o descanso conta do fim real. O mínimo (11h/35h) sempre
+ * conta a partir daqui. Nunca antes do início previsto (finalizar por engano
+ * antes de a viagem começar não cria um "fim" anterior ao início). Viagem não
  * finalizada, ou finalizada antes da coluna existir, usa o fim previsto.
  */
 export function fimEfetivoViagem(viagem: ViagemParaDisponibilidade): Date {
-  const fimPrevisto = new Date(viagem.fimPrevisto)
-
   if (viagem.status !== "FINALIZADA" || !viagem.finalizadoEm) {
-    return fimPrevisto
+    return new Date(viagem.fimPrevisto)
   }
 
   const finalizadoEm = new Date(viagem.finalizadoEm)
   const inicioPrevisto = new Date(viagem.inicioPrevisto)
-  const fim = finalizadoEm < fimPrevisto ? finalizadoEm : fimPrevisto
-  return fim < inicioPrevisto ? inicioPrevisto : fim
+  return finalizadoEm < inicioPrevisto ? inicioPrevisto : finalizadoEm
 }
 
 /**
@@ -163,7 +160,8 @@ const HORA_MS = 60 * 60 * 1000
 /**
  * Por que o motorista NÃO está livre pra este período (null = livre): outra
  * viagem no meio, ou descanso (11h, ou 35h depois do 6º dia) que ainda não
- * acabou — antes ou depois desta viagem. Aparece no seletor ao lado do nome
+ * acabou — antes ou depois desta viagem, venha o fim do trabalho de uma viagem
+ * ou do Relatório de Jornada: é a mesma regra. Aparece no seletor ao lado do nome
  * (bolinha laranja). Fonte única: motoristaEstaDisponivelNoPeriodo é
  * `motivoIndisponivel(...) === null`.
  */
@@ -176,20 +174,32 @@ export function motivoIndisponivel(motorista: MotoristaComAgenda, inicioViagem: 
     const minimoHoras = descansoMinimoNecessarioApos(motorista, inicioExistente, fimExistente, hoje)
     if (!periodosConflitamComDescanso(inicioExistente, fimExistente, inicioViagem, fimViagem, minimoHoras)) continue
 
-    const horas = minimoHoras === MINIMO_HORAS_ENTRE_FOLGAS ? ` (${MINIMO_HORAS_ENTRE_FOLGAS}h após o 6º dia)` : ""
     if (periodoConflita(inicioExistente, fimExistente, inicioViagem, fimViagem)) {
       return inicioExistente <= inicioViagem
         ? `Em viagem até ${formatarDiaMesHora(fimExistente)}`
         : `Outra viagem às ${formatarDiaMesHora(inicioExistente)}`
     }
-    // O descanso acaba na apresentação; a viagem só pode ser 1h depois (checklist).
-    const fimDescanso = new Date(fimExistente.getTime() + minimoHoras * HORA_MS)
-    const viagemAPartirDe = calcularInicioViagemPelaApresentacao(fimDescanso)
     return inicioExistente <= inicioViagem
-      ? `Descanso até ${formatarDiaMesHora(fimDescanso)}${horas} (viagem a partir de ${formatarDiaMesHora(viagemAPartirDe)})`
+      ? textoDescansoAte(fimExistente, minimoHoras)
       : `Viagem às ${formatarDiaMesHora(inicioExistente)} sem ${minimoHoras}h de descanso depois desta`
   }
+
+  const jornada = encontrarJornadaAnterior(motorista.registrosJornada, inicioViagem)
+  if (jornada) {
+    const minimoHoras = descansoMinimoNecessarioApos(motorista, jornada.dia, jornada.fim, hoje)
+    if (jornada.fim.getTime() + minimoHoras * HORA_MS > calcularHorarioIdealChegada(inicioViagem).getTime()) {
+      return textoDescansoAte(jornada.fim, minimoHoras)
+    }
+  }
+
   return null
+}
+
+/** O descanso acaba na apresentação; a viagem só pode ser 1h depois (checklist). */
+function textoDescansoAte(fimTrabalho: Date, minimoHoras: number) {
+  const fimDescanso = new Date(fimTrabalho.getTime() + minimoHoras * HORA_MS)
+  const horas = minimoHoras === MINIMO_HORAS_ENTRE_FOLGAS ? ` (${MINIMO_HORAS_ENTRE_FOLGAS}h após o 6º dia)` : ""
+  return `Descanso até ${formatarDiaMesHora(fimDescanso)}${horas} (viagem a partir de ${formatarDiaMesHora(calcularInicioViagemPelaApresentacao(fimDescanso))})`
 }
 
 export function motoristaEstaDisponivelNoPeriodo(motorista: MotoristaComAgenda, inicioViagem: Date, fimViagem: Date, hoje: Date) {

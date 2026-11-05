@@ -69,9 +69,12 @@ describe("finalizar a viagem libera o motorista (descanso conta da finalização
       expect(fimEfetivoViagem(finalizadaCedo)).toEqual(new Date("2026-07-08T14:00:00"))
     })
 
-    it("finalizada depois do fim previsto (marcada tarde) continua terminando no fim previsto", () => {
-      const viagem = criarViagem({ status: "FINALIZADA", finalizadoEm: new Date("2026-07-09T09:00:00") })
-      expect(fimEfetivoViagem(viagem)).toEqual(new Date("2026-07-08T22:00:00"))
+    it("finalizada depois do fim previsto vale a hora real, sem limite", () => {
+      const umaHora = criarViagem({ status: "FINALIZADA", finalizadoEm: new Date("2026-07-08T23:00:00") })
+      const doisDias = criarViagem({ status: "FINALIZADA", finalizadoEm: new Date("2026-07-10T22:00:00") })
+
+      expect(fimEfetivoViagem(umaHora)).toEqual(new Date("2026-07-08T23:00:00"))
+      expect(fimEfetivoViagem(doisDias)).toEqual(new Date("2026-07-10T22:00:00"))
     })
 
     it("finalizada antes desta regra existir (sem finalizadoEm) usa o fim previsto", () => {

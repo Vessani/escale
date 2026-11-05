@@ -24,7 +24,7 @@ type MotoristaFake = {
   /** Como vem da coluna @db.Date: meia-noite UTC. */
   registrosJornada?: Array<{ data: Date; codigo: number; fimJornada: Date | null }>
 }
-type JanelaDoDia = { OR: [{ inicioPrevisto: { gte: Date } }, { fimPrevisto: { gte: Date }; finalizadoEm?: { gte: Date } }] }
+type JanelaDoDia = { OR: [{ inicioPrevisto: { gte: Date } }, { fimPrevisto?: { gte: Date }; finalizadoEm?: { gte: Date } }] }
 type FiltroViagem = {
   inicioPrevisto: { lte: Date }
   OR: [JanelaDoDia & { status: { notIn: string[] } }, JanelaDoDia & { status: string }]
@@ -41,8 +41,9 @@ function criarFindManyFiel(motoristas: MotoristaFake[]) {
     const [ativa, finalizada] = filtro.OR
     const naJanela = (v: ViagemFake, { OR: [comecou, terminou] }: JanelaDoDia) =>
       v.inicioPrevisto.getTime() >= comecou.inicioPrevisto.gte.getTime() ||
-      (v.fimPrevisto.getTime() >= terminou.fimPrevisto.gte.getTime() &&
-        (!terminou.finalizadoEm || (v.finalizadoEm?.getTime() ?? 0) >= terminou.finalizadoEm.gte.getTime()))
+      (terminou.finalizadoEm
+        ? (v.finalizadoEm?.getTime() ?? 0) >= terminou.finalizadoEm.gte.getTime()
+        : v.fimPrevisto.getTime() >= (terminou.fimPrevisto?.gte.getTime() ?? 0))
     const daAtividade = (viagens: ViagemFake[] = []) =>
       viagens.filter(
         (v) =>
