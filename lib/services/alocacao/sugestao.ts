@@ -70,7 +70,7 @@ export function sugerirAlocacoesEmLote(
       atribuicoesTentativas.some((atribuicao) => {
         if (atribuicao.motoristaId !== motorista.id) return false
 
-        const minimoHoras = descansoMinimoNecessarioApos(atribuicao.motorista, atribuicao.fim, hoje)
+        const minimoHoras = descansoMinimoNecessarioApos(atribuicao.motorista, atribuicao.inicio, atribuicao.fim, hoje)
         return periodosConflitamComDescanso(viagem.inicioPrevisto, viagem.fimPrevisto, atribuicao.inicio, atribuicao.fim, minimoHoras)
       })
 

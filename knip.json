@@ -1,5 +1,5 @@
 {
   "$schema": "https://unpkg.com/knip@5/schema.json",
-  "entry": ["scripts/seed-local.mjs"],
+  "entry": ["scripts/seed-local.mjs", "scripts/corrigir-folgas-falsas.mjs"],
   "ignore": ["components/ui/**"]
 }

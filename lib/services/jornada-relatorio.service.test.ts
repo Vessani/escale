@@ -91,6 +91,20 @@ describe("atualizarJornadaRelatorioDosMotoristas", () => {
     })
   })
 
+  it("arquivo parcial grava os motoristas dele, mas não avança a cobertura da filial", async () => {
+    vi.mocked(prisma.motorista.findMany).mockResolvedValue([{ id: 42, seva: 815, diasTrabalhados: 2 }] as never)
+
+    await atualizarJornadaRelatorioDosMotoristas(FILIAL_ID, [criarRegistro({ dia: "2026-07-10T03:00:00.000Z" })], {
+      de: "2026-07-10T03:00:00.000Z",
+      ate: "2026-07-10T03:00:00.000Z",
+      matriculas: [815],
+      parcial: true,
+    })
+
+    expect(prisma.filial.updateMany).not.toHaveBeenCalled()
+    expect(tx.registroJornada.upsert).toHaveBeenCalledTimes(1)
+  })
+
   it("capa em 6 quando Dias Sem Folga vem maior (7+) — evita colidir com o código 7 (Folga)", async () => {
     vi.mocked(prisma.motorista.findMany).mockResolvedValue([{ id: 42, seva: 815, diasTrabalhados: 6 }] as never)
 

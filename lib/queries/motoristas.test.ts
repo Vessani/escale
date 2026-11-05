@@ -18,9 +18,27 @@ import {
   buscarMotoristasParaSelect,
   buscarMotoristasComAgenda,
   buscarMotoristasSemProdutoAutorizado,
+  buscarMotoristasSemViagemNoDia,
+  filtroAtividadeNoDia,
 } from "./motoristas"
 
 const FILIAL_ID = 3
+
+describe("buscarMotoristasSemViagemNoDia", () => {
+  it("usa a mesma definição de atividade no dia da reconciliação de folga, com viagem finalizada contando", async () => {
+    vi.mocked(prisma.motorista.findMany).mockResolvedValue([])
+    const dia = new Date("2026-10-06T12:00:00-03:00")
+
+    await buscarMotoristasSemViagemNoDia(FILIAL_ID, dia)
+
+    const filtro = filtroAtividadeNoDia(dia)
+    expect(filtro.OR.map((grupo) => grupo.status)).toContain("FINALIZADA")
+    expect(vi.mocked(prisma.motorista.findMany).mock.calls[0][0]?.where).toMatchObject({
+      viagens: { none: filtro },
+      viagensComoAcompanhante: { none: filtro },
+    })
+  })
+})
 
 describe("limiteFinalizadaRelevante", () => {
   it("subtrai HORAS_FINALIZADA_RELEVANTE horas do instante informado", () => {

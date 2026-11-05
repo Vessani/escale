@@ -7,83 +7,79 @@ import {
 
 function criarTx() {
   return {
+    $queryRaw: vi.fn().mockResolvedValue([]),
     motorista: { findMany: vi.fn(), update: vi.fn() },
-    registroJornada: { upsert: vi.fn() },
+    registroJornada: { upsert: vi.fn().mockResolvedValue({}) },
   }
 }
 
-/** Diferencia as duas queries que a função faz: `diasTrabalhados` é um número (7) pra quem está saindo da folga, ou um range ({gte,lte}) pra quem pode entrar em folga. */
-function mockFindMany(
-  tx: ReturnType<typeof criarTx>,
-  respostas: { paraFolga?: Array<{ id: number }>; saindoDaFolga?: Array<{ id: number }> },
-) {
-  vi.mocked(tx.motorista.findMany).mockImplementation((args: never) => {
-    const condicao = (args as { where: { diasTrabalhados: unknown } }).where.diasTrabalhados
-    return Promise.resolve(typeof condicao === "number" ? (respostas.saindoDaFolga ?? []) : (respostas.paraFolga ?? []))
-  })
-}
-
-type ViagemFake = { deletadoEm: Date | null; status: string; inicioPrevisto: Date; fimPrevisto: Date }
+type ViagemFake = { deletadoEm: Date | null; status: string; inicioPrevisto: Date; fimPrevisto: Date; finalizadoEm?: Date | null }
 type MotoristaFake = {
   id: number
-  deletadoEm: Date | null
+  deletadoEm?: Date | null
   diasTrabalhados: number
-  viagens: ViagemFake[]
+  viagens?: ViagemFake[]
   /** Viagens onde ele é acompanhante — também contam como atividade hoje (ver folga.service.ts). */
   viagensComoAcompanhante?: ViagemFake[]
+  /** Como vem da coluna @db.Date: meia-noite UTC. */
+  registrosJornada?: Array<{ data: Date; codigo: number; fimJornada: Date | null }>
 }
+type JanelaDoDia = { OR: [{ inicioPrevisto: { gte: Date } }, { fimPrevisto: { gte: Date }; finalizadoEm?: { gte: Date } }] }
 type FiltroViagem = {
-  status: { notIn: string[] }
   inicioPrevisto: { lte: Date }
-  OR: [{ inicioPrevisto: { gte: Date } }, { fimPrevisto: { gte: Date } }]
+  OR: [JanelaDoDia & { status: { notIn: string[] } }, JanelaDoDia & { status: string }]
 }
 
 /**
- * Fake fiel só à query usada por `reconciliarFolgaMotoristasNoDiaAtual`: avalia
- * de verdade a janela de datas (`inicioPrevisto <= fimJanela && fimPrevisto >=
- * inicioJanela`) contra os dados em memória, em vez de decidir a resposta na
- * mão — assim o teste pega de verdade um erro na conta da janela "hoje".
- * Considera atividade tanto em `viagens` (principal) quanto `viagensComoAcompanhante`.
+ * Fake fiel à query de `reconciliarFolgaMotoristasNoDiaAtual`: avalia de
+ * verdade o filtro de atividade contra as viagens em memória, em vez de
+ * decidir a resposta na mão — assim o teste pega um erro na conta de "hoje".
  */
-function criarFindManyFielAJanela(motoristas: MotoristaFake[]) {
-  return vi.fn(
-    (args: {
-      where: {
-        id: { in: number[] }
-        diasTrabalhados: number | { gte: number; lte: number }
-        AND?: Array<{ viagens?: { none: FiltroViagem }; viagensComoAcompanhante?: { none: FiltroViagem } }>
-        OR?: Array<{ viagens?: { some: FiltroViagem }; viagensComoAcompanhante?: { some: FiltroViagem } }>
-      }
-    }) => {
-      const { where } = args
-      const exigeAtividade = Boolean(where.OR)
-      const condicaoViagens = exigeAtividade ? where.OR![0].viagens!.some : where.AND![0].viagens!.none
+function criarFindManyFiel(motoristas: MotoristaFake[]) {
+  return vi.fn((args: { where: { id: { in: number[] } }; select: { viagens: { where: FiltroViagem } } }) => {
+    const filtro = args.select.viagens.where
+    const [ativa, finalizada] = filtro.OR
+    const naJanela = (v: ViagemFake, { OR: [comecou, terminou] }: JanelaDoDia) =>
+      v.inicioPrevisto.getTime() >= comecou.inicioPrevisto.gte.getTime() ||
+      (v.fimPrevisto.getTime() >= terminou.fimPrevisto.gte.getTime() &&
+        (!terminou.finalizadoEm || (v.finalizadoEm?.getTime() ?? 0) >= terminou.finalizadoEm.gte.getTime()))
+    const daAtividade = (viagens: ViagemFake[] = []) =>
+      viagens.filter(
+        (v) =>
+          v.deletadoEm === null &&
+          v.inicioPrevisto.getTime() <= filtro.inicioPrevisto.lte.getTime() &&
+          (v.status === finalizada.status ? naJanela(v, finalizada) : !ativa.status.notIn.includes(v.status) && naJanela(v, ativa)),
+      )
 
-      const temViagemNaJanela = (m: MotoristaFake) =>
-        [...m.viagens, ...(m.viagensComoAcompanhante ?? [])].some(
-          (v) =>
-            v.deletadoEm === null &&
-            !condicaoViagens.status.notIn.includes(v.status) &&
-            v.inicioPrevisto.getTime() <= condicaoViagens.inicioPrevisto.lte.getTime() &&
-            (v.inicioPrevisto.getTime() >= condicaoViagens.OR[0].inicioPrevisto.gte.getTime() ||
-              v.fimPrevisto.getTime() >= condicaoViagens.OR[1].fimPrevisto.gte.getTime()),
-        )
-
-      const resultado = motoristas.filter((m) => {
-        const diasOk =
-          typeof where.diasTrabalhados === "number"
-            ? m.diasTrabalhados === where.diasTrabalhados
-            : m.diasTrabalhados >= where.diasTrabalhados.gte && m.diasTrabalhados <= where.diasTrabalhados.lte
-
-        return (
-          where.id.in.includes(m.id) && m.deletadoEm === null && diasOk && (exigeAtividade ? temViagemNaJanela(m) : !temViagemNaJanela(m))
-        )
-      })
-
-      return Promise.resolve(resultado.map((m) => ({ id: m.id })))
-    },
-  )
+    return Promise.resolve(
+      motoristas
+        .filter((m) => args.where.id.in.includes(m.id) && !m.deletadoEm)
+        .map((m) => ({
+          id: m.id,
+          diasTrabalhados: m.diasTrabalhados,
+          filial: null,
+          registrosJornada: m.registrosJornada ?? [],
+          viagens: daAtividade(m.viagens),
+          viagensComoAcompanhante: daAtividade(m.viagensComoAcompanhante),
+        })),
+    )
+  })
 }
+
+async function reconciliar(
+  motoristas: MotoristaFake[],
+  janelas: Array<{ inicioPrevisto: Date; fimPrevisto: Date }>,
+  dataReferencia?: Date,
+  ids: Array<number | null> = motoristas.map((m) => m.id),
+) {
+  const tx = criarTx()
+  tx.motorista.findMany = criarFindManyFiel(motoristas) as never
+  await reconciliarFolgaMotoristasNoDiaAtual(tx as never, ids, janelas, dataReferencia)
+  return tx
+}
+
+const codigoGravado = (tx: ReturnType<typeof criarTx>) =>
+  (vi.mocked(tx.registroJornada.upsert).mock.calls[0][0] as { create: { codigo: number } }).create.codigo
 
 describe("folga.service", () => {
   describe("deveMarcarMotoristaComoFolga", () => {
@@ -129,34 +125,35 @@ describe("folga.service", () => {
   })
 
   describe("reconciliarFolgaMotoristasNoDiaAtual", () => {
-    it("tira o motorista da folga quando uma viagem é criada pra ele hoje", async () => {
-      const tx = criarTx()
-      mockFindMany(tx, { saindoDaFolga: [{ id: 5 }] })
-      vi.mocked(tx.registroJornada.upsert).mockResolvedValue({})
+    const bsb = (iso: string) => new Date(`${iso}-03:00`)
+    const viagemEm = (inicioPrevisto: Date, fimPrevisto: Date, extra: Partial<ViagemFake> = {}): ViagemFake => ({
+      deletadoEm: null,
+      status: "ALOCADA",
+      inicioPrevisto,
+      fimPrevisto,
+      ...extra,
+    })
+    const noDia = (dia: string, codigo: number) => ({ data: new Date(`${dia}T00:00:00.000Z`), codigo, fimJornada: null })
 
+    it("tira o motorista da folga quando uma viagem é criada pra ele hoje", async () => {
       const agora = new Date()
-      await reconciliarFolgaMotoristasNoDiaAtual(tx as never, [5], [{ inicioPrevisto: agora, fimPrevisto: agora }], agora)
+      const viagem = viagemEm(agora, agora)
+
+      const tx = await reconciliar([{ id: 5, diasTrabalhados: 7, viagens: [viagem] }], [viagem], agora)
 
       expect(tx.registroJornada.upsert).toHaveBeenCalledTimes(1)
-      const upsertArgs = vi.mocked(tx.registroJornada.upsert).mock.calls[0][0] as {
-        where: { motoristaId_data: { motoristaId: number } }
-        create: { codigo: number }
-      }
+      const upsertArgs = vi.mocked(tx.registroJornada.upsert).mock.calls[0][0] as { where: { motoristaId_data: { motoristaId: number } } }
       expect(upsertArgs.where.motoristaId_data.motoristaId).toBe(5)
-      expect(upsertArgs.create.codigo).toBe(1)
+      expect(codigoGravado(tx)).toBe(1)
       expect(tx.motorista.update).toHaveBeenCalledWith({ where: { id: 5 }, data: { diasTrabalhados: 1 } })
     })
 
     it("marca folga quando o motorista deixa de ter viagem ativa hoje (ex: viagem cancelada/apagada)", async () => {
-      const tx = criarTx()
-      mockFindMany(tx, { paraFolga: [{ id: 8 }] })
-      vi.mocked(tx.registroJornada.upsert).mockResolvedValue({})
-
       const agora = new Date()
-      await reconciliarFolgaMotoristasNoDiaAtual(tx as never, [8], [{ inicioPrevisto: agora, fimPrevisto: agora }], agora)
 
-      const upsertArgs = vi.mocked(tx.registroJornada.upsert).mock.calls[0][0] as { create: { codigo: number } }
-      expect(upsertArgs.create.codigo).toBe(7)
+      const tx = await reconciliar([{ id: 8, diasTrabalhados: 3 }], [{ inicioPrevisto: agora, fimPrevisto: agora }], agora)
+
+      expect(codigoGravado(tx)).toBe(7)
       expect(tx.motorista.update).toHaveBeenCalledWith({ where: { id: 8 }, data: { diasTrabalhados: 7 } })
     })
 
@@ -169,69 +166,120 @@ describe("folga.service", () => {
     })
 
     it("remove ids duplicados antes de consultar o banco", async () => {
-      const tx = criarTx()
-      mockFindMany(tx, {})
-
       const agora = new Date()
-      await reconciliarFolgaMotoristasNoDiaAtual(tx as never, [5, 5, null], [{ inicioPrevisto: agora, fimPrevisto: agora }], agora)
+
+      const tx = await reconciliar([], [{ inicioPrevisto: agora, fimPrevisto: agora }], agora, [5, 5, null])
 
       const primeiraChamada = vi.mocked(tx.motorista.findMany).mock.calls[0][0] as { where: { id: { in: number[] } } }
       expect(primeiraChamada.where.id.in).toEqual([5])
     })
 
     it("viagem da noite de ontem que chega de madrugada não tira o motorista da folga de hoje", async () => {
-      const bsb = (iso: string) => new Date(`${iso}-03:00`)
       const hoje = bsb("2026-10-06T01:30:00")
-      const daNoiteDeOntem = {
-        deletadoEm: null,
-        status: "INICIADA",
-        inicioPrevisto: bsb("2026-10-05T20:00:00"),
-        fimPrevisto: bsb("2026-10-06T03:00:00"),
-      }
-      const motoristas: MotoristaFake[] = [{ id: 5, deletadoEm: null, diasTrabalhados: 7, viagens: [daNoiteDeOntem] }]
+      const daNoiteDeOntem = viagemEm(bsb("2026-10-05T20:00:00"), bsb("2026-10-06T03:00:00"), { status: "INICIADA" })
 
-      const tx = criarTx()
-      tx.motorista.findMany = criarFindManyFielAJanela(motoristas) as never
-      vi.mocked(tx.registroJornada.upsert).mockResolvedValue({})
-
-      await reconciliarFolgaMotoristasNoDiaAtual(tx as never, [5], [daNoiteDeOntem], hoje)
-      expect(tx.registroJornada.upsert).not.toHaveBeenCalled()
+      const naoSai = await reconciliar([{ id: 5, diasTrabalhados: 7, viagens: [daNoiteDeOntem] }], [daNoiteDeOntem], hoje)
+      expect(naoSai.registroJornada.upsert).not.toHaveBeenCalled()
 
       // Já se a chegada passa das 04:00, é trabalho no dia: sai da folga.
-      motoristas[0].viagens = [{ ...daNoiteDeOntem, fimPrevisto: bsb("2026-10-06T06:00:00") }]
-      await reconciliarFolgaMotoristasNoDiaAtual(tx as never, [5], motoristas[0].viagens, hoje)
-      expect(tx.registroJornada.upsert).toHaveBeenCalledTimes(1)
+      const chegaDepois = { ...daNoiteDeOntem, fimPrevisto: bsb("2026-10-06T06:00:00") }
+      const sai = await reconciliar([{ id: 5, diasTrabalhados: 7, viagens: [chegaDepois] }], [chegaDepois], hoje)
+      expect(sai.registroJornada.upsert).toHaveBeenCalledTimes(1)
+    })
+
+    describe("viagem finalizada", () => {
+      const hoje = bsb("2026-10-06T21:00:00")
+      const finalizada = (inicio: string, fim: string, finalizadoEm: string) =>
+        viagemEm(bsb(inicio), bsb(fim), { status: "FINALIZADA", finalizadoEm: bsb(finalizadoEm) })
+
+      it("encerrar a viagem de hoje não marca Folga em quem trabalhou hoje", async () => {
+        const viagem = finalizada("2026-10-06T08:00:00", "2026-10-06T18:00:00", "2026-10-06T18:30:00")
+
+        const tx = await reconciliar([{ id: 5, diasTrabalhados: 2, viagens: [viagem] }], [viagem], hoje)
+
+        expect(tx.registroJornada.upsert).not.toHaveBeenCalled()
+      })
+
+      it("encerrar hoje a viagem que veio de ontem também não marca Folga", async () => {
+        const viagem = finalizada("2026-10-05T08:00:00", "2026-10-06T18:00:00", "2026-10-06T10:00:00")
+
+        const tx = await reconciliar([{ id: 5, diasTrabalhados: 2, viagens: [viagem] }], [viagem], hoje)
+
+        expect(tx.registroJornada.upsert).not.toHaveBeenCalled()
+      })
+
+      it("viagem prevista até hoje, mas encerrada ontem, não é trabalho hoje", async () => {
+        const viagem = finalizada("2026-10-04T08:00:00", "2026-10-06T18:00:00", "2026-10-05T16:00:00")
+
+        const tx = await reconciliar([{ id: 5, diasTrabalhados: 3, viagens: [viagem] }], [viagem], hoje)
+
+        expect(codigoGravado(tx)).toBe(7)
+      })
+
+      it("viagem da noite encerrada de madrugada não tira o motorista da folga de hoje", async () => {
+        const viagem = finalizada("2026-10-05T20:00:00", "2026-10-06T03:00:00", "2026-10-06T03:10:00")
+
+        const tx = await reconciliar([{ id: 5, diasTrabalhados: 7, viagens: [viagem] }], [viagem], hoje)
+
+        expect(tx.registroJornada.upsert).not.toHaveBeenCalled()
+      })
+    })
+
+    describe("decide pelo código projetado, não pelo cache diasTrabalhados", () => {
+      const hoje = bsb("2026-10-06T12:00:00")
+      const viagemDeHoje = viagemEm(bsb("2026-10-06T08:00:00"), bsb("2026-10-06T18:00:00"))
+      const janela = [viagemDeHoje]
+
+      it("cache 7 parado não zera o ciclo de quem está no 4º dia", async () => {
+        const registrosJornada = [noDia("2026-10-02", 7), noDia("2026-10-03", 1), noDia("2026-10-04", 2), noDia("2026-10-05", 3)]
+
+        const tx = await reconciliar([{ id: 5, diasTrabalhados: 7, viagens: [viagemDeHoje], registrosJornada }], janela, hoje)
+
+        expect(tx.registroJornada.upsert).not.toHaveBeenCalled()
+      })
+
+      it("cache de dia de trabalho não marca Folga em cima de Férias", async () => {
+        const registrosJornada = [noDia("2026-10-06", 8)]
+
+        const tx = await reconciliar([{ id: 5, diasTrabalhados: 3, registrosJornada }], janela, hoje)
+
+        expect(tx.registroJornada.upsert).not.toHaveBeenCalled()
+      })
+
+      it("Folga projetada sai da folga mesmo com o cache num dia de trabalho", async () => {
+        const registrosJornada = [noDia("2026-10-05", 7), noDia("2026-10-06", 7)]
+
+        const tx = await reconciliar([{ id: 5, diasTrabalhados: 3, viagens: [viagemDeHoje], registrosJornada }], janela, hoje)
+
+        expect(codigoGravado(tx)).toBe(1)
+      })
+    })
+
+    describe("código de quem trabalha num dia de Folga", () => {
+      const hoje = bsb("2026-10-06T12:00:00")
+      const viagemDeHoje = viagemEm(bsb("2026-10-06T08:00:00"), bsb("2026-10-06T18:00:00"))
+      const trabalhandoCom = (registrosJornada: MotoristaFake["registrosJornada"]) =>
+        reconciliar([{ id: 5, diasTrabalhados: 7, viagens: [viagemDeHoje], registrosJornada }], [viagemDeHoje], hoje)
+
+      it("depois do 6º dia continua no 6: não esconde o 7º dia seguido zerando o ciclo", async () => {
+        expect(codigoGravado(await trabalhandoCom([noDia("2026-10-05", 6)]))).toBe(6)
+      })
+
+      it("no meio do ciclo, a folga marcada hoje é desfeita e o ciclo segue", async () => {
+        expect(codigoGravado(await trabalhandoCom([noDia("2026-10-05", 3), noDia("2026-10-06", 7)]))).toBe(4)
+      })
+
+      it("sem saber de ontem, recomeça no 1º dia", async () => {
+        expect(codigoGravado(await trabalhandoCom([noDia("2026-10-06", 7)]))).toBe(1)
+      })
     })
 
     it("viagem agendada só pra amanhã não tira o motorista da folga hoje", async () => {
       const hoje = new Date("2026-07-10T12:00:00")
-      const motoristas: MotoristaFake[] = [
-        {
-          id: 5,
-          deletadoEm: null,
-          diasTrabalhados: 7,
-          viagens: [
-            {
-              deletadoEm: null,
-              status: "ALOCADA",
-              inicioPrevisto: new Date("2026-07-11T08:00:00"),
-              fimPrevisto: new Date("2026-07-11T20:00:00"),
-            },
-          ],
-        },
-      ]
-
-      const tx = criarTx()
-      tx.motorista.findMany = criarFindManyFielAJanela(motoristas) as never
-      vi.mocked(tx.registroJornada.upsert).mockResolvedValue({})
+      const viagem = viagemEm(new Date("2026-07-11T08:00:00"), new Date("2026-07-11T20:00:00"))
 
       // A janela relevante é a da viagem que disparou a chamada (amanhã) — não toca hoje.
-      await reconciliarFolgaMotoristasNoDiaAtual(
-        tx as never,
-        [5],
-        [{ inicioPrevisto: new Date("2026-07-11T08:00:00"), fimPrevisto: new Date("2026-07-11T20:00:00") }],
-        hoje,
-      )
+      const tx = await reconciliar([{ id: 5, diasTrabalhados: 7, viagens: [viagem] }], [viagem], hoje)
 
       expect(tx.registroJornada.upsert).not.toHaveBeenCalled()
       expect(tx.motorista.update).not.toHaveBeenCalled()
@@ -243,13 +291,10 @@ describe("folga.service", () => {
 
     it("criar uma viagem futura pra um motorista SEM nenhuma outra viagem hoje não marca ele como 'de folga hoje' — bug encontrado numa simulação de 30 dias", async () => {
       const hoje = new Date("2026-07-10T12:00:00")
-      const tx = criarTx()
-      mockFindMany(tx, { paraFolga: [{ id: 9 }] }) // se a query rodasse, encontraria o motorista "sem atividade hoje" (não tem viagem nenhuma).
 
       // A viagem que disparou a chamada é daqui a 4 dias — não toca hoje.
-      await reconciliarFolgaMotoristasNoDiaAtual(
-        tx as never,
-        [9],
+      const tx = await reconciliar(
+        [{ id: 9, diasTrabalhados: 3 }],
         [{ inicioPrevisto: new Date("2026-07-14T08:00:00"), fimPrevisto: new Date("2026-07-14T20:00:00") }],
         hoje,
       )
@@ -261,73 +306,24 @@ describe("folga.service", () => {
 
     it("tira o motorista da folga quando ele tem atividade hoje só como acompanhante (não como principal)", async () => {
       const hoje = new Date("2026-07-10T12:00:00")
-      const motoristas: MotoristaFake[] = [
-        {
-          id: 5,
-          deletadoEm: null,
-          diasTrabalhados: 7,
-          viagens: [],
-          viagensComoAcompanhante: [
-            {
-              deletadoEm: null,
-              status: "ALOCADA",
-              inicioPrevisto: new Date("2026-07-10T08:00:00"),
-              fimPrevisto: new Date("2026-07-10T20:00:00"),
-            },
-          ],
-        },
-      ]
+      const viagem = viagemEm(new Date("2026-07-10T08:00:00"), new Date("2026-07-10T20:00:00"))
 
-      const tx = criarTx()
-      tx.motorista.findMany = criarFindManyFielAJanela(motoristas) as never
-      vi.mocked(tx.registroJornada.upsert).mockResolvedValue({})
+      const tx = await reconciliar([{ id: 5, diasTrabalhados: 7, viagensComoAcompanhante: [viagem] }], [viagem], hoje)
 
-      await reconciliarFolgaMotoristasNoDiaAtual(
-        tx as never,
-        [5],
-        [{ inicioPrevisto: new Date("2026-07-10T08:00:00"), fimPrevisto: new Date("2026-07-10T20:00:00") }],
-        hoje,
-      )
-
-      expect(tx.registroJornada.upsert).toHaveBeenCalledTimes(1)
-      const upsertArgs = vi.mocked(tx.registroJornada.upsert).mock.calls[0][0] as { create: { codigo: number } }
-      expect(upsertArgs.create.codigo).toBe(1)
+      expect(codigoGravado(tx)).toBe(1)
     })
 
-    it("mas tira o motorista da folga quando a reconciliação roda no próprio dia da viagem", async () => {
+    it("atualiza o cache quando a reconciliação roda no próprio dia da viagem", async () => {
       // registrarJornadaNoDia só atualiza o cache diasTrabalhados quando o dia
       // registrado é "hoje" de verdade (new Date() interno) — por isso fixamos
       // o relógio no dia da viagem, simulando a reconciliação rodando nesse dia.
-      const diaDaViagem = new Date("2026-07-11T09:00:00")
       vi.useFakeTimers()
-      vi.setSystemTime(diaDaViagem)
+      vi.setSystemTime(new Date("2026-07-11T09:00:00"))
 
       try {
-        const motoristas: MotoristaFake[] = [
-          {
-            id: 5,
-            deletadoEm: null,
-            diasTrabalhados: 7,
-            viagens: [
-              {
-                deletadoEm: null,
-                status: "ALOCADA",
-                inicioPrevisto: new Date("2026-07-11T08:00:00"),
-                fimPrevisto: new Date("2026-07-11T20:00:00"),
-              },
-            ],
-          },
-        ]
+        const viagem = viagemEm(new Date("2026-07-11T08:00:00"), new Date("2026-07-11T20:00:00"))
 
-        const tx = criarTx()
-        tx.motorista.findMany = criarFindManyFielAJanela(motoristas) as never
-        vi.mocked(tx.registroJornada.upsert).mockResolvedValue({})
-
-        await reconciliarFolgaMotoristasNoDiaAtual(
-          tx as never,
-          [5],
-          [{ inicioPrevisto: new Date("2026-07-11T08:00:00"), fimPrevisto: new Date("2026-07-11T20:00:00") }],
-        )
+        const tx = await reconciliar([{ id: 5, diasTrabalhados: 7, viagens: [viagem] }], [viagem])
 
         expect(tx.registroJornada.upsert).toHaveBeenCalledTimes(1)
         expect(tx.motorista.update).toHaveBeenCalledWith({ where: { id: 5 }, data: { diasTrabalhados: 1 } })

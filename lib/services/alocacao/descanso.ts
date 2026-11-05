@@ -1,4 +1,4 @@
-import { encontrarFimJornadaAnterior } from "../jornada.service"
+import { encontrarJornadaAnterior } from "../jornada.service"
 import { descansoMinimoNecessarioApos, fimEfetivoViagem, viagemBloqueiaAgenda, viagemDesmentidaPeloRelatorio } from "./disponibilidade"
 import type { MotoristaParaAlocacao, ViagemParaDisponibilidade } from "./tipos"
 
@@ -11,7 +11,7 @@ export type MotoristaParaDescanso = Pick<MotoristaParaAlocacao, "registrosJornad
 }
 
 type DescansoAntesDaViagem = {
-  /** Quando o motorista parou de trabalhar pela última vez antes da viagem (ver encontrarFimTrabalhoAnterior). */
+  /** Quando o motorista parou de trabalhar pela última vez antes da viagem (ver encontrarTrabalhoAnterior). */
   fimTrabalhoAnterior: Date
   /** 11h de interjornada, ou 35h de descanso semanal depois do 6º dia (ver descansoMinimoNecessarioApos). */
   minimoHoras: number
@@ -19,8 +19,11 @@ type DescansoAntesDaViagem = {
   inicioPermitido: Date
 }
 
+type TrabalhoAnterior = { inicio: Date; fim: Date }
+
 /**
- * Quando o motorista parou de trabalhar pela última vez antes de `inicioViagem`:
+ * Quando o motorista parou de trabalhar pela última vez antes de `inicioViagem`
+ * (e quando aquele trabalho começou — no relatório, o dia da jornada):
  * o mais tarde entre o fim de jornada do relatório importado (dado real do
  * rastreador) e o fim efetivo das viagens dele que começaram antes — viagem
  * finalizada conta a partir da finalização (ver fimEfetivoViagem), as demais
@@ -29,8 +32,9 @@ type DescansoAntesDaViagem = {
  * desmente (dias cobertos por ele sem o motorista trabalhar) não conta — o
  * relatório prevalece, ver viagemDesmentidaPeloRelatorio.
  */
-function encontrarFimTrabalhoAnterior(motorista: MotoristaParaDescanso, inicioViagem: Date, viagemId?: number): Date | null {
-  let maisRecente = encontrarFimJornadaAnterior(motorista.registrosJornada, inicioViagem)
+function encontrarTrabalhoAnterior(motorista: MotoristaParaDescanso, inicioViagem: Date, viagemId?: number): TrabalhoAnterior | null {
+  const jornada = encontrarJornadaAnterior(motorista.registrosJornada, inicioViagem)
+  let maisRecente: TrabalhoAnterior | null = jornada && { inicio: jornada.dia, fim: jornada.fim }
 
   for (const viagem of motorista.viagens ?? []) {
     if (viagem.id === viagemId || !viagemBloqueiaAgenda(viagem)) continue
@@ -38,8 +42,8 @@ function encontrarFimTrabalhoAnterior(motorista: MotoristaParaDescanso, inicioVi
     if (viagemDesmentidaPeloRelatorio(motorista, viagem)) continue
 
     const fim = fimEfetivoViagem(viagem)
-    if (!maisRecente || fim > maisRecente) {
-      maisRecente = fim
+    if (!maisRecente || fim > maisRecente.fim) {
+      maisRecente = { inicio: new Date(viagem.inicioPrevisto), fim }
     }
   }
 
@@ -69,13 +73,14 @@ export function calcularDescansoAntesDaViagem(
   hoje: Date,
   viagemId?: number,
 ): DescansoAntesDaViagem | null {
-  const fimTrabalhoAnterior = encontrarFimTrabalhoAnterior(motorista, inicioViagem, viagemId)
+  const trabalhoAnterior = encontrarTrabalhoAnterior(motorista, inicioViagem, viagemId)
 
-  if (!fimTrabalhoAnterior) {
+  if (!trabalhoAnterior) {
     return null
   }
 
-  const minimoHoras = descansoMinimoNecessarioApos(motorista, fimTrabalhoAnterior, hoje)
+  const { inicio, fim: fimTrabalhoAnterior } = trabalhoAnterior
+  const minimoHoras = descansoMinimoNecessarioApos(motorista, inicio, fimTrabalhoAnterior, hoje)
 
   return {
     fimTrabalhoAnterior,

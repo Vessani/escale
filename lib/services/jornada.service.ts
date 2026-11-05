@@ -57,7 +57,7 @@ export function calcularCodigoJornadaNoDia(codigoAtual: number, dia: Date, hoje:
 export type PontoRegistroJornada = {
   data: Date
   codigo: number
-  /** Fim real daquele dia (import do Relatório de Jornada) — ausente/null em linhas de origem manual (edição do calendário, criação de motorista, reconciliação de folga). Ver `encontrarFimJornadaAnterior`. Opcional pra não obrigar todo consumidor de `PontoRegistroJornada` (ex: `projetarCodigoNoDia`, que nunca olha esse campo) a informá-lo. */
+  /** Fim real daquele dia (import do Relatório de Jornada) — ausente/null em linhas de origem manual (edição do calendário, criação de motorista, reconciliação de folga). Ver `encontrarJornadaAnterior`. Opcional pra não obrigar todo consumidor de `PontoRegistroJornada` (ex: `projetarCodigoNoDia`, que nunca olha esse campo) a informá-lo. */
   fimJornada?: Date | string | null
 }
 
@@ -139,8 +139,10 @@ export function prepararJornadaDoMotorista(motorista: {
 }
 
 /**
- * Fim da última jornada real (com horário importado — ver RegistroJornada)
- * estritamente anterior ao instante informado, a partir de um histórico já
+ * Última jornada real (com horário importado — ver RegistroJornada) que
+ * terminou antes do instante informado: o dia dela e o fim. O dia vem junto
+ * porque a jornada pode terminar de madrugada, já na data seguinte — ver
+ * descansoMinimoNecessarioApos. Trabalha a partir de um histórico já
  * carregado em memória. Substitui o uso do agregado
  * `Motorista.jornadaRelatorioFim` como referência de descanso: esse campo só
  * guarda "o turno mais recente do último lote importado", sem nenhuma relação
@@ -151,11 +153,14 @@ export function prepararJornadaDoMotorista(motorista: {
  * calendário, criação de motorista e reconciliação de folga não têm horário
  * real). Cálculo sobre instantes (timestamps), não datas — imune a fuso.
  *
- * Só o lado do relatório: o fim de trabalho completo (relatório + viagens,
- * com finalização) é `encontrarFimTrabalhoAnterior` (alocacao/descanso.ts).
+ * Só o lado do relatório: o trabalho anterior completo (relatório + viagens,
+ * com finalização) é `encontrarTrabalhoAnterior` (alocacao/descanso.ts).
  */
-export function encontrarFimJornadaAnterior(registros: Array<{ fimJornada?: Date | string | null }>, antesDe: Date): Date | null {
-  let maisRecente: Date | null = null
+export function encontrarJornadaAnterior(
+  registros: Array<{ data: Date; fimJornada?: Date | string | null }>,
+  antesDe: Date,
+): { dia: Date; fim: Date } | null {
+  let maisRecente: { dia: Date; fim: Date } | null = null
 
   for (const registro of registros) {
     if (!registro.fimJornada) continue
@@ -163,8 +168,8 @@ export function encontrarFimJornadaAnterior(registros: Array<{ fimJornada?: Date
     const fim = new Date(registro.fimJornada)
     if (fim >= antesDe) continue
 
-    if (!maisRecente || fim > maisRecente) {
-      maisRecente = fim
+    if (!maisRecente || fim > maisRecente.fim) {
+      maisRecente = { dia: registro.data, fim }
     }
   }
 

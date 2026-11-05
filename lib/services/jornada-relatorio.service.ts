@@ -22,11 +22,17 @@ export type ResultadoImportacaoJornada = {
  * excluídas na conferência. Um dia dentro do período, de uma dessas
  * matrículas, que veio de importação anterior e não está mais no lote é
  * apagado. Sem cobertura, vale o período e as matrículas do próprio lote.
+ *
+ * `parcial`: o arquivo não traz todos os motoristas da filial. A cobertura da
+ * filial (relatorioJornadaAte) não avança — ela diz "quem não aparece até aqui
+ * não trabalhou", o que só vale pra um relatório completo. Não dá pra deduzir
+ * pelo arquivo: quem folgou o período inteiro também não aparece nele.
  */
 export type CoberturaImportacaoJornada = {
   de: string
   ate: string
   matriculas: number[]
+  parcial?: boolean
 }
 
 /** Códigos de status especial (Férias/Exames/Interno) que o import não deve sobrescrever — só edição manual muda isso. */
@@ -158,13 +164,15 @@ export async function atualizarJornadaRelatorioDosMotoristas(
   // que já precisa disso (viagemDesmentidaPeloRelatorio). Só avança: importar
   // um relatório antigo depois não "encolhe" a cobertura.
   const coberturaDoLote = periodo.ate
-  await prisma.filial.updateMany({
-    where: {
-      id: filialId,
-      OR: [{ relatorioJornadaAte: null }, { relatorioJornadaAte: { lt: coberturaDoLote } }],
-    },
-    data: { relatorioJornadaAte: coberturaDoLote },
-  })
+  if (!cobertura?.parcial) {
+    await prisma.filial.updateMany({
+      where: {
+        id: filialId,
+        OR: [{ relatorioJornadaAte: null }, { relatorioJornadaAte: { lt: coberturaDoLote } }],
+      },
+      data: { relatorioJornadaAte: coberturaDoLote },
+    })
+  }
 
   // Uma transação por motorista, não uma só pro lote inteiro — o relatório
   // pode trazer dezenas de dias por motorista, e centenas de upserts
