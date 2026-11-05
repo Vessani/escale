@@ -65,7 +65,7 @@ describe("montarOpcoesMotoristaPorViagem", () => {
       ],
     })
     const opcoes = montarOpcoesMotoristaPorViagem([ontem], [VIAGEM], HOJE).get(10)
-    expect(opcoes?.[0]).toMatchObject({ situacao: "SEM_DESCANSO", motivo: "Descanso até 30/09 11:00" })
+    expect(opcoes?.[0]).toMatchObject({ situacao: "SEM_DESCANSO", motivo: "Descanso até 30/09 11:00 (viagem a partir de 30/09 12:00)" })
   })
 
   it("marca fora da regra quem é de outro turno", () => {

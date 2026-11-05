@@ -2,13 +2,10 @@ import { calcularDiasDisponiveis, codigoJornadaNaViagem, motoristaEhCompativel }
 import { calcularDescansoAntesDaViagem, type MotoristaParaDescanso } from "./descanso"
 import { entraNaSugestaoAutomatica } from "../tipo-motorista"
 import type { ContextoCompatibilidade, MotoristaParaAlocacao } from "./tipos"
+import { calcularHorarioIdealChegada } from "../descanso-minimo"
 
-const HORAS_ANTECEDENCIA_CHECKLIST = 1
-
-/** Horário ideal de início de jornada do motorista pra uma viagem: 1h antes, pra dar tempo de checklist. */
-export function calcularHorarioIdealChegada(dataInicioViagem: Date): Date {
-  return new Date(dataInicioViagem.getTime() - HORAS_ANTECEDENCIA_CHECKLIST * 60 * 60 * 1000)
-}
+// Reexportada: definida em descanso-minimo.ts, fonte única da 1h de checklist.
+export { calcularHorarioIdealChegada }
 
 /**
  * Chega a tempo = pode iniciar a jornada (fim do trabalho anterior + 11h, ou

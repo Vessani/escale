@@ -221,10 +221,10 @@ describe("alocacao.service", () => {
 
     it("05/10 sabido como 6º dia (registro dele ou de antes): exige 35h", () => {
       expect(aviso([{ data: bsb("2026-10-05T00:00:00"), codigo: 6 }])).toBe(
-        "Descanso semanal: motorista teve apenas 14.9h de descanso (mínimo 35h).",
+        "Descanso semanal: motorista teve apenas 13.9h de descanso (mínimo 35h).",
       )
       expect(aviso([{ data: bsb("2026-10-03T00:00:00"), codigo: 4 }])).toBe(
-        "Descanso semanal: motorista teve apenas 14.9h de descanso (mínimo 35h).",
+        "Descanso semanal: motorista teve apenas 13.9h de descanso (mínimo 35h).",
       )
       expect(aviso([{ data: bsb("2026-10-04T00:00:00"), codigo: 1 }])).toBeNull()
     })
@@ -872,7 +872,7 @@ describe("alocacao.service", () => {
         periodosConflitamComDescanso(
           new Date("2026-07-08T08:00:00"),
           new Date("2026-07-09T03:00:00"),
-          new Date("2026-07-09T14:00:00"), // 03:00 + 11h
+          new Date("2026-07-09T15:00:00"), // apresentação às 14:00 = 03:00 + 11h
           new Date("2026-07-09T20:00:00"),
         ),
       ).toBe(false)
@@ -1009,8 +1009,12 @@ describe("alocacao.service", () => {
         false,
       )
 
-      // Exatamente 35h depois (06h do dia 10/07): respeita o descanso.
-      expect(motoristaEstaDisponivelNoPeriodo(motorista, new Date("2026-07-10T06:00:00"), new Date("2026-07-10T18:00:00"), hoje)).toBe(true)
+      // Viagem às 06h = apresentação às 05h: só 34h, ainda viola.
+      expect(motoristaEstaDisponivelNoPeriodo(motorista, new Date("2026-07-10T06:00:00"), new Date("2026-07-10T18:00:00"), hoje)).toBe(
+        false,
+      )
+      // Viagem às 07h = apresentação às 06h, exatamente 35h: respeita o descanso.
+      expect(motoristaEstaDisponivelNoPeriodo(motorista, new Date("2026-07-10T07:00:00"), new Date("2026-07-10T18:00:00"), hoje)).toBe(true)
     })
   })
 
@@ -1340,6 +1344,67 @@ describe("alocacao.service", () => {
       expect(ordem.map((m) => m.nome)).toEqual(["Bruno", "Ana"])
       expect(calcularAvisoDescanso(ordem[0], { inicioPrevisto: contexto.dataInicioViagem }, hojeCoerencia)).toBeNull()
       expect(calcularAvisoDescanso(ana, { inicioPrevisto: contexto.dataInicioViagem }, hojeCoerencia)).toMatch(/^Interjornada/)
+    })
+  })
+
+  describe("descanso medido até a apresentação (1h antes da viagem, pro checklist)", () => {
+    const hojeApresentacao = new Date("2026-11-04T00:00:00-03:00")
+    const viagemAs08 = { inicioPrevisto: new Date("2026-11-05T08:00:00-03:00") }
+    const contextoAs08 = {
+      turnoViagem: "MANHA" as Turno,
+      diasViagem: 1,
+      dataInicioViagem: viagemAs08.inicioPrevisto,
+      fimViagem: new Date("2026-11-05T18:00:00-03:00"),
+      integracaoExigida: null,
+      hoje: hojeApresentacao,
+    }
+    const encerrouAs = (hora: string) =>
+      criarMotorista({ registrosJornada: comFimJornadaAnterior(new Date(`2026-11-04T${hora}:00-03:00`)) })
+
+    it("encerrou 20:00, viagem 08:00 (apresentação 07:00): exatamente 11h, sem aviso e chega a tempo", () => {
+      const motorista = encerrouAs("20:00")
+      expect(calcularAvisoDescanso(motorista, viagemAs08, hojeApresentacao)).toBeNull()
+      expect(motoristaChegaATempo(motorista, contextoAs08)).toBe(true)
+    })
+
+    it("encerrou 20:30, viagem 08:00 (apresentação 07:00): 10,5h — avisa, e a sugestão também não conta como a tempo", () => {
+      // Antes o aviso media até 08:00 (11,5h) e não avisava, enquanto a sugestão já
+      // colocava o motorista no grupo que viola o descanso: os dois discordavam.
+      const motorista = encerrouAs("20:30")
+      expect(calcularAvisoDescanso(motorista, viagemAs08, hojeApresentacao)).toBe(
+        "Interjornada: motorista teve apenas 10.5h de descanso (mínimo 11h).",
+      )
+      expect(motoristaChegaATempo(motorista, contextoAs08)).toBe(false)
+    })
+
+    it("viagem que termina 20:00 conflita com a de 08:00 seguinte só quando passa das 20:00", () => {
+      const inicioAnterior = new Date("2026-11-04T10:00:00-03:00")
+      const fimViagemSeguinte = new Date("2026-11-05T18:00:00-03:00")
+
+      expect(
+        periodosConflitamComDescanso(inicioAnterior, new Date("2026-11-04T20:00:00-03:00"), viagemAs08.inicioPrevisto, fimViagemSeguinte),
+      ).toBe(false)
+      expect(
+        periodosConflitamComDescanso(inicioAnterior, new Date("2026-11-04T20:30:00-03:00"), viagemAs08.inicioPrevisto, fimViagemSeguinte),
+      ).toBe(true)
+    })
+
+    it("seletor de motorista mostra o descanso conflitando com a viagem que termina 20:30", () => {
+      const motorista = {
+        ...criarMotorista({}),
+        viagens: [
+          {
+            id: 80,
+            status: "ALOCADA" as const,
+            inicioPrevisto: new Date("2026-11-04T10:00:00-03:00"),
+            fimPrevisto: new Date("2026-11-04T20:30:00-03:00"),
+          },
+        ],
+      }
+      expect(motoristaEstaDisponivelNoPeriodo(motorista, viagemAs08.inicioPrevisto, contextoAs08.fimViagem, hojeApresentacao)).toBe(false)
+      expect(
+        motoristaEstaDisponivelNoPeriodo(motorista, new Date("2026-11-05T08:30:00-03:00"), contextoAs08.fimViagem, hojeApresentacao),
+      ).toBe(true)
     })
   })
 

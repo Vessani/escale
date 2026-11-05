@@ -115,11 +115,11 @@ describe("finalizar a viagem libera o motorista (descanso conta da finalização
     it("no 6º dia exige 35h contadas da finalização", () => {
       const motorista = criarMotorista({ diasTrabalhados: 6, viagens: [finalizadaCedo] })
 
-      // 14h (08/07) + 35h = 01h de 10/07.
-      expect(motoristaEstaDisponivelNoPeriodo(motorista, new Date("2026-07-10T00:30:00"), new Date("2026-07-10T12:00:00"), hoje)).toBe(
+      // 14h (08/07) + 35h = 01h de 10/07 → apresentação às 01h = viagem às 02h.
+      expect(motoristaEstaDisponivelNoPeriodo(motorista, new Date("2026-07-10T01:00:00"), new Date("2026-07-10T12:00:00"), hoje)).toBe(
         false,
       )
-      expect(motoristaEstaDisponivelNoPeriodo(motorista, new Date("2026-07-10T01:00:00"), new Date("2026-07-10T12:00:00"), hoje)).toBe(true)
+      expect(motoristaEstaDisponivelNoPeriodo(motorista, new Date("2026-07-10T02:00:00"), new Date("2026-07-10T12:00:00"), hoje)).toBe(true)
     })
   })
 
@@ -137,7 +137,7 @@ describe("finalizar a viagem libera o motorista (descanso conta da finalização
     it("viagem anterior ainda em aberto: avisa contando do fim previsto", () => {
       const motorista = criarMotorista({ viagens: [criarViagem({ status: "INICIADA" })] })
       expect(calcularAvisoDescanso(motorista, viagemAmanha, hoje)).toBe(
-        "Interjornada: motorista teve apenas 5.0h de descanso (mínimo 11h).",
+        "Interjornada: motorista teve apenas 4.0h de descanso (mínimo 11h).",
       )
     })
 
@@ -146,7 +146,7 @@ describe("finalizar a viagem libera o motorista (descanso conta da finalização
       const viagemDepoisDeAmanha = { id: 2, inicioPrevisto: new Date("2026-07-09T20:00:00") }
 
       expect(calcularAvisoDescanso(motorista, viagemDepoisDeAmanha, hoje)).toBe(
-        "Descanso semanal: motorista teve apenas 30.0h de descanso (mínimo 35h).",
+        "Descanso semanal: motorista teve apenas 29.0h de descanso (mínimo 35h).",
       )
     })
 
@@ -157,7 +157,7 @@ describe("finalizar a viagem libera o motorista (descanso conta da finalização
       })
 
       expect(calcularAvisoDescanso(motorista, viagemAmanha, hoje)).toBe(
-        "Interjornada: motorista teve apenas 9.0h de descanso (mínimo 11h).",
+        "Interjornada: motorista teve apenas 8.0h de descanso (mínimo 11h).",
       )
     })
 
@@ -203,7 +203,7 @@ describe("recalcularAvisosInterjornada", () => {
   it("finalizar a viagem de hoje apaga o aviso que estava gravado na viagem de amanhã", async () => {
     const amanha = {
       ...criarViagem({ id: 2, inicioPrevisto: new Date("2026-07-09T03:00:00"), fimPrevisto: new Date("2026-07-09T15:00:00") }),
-      avisoInterjornada: "Interjornada: motorista teve apenas 5.0h de descanso (mínimo 11h).",
+      avisoInterjornada: "Interjornada: motorista teve apenas 4.0h de descanso (mínimo 11h).",
     }
     const tx = criarTx([motoristaDoBanco([{ ...finalizadaCedo, avisoInterjornada: null }, amanha])])
 
@@ -227,7 +227,7 @@ describe("recalcularAvisosInterjornada", () => {
 
     expect(tx.viagem.update).toHaveBeenCalledWith({
       where: { id: 2 },
-      data: { avisoInterjornada: "Interjornada: motorista teve apenas 5.0h de descanso (mínimo 11h)." },
+      data: { avisoInterjornada: "Interjornada: motorista teve apenas 4.0h de descanso (mínimo 11h)." },
     })
   })
 
