@@ -18,7 +18,6 @@ export type MotoristaCompativel = {
   nome: string
   /** Função do motorista — ícone ao lado do nome. */
   tipo: TipoMotorista
-  diasTrabalhados: number
   diasDisponiveis: number
   turno: "MANHA" | "NOITE"
   /** Hora do dia do último "Início de Jornada" do relatório importado, ex: "07:00". `null` sem dado. */

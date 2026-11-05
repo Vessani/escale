@@ -10,7 +10,6 @@ function motorista(parcial: Partial<MotoristaComAgenda> = {}): MotoristaComAgend
     id: 7,
     nome: "João",
     turno: "MANHA",
-    diasTrabalhados: 2,
     tipo: "MOTORISTA",
     integracao: [],
     registrosJornada: [],

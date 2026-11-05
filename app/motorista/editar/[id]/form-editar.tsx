@@ -19,7 +19,7 @@ type MotoristaComIntegracoes = {
   nome: string
   cpf: string | null
   seva: number
-  diasTrabalhados: number
+  codigoHoje: number
   turno: MotoristaComIntegracoesFormValues["turno"]
   tipo: TipoMotorista
   produtosAutorizados: TipoProduto[]
@@ -52,7 +52,7 @@ export default function FormEditarMotorista({ motorista, clientes }: FormEditarM
         nome: motorista.nome,
         cpf: motorista.cpf ?? "",
         seva: motorista.seva,
-        diasTrabalhados: motorista.diasTrabalhados,
+        codigoHoje: motorista.codigoHoje,
         turno: motorista.turno,
         tipo: motorista.tipo,
         produtosAutorizados: motorista.produtosAutorizados,

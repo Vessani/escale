@@ -22,7 +22,6 @@ export function montarMotoristaCompativel(
     id: motorista.id,
     nome: motorista.nome,
     tipo: motorista.tipo,
-    diasTrabalhados: codigoNaViagem,
     diasDisponiveis: calcularDiasDisponiveis(codigoNaViagem),
     turno: motorista.turno,
     horarioHabitual: motorista.jornadaRelatorioInicio ? formatarHoraLocal(motorista.jornadaRelatorioInicio) : null,

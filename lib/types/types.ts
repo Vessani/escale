@@ -5,7 +5,7 @@ export type NovoMotoristaInput = {
   nome: string
   cpf: string
   seva: number
-  diasTrabalhados: number
+  codigoHoje: number
   turno: Turno
   tipo: TipoMotorista
   produtosAutorizados: TipoProduto[]

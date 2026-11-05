@@ -116,7 +116,6 @@ function criarMotoristaParaSelect(parcial: Record<string, unknown> = {}) {
     id: 1,
     nome: "Ana",
     turno: "MANHA",
-    diasTrabalhados: 1,
     tipo: "MOTORISTA" as const,
     // Bate com o produto padrão de criarViagemInput ("CO2") — testes que
     // querem exercitar incompatibilidade de produto sobrescrevem isso.

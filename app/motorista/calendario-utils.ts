@@ -61,20 +61,20 @@ const CODIGO_DO_FILTRO: Partial<Record<FiltroStatusJornada, number>> = {
   MANUTENCAO: CODIGO_MANUTENCAO,
 }
 
-export function statusJornadaCorrespondeAoFiltro(diasTrabalhados: number, filtro: FiltroStatusJornada) {
+export function statusJornadaCorrespondeAoFiltro(codigo: number, filtro: FiltroStatusJornada) {
   if (filtro === "TODOS") {
     return true
   }
 
   if (filtro === "JORNADA_1_3") {
-    return diasTrabalhados >= 1 && diasTrabalhados <= 3
+    return codigo >= 1 && codigo <= 3
   }
 
   if (filtro === "JORNADA_4_5") {
-    return diasTrabalhados >= 4 && diasTrabalhados <= 5
+    return codigo >= 4 && codigo <= 5
   }
 
-  return diasTrabalhados === CODIGO_DO_FILTRO[filtro]
+  return codigo === CODIGO_DO_FILTRO[filtro]
 }
 
 /** Quantidade de dias exibidos de cada vez no calendário (uma "página" de navegação): 3 antes, hoje e 3 depois. */

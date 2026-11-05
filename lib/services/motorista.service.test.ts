@@ -1,7 +1,6 @@
 import type { TipoMotorista } from "@prisma/client"
 import { describe, expect, it, vi, beforeEach } from "vitest"
 import type { EditarMotoristaInput, NovoMotoristaInput } from "@/lib/types/types"
-import { inicioDoDia } from "@/lib/utils/date-format"
 
 vi.mock("@/lib/prisma", () => ({
   prisma: {
@@ -55,7 +54,7 @@ describe("motorista.service", () => {
         nome: "Ana",
         cpf: "11144477735",
         seva: 1,
-        diasTrabalhados: 3,
+        codigoHoje: 3,
         turno: "MANHA",
         tipo: "MOTORISTA" as const,
         produtosAutorizados: ["CO2"],
@@ -75,12 +74,6 @@ describe("motorista.service", () => {
       const upsertArgs = vi.mocked(tx.registroJornada.upsert).mock.calls[0][0]
       expect(upsertArgs.where.motoristaId_data.motoristaId).toBe(42)
       expect(upsertArgs.create.codigo).toBe(3)
-
-      // Registro é de hoje, então o cache diasTrabalhados também é atualizado.
-      expect(tx.motorista.update).toHaveBeenCalledWith({
-        where: { id: 42 },
-        data: { diasTrabalhados: 3 },
-      })
     })
 
     it("cadastra em treinamento (tipo TREINAMENTO)", async () => {
@@ -95,7 +88,7 @@ describe("motorista.service", () => {
           nome: "Bruno",
           cpf: "52998224725",
           seva: 2,
-          diasTrabalhados: 1,
+          codigoHoje: 1,
           turno: "MANHA",
           tipo: "TREINAMENTO" as const,
           produtosAutorizados: [],
@@ -114,7 +107,7 @@ describe("motorista.service", () => {
       vi.mocked(prisma.motorista.findUniqueOrThrow).mockResolvedValue({
         id: 5,
         tipo: "TREINAMENTO" as const,
-        diasTrabalhados: 1,
+        codigoHoje: 1,
         registrosJornada: [],
         filial: null,
       } as never)
@@ -128,7 +121,7 @@ describe("motorista.service", () => {
         nome: "Ana",
         cpf: "11144477735",
         seva: 1,
-        diasTrabalhados: 4,
+        codigoHoje: 4,
         turno: "NOITE",
         tipo: "MOTORISTA" as const,
         produtosAutorizados: ["CO2", "NITROGENIO"],
@@ -150,7 +143,7 @@ describe("motorista.service", () => {
       expect(chamada.data.integracao.update).toHaveLength(1)
       expect(chamada.data.integracao.create).toHaveLength(1)
 
-      // Também grava "diasTrabalhados" no histórico de hoje, e a auditoria — tudo na mesma transação.
+      // Também grava o código no histórico de hoje, e a auditoria — tudo na mesma transação.
       expect(prisma.$transaction).toHaveBeenCalledTimes(1)
       expect(tx.registroJornada.upsert).toHaveBeenCalledTimes(1)
       expect(tx.registroAuditoria.create).toHaveBeenCalledTimes(1)
@@ -160,11 +153,11 @@ describe("motorista.service", () => {
   describe("editarMotoristaService: código de hoje", () => {
     const hoje = new Date()
     const colunaDeHoje = new Date(`${new Date(hoje.getTime() - 3 * 3_600_000).toISOString().slice(0, 10)}T00:00:00.000Z`)
-    const dados = (diasTrabalhados: number): EditarMotoristaInput => ({
+    const dados = (codigoHoje: number): EditarMotoristaInput => ({
       nome: "Ana",
       cpf: "11144477735",
       seva: 1,
-      diasTrabalhados,
+      codigoHoje,
       turno: "NOITE",
       tipo: "MOTORISTA",
       produtosAutorizados: [],
@@ -173,7 +166,6 @@ describe("motorista.service", () => {
     function comHistorico(codigo: number) {
       vi.mocked(prisma.motorista.findUniqueOrThrow).mockResolvedValue({
         id: 5,
-        diasTrabalhados: codigo,
         registrosJornada: [{ data: colunaDeHoje, codigo, fimJornada: null }],
         filial: null,
       } as never)
@@ -230,25 +222,6 @@ describe("motorista.service", () => {
   })
 
   describe("registrarJornadaNoDia", () => {
-    it("atualiza o cache diasTrabalhados quando o dia registrado é hoje", async () => {
-      const tx = criarTx()
-      vi.mocked(tx.registroJornada.upsert).mockResolvedValue({ codigo: 5 })
-
-      await registrarJornadaNoDia(tx as never, 1, new Date(), 5)
-
-      expect(tx.motorista.update).toHaveBeenCalledWith({ where: { id: 1 }, data: { diasTrabalhados: 5 } })
-    })
-
-    it("não toca no cache diasTrabalhados quando o dia registrado não é hoje", async () => {
-      const tx = criarTx()
-      vi.mocked(tx.registroJornada.upsert).mockResolvedValue({ codigo: 5 })
-      const ontem = new Date(inicioDoDia(new Date()).getTime() - 24 * 60 * 60 * 1000)
-
-      await registrarJornadaNoDia(tx as never, 1, ontem, 5)
-
-      expect(tx.motorista.update).not.toHaveBeenCalled()
-    })
-
     it("grava inicioJornada/fimJornada quando horas é informado (import do relatório)", async () => {
       const tx = criarTx()
       vi.mocked(tx.registroJornada.upsert).mockResolvedValue({ codigo: 5 })

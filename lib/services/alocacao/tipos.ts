@@ -16,7 +16,6 @@ export type MotoristaParaAlocacao = {
   id: number
   nome: string
   turno: Turno
-  diasTrabalhados: number
   /** Função do motorista — decide se entra na sugestão e em qual papel (ver lib/services/tipo-motorista.ts). */
   tipo: TipoMotorista
   integracao: IntegracaoBase[]

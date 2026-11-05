@@ -30,7 +30,6 @@ export async function criarMotoristaService(filialId: number, dados: NovoMotoris
         nome: dados.nome,
         cpf: dados.cpf,
         seva: dados.seva,
-        diasTrabalhados: dados.diasTrabalhados,
         turno: dados.turno,
         tipo: dados.tipo,
         produtosAutorizados: dados.produtosAutorizados,
@@ -49,7 +48,7 @@ export async function criarMotoristaService(filialId: number, dados: NovoMotoris
     })
 
     // Âncora inicial do histórico de jornada
-    await registrarJornadaNoDia(tx, motoristaCriado.id, hoje, dados.diasTrabalhados)
+    await registrarJornadaNoDia(tx, motoristaCriado.id, hoje, dados.codigoHoje)
 
     await registrarAuditoria(tx, {
       entidade: "Motorista",
@@ -78,11 +77,11 @@ export async function editarMotoristaService(filialId: number, idMotorista: numb
     },
   })
   const hoje = inicioDoDia(new Date())
-  const jornada = { diasTrabalhados: motoristaAntes.diasTrabalhados, ...prepararJornadaDoMotorista({ registrosJornada, filial }) }
-  const codigoMudou = dados.diasTrabalhados !== situacaoDoDia(jornada, hoje, hoje).codigo
+  const jornada = prepararJornadaDoMotorista({ registrosJornada, filial })
+  const codigoMudou = dados.codigoHoje !== situacaoDoDia(jornada, hoje, hoje).codigo
 
   return await prisma.$transaction(async (tx) => {
-    if (codigoMudou && dados.diasTrabalhados === CODIGO_FOLGA) await garantirQuePodeFolgar(tx, idMotorista, hoje)
+    if (codigoMudou && dados.codigoHoje === CODIGO_FOLGA) await garantirQuePodeFolgar(tx, idMotorista, hoje)
 
     const motoristaAtualizado = await tx.motorista.update({
       where: { id: idMotorista, filialId },
@@ -90,7 +89,6 @@ export async function editarMotoristaService(filialId: number, idMotorista: numb
         nome: dados.nome,
         cpf: dados.cpf,
         seva: dados.seva,
-        diasTrabalhados: dados.diasTrabalhados,
         turno: dados.turno,
         tipo: dados.tipo,
         produtosAutorizados: dados.produtosAutorizados,
@@ -115,12 +113,12 @@ export async function editarMotoristaService(filialId: number, idMotorista: numb
       },
     })
 
-    // O campo "Dias Trabalhados" no formulário representa a jornada de hoje.
+    // O campo de jornada no formulário representa a jornada de hoje.
     // Só grava se alguém mudou: salvar o nome não pode transformar a projeção
     // de hoje num registro, que vira âncora dos dias seguintes. Inline (não
     // registrarJornadaNoDiaService, que abriria uma segunda transação) pra
     // ficar atômico com o update acima.
-    if (codigoMudou) await registrarJornadaNoDia(tx, idMotorista, hoje, dados.diasTrabalhados)
+    if (codigoMudou) await registrarJornadaNoDia(tx, idMotorista, hoje, dados.codigoHoje)
 
     await registrarAuditoria(tx, {
       entidade: "Motorista",
@@ -164,8 +162,6 @@ export async function deletarMotoristaService(filialId: number, id: number, ator
 /**
  * Registra o código de jornada de um motorista num dia específico (histórico
  * usado pelo calendário — ver `jornada.service.ts#situacaoDoDia`).
- * Só atualiza o cache `Motorista.diasTrabalhados` quando o dia registrado é
- * hoje; editar um dia passado ou futuro nunca afeta o que "hoje" mostra.
  *
  * `horas` (opcional) grava o horário real de início/fim daquele dia — só o
  * import do Relatório de Jornada tem esse dado (ver jornada-relatorio.service.ts).
@@ -184,12 +180,10 @@ export async function registrarJornadaNoDia(
   horas?: { inicioJornada: Date; fimJornada: Date; diasSemFolga?: number },
 ) {
   const diaRegistro = inicioDoDia(data)
-  const hoje = inicioDoDia(new Date())
-  const ehHoje = diaRegistro.getTime() === hoje.getTime()
 
   const dataColuna = dataParaColunaDate(diaRegistro)
 
-  const registro = await tx.registroJornada.upsert({
+  return await tx.registroJornada.upsert({
     where: { motoristaId_data: { motoristaId: idMotorista, data: dataColuna } },
     create: {
       motoristaId: idMotorista,
@@ -204,15 +198,6 @@ export async function registrarJornadaNoDia(
       ...(horas ? { inicioJornada: horas.inicioJornada, fimJornada: horas.fimJornada, diasSemFolga: horas.diasSemFolga ?? null } : {}),
     },
   })
-
-  if (ehHoje) {
-    await tx.motorista.update({
-      where: { id: idMotorista },
-      data: { diasTrabalhados: codigo },
-    })
-  }
-
-  return registro
 }
 
 /**

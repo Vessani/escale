@@ -347,9 +347,6 @@
     // motoristas sem CPF entre si.
     cpf             String?      @unique @db.VarChar(11)
 
-    diasTrabalhados Int
-
-
     turno           Turno
 
     // Substitui o antigo `liberado` (false = TREINAMENTO) — ver enum TipoMotorista.
@@ -368,10 +365,6 @@
     // do lote de import (o relatório traz vários turnos por motorista; cada
     // um também vira uma linha em RegistroJornada — ver abaixo).
     jornadaRelatorioInicio DateTime? @db.Timestamp(6)
-    // Sem uso: a próxima entrega remove estas duas colunas. Saem depois do
-    // deploy que para de ler e gravar, senão o código antigo quebra no ar.
-    jornadaRelatorioFim    DateTime? @db.Timestamp(6)
-    jornadaRelatorioDia    DateTime? @db.Date
 
     filialId        Int
     filial          Filial       @relation(fields: [filialId], references: [id])
@@ -396,9 +389,8 @@
     @@index([filialId])
   }
 
-  // Histórico de jornada por dia. diasTrabalhados no Motorista continua sendo
-  // um cache do registro de hoje; este model é a fonte de verdade do
-  // calendário, permitindo editar um dia específico sem afetar os outros.
+  // Histórico de jornada por dia: a fonte de verdade do código de jornada (ver
+  // situacaoDoDia). Permite editar um dia específico sem afetar os outros.
   model RegistroJornada {
     id           Int       @id @default(autoincrement())
     motoristaId  Int

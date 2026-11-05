@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest"
-import { calcularDiasEntre } from "@/lib/utils/date-format"
+import { calcularDiasEntre, inicioDoDia } from "@/lib/utils/date-format"
 import type { StatusIntegracao, TipoMotorista, TipoProduto, Turno } from "@prisma/client"
 import {
   motoristasOcupadosEmOutraViagem,
@@ -28,7 +28,6 @@ type MotoristaMock = {
   id: number
   nome: string
   turno: Turno
-  diasTrabalhados: number
   tipo: TipoMotorista
   integracao: Array<{ cliente: string; status: StatusIntegracao; dataValidade: Date }>
   registrosJornada: Array<{ data: Date; codigo: number; fimJornada?: Date | string | null }>
@@ -36,15 +35,20 @@ type MotoristaMock = {
   produtosAutorizados: TipoProduto[]
 }
 
-function criarMotorista(parcial: Partial<MotoristaMock>): MotoristaMock {
+/** O "hoje" da maioria dos testes. */
+const DIA_DOS_TESTES = new Date("2026-07-08T00:00:00")
+
+type ParcialMotorista = Partial<MotoristaMock> & { codigoHoje?: number; diaDoCodigo?: Date }
+
+/** `codigoHoje` vira um registro de jornada em `diaDoCodigo`: é de onde o sistema tira o código. */
+function criarMotorista({ codigoHoje, diaDoCodigo = DIA_DOS_TESTES, ...parcial }: ParcialMotorista): MotoristaMock {
   return {
     id: 1,
     nome: "Motorista Teste",
     turno: "MANHA",
-    diasTrabalhados: 3,
     tipo: "MOTORISTA" as const,
     integracao: [],
-    registrosJornada: [],
+    registrosJornada: codigoHoje === undefined ? [] : [{ data: inicioDoDia(diaDoCodigo), codigo: codigoHoje, fimJornada: null }],
     jornadaRelatorioInicio: null,
     produtosAutorizados: [],
     ...parcial,
@@ -112,11 +116,11 @@ describe("alocacao.service", () => {
     })
 
     it("diz o motivo de cada regra; null quando cabe", () => {
-      expect(motivoForaDaRegra(criarMotorista({ diasTrabalhados: 3 }), contexto())).toBeNull()
+      expect(motivoForaDaRegra(criarMotorista({ diaDoCodigo: hoje, codigoHoje: 3 }), contexto())).toBeNull()
       expect(motivoForaDaRegra(criarMotorista({ turno: "NOITE" }), contexto())).toBe("Turno Noite")
       expect(motivoForaDaRegra(criarMotorista({ tipo: "ENCHEDOR" }), contexto())).toBe("Não vai como principal")
-      expect(motivoForaDaRegra(criarMotorista({ diasTrabalhados: 7 }), contexto())).toBe("Folga em 08/07")
-      expect(motivoForaDaRegra(criarMotorista({ diasTrabalhados: 5 }), contexto({ diasViagem: 3 }))).toBe(
+      expect(motivoForaDaRegra(criarMotorista({ diaDoCodigo: hoje, codigoHoje: 7 }), contexto())).toBe("Folga em 08/07")
+      expect(motivoForaDaRegra(criarMotorista({ diaDoCodigo: hoje, codigoHoje: 5 }), contexto({ diasViagem: 3 }))).toBe(
         "5º dia: não cabem 3 dias de viagem",
       )
       expect(motivoForaDaRegra(criarMotorista({ produtosAutorizados: [] }), contexto({ produtoExigido: "NITROGENIO" }))).toBe(
@@ -133,7 +137,7 @@ describe("alocacao.service", () => {
     const hoje = bsb("2026-10-05T00:00:00")
     const noturno = criarMotorista({
       turno: "NOITE",
-      diasTrabalhados: 6,
+      codigoHoje: 6,
       registrosJornada: [
         { data: bsb("2026-10-05T00:00:00"), codigo: 6 },
         { data: bsb("2026-10-06T00:00:00"), codigo: 7 },
@@ -171,7 +175,7 @@ describe("alocacao.service", () => {
     const motivo = (inicio: string, fim: string) => {
       const ini = bsb(inicio)
       const turno = Number(inicio.slice(11, 13)) >= 4 && Number(inicio.slice(11, 13)) < 16 ? ("MANHA" as const) : ("NOITE" as const)
-      return motivoForaDaRegra(criarMotorista({ turno, diasTrabalhados: 4, registrosJornada }), {
+      return motivoForaDaRegra(criarMotorista({ turno, codigoHoje: 4, registrosJornada }), {
         turnoViagem: turno,
         diasViagem: calcularDiasEntre(ini, bsb(fim)),
         dataInicioViagem: ini,
@@ -206,13 +210,12 @@ describe("alocacao.service", () => {
       finalizadoEm: bsb("2026-10-05T17:04:00"),
     }
     const novaDe06 = { id: 2, inicioPrevisto: bsb("2026-10-06T07:58:00") }
-    const aviso = (registrosJornada: Array<{ data: Date; codigo: number }>, diasTrabalhados = 1) =>
-      calcularAvisoDescanso({ diasTrabalhados, registrosJornada, viagens: [viagemDe05] }, novaDe06, hoje)
+    const aviso = (registrosJornada: Array<{ data: Date; codigo: number }>) =>
+      calcularAvisoDescanso({ registrosJornada, viagens: [viagemDe05] }, novaDe06, hoje)
 
     it("Escalador só conhece o 06/10 (1º dia): não deduz 'folga em 05/10' e vale a interjornada de 11h", () => {
       expect(aviso([{ data: bsb("2026-10-06T00:00:00"), codigo: 1 }])).toBeNull()
-      expect(aviso([], 1)).toBeNull()
-      expect(aviso([], 7)).toBeNull()
+      expect(aviso([])).toBeNull()
     })
 
     it("05/10 sabido como 6º dia (registro dele ou de antes): exige 35h", () => {
@@ -399,7 +402,7 @@ describe("alocacao.service", () => {
     const hoje = new Date("2026-07-08T00:00:00")
 
     it("nega quando o turno do motorista diverge do turno da viagem", () => {
-      const motorista = criarMotorista({ turno: "NOITE", diasTrabalhados: 1 })
+      const motorista = criarMotorista({ turno: "NOITE", codigoHoje: 1 })
       expect(
         motoristaEhCompativel(motorista, {
           turnoViagem: "MANHA",
@@ -412,7 +415,7 @@ describe("alocacao.service", () => {
     })
 
     it("nega motorista em treinamento, mesmo compatível em tudo o mais", () => {
-      const motorista = criarMotorista({ tipo: "TREINAMENTO" as const, diasTrabalhados: 1 })
+      const motorista = criarMotorista({ tipo: "TREINAMENTO" as const, codigoHoje: 1 })
       expect(
         motoristaEhCompativel(motorista, {
           turnoViagem: "MANHA",
@@ -426,22 +429,22 @@ describe("alocacao.service", () => {
 
     it.each(["INSTRUTOR", "INTERNO"] as const)("%s cabe na regra (escolha manual), mas não entra na sugestão automática", (tipo) => {
       const contexto = { turnoViagem: "MANHA" as Turno, diasViagem: 1, dataInicioViagem: hoje, integracaoExigida: null, hoje }
-      const especial = criarMotorista({ id: 2, nome: "Especial", tipo, diasTrabalhados: 1 })
-      const comum = criarMotorista({ id: 3, nome: "Comum", diasTrabalhados: 1 })
+      const especial = criarMotorista({ id: 2, nome: "Especial", tipo, codigoHoje: 1 })
+      const comum = criarMotorista({ id: 3, nome: "Comum", codigoHoje: 1 })
 
       expect(motoristaEhCompativel(especial, contexto)).toBe(true)
       expect(filtrarMotoristasCompativeis([especial, comum], contexto).map((m) => m.id)).toEqual([3])
     })
 
     it("nega enchedor — não faz viagem", () => {
-      const motorista = criarMotorista({ tipo: "ENCHEDOR", diasTrabalhados: 1 })
+      const motorista = criarMotorista({ tipo: "ENCHEDOR", codigoHoje: 1 })
       expect(
         motoristaEhCompativel(motorista, { turnoViagem: "MANHA", diasViagem: 1, dataInicioViagem: hoje, integracaoExigida: null, hoje }),
       ).toBe(false)
     })
 
     it("aceita quando os dias disponíveis no dia da viagem cobrem a duração pedida", () => {
-      const motorista = criarMotorista({ diasTrabalhados: 3 })
+      const motorista = criarMotorista({ codigoHoje: 3 })
       expect(
         motoristaEhCompativel(motorista, {
           turnoViagem: "MANHA",
@@ -454,7 +457,7 @@ describe("alocacao.service", () => {
     })
 
     it("aceita a viagem que termina exatamente no 6º dia (3º dia + 4 dias = dias 3,4,5,6)", () => {
-      const motorista = criarMotorista({ diasTrabalhados: 3 })
+      const motorista = criarMotorista({ codigoHoje: 3 })
       expect(
         motoristaEhCompativel(motorista, {
           turnoViagem: "MANHA",
@@ -467,7 +470,7 @@ describe("alocacao.service", () => {
     })
 
     it("nega quando a viagem invadiria a folga (3º dia + 5 dias passaria do 6º dia)", () => {
-      const motorista = criarMotorista({ diasTrabalhados: 3 })
+      const motorista = criarMotorista({ codigoHoje: 3 })
       expect(
         motoristaEhCompativel(motorista, {
           turnoViagem: "MANHA",
@@ -480,7 +483,7 @@ describe("alocacao.service", () => {
     })
 
     it("aceita uma viagem de 1 dia iniciando no 6º dia (ainda trabalha, folga só no 7º)", () => {
-      const motorista = criarMotorista({ diasTrabalhados: 6 })
+      const motorista = criarMotorista({ codigoHoje: 6 })
       expect(
         motoristaEhCompativel(motorista, {
           turnoViagem: "MANHA",
@@ -493,7 +496,7 @@ describe("alocacao.service", () => {
     })
 
     it("nega uma viagem de 2 dias iniciando no 6º dia (o 2º dia cairia na folga)", () => {
-      const motorista = criarMotorista({ diasTrabalhados: 6 })
+      const motorista = criarMotorista({ codigoHoje: 6 })
       expect(
         motoristaEhCompativel(motorista, {
           turnoViagem: "MANHA",
@@ -506,7 +509,7 @@ describe("alocacao.service", () => {
     })
 
     it("bloqueia uma viagem que começaria no próprio dia de Folga do motorista", () => {
-      const motorista = criarMotorista({ diasTrabalhados: 7 })
+      const motorista = criarMotorista({ codigoHoje: 7 })
       expect(
         motoristaEhCompativel(motorista, {
           turnoViagem: "MANHA",
@@ -519,7 +522,7 @@ describe("alocacao.service", () => {
     })
 
     it("libera o motorista no dia seguinte à Folga (ciclo reinicia em 1)", () => {
-      const motorista = criarMotorista({ diasTrabalhados: 7 })
+      const motorista = criarMotorista({ codigoHoje: 7 })
       expect(
         motoristaEhCompativel(motorista, {
           turnoViagem: "MANHA",
@@ -534,7 +537,7 @@ describe("alocacao.service", () => {
     it("projeta a jornada pela data real de início da viagem, não pelo dia de hoje", () => {
       // Hoje ele está no dia 3 (parece disponível), mas a viagem só começa daqui
       // a 4 dias — quando, pela rotação, ele já estaria de folga.
-      const motorista = criarMotorista({ diasTrabalhados: 3 })
+      const motorista = criarMotorista({ codigoHoje: 3 })
       expect(
         motoristaEhCompativel(motorista, {
           turnoViagem: "MANHA",
@@ -549,7 +552,7 @@ describe("alocacao.service", () => {
     it("libera motorista sem dias hoje quando a viagem começa depois do reset do ciclo", () => {
       // Hoje ele está no dia 6 (0 disponíveis agora), mas a viagem só começa
       // daqui a 2 dias, quando o ciclo já reseta pro dia 1.
-      const motorista = criarMotorista({ diasTrabalhados: 6 })
+      const motorista = criarMotorista({ codigoHoje: 6 })
       expect(
         motoristaEhCompativel(motorista, {
           turnoViagem: "MANHA",
@@ -562,7 +565,7 @@ describe("alocacao.service", () => {
     })
 
     it("bloqueia motorista no 6º dia (hoje) pra uma viagem amanhã — amanhã ele estaria no 7º dia (Folga obrigatória)", () => {
-      const motorista = criarMotorista({ diasTrabalhados: 6 })
+      const motorista = criarMotorista({ codigoHoje: 6 })
       expect(
         motoristaEhCompativel(motorista, {
           turnoViagem: "MANHA",
@@ -576,7 +579,7 @@ describe("alocacao.service", () => {
 
     it("respeita um registro manual futuro (ex: Férias) na data em que ele existe, e libera depois de um registro que encerra o período", () => {
       const motorista = criarMotorista({
-        diasTrabalhados: 3,
+        codigoHoje: 3,
         registrosJornada: [
           { data: hoje, codigo: 3 },
           { data: new Date("2026-07-11T00:00:00"), codigo: 8 }, // Férias marcada manualmente
@@ -592,8 +595,8 @@ describe("alocacao.service", () => {
     })
 
     it("usa o fim real da viagem para bloquear a invasão da folga ao cruzar para o dia seguinte", () => {
-      const motoristaNoSextoDia = criarMotorista({ diasTrabalhados: 6 })
       const hojeBrasilia = new Date("2026-07-08T00:00:00-03:00")
+      const motoristaNoSextoDia = criarMotorista({ codigoHoje: 6, diaDoCodigo: hojeBrasilia })
       const saindoNoSextoDiaAsOito = (fim: string) =>
         motoristaEhCompativel(motoristaNoSextoDia, {
           turnoViagem: "MANHA",
@@ -621,7 +624,7 @@ describe("alocacao.service", () => {
     })
 
     it("libera quando a viagem não exige integração", () => {
-      const motorista = criarMotorista({ diasTrabalhados: 1 })
+      const motorista = criarMotorista({ codigoHoje: 1 })
       expect(
         motoristaEhCompativel(motorista, {
           turnoViagem: "MANHA",
@@ -634,7 +637,7 @@ describe("alocacao.service", () => {
     })
 
     it("nega quando a viagem exige integração e o motorista não tem nenhuma para o cliente", () => {
-      const motorista = criarMotorista({ diasTrabalhados: 1, integracao: [] })
+      const motorista = criarMotorista({ codigoHoje: 1, integracao: [] })
       expect(
         motoristaEhCompativel(motorista, {
           turnoViagem: "MANHA",
@@ -648,7 +651,7 @@ describe("alocacao.service", () => {
 
     it("nega quando a integração existe mas está INATIVA", () => {
       const motorista = criarMotorista({
-        diasTrabalhados: 1,
+        codigoHoje: 1,
         integracao: [{ cliente: "AMBEV", status: "INATIVO", dataValidade: new Date("2027-01-01") }],
       })
       expect(
@@ -664,7 +667,7 @@ describe("alocacao.service", () => {
 
     it("nega quando a integração ATIVA já venceu antes do início da viagem", () => {
       const motorista = criarMotorista({
-        diasTrabalhados: 1,
+        codigoHoje: 1,
         integracao: [{ cliente: "AMBEV", status: "ATIVO", dataValidade: new Date("2026-07-01") }],
       })
       expect(
@@ -680,7 +683,7 @@ describe("alocacao.service", () => {
 
     it("aceita quando a integração está ATIVA e válida na data de início (mesmo com grafia diferente)", () => {
       const motorista = criarMotorista({
-        diasTrabalhados: 1,
+        codigoHoje: 1,
         integracao: [{ cliente: "ambev", status: "ATIVO", dataValidade: new Date("2027-01-01") }],
       })
       expect(
@@ -696,7 +699,7 @@ describe("alocacao.service", () => {
 
     it("vigora até o fim do dia de Brasília da validade da integração", () => {
       const motorista = criarMotorista({
-        diasTrabalhados: 1,
+        codigoHoje: 1,
         integracao: [{ cliente: "AMBEV", status: "ATIVO", dataValidade: new Date("2026-07-10T00:00:00Z") }],
       })
 
@@ -733,36 +736,36 @@ describe("alocacao.service", () => {
     }
 
     it("bloqueia (não é só aviso) quando o motorista não está autorizado pro produto exigido", () => {
-      const motorista = criarMotorista({ diasTrabalhados: 1, produtosAutorizados: ["NITROGENIO"] })
+      const motorista = criarMotorista({ codigoHoje: 1, produtosAutorizados: ["NITROGENIO"] })
       expect(motoristaEhCompativel(motorista, { ...contextoBase, produtoExigido: "CO2" })).toBe(false)
     })
 
     it("aceita quando o produto exigido está entre os autorizados do motorista", () => {
-      const motorista = criarMotorista({ diasTrabalhados: 1, produtosAutorizados: ["CO2"] })
+      const motorista = criarMotorista({ codigoHoje: 1, produtosAutorizados: ["CO2"] })
       expect(motoristaEhCompativel(motorista, { ...contextoBase, produtoExigido: "CO2" })).toBe(true)
     })
 
     it("o exemplo literal do pedido: motorista autorizado só pra CO2 não pode ir numa viagem de Nitrogênio, mas pode numa de CO2", () => {
-      const motoristaSoCO2 = criarMotorista({ diasTrabalhados: 1, produtosAutorizados: ["CO2"] })
+      const motoristaSoCO2 = criarMotorista({ codigoHoje: 1, produtosAutorizados: ["CO2"] })
 
       expect(motoristaEhCompativel(motoristaSoCO2, { ...contextoBase, produtoExigido: "NITROGENIO" })).toBe(false)
       expect(motoristaEhCompativel(motoristaSoCO2, { ...contextoBase, produtoExigido: "CO2" })).toBe(true)
     })
 
     it("motorista autorizado pra vários produtos é compatível com qualquer um deles", () => {
-      const motorista = criarMotorista({ diasTrabalhados: 1, produtosAutorizados: ["CO2", "NITROGENIO", "ARGONIO"] })
+      const motorista = criarMotorista({ codigoHoje: 1, produtosAutorizados: ["CO2", "NITROGENIO", "ARGONIO"] })
 
       expect(motoristaEhCompativel(motorista, { ...contextoBase, produtoExigido: "NITROGENIO" })).toBe(true)
       expect(motoristaEhCompativel(motorista, { ...contextoBase, produtoExigido: "ARGONIO" })).toBe(true)
     })
 
     it("motorista sem nenhum produto autorizado (ex: cadastrado antes desse campo existir) não é compatível com nenhuma viagem que exija produto", () => {
-      const motorista = criarMotorista({ diasTrabalhados: 1, produtosAutorizados: [] })
+      const motorista = criarMotorista({ codigoHoje: 1, produtosAutorizados: [] })
       expect(motoristaEhCompativel(motorista, { ...contextoBase, produtoExigido: "CO2" })).toBe(false)
     })
 
     it("viagem sem produto definido (histórico anterior a esse campo) não restringe — undefined/null se comporta como integracaoExigida", () => {
-      const motorista = criarMotorista({ diasTrabalhados: 1, produtosAutorizados: [] })
+      const motorista = criarMotorista({ codigoHoje: 1, produtosAutorizados: [] })
 
       expect(motoristaEhCompativel(motorista, { ...contextoBase, produtoExigido: null })).toBe(true)
       expect(motoristaEhCompativel(motorista, contextoBase)).toBe(true)
@@ -780,9 +783,9 @@ describe("alocacao.service", () => {
     }
 
     it("remove os incompatíveis e ordena os demais por dias disponíveis (mais livre primeiro)", () => {
-      const ocupado = criarMotorista({ id: 1, nome: "Carlos", diasTrabalhados: 5 }) // 1 disponível
-      const livre = criarMotorista({ id: 2, nome: "Ana", diasTrabalhados: 1 }) // 5 disponíveis
-      const foraDeTurno = criarMotorista({ id: 3, nome: "Bruno", turno: "NOITE", diasTrabalhados: 1 })
+      const ocupado = criarMotorista({ id: 1, nome: "Carlos", codigoHoje: 5 }) // 1 disponível
+      const livre = criarMotorista({ id: 2, nome: "Ana", codigoHoje: 1 }) // 5 disponíveis
+      const foraDeTurno = criarMotorista({ id: 3, nome: "Bruno", turno: "NOITE", codigoHoje: 1 })
 
       const resultado = filtrarMotoristasCompativeis([ocupado, livre, foraDeTurno], contexto)
 
@@ -790,10 +793,10 @@ describe("alocacao.service", () => {
     })
 
     it("roster misto: só sobram os motoristas autorizados pro produto exigido, os demais são removidos como qualquer outro incompatível", () => {
-      const soCO2 = criarMotorista({ id: 1, nome: "Só CO2", diasTrabalhados: 1, produtosAutorizados: ["CO2"] })
-      const multiProduto = criarMotorista({ id: 2, nome: "Multi", diasTrabalhados: 1, produtosAutorizados: ["NITROGENIO", "CO2"] })
-      const semProduto = criarMotorista({ id: 3, nome: "Sem Produto", diasTrabalhados: 1, produtosAutorizados: [] })
-      const outroProduto = criarMotorista({ id: 4, nome: "Outro Produto", diasTrabalhados: 1, produtosAutorizados: ["ARGONIO"] })
+      const soCO2 = criarMotorista({ id: 1, nome: "Só CO2", codigoHoje: 1, produtosAutorizados: ["CO2"] })
+      const multiProduto = criarMotorista({ id: 2, nome: "Multi", codigoHoje: 1, produtosAutorizados: ["NITROGENIO", "CO2"] })
+      const semProduto = criarMotorista({ id: 3, nome: "Sem Produto", codigoHoje: 1, produtosAutorizados: [] })
+      const outroProduto = criarMotorista({ id: 4, nome: "Outro Produto", codigoHoje: 1, produtosAutorizados: ["ARGONIO"] })
 
       const resultado = filtrarMotoristasCompativeis([soCO2, multiProduto, semProduto, outroProduto], {
         ...contexto,
@@ -804,8 +807,8 @@ describe("alocacao.service", () => {
     })
 
     it("em empate de disponibilidade, desempata por nome em ordem alfabética", () => {
-      const zeca = criarMotorista({ id: 1, nome: "Zeca", diasTrabalhados: 1 })
-      const ana = criarMotorista({ id: 2, nome: "Ana", diasTrabalhados: 1 })
+      const zeca = criarMotorista({ id: 1, nome: "Zeca", codigoHoje: 1 })
+      const ana = criarMotorista({ id: 2, nome: "Ana", codigoHoje: 1 })
 
       const resultado = filtrarMotoristasCompativeis([zeca, ana], contexto)
 
@@ -817,13 +820,13 @@ describe("alocacao.service", () => {
       const liberaPerto = criarMotorista({
         id: 1,
         nome: "Libera Perto",
-        diasTrabalhados: 5, // só 1 dia disponível
+        codigoHoje: 5, // só 1 dia disponível
         registrosJornada: comFimJornadaAnterior(new Date("2026-07-07T10:00:00")), // +11h = 21:00, folga de 120min até o ideal
       })
       const semDadoDeRelatorio = criarMotorista({
         id: 2,
         nome: "Sem Relatorio",
-        diasTrabalhados: 1, // 5 dias disponíveis
+        codigoHoje: 1, // 5 dias disponíveis
       })
 
       const resultado = filtrarMotoristasCompativeis([semDadoDeRelatorio, liberaPerto], contexto)
@@ -844,13 +847,13 @@ describe("alocacao.service", () => {
       const mesmaFolgaMenosLivre = criarMotorista({
         id: 1,
         nome: "Menos Livre",
-        diasTrabalhados: 5,
+        codigoHoje: 5,
         registrosJornada: comFimJornadaAnterior(new Date("2026-07-07T10:00:00")),
       })
       const mesmaFolgaMaisLivre = criarMotorista({
         id: 2,
         nome: "Mais Livre",
-        diasTrabalhados: 1,
+        codigoHoje: 1,
         registrosJornada: comFimJornadaAnterior(new Date("2026-07-07T10:00:00")), // mesmo fim = mesma folga até o ideal
       })
 
@@ -881,19 +884,19 @@ describe("alocacao.service", () => {
       const consegueChegar = criarMotorista({
         id: 1,
         nome: "Chega",
-        diasTrabalhados: 3,
+        codigoHoje: 3,
         registrosJornada: [{ data: new Date("2026-10-10T00:00:00-03:00"), codigo: 1, fimJornada: new Date("2026-10-10T17:00:00-03:00") }],
       })
       const naoChega = criarMotorista({
         id: 2,
         nome: "Não Chega",
-        diasTrabalhados: 3,
+        codigoHoje: 3,
         registrosJornada: [{ data: new Date("2026-10-10T00:00:00-03:00"), codigo: 1, fimJornada: new Date("2026-10-10T20:00:00-03:00") }],
       })
       const noSextoDia = criarMotorista({
         id: 3,
         nome: "Sexto",
-        diasTrabalhados: 3,
+        codigoHoje: 3,
         registrosJornada: [{ data: new Date("2026-10-09T00:00:00-03:00"), codigo: 6, fimJornada: new Date("2026-10-09T20:00:00-03:00") }],
       })
 
@@ -1097,7 +1100,7 @@ describe("alocacao.service", () => {
       // do próprio dia 08 — amanhã (09/07) é Folga por rotação, mas isso
       // sozinho não garante 35h reais: só bloqueia o calendário do dia de Folga.
       const motorista = {
-        ...criarMotorista({ diasTrabalhados: 6 }),
+        ...criarMotorista({ codigoHoje: 6 }),
         viagens: [
           {
             id: 1,
@@ -1172,8 +1175,8 @@ describe("alocacao.service", () => {
     })
 
     it("retorna o motorista mais disponível entre os compatíveis", () => {
-      const menosDisponivel = { ...criarMotorista({ id: 1, nome: "Carlos", diasTrabalhados: 5 }), viagens: [] }
-      const maisDisponivel = { ...criarMotorista({ id: 2, nome: "Ana", diasTrabalhados: 1 }), viagens: [] }
+      const menosDisponivel = { ...criarMotorista({ id: 1, nome: "Carlos", codigoHoje: 5 }), viagens: [] }
+      const maisDisponivel = { ...criarMotorista({ id: 2, nome: "Ana", codigoHoje: 1 }), viagens: [] }
 
       const resultado = sugerirMotoristaAutomatico([menosDisponivel, maisDisponivel], fimViagem, {
         turnoViagem: "MANHA",
@@ -1188,13 +1191,13 @@ describe("alocacao.service", () => {
   })
 
   describe("sugerirAlocacoesEmLote", () => {
-    function comAgenda(parcial: Partial<MotoristaMock>) {
+    function comAgenda(parcial: ParcialMotorista) {
       return { ...criarMotorista(parcial), viagens: [] }
     }
 
     it("não repete o mesmo motorista em duas viagens do lote com período sobreposto", () => {
-      const maisDisponivel = comAgenda({ id: 1, nome: "Ana", diasTrabalhados: 1 }) // 5 disponíveis
-      const menosDisponivel = comAgenda({ id: 2, nome: "Bruno", diasTrabalhados: 3 }) // 3 disponíveis
+      const maisDisponivel = comAgenda({ id: 1, nome: "Ana", codigoHoje: 1, diaDoCodigo: new Date("2026-07-04T00:00:00-03:00") }) // 5 disponíveis
+      const menosDisponivel = comAgenda({ id: 2, nome: "Bruno", codigoHoje: 3, diaDoCodigo: new Date("2026-07-04T00:00:00-03:00") }) // 3 disponíveis
       const hoje = new Date("2026-07-04T00:00:00-03:00")
 
       const viagens = [
@@ -1223,8 +1226,20 @@ describe("alocacao.service", () => {
     })
 
     it("nunca sugere um motorista sem autorização pro produto exigido, mesmo sendo o melhor encaixe em tudo o mais", () => {
-      const melhorEncaixeMasErrado = comAgenda({ id: 1, nome: "Ana", diasTrabalhados: 1, produtosAutorizados: ["NITROGENIO"] })
-      const unicoAutorizado = comAgenda({ id: 2, nome: "Bruno", diasTrabalhados: 3, produtosAutorizados: ["CO2"] })
+      const melhorEncaixeMasErrado = comAgenda({
+        id: 1,
+        nome: "Ana",
+        codigoHoje: 1,
+        diaDoCodigo: new Date("2026-07-04T00:00:00"),
+        produtosAutorizados: ["NITROGENIO"],
+      })
+      const unicoAutorizado = comAgenda({
+        id: 2,
+        nome: "Bruno",
+        codigoHoje: 3,
+        diaDoCodigo: new Date("2026-07-04T00:00:00"),
+        produtosAutorizados: ["CO2"],
+      })
       const hoje = new Date("2026-07-04T00:00:00")
 
       const viagens = [
@@ -1245,7 +1260,7 @@ describe("alocacao.service", () => {
     })
 
     it("permite reaproveitar o mesmo motorista quando as viagens do lote não se sobrepõem", () => {
-      const motorista = comAgenda({ id: 1, nome: "Ana", diasTrabalhados: 1 })
+      const motorista = comAgenda({ id: 1, nome: "Ana", codigoHoje: 1, diaDoCodigo: new Date("2026-07-03T00:00:00") })
       const hoje = new Date("2026-07-03T00:00:00")
 
       const viagens = [
@@ -1274,8 +1289,8 @@ describe("alocacao.service", () => {
     })
 
     it("caso real: trocar o motorista da viagem longa devolve o sugerido dela às outras listas", () => {
-      const francinei = comAgenda({ id: 1, nome: "Francinei", diasTrabalhados: 1 })
-      const rodrigo = comAgenda({ id: 2, nome: "Rodrigo", diasTrabalhados: 1 })
+      const francinei = comAgenda({ id: 1, nome: "Francinei", codigoHoje: 1, diaDoCodigo: new Date("2026-10-16T00:00:00-03:00") })
+      const rodrigo = comAgenda({ id: 2, nome: "Rodrigo", codigoHoje: 1, diaDoCodigo: new Date("2026-10-16T00:00:00-03:00") })
       const hoje = new Date("2026-10-16T00:00:00-03:00")
       const longa = {
         id: 927493,
@@ -1316,7 +1331,7 @@ describe("alocacao.service", () => {
     })
 
     it("sem sugestão quando o único compatível ficou com uma viagem sobreposta — mas ele continua na lista (a tela filtra pelas escolhas atuais)", () => {
-      const unico = comAgenda({ id: 1, nome: "Ana", diasTrabalhados: 1 })
+      const unico = comAgenda({ id: 1, nome: "Ana", codigoHoje: 1, diaDoCodigo: new Date("2026-07-04T00:00:00") })
       const hoje = new Date("2026-07-04T00:00:00")
 
       const viagens = [
@@ -1380,7 +1395,7 @@ describe("alocacao.service", () => {
     it("6º dia: fim + 35h — decidido pelo código do dia em que parou, não pelo de hoje", () => {
       const motorista = criarMotorista({
         // Cache de "hoje" diz 2º dia, mas o dia em que ele parou era o 6º.
-        diasTrabalhados: 2,
+        codigoHoje: 2,
         registrosJornada: [{ data: new Date("2026-07-20T00:00:00-03:00"), codigo: 6, fimJornada: new Date("2026-07-20T19:00:00-03:00") }],
       })
 

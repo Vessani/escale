@@ -80,9 +80,6 @@ let concluido = false
 try {
   await client.query("BEGIN")
   const { rows: candidatos } = await client.query(CANDIDATOS)
-  const {
-    rows: [{ hoje }],
-  } = await client.query(`SELECT ((now() AT TIME ZONE 'UTC') - interval '3 hours')::date::text AS hoje`)
 
   const correcoes = []
   const revisar = []
@@ -116,16 +113,13 @@ try {
   for (const item of revisar) console.log(`  revisar   ${descrever(item)}: sem como calcular o código`)
 
   if (aplicar) {
-    for (const { id, motoristaId, dia, filialId, codigo } of correcoes) {
+    for (const { id, filialId, codigo } of correcoes) {
       await client.query(`UPDATE "RegistroJornada" SET codigo = $1, "atualizadoEm" = now() WHERE id = $2`, [codigo, id])
       await client.query(
         `INSERT INTO "RegistroAuditoria" (entidade, "entidadeId", acao, antes, depois, "usuarioNome", "filialId")
          VALUES ('RegistroJornada', $1, 'ATUALIZACAO', $2, $3, 'Correção de folgas falsas (script)', $4)`,
         [String(id), JSON.stringify({ codigo: CODIGO_FOLGA }), JSON.stringify({ codigo }), filialId],
       )
-      if (dia === hoje) {
-        await client.query(`UPDATE "Motorista" SET "diasTrabalhados" = $1 WHERE id = $2`, [codigo, motoristaId])
-      }
     }
   }
 

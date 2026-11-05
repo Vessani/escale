@@ -61,7 +61,7 @@ describe("atualizarJornadaRelatorioDosMotoristas", () => {
   })
 
   it("atualiza jornadaRelatorio* e grava o código do dia (Dias Sem Folga) quando a matrícula bate com um motorista em ciclo normal", async () => {
-    vi.mocked(prisma.motorista.findMany).mockResolvedValue([{ id: 42, seva: 815, diasTrabalhados: 2 }] as never)
+    vi.mocked(prisma.motorista.findMany).mockResolvedValue([{ id: 42, seva: 815 }] as never)
 
     const resultado = await atualizarJornadaRelatorioDosMotoristas(FILIAL_ID, [criarRegistro({ diasSemFolga: 4 })])
 
@@ -81,7 +81,7 @@ describe("atualizarJornadaRelatorioDosMotoristas", () => {
   })
 
   it("avança a cobertura do relatório da filial pro dia mais recente do lote (nunca pra trás)", async () => {
-    vi.mocked(prisma.motorista.findMany).mockResolvedValue([{ id: 42, seva: 815, diasTrabalhados: 2 }] as never)
+    vi.mocked(prisma.motorista.findMany).mockResolvedValue([{ id: 42, seva: 815 }] as never)
 
     await atualizarJornadaRelatorioDosMotoristas(FILIAL_ID, [
       criarRegistro({ dia: "2026-07-10T03:00:00.000Z" }),
@@ -96,7 +96,7 @@ describe("atualizarJornadaRelatorioDosMotoristas", () => {
   })
 
   it("arquivo parcial grava os motoristas dele, mas não avança a cobertura da filial", async () => {
-    vi.mocked(prisma.motorista.findMany).mockResolvedValue([{ id: 42, seva: 815, diasTrabalhados: 2 }] as never)
+    vi.mocked(prisma.motorista.findMany).mockResolvedValue([{ id: 42, seva: 815 }] as never)
 
     await atualizarJornadaRelatorioDosMotoristas(FILIAL_ID, [criarRegistro({ dia: "2026-07-10T03:00:00.000Z" })], {
       de: "2026-07-10T03:00:00.000Z",
@@ -151,7 +151,7 @@ describe("atualizarJornadaRelatorioDosMotoristas", () => {
   })
 
   it("capa em 6 quando Dias Sem Folga vem maior (7+) — evita colidir com o código 7 (Folga)", async () => {
-    vi.mocked(prisma.motorista.findMany).mockResolvedValue([{ id: 42, seva: 815, diasTrabalhados: 6 }] as never)
+    vi.mocked(prisma.motorista.findMany).mockResolvedValue([{ id: 42, seva: 815 }] as never)
 
     await atualizarJornadaRelatorioDosMotoristas(FILIAL_ID, [criarRegistro({ diasSemFolga: 9 })])
 
@@ -166,7 +166,7 @@ describe("atualizarJornadaRelatorioDosMotoristas", () => {
   })
 
   it("não sobrescreve o dia marcado à mão como Férias/Exames/Interno (8-10) — só aquele dia", async () => {
-    vi.mocked(prisma.motorista.findMany).mockResolvedValue([{ id: 42, seva: 815, diasTrabalhados: 2 }] as never)
+    vi.mocked(prisma.motorista.findMany).mockResolvedValue([{ id: 42, seva: 815 }] as never)
     vi.mocked(tx.registroJornada.findMany).mockResolvedValue([
       { id: 7, data: new Date("2026-07-09T00:00:00.000Z"), codigo: 8, inicioJornada: null },
     ] as never)
@@ -192,8 +192,8 @@ describe("atualizarJornadaRelatorioDosMotoristas", () => {
 
   it("reporta matrícula duplicada (mais de um motorista ativo), sem abrir transação", async () => {
     vi.mocked(prisma.motorista.findMany).mockResolvedValue([
-      { id: 1, seva: 815, diasTrabalhados: 1 },
-      { id: 2, seva: 815, diasTrabalhados: 1 },
+      { id: 1, seva: 815 },
+      { id: 2, seva: 815 },
     ] as never)
 
     const resultado = await atualizarJornadaRelatorioDosMotoristas(FILIAL_ID, [criarRegistro({ matricula: 815 })])
@@ -211,8 +211,8 @@ describe("atualizarJornadaRelatorioDosMotoristas", () => {
 
   it("busca todos os motoristas do lote numa única query, mas grava numa transação por motorista (não uma só pro lote)", async () => {
     vi.mocked(prisma.motorista.findMany).mockResolvedValue([
-      { id: 1, seva: 111, diasTrabalhados: 2 },
-      { id: 2, seva: 222, diasTrabalhados: 3 },
+      { id: 1, seva: 111 },
+      { id: 2, seva: 222 },
     ] as never)
 
     const resultado = await atualizarJornadaRelatorioDosMotoristas(FILIAL_ID, [
@@ -228,7 +228,7 @@ describe("atualizarJornadaRelatorioDosMotoristas", () => {
   })
 
   it("com várias jornadas da mesma matrícula (dias diferentes), grava uma linha de calendário por dia mas só uma atualização de escalares", async () => {
-    vi.mocked(prisma.motorista.findMany).mockResolvedValue([{ id: 42, seva: 815, diasTrabalhados: 2 }] as never)
+    vi.mocked(prisma.motorista.findMany).mockResolvedValue([{ id: 42, seva: 815 }] as never)
 
     const resultado = await atualizarJornadaRelatorioDosMotoristas(FILIAL_ID, [
       criarRegistro({
@@ -257,7 +257,7 @@ describe("atualizarJornadaRelatorioDosMotoristas", () => {
   })
 
   it("usa a jornada de início mais recente do lote pros escalares jornadaRelatorio*, mesmo fora de ordem no array", async () => {
-    vi.mocked(prisma.motorista.findMany).mockResolvedValue([{ id: 42, seva: 815, diasTrabalhados: 2 }] as never)
+    vi.mocked(prisma.motorista.findMany).mockResolvedValue([{ id: 42, seva: 815 }] as never)
 
     await atualizarJornadaRelatorioDosMotoristas(FILIAL_ID, [
       criarRegistro({ dia: "2026-07-08T00:00:00.000Z", inicioJornada: "2026-07-08T08:00:00.000Z", fimJornada: "2026-07-08T18:00:00.000Z" }),
@@ -344,7 +344,7 @@ describe("atualizarJornadaRelatorioDosMotoristas", () => {
   })
 
   it("re-importar apaga, no período do arquivo, o dia de importação anterior que saiu do lote — e mantém lançamento manual e status especial", async () => {
-    vi.mocked(prisma.motorista.findMany).mockResolvedValue([{ id: 42, seva: 815, diasTrabalhados: 2 }] as never)
+    vi.mocked(prisma.motorista.findMany).mockResolvedValue([{ id: 42, seva: 815 }] as never)
     vi.mocked(tx.registroJornada.findMany).mockResolvedValue([
       { id: 1, data: new Date("2026-07-08T00:00:00.000Z"), codigo: 3, inicioJornada: new Date() }, // no lote: regravado
       { id: 2, data: new Date("2026-07-09T00:00:00.000Z"), codigo: 4, inicioJornada: new Date() }, // saiu do lote: apaga
@@ -367,7 +367,7 @@ describe("atualizarJornadaRelatorioDosMotoristas", () => {
   })
 
   it("motorista do arquivo com todas as linhas excluídas na conferência também tem os dias antigos apagados", async () => {
-    vi.mocked(prisma.motorista.findMany).mockResolvedValue([{ id: 42, seva: 815, diasTrabalhados: 2 }] as never)
+    vi.mocked(prisma.motorista.findMany).mockResolvedValue([{ id: 42, seva: 815 }] as never)
     vi.mocked(tx.registroJornada.findMany).mockResolvedValue([
       { id: 9, data: new Date("2026-07-09T00:00:00.000Z"), codigo: 4, inicioJornada: new Date() },
     ] as never)
@@ -384,7 +384,7 @@ describe("atualizarJornadaRelatorioDosMotoristas", () => {
   })
 
   it("passa o horário daquele dia específico (não o do motorista como um todo) pra registrarJornadaNoDia", async () => {
-    vi.mocked(prisma.motorista.findMany).mockResolvedValue([{ id: 42, seva: 815, diasTrabalhados: 2 }] as never)
+    vi.mocked(prisma.motorista.findMany).mockResolvedValue([{ id: 42, seva: 815 }] as never)
 
     await atualizarJornadaRelatorioDosMotoristas(FILIAL_ID, [
       criarRegistro({ dia: "2026-07-08T00:00:00.000Z", inicioJornada: "2026-07-08T06:00:00.000Z", fimJornada: "2026-07-08T14:00:00.000Z" }),

@@ -36,17 +36,12 @@ export default async function EditarMotoristaPage({ params }: { params: Promise<
     notFound()
   }
 
-  // O campo "Dias Trabalhados" do formulário deve refletir a jornada real de
-  // hoje, projetada a partir do histórico — não o cache diasTrabalhados cru,
-  // que pode estar parado desde a última vez que algo escreveu no dia de hoje.
+  // O campo de jornada do formulário mostra o código de hoje.
   const hoje = inicioDoDia(new Date())
-  const jornada = {
-    diasTrabalhados: motorista.diasTrabalhados,
-    ...prepararJornadaDoMotorista({ ...motorista, filial: { relatorioJornadaAte: coberturaRelatorio } }),
-  }
+  const jornada = prepararJornadaDoMotorista({ ...motorista, filial: { relatorioJornadaAte: coberturaRelatorio } })
   const { codigo: codigoHoje } = situacaoDoDia(jornada, hoje, hoje)
 
-  const motoristaSerializado = serializeData({ ...motorista, diasTrabalhados: codigoHoje })
+  const motoristaSerializado = serializeData({ ...motorista, codigoHoje })
 
   return (
     <div className="max-w-2xl mx-auto space-y-6 pb-20">

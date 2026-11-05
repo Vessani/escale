@@ -41,9 +41,8 @@ export function diferencaEmDias(dataA: Date, dataB: Date) {
  * desde o fim do prazo; sem isso, marcar alguém como Férias, Exame ou Interno
  * preenchia o calendário inteiro dali em diante com o mesmo código pra
  * sempre. Só Manutenção (11) continua sem prazo — precisa ser encerrada
- * manualmente. Com histórico, o Interno não recomeça o ciclo: ele conta como
- * dia de trabalho (ver projetarCodigo). O retorno ao código 1 aqui só vale pra
- * quem não tem nenhum registro.
+ * manualmente. O Interno não recomeça o ciclo no histórico: conta como dia de
+ * trabalho (ver projetarCodigo).
  */
 export function calcularCodigoJornadaNoDia(codigoAtual: number, dia: Date, hoje: Date) {
   const deslocamento = diferencaEmDias(dia, hoje)
@@ -103,6 +102,8 @@ export function mapearRegistrosJornada(registros: RegistroJornadaBruto[]): Ponto
 }
 
 const UM_DIA_MS = 86_400_000
+/** Motorista sem nenhum registro: só um ponto de partida, nunca "conhecido". */
+const CODIGO_SEM_HISTORICO = 1
 
 /**
  * O Relatório de Jornada traz todo dia trabalhado (quem pega veículo bate o
@@ -196,7 +197,7 @@ export function encontrarJornadaAnterior(
  * dias — cada um projeta a partir do registro conhecido mais relevante.
  */
 function projetarCodigo(jornada: JornadaDoMotorista, dia: Date, hoje: Date): number {
-  const { registrosJornada: registros, diasTrabalhados: codigoFallback } = jornada
+  const { registrosJornada: registros } = jornada
   const ordenados = [...registros].sort((a, b) => a.data.getTime() - b.data.getTime())
   const diaAlvo = inicioDoDia(dia).getTime()
 
@@ -215,7 +216,7 @@ function projetarCodigo(jornada: JornadaDoMotorista, dia: Date, hoje: Date): num
   }
 
   if (!ancora) {
-    return calcularCodigoJornadaNoDia(codigoFallback, dia, hoje)
+    return CODIGO_SEM_HISTORICO
   }
 
   // Interno é dia de trabalho: o ciclo segue de onde estava, não recomeça.
@@ -242,7 +243,7 @@ type SituacaoDoDia = {
 }
 
 /** O que situacaoDoDia precisa do motorista: `registrosJornada` já preparado (ver prepararJornadaDoMotorista). */
-export type JornadaDoMotorista = { registrosJornada: PontoRegistroJornada[]; diasTrabalhados: number }
+export type JornadaDoMotorista = { registrosJornada: PontoRegistroJornada[] }
 
 function fonteDoRegistro(registro: PontoRegistroJornada): FonteDoDia {
   // Acima de Folga (Férias, Exames, Interno, Manutenção) o relatório não diz:
@@ -301,10 +302,7 @@ export function situacaoDoDia(
   const doDia = registros.find((registro) => inicioDoDia(registro.data).getTime() === diaAlvo)
   if (doDia) return { codigo: doDia.codigo, fonte: fonteDoRegistro(doDia), conhecido: true }
 
-  const conhecido =
-    registros.length === 0
-      ? diaAlvo >= inicioDoDia(hoje).getTime()
-      : registros.some((registro) => inicioDoDia(registro.data).getTime() <= diaAlvo)
+  const conhecido = registros.some((registro) => inicioDoDia(registro.data).getTime() <= diaAlvo)
   const codigo = projetarCodigo(jornada, dia, hoje)
 
   if (!temViagem) return { codigo, fonte: "PROJECAO", conhecido }

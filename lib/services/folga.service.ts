@@ -6,16 +6,15 @@ import { CODIGO_FOLGA, CODIGO_INTERNO, ehDiaDeTrabalho } from "./codigo-jornada"
 import { codigoTrabalhandoNoDia, prepararJornadaDoMotorista, situacaoDoDia, viagemEhTrabalhoNoDia } from "./jornada.service"
 import { registrarJornadaNoDia } from "./motorista.service"
 
-export function deveRetirarMotoristaDaFolga(diasTrabalhados: number, possuiViagemAtivaHoje: boolean) {
-  return diasTrabalhados === CODIGO_FOLGA && possuiViagemAtivaHoje
+export function deveRetirarMotoristaDaFolga(codigo: number, possuiViagemAtivaHoje: boolean) {
+  return codigo === CODIGO_FOLGA && possuiViagemAtivaHoje
 }
 
 /**
  * Tira da Folga os motoristas informados (tipicamente os envolvidos na viagem
  * que acabou de ser criada/editada/excluída) que têm trabalho hoje. Não
  * escaneia a tabela inteira — do contrário, qualquer alteração numa única
- * viagem alterava o "diasTrabalhados" de motoristas sem nenhuma relação com
- * essa viagem.
+ * viagem alterava a jornada de motoristas sem nenhuma relação com essa viagem.
  *
  * NUNCA marca Folga: "sem viagem hoje" não prova folga (pode ser interno, troca
  * de escala, viagem cancelada). Folga vem do Relatório de Jornada ou de quem
@@ -49,9 +48,6 @@ export async function reconciliarFolgaMotoristasNoDiaAtual(
     return
   }
 
-  // Decide pelo código projetado pra hoje, não pelo cache diasTrabalhados:
-  // ele só muda quando algo grava no dia de hoje, então podia estar parado num
-  // 7 antigo e zerar o ciclo de quem estava no meio dele.
   const motoristas = await carregarSituacaoDeHoje(tx, idsRelevantes, dataReferencia)
 
   for (const { id, jornada, codigoHoje, temAtividadeHoje } of motoristas) {
@@ -95,7 +91,6 @@ async function carregarSituacaoDeHoje(tx: Prisma.TransactionClient, ids: number[
     where: { id: { in: ids }, deletadoEm: null },
     select: {
       id: true,
-      diasTrabalhados: true,
       filial: { select: { relatorioJornadaAte: true } },
       registrosJornada: {
         where: filtroJanelaJornada(desde),
@@ -110,7 +105,7 @@ async function carregarSituacaoDeHoje(tx: Prisma.TransactionClient, ids: number[
   const motoristas = await completarHistoricoComAncora(motoristasBrutos, desde, tx)
 
   return motoristas.map((motorista) => {
-    const jornada = { diasTrabalhados: motorista.diasTrabalhados, ...prepararJornadaDoMotorista(motorista) }
+    const jornada = prepararJornadaDoMotorista(motorista)
     return {
       id: motorista.id,
       jornada,

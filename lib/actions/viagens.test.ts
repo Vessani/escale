@@ -303,7 +303,6 @@ describe("opcoesMotoristaDaEdicao — lista de motoristas acompanhando a ediçã
     id: 2,
     nome: "BRUNO",
     turno: "MANHA",
-    diasTrabalhados: 1,
     tipo: "MOTORISTA",
     produtosAutorizados: ["CO2"],
     jornadaRelatorioInicio: null,
