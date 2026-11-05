@@ -2,22 +2,8 @@ import type { Prisma } from "@prisma/client"
 import { filtroJanelaJornada, completarHistoricoComAncora, inicioJanelaJornada } from "@/lib/queries/jornada-historico"
 import { filtroAtividadeNoDia } from "@/lib/queries/motoristas"
 import { fimDoDia, inicioDoDia } from "@/lib/utils/date-format"
-import { codigoConhecidoNoDia, prepararJornadaDoMotorista, projetarCodigoNoDia, type PontoRegistroJornada } from "./jornada.service"
+import { codigoTrabalhandoNoDia, prepararJornadaDoMotorista, situacaoDoDia } from "./jornada.service"
 import { registrarJornadaNoDia } from "./motorista.service"
-
-const UM_DIA_MS = 24 * 60 * 60 * 1000
-const ULTIMO_DIA_DO_CICLO = 6
-
-/**
- * Código de quem trabalha num dia marcado como Folga. Só descansou de verdade
- * quem vinha de uma folga: aí recomeça no 1º dia. Vindo de um dia de trabalho
- * o ciclo continua — zerar esconderia o 7º dia seguido, por isso o teto de 6,
- * como no import do relatório (ver calcularCodigoDoDiasSemFolga).
- */
-function codigoAoSairDaFolga(registros: PontoRegistroJornada[], dia: Date, hoje: Date, codigoAtual: number) {
-  const ontem = codigoConhecidoNoDia(registros, new Date(dia.getTime() - UM_DIA_MS), hoje, codigoAtual)
-  return ontem !== null && ontem >= 1 && ontem <= ULTIMO_DIA_DO_CICLO ? Math.min(ontem + 1, ULTIMO_DIA_DO_CICLO) : 1
-}
 
 export function deveRetirarMotoristaDaFolga(diasTrabalhados: number, possuiViagemAtivaHoje: boolean) {
   return diasTrabalhados === 7 && possuiViagemAtivaHoje
@@ -86,13 +72,12 @@ export async function reconciliarFolgaMotoristasNoDiaAtual(
   const motoristas = await completarHistoricoComAncora(motoristasBrutos, desde, tx)
 
   for (const motorista of motoristas) {
-    const { registrosJornada } = prepararJornadaDoMotorista(motorista)
-    const codigoHoje = projetarCodigoNoDia(registrosJornada, dataReferencia, dataReferencia, motorista.diasTrabalhados)
+    const jornada = { diasTrabalhados: motorista.diasTrabalhados, ...prepararJornadaDoMotorista(motorista) }
+    const { codigo: codigoHoje } = situacaoDoDia(jornada, dataReferencia, dataReferencia)
     const temAtividadeHoje = motorista.viagens.length > 0 || motorista.viagensComoAcompanhante.length > 0
 
     if (deveRetirarMotoristaDaFolga(codigoHoje, temAtividadeHoje)) {
-      const codigo = codigoAoSairDaFolga(registrosJornada, dataReferencia, dataReferencia, motorista.diasTrabalhados)
-      await registrarJornadaNoDia(tx, motorista.id, dataReferencia, codigo)
+      await registrarJornadaNoDia(tx, motorista.id, dataReferencia, codigoTrabalhandoNoDia(jornada, dataReferencia, dataReferencia))
     }
   }
 }

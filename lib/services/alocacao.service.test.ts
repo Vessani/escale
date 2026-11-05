@@ -230,6 +230,27 @@ describe("alocacao.service", () => {
     })
   })
 
+  describe("viagem antes do primeiro registro: não bloqueia por palpite", () => {
+    const bsb = (iso: string) => new Date(`${iso}-03:00`)
+    const contexto = (dia: string) => ({
+      turnoViagem: "MANHA" as Turno,
+      diasViagem: 1,
+      dataInicioViagem: bsb(`${dia}T08:00:00`),
+      fimViagem: bsb(`${dia}T17:00:00`),
+      integracaoExigida: null,
+      hoje: bsb("2026-10-06T12:00:00"),
+    })
+    const conhecidoSo06 = criarMotorista({ registrosJornada: [{ data: bsb("2026-10-06T00:00:00"), codigo: 1, fimJornada: null }] })
+
+    it("sabendo só que 06/10 é o 1º dia, não conclui 'Folga em 05/10'", () => {
+      expect(motivoForaDaRegra(conhecidoSo06, contexto("2026-10-05"))).toBeNull()
+    })
+
+    it("de 06/10 em diante continua valendo o ciclo conhecido", () => {
+      expect(motivoForaDaRegra(conhecidoSo06, contexto("2026-10-12"))).toBe("Folga em 12/10")
+    })
+  })
+
   describe("descanso depois de chegar de madrugada: vale o dia em que a jornada começou", () => {
     const bsb = (iso: string) => new Date(`${iso}-03:00`)
     const hoje = bsb("2026-10-05T12:00:00")

@@ -1,6 +1,6 @@
 import { TipoProduto } from "@prisma/client"
 import { colunaDateParaLocal, fimDoDia, formatarDiaMes, inicioDoDia } from "@/lib/utils/date-format"
-import { projetarCodigoNoDia } from "../jornada.service"
+import { situacaoDoDia } from "../jornada.service"
 import type { ContextoCompatibilidade, MotoristaParaAlocacao } from "./tipos"
 import { podeSerPrincipal } from "../tipo-motorista"
 import { MAX_DIAS_SEM_FOLGA } from "../dias-sem-folga"
@@ -75,7 +75,7 @@ function temIntegracaoValida(motorista: MotoristaParaAlocacao, cliente: string, 
  * precisa dela pra desempatar por dias disponíveis (ver filtrarMotoristasCompativeis).
  */
 export function codigoJornadaNaViagem(motorista: MotoristaParaAlocacao, contexto: ContextoCompatibilidade) {
-  return projetarCodigoNoDia(motorista.registrosJornada, contexto.dataInicioViagem, contexto.hoje, motorista.diasTrabalhados)
+  return situacaoDoDia(motorista, contexto.dataInicioViagem, contexto.hoje).codigo
 }
 
 /**
@@ -108,21 +108,8 @@ function contarDiasDeJornada(contexto: ContextoCompatibilidade): number {
 
 const ROTULO_CODIGO_PARADO: Record<number, string> = { 7: "Folga", 8: "Férias", 9: "Exames", 10: "Interno", 11: "Manutenção" }
 
-/**
- * Por que o motorista NÃO cabe na regra pra esta viagem (null = cabe) — o
- * mesmo texto aparece no seletor ao lado do nome "fora da regra", pra quem
- * escala não ter que adivinhar. Fonte única: motoristaEhCompativel é
- * `motivoForaDaRegra(...) === null`.
- */
-export function motivoForaDaRegra(motorista: MotoristaParaAlocacao, contexto: ContextoCompatibilidade): string | null {
-  // Em treinamento/enchedor nunca vão como principal (ver tipo-motorista.ts).
-  // Instrutor e interno PODEM — só não entram na sugestão automática, filtro
-  // aplicado em filtrarMotoristasCompativeis, não aqui: esta função também
-  // responde "cabe na regra?" pra escolha manual (Dashboard, edição).
-  if (!podeSerPrincipal(motorista.tipo)) return "Não vai como principal"
-
-  if (motorista.turno !== contexto.turnoViagem) return `Turno ${motorista.turno === "NOITE" ? "Noite" : "Dia"}`
-
+/** Por que a viagem não cabe no ciclo de trabalho do motorista (null = cabe). */
+function motivoForaDoCiclo(motorista: MotoristaParaAlocacao, contexto: ContextoCompatibilidade): string | null {
   const codigoNaViagem = codigoJornadaNaViagem(motorista, contexto)
   const parado = ROTULO_CODIGO_PARADO[codigoNaViagem]
   if (parado) return `${parado} em ${formatarDiaMes(contexto.dataInicioViagem)}`
@@ -139,7 +126,7 @@ export function motivoForaDaRegra(motorista: MotoristaParaAlocacao, contexto: Co
   const fimViagem = contexto.fimViagem
     ? instanteDoUltimoDiaDeJornada(contexto.dataInicioViagem, contexto.fimViagem)
     : new Date(contexto.dataInicioViagem.getTime() + Math.max(contexto.diasViagem - 1, 0) * 24 * 60 * 60 * 1000)
-  const codigoNoUltimoDia = projetarCodigoNoDia(motorista.registrosJornada, fimViagem, contexto.hoje, motorista.diasTrabalhados)
+  const codigoNoUltimoDia = situacaoDoDia(motorista, fimViagem, contexto.hoje).codigo
   const folgaNoFim =
     codigoNoUltimoDia > MAX_DIAS_CONSECUTIVOS
       ? `${ROTULO_CODIGO_PARADO[codigoNoUltimoDia] ?? "Folga"} em ${formatarDiaMes(fimViagem)} (fim da viagem)`
@@ -148,7 +135,28 @@ export function motivoForaDaRegra(motorista: MotoristaParaAlocacao, contexto: Co
   const naoCabem =
     calcularDiasDisponiveis(codigoNaViagem) < diasDeJornada ? `${codigoNaViagem}º dia: não cabem ${diasDeJornada} dias de viagem` : null
   // Com o fim real, "Folga em 07/10 (fim da viagem)" explica melhor; sem ele, a contagem de dias.
-  const motivoDoCiclo = contexto.fimViagem ? (folgaNoFim ?? naoCabem) : (naoCabem ?? folgaNoFim)
+  return contexto.fimViagem ? (folgaNoFim ?? naoCabem) : (naoCabem ?? folgaNoFim)
+}
+
+/**
+ * Por que o motorista NÃO cabe na regra pra esta viagem (null = cabe) — o
+ * mesmo texto aparece no seletor ao lado do nome "fora da regra", pra quem
+ * escala não ter que adivinhar. Fonte única: motoristaEhCompativel é
+ * `motivoForaDaRegra(...) === null`.
+ */
+export function motivoForaDaRegra(motorista: MotoristaParaAlocacao, contexto: ContextoCompatibilidade): string | null {
+  // Em treinamento/enchedor nunca vão como principal (ver tipo-motorista.ts).
+  // Instrutor e interno PODEM — só não entram na sugestão automática, filtro
+  // aplicado em filtrarMotoristasCompativeis, não aqui: esta função também
+  // responde "cabe na regra?" pra escolha manual (Dashboard, edição).
+  if (!podeSerPrincipal(motorista.tipo)) return "Não vai como principal"
+
+  if (motorista.turno !== contexto.turnoViagem) return `Turno ${motorista.turno === "NOITE" ? "Noite" : "Dia"}`
+
+  // Dia antes de tudo que se sabe do motorista: não bloqueia por palpite.
+  const motivoDoCiclo = situacaoDoDia(motorista, contexto.dataInicioViagem, contexto.hoje).conhecido
+    ? motivoForaDoCiclo(motorista, contexto)
+    : null
   if (motivoDoCiclo) return motivoDoCiclo
 
   if (!motoristaAutorizadoParaProduto(motorista.produtosAutorizados, contexto.produtoExigido)) {

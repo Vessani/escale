@@ -1,7 +1,7 @@
 import type { MotoristaCompativel } from "@/lib/types/alocacao"
 import { formatarHoraLocal } from "@/lib/utils/date-format"
 import { calcularAvisoDescanso, calcularDescansoAntesDaViagem, calcularDiasDisponiveis, type MotoristaComAgenda } from "./alocacao.service"
-import { projetarCodigoNoDia } from "./jornada.service"
+import { situacaoDoDia } from "./jornada.service"
 
 /**
  * Como cada motorista compatível aparece na escolha da alocação (tela de
@@ -15,7 +15,7 @@ export function montarMotoristaCompativel(
   viagem: { id?: number; inicioPrevisto: Date },
   hoje: Date,
 ): MotoristaCompativel {
-  const codigoNaViagem = projetarCodigoNoDia(motorista.registrosJornada, viagem.inicioPrevisto, hoje, motorista.diasTrabalhados)
+  const codigoNaViagem = situacaoDoDia(motorista, viagem.inicioPrevisto, hoje).codigo
   const liberadoEm = calcularDescansoAntesDaViagem(motorista, viagem.inicioPrevisto, hoje, viagem.id)?.inicioPermitido ?? null
 
   return {

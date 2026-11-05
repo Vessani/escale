@@ -7,7 +7,7 @@ import FormEditarMotorista from "./form-editar"
 import { HistoricoCard } from "@/components/auditoria/historico-card"
 import { veHistorico } from "@/lib/papeis"
 import { serializeData } from "@/lib/serialization"
-import { completarFolgasDoRelatorio, mapearRegistrosJornada, projetarCodigoNoDia } from "@/lib/services/jornada.service"
+import { prepararJornadaDoMotorista, situacaoDoDia } from "@/lib/services/jornada.service"
 import { buscarCoberturaRelatorioJornada } from "@/lib/queries/filiais"
 import { inicioDoDia } from "@/lib/utils/date-format"
 import { AcessoMotoristaCard } from "@/components/motorista/acesso-motorista-card"
@@ -40,12 +40,11 @@ export default async function EditarMotoristaPage({ params }: { params: Promise<
   // hoje, projetada a partir do histórico — não o cache diasTrabalhados cru,
   // que pode estar parado desde a última vez que algo escreveu no dia de hoje.
   const hoje = inicioDoDia(new Date())
-  const codigoHoje = projetarCodigoNoDia(
-    completarFolgasDoRelatorio(mapearRegistrosJornada(motorista.registrosJornada), coberturaRelatorio),
-    hoje,
-    hoje,
-    motorista.diasTrabalhados,
-  )
+  const jornada = {
+    diasTrabalhados: motorista.diasTrabalhados,
+    ...prepararJornadaDoMotorista({ ...motorista, filial: { relatorioJornadaAte: coberturaRelatorio } }),
+  }
+  const { codigo: codigoHoje } = situacaoDoDia(jornada, hoje, hoje)
 
   const motoristaSerializado = serializeData({ ...motorista, diasTrabalhados: codigoHoje })
 

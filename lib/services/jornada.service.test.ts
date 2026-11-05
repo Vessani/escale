@@ -6,10 +6,131 @@ import {
   encontrarJornadaAnterior,
   mapearRegistrosJornada,
   obterStatusJornada,
-  projetarCodigoNoDia,
+  situacaoDoDia,
+  codigoTrabalhandoNoDia,
+  viagemEhTrabalhoNoDia,
+  type PontoRegistroJornada,
 } from "@/lib/services/jornada.service"
 
+const projetarCodigoNoDia = (registrosJornada: PontoRegistroJornada[], dia: Date, hoje: Date, diasTrabalhados: number) =>
+  situacaoDoDia({ registrosJornada, diasTrabalhados }, dia, hoje).codigo
+
 describe("jornada.service", () => {
+  describe("situacaoDoDia", () => {
+    const bsb = (iso: string) => new Date(`${iso}-03:00`)
+    const hoje = bsb("2026-10-10T12:00:00")
+    const dia = (d: string) => bsb(`2026-10-${d}T12:00:00`)
+    const registro = (d: string, codigo: number, extra: Partial<PontoRegistroJornada> = {}): PontoRegistroJornada => ({
+      data: bsb(`2026-10-${d}T00:00:00`),
+      codigo,
+      fimJornada: null,
+      ...extra,
+    })
+    const jornada = (...registrosJornada: PontoRegistroJornada[]) => ({ registrosJornada, diasTrabalhados: 1 })
+
+    it("dia com horário do relatório vale o relatório", () => {
+      const situacao = situacaoDoDia(jornada(registro("05", 3, { fimJornada: dia("05") })), dia("05"), hoje)
+
+      expect(situacao).toEqual({ codigo: 3, fonte: "RELATORIO", conhecido: true })
+    })
+
+    it("dia sem horário é marcação manual", () => {
+      expect(situacaoDoDia(jornada(registro("05", 7)), dia("05"), hoje)).toEqual({ codigo: 7, fonte: "MANUAL", conhecido: true })
+    })
+
+    it("Férias em dia com horário importado segue sendo marcação manual", () => {
+      expect(situacaoDoDia(jornada(registro("05", 8, { fimJornada: dia("05") })), dia("05"), hoje).fonte).toBe("MANUAL")
+    })
+
+    it("folga deduzida do relatório vem como relatório", () => {
+      expect(situacaoDoDia(jornada(registro("05", 7, { inferido: true })), dia("05"), hoje).fonte).toBe("RELATORIO")
+    })
+
+    it("sem registro no dia, projeta a partir do registro anterior", () => {
+      expect(situacaoDoDia(jornada(registro("05", 2)), dia("07"), hoje)).toEqual({ codigo: 4, fonte: "PROJECAO", conhecido: true })
+    })
+
+    it("antes de tudo que se sabe, o código é palpite", () => {
+      expect(situacaoDoDia(jornada(registro("06", 1)), dia("05"), hoje).conhecido).toBe(false)
+    })
+
+    it("sem histórico, o cadastro vale de hoje em diante, não pra trás", () => {
+      const semHistorico = jornada()
+
+      expect(situacaoDoDia(semHistorico, dia("10"), hoje).conhecido).toBe(true)
+      expect(situacaoDoDia(semHistorico, dia("09"), hoje).conhecido).toBe(false)
+    })
+
+    describe("com viagem no dia", () => {
+      it("marcação manual prevalece sobre a viagem", () => {
+        expect(situacaoDoDia(jornada(registro("05", 7)), dia("05"), hoje, { temViagem: true })).toEqual({
+          codigo: 7,
+          fonte: "MANUAL",
+          conhecido: true,
+        })
+      })
+
+      it("dia projetado como Folga depois do 6º dia fica em 6, sem esconder o 7º dia seguido", () => {
+        const situacao = situacaoDoDia(jornada(registro("04", 6)), dia("05"), hoje, { temViagem: true })
+
+        expect(situacao).toMatchObject({ codigo: 6, fonte: "VIAGEM" })
+      })
+
+      it("dia de trabalho projetado mantém o código", () => {
+        expect(situacaoDoDia(jornada(registro("04", 2)), dia("05"), hoje, { temViagem: true })).toMatchObject({
+          codigo: 3,
+          fonte: "VIAGEM",
+        })
+      })
+
+      it("sem a viagem informada, a Folga projetada continua Folga: é o que a alocação usa", () => {
+        expect(situacaoDoDia(jornada(registro("04", 6)), dia("05"), hoje).codigo).toBe(7)
+      })
+    })
+
+    describe("codigoTrabalhandoNoDia", () => {
+      it("vindo do meio do ciclo, segue; vindo de folga ou sem saber de ontem, recomeça", () => {
+        expect(codigoTrabalhandoNoDia(jornada(registro("04", 3)), dia("05"), hoje)).toBe(4)
+        expect(codigoTrabalhandoNoDia(jornada(registro("04", 7)), dia("05"), hoje)).toBe(1)
+        expect(codigoTrabalhandoNoDia(jornada(registro("05", 7)), dia("05"), hoje)).toBe(1)
+      })
+    })
+
+    describe("viagemEhTrabalhoNoDia", () => {
+      const viagem = (inicio: string, fim: string, status = "ALOCADA", finalizadoEm: Date | null = null) => ({
+        inicioPrevisto: bsb(inicio),
+        fimPrevisto: bsb(fim),
+        status,
+        finalizadoEm,
+      })
+      const dia06 = dia("06")
+
+      it("começa no dia", () => {
+        expect(viagemEhTrabalhoNoDia(viagem("2026-10-06T08:00:00", "2026-10-06T18:00:00"), dia06)).toBe(true)
+      })
+
+      it("cancelada nunca conta", () => {
+        expect(viagemEhTrabalhoNoDia(viagem("2026-10-06T08:00:00", "2026-10-06T18:00:00", "CANCELADA"), dia06)).toBe(false)
+      })
+
+      it("viagem de amanhã não conta", () => {
+        expect(viagemEhTrabalhoNoDia(viagem("2026-10-07T08:00:00", "2026-10-07T18:00:00"), dia06)).toBe(false)
+      })
+
+      it("chegar de madrugada ainda é o dia anterior; às 04:00 já é o dia", () => {
+        expect(viagemEhTrabalhoNoDia(viagem("2026-10-05T20:00:00", "2026-10-06T03:59:00"), dia06)).toBe(false)
+        expect(viagemEhTrabalhoNoDia(viagem("2026-10-05T20:00:00", "2026-10-06T04:00:00"), dia06)).toBe(true)
+      })
+
+      it("finalizada vale pelo fim efetivo", () => {
+        const prevista = ["2026-10-04T08:00:00", "2026-10-06T18:00:00", "FINALIZADA"] as const
+
+        expect(viagemEhTrabalhoNoDia(viagem(...prevista, bsb("2026-10-05T16:00:00")), dia06)).toBe(false)
+        expect(viagemEhTrabalhoNoDia(viagem(...prevista, bsb("2026-10-06T10:00:00")), dia06)).toBe(true)
+      })
+    })
+  })
+
   describe("mapearRegistrosJornada", () => {
     it("converte a data de coluna @db.Date (meia-noite UTC) para meia-noite local", () => {
       // Instante exato de meia-noite UTC do dia 9 — em fusos negativos, aplicar

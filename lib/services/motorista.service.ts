@@ -133,7 +133,7 @@ export async function deletarMotoristaService(filialId: number, id: number, ator
 
 /**
  * Registra o código de jornada de um motorista num dia específico (histórico
- * usado pelo calendário — ver `jornada.service.ts#projetarCodigoNoDia`).
+ * usado pelo calendário — ver `jornada.service.ts#situacaoDoDia`).
  * Só atualiza o cache `Motorista.diasTrabalhados` quando o dia registrado é
  * hoje; editar um dia passado ou futuro nunca afeta o que "hoje" mostra.
  *
