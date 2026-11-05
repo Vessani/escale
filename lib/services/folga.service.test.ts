@@ -1,9 +1,5 @@
 import { describe, expect, it, vi } from "vitest"
-import {
-  deveMarcarMotoristaComoFolga,
-  deveRetirarMotoristaDaFolga,
-  reconciliarFolgaMotoristasNoDiaAtual,
-} from "@/lib/services/folga.service"
+import { deveRetirarMotoristaDaFolga, reconciliarFolgaMotoristasNoDiaAtual } from "@/lib/services/folga.service"
 
 function criarTx() {
   return {
@@ -82,32 +78,6 @@ const codigoGravado = (tx: ReturnType<typeof criarTx>) =>
   (vi.mocked(tx.registroJornada.upsert).mock.calls[0][0] as { create: { codigo: number } }).create.codigo
 
 describe("folga.service", () => {
-  describe("deveMarcarMotoristaComoFolga", () => {
-    it("marca folga para qualquer dia de 1 a 6 sem viagem ativa hoje", () => {
-      for (let dia = 1; dia <= 6; dia++) {
-        expect(deveMarcarMotoristaComoFolga(dia, false)).toBe(true)
-      }
-    })
-
-    it("não marca folga se já existe viagem ativa hoje", () => {
-      for (let dia = 1; dia <= 6; dia++) {
-        expect(deveMarcarMotoristaComoFolga(dia, true)).toBe(false)
-      }
-    })
-
-    it("não marca folga para quem já está em Folga/Férias/Exames/Interno", () => {
-      expect(deveMarcarMotoristaComoFolga(7, false)).toBe(false)
-      expect(deveMarcarMotoristaComoFolga(8, false)).toBe(false)
-      expect(deveMarcarMotoristaComoFolga(9, false)).toBe(false)
-      expect(deveMarcarMotoristaComoFolga(10, false)).toBe(false)
-    })
-
-    it("não marca folga para código fora da faixa válida", () => {
-      expect(deveMarcarMotoristaComoFolga(0, false)).toBe(false)
-      expect(deveMarcarMotoristaComoFolga(-1, false)).toBe(false)
-    })
-  })
-
   describe("deveRetirarMotoristaDaFolga", () => {
     it("retira da folga quando está em Folga (7) e surge uma viagem ativa hoje", () => {
       expect(deveRetirarMotoristaDaFolga(7, true)).toBe(true)
@@ -148,13 +118,16 @@ describe("folga.service", () => {
       expect(tx.motorista.update).toHaveBeenCalledWith({ where: { id: 5 }, data: { diasTrabalhados: 1 } })
     })
 
-    it("marca folga quando o motorista deixa de ter viagem ativa hoje (ex: viagem cancelada/apagada)", async () => {
+    it("nunca marca Folga em quem ficou sem viagem hoje, em nenhum dia do ciclo", async () => {
       const agora = new Date()
+      const cancelada = viagemEm(agora, agora, { status: "CANCELADA" })
 
-      const tx = await reconciliar([{ id: 8, diasTrabalhados: 3 }], [{ inicioPrevisto: agora, fimPrevisto: agora }], agora)
+      for (let dia = 1; dia <= 6; dia++) {
+        const tx = await reconciliar([{ id: 8, diasTrabalhados: dia, viagens: [cancelada] }], [cancelada], agora)
 
-      expect(codigoGravado(tx)).toBe(7)
-      expect(tx.motorista.update).toHaveBeenCalledWith({ where: { id: 8 }, data: { diasTrabalhados: 7 } })
+        expect(tx.registroJornada.upsert).not.toHaveBeenCalled()
+        expect(tx.motorista.update).not.toHaveBeenCalled()
+      }
     })
 
     it("não consulta o banco quando nenhum id relevante é informado", async () => {
@@ -208,12 +181,12 @@ describe("folga.service", () => {
         expect(tx.registroJornada.upsert).not.toHaveBeenCalled()
       })
 
-      it("viagem prevista até hoje, mas encerrada ontem, não é trabalho hoje", async () => {
+      it("viagem prevista até hoje, mas encerrada ontem, não tira o motorista da folga de hoje", async () => {
         const viagem = finalizada("2026-10-04T08:00:00", "2026-10-06T18:00:00", "2026-10-05T16:00:00")
 
-        const tx = await reconciliar([{ id: 5, diasTrabalhados: 3, viagens: [viagem] }], [viagem], hoje)
+        const tx = await reconciliar([{ id: 5, diasTrabalhados: 7, viagens: [viagem] }], [viagem], hoje)
 
-        expect(codigoGravado(tx)).toBe(7)
+        expect(tx.registroJornada.upsert).not.toHaveBeenCalled()
       })
 
       it("viagem da noite encerrada de madrugada não tira o motorista da folga de hoje", async () => {
@@ -234,14 +207,6 @@ describe("folga.service", () => {
         const registrosJornada = [noDia("2026-10-02", 7), noDia("2026-10-03", 1), noDia("2026-10-04", 2), noDia("2026-10-05", 3)]
 
         const tx = await reconciliar([{ id: 5, diasTrabalhados: 7, viagens: [viagemDeHoje], registrosJornada }], janela, hoje)
-
-        expect(tx.registroJornada.upsert).not.toHaveBeenCalled()
-      })
-
-      it("cache de dia de trabalho não marca Folga em cima de Férias", async () => {
-        const registrosJornada = [noDia("2026-10-06", 8)]
-
-        const tx = await reconciliar([{ id: 5, diasTrabalhados: 3, registrosJornada }], janela, hoje)
 
         expect(tx.registroJornada.upsert).not.toHaveBeenCalled()
       })

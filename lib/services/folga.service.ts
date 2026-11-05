@@ -6,7 +6,6 @@ import { codigoConhecidoNoDia, prepararJornadaDoMotorista, projetarCodigoNoDia, 
 import { registrarJornadaNoDia } from "./motorista.service"
 
 const UM_DIA_MS = 24 * 60 * 60 * 1000
-const CODIGO_FOLGA = 7
 const ULTIMO_DIA_DO_CICLO = 6
 
 /**
@@ -20,29 +19,24 @@ function codigoAoSairDaFolga(registros: PontoRegistroJornada[], dia: Date, hoje:
   return ontem !== null && ontem >= 1 && ontem <= ULTIMO_DIA_DO_CICLO ? Math.min(ontem + 1, ULTIMO_DIA_DO_CICLO) : 1
 }
 
-export function deveMarcarMotoristaComoFolga(diasTrabalhados: number, possuiViagemAtivaHoje: boolean) {
-  return diasTrabalhados >= 1 && diasTrabalhados <= 6 && !possuiViagemAtivaHoje
-}
-
 export function deveRetirarMotoristaDaFolga(diasTrabalhados: number, possuiViagemAtivaHoje: boolean) {
   return diasTrabalhados === 7 && possuiViagemAtivaHoje
 }
 
 /**
- * Reconcilia o status de folga apenas dos motoristas informados (tipicamente
- * o(s) motorista(s) envolvido(s) na viagem que acabou de ser criada/editada/
- * excluída). Não escaneia a tabela inteira — do contrário, qualquer alteração
- * numa única viagem alterava o "diasTrabalhados" de motoristas sem nenhuma
- * relação com essa viagem.
+ * Tira da Folga os motoristas informados (tipicamente os envolvidos na viagem
+ * que acabou de ser criada/editada/excluída) que têm trabalho hoje. Não
+ * escaneia a tabela inteira — do contrário, qualquer alteração numa única
+ * viagem alterava o "diasTrabalhados" de motoristas sem nenhuma relação com
+ * essa viagem.
+ *
+ * NUNCA marca Folga: "sem viagem hoje" não prova folga (pode ser interno, troca
+ * de escala, viagem cancelada). Folga vem do Relatório de Jornada ou de quem
+ * escala, pelo calendário ou pela sugestão da tela de motoristas sem viagem.
  *
  * `janelasRelevantes` é a janela (ou janelas, se a data mudou numa edição —
  * passe a de antes e a de depois) da viagem que disparou essa chamada. Se
- * nenhuma delas tocar "hoje", a função não faz nada: sem essa checagem,
- * criar/editar uma viagem pra uma data futura (comum em planejamento
- * antecipado, ver bug encontrado numa simulação de 30 dias) marcava o
- * motorista como "de folga hoje" só por não ter nenhuma viagem cobrindo o
- * dia de hoje especificamente — mesmo que ele estivesse no meio de um ciclo
- * de trabalho normal, sem nenhuma relação real com a viagem tocada.
+ * nenhuma delas tocar "hoje", a função não faz nada.
  *
  * Sem RegistroAuditoria própria de propósito: é um efeito colateral
  * automático de uma escrita de Viagem, não uma decisão de alguém — a viagem
@@ -96,9 +90,7 @@ export async function reconciliarFolgaMotoristasNoDiaAtual(
     const codigoHoje = projetarCodigoNoDia(registrosJornada, dataReferencia, dataReferencia, motorista.diasTrabalhados)
     const temAtividadeHoje = motorista.viagens.length > 0 || motorista.viagensComoAcompanhante.length > 0
 
-    if (deveMarcarMotoristaComoFolga(codigoHoje, temAtividadeHoje)) {
-      await registrarJornadaNoDia(tx, motorista.id, dataReferencia, CODIGO_FOLGA)
-    } else if (deveRetirarMotoristaDaFolga(codigoHoje, temAtividadeHoje)) {
+    if (deveRetirarMotoristaDaFolga(codigoHoje, temAtividadeHoje)) {
       const codigo = codigoAoSairDaFolga(registrosJornada, dataReferencia, dataReferencia, motorista.diasTrabalhados)
       await registrarJornadaNoDia(tx, motorista.id, dataReferencia, codigo)
     }
