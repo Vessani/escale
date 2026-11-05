@@ -4,7 +4,7 @@ import type { EditarViagemInput } from "@/lib/types/types"
 import { ErroDeDominio, StatusViagemObrigatorioError, ViagemNaoEncontradaError } from "@/lib/errors"
 import { calcularDiasEntre } from "@/lib/utils/date-format"
 import { registrarAuditoria, type Ator } from "./auditoria.service"
-import { reconciliarFolgaMotoristasNoDiaAtual } from "./folga.service"
+import { marcarInternoQuemSaiuDaEscala, reconciliarFolgaMotoristasNoDiaAtual } from "./folga.service"
 import { calcularAvisoFrotaIndisponivel, calcularAvisoFrotaProduto, sincronizarDisponibilidadeFrota } from "./frota.service"
 import { recalcularAvisosInterjornada } from "./interjornada.service"
 import { turnoPorHorario } from "./turno"
@@ -128,6 +128,10 @@ export async function atualizarStatusViagemService(
         { inicioPrevisto: viagemAtualizada.inicioPrevisto, fimPrevisto: viagemAtualizada.fimPrevisto },
       ],
     )
+    // Cancelada ou adiada, quem estava escalado hoje fica como Interno.
+    if (status !== "FINALIZADA") {
+      await marcarInternoQuemSaiuDaEscala(tx, [viagemAtual.motoristaId, viagemAtual.motoristaAcompanhanteId], viagemAtual)
+    }
     // Finalizar libera o motorista: a próxima viagem dele perde o aviso de
     // descanso se, contando da finalização, as 11h/35h já estão cumpridas.
     await recalcularAvisosInterjornada(tx, filialId, [viagemAtualizada.motoristaId, viagemAtualizada.motoristaAcompanhanteId])

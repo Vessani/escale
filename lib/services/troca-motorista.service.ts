@@ -9,6 +9,9 @@ import { garantirMotoristasValidos } from "@/lib/services/viagem.service"
 import { CODIGO_VIAGEM_MUDOU } from "@/lib/services/viagem-andamento.service"
 import { podeSerPrincipal } from "@/lib/services/tipo-motorista"
 import { motoristaAutorizadoParaProduto } from "@/lib/services/alocacao/compatibilidade"
+import { ROTULO_CODIGO_PARADO } from "@/lib/services/codigo-jornada"
+import { prepararJornadaDoMotorista, situacaoDoDia } from "@/lib/services/jornada.service"
+import { completarHistoricoComAncora, filtroJanelaJornada, inicioJanelaJornada } from "@/lib/queries/jornada-historico"
 import type { TipoProduto } from "@prisma/client"
 import { TAMANHO_MAXIMO_LOCAL, TAMANHO_MAXIMO_MOTIVO_TROCA } from "@/lib/validation/troca-motorista"
 
@@ -155,13 +158,36 @@ export async function buscarTrocasDaViagem(filialId: number, viagemId: number) {
  * Motoristas que podem assumir a viagem: do cadastro da filial, que podem ser
  * principal e autorizados pro produto — a lista só mostra quem a troca aceita.
  */
-export async function buscarSubstitutosPossiveis(filialId: number, excetoId: number | null, produto: TipoProduto | null) {
-  const motoristas = await prisma.motorista.findMany({
+export async function buscarSubstitutosPossiveis(
+  filialId: number,
+  excetoId: number | null,
+  produto: TipoProduto | null,
+  agora = new Date(),
+) {
+  const desde = inicioJanelaJornada(agora)
+  const brutos = await prisma.motorista.findMany({
     where: { filialId, deletadoEm: null, ...(excetoId ? { id: { not: excetoId } } : {}) },
     orderBy: { nome: "asc" },
-    select: { id: true, nome: true, tipo: true, produtosAutorizados: true },
+    select: {
+      id: true,
+      nome: true,
+      tipo: true,
+      produtosAutorizados: true,
+      diasTrabalhados: true,
+      filial: { select: { relatorioJornadaAte: true } },
+      registrosJornada: {
+        where: filtroJanelaJornada(desde),
+        select: { data: true, codigo: true, fimJornada: true },
+        orderBy: { data: "asc" },
+      },
+    },
   })
+  const motoristas = await completarHistoricoComAncora(brutos, desde)
   return motoristas
     .filter((m) => podeSerPrincipal(m.tipo) && (!produto || motoristaAutorizadoParaProduto(m.produtosAutorizados, produto)))
-    .map(({ id, nome }) => ({ id, nome }))
+    .map((m) => {
+      const jornada = { diasTrabalhados: m.diasTrabalhados, ...prepararJornadaDoMotorista(m) }
+      // A troca é agora: quem escolhe precisa ver que está tirando alguém da folga.
+      return { id: m.id, nome: m.nome, parado: ROTULO_CODIGO_PARADO[situacaoDoDia(jornada, agora, agora).codigo] ?? null }
+    })
 }

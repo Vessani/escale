@@ -2,8 +2,8 @@ import type { Prisma } from "@prisma/client"
 import { filtroJanelaJornada, completarHistoricoComAncora, inicioJanelaJornada } from "@/lib/queries/jornada-historico"
 import { filtroAtividadeNoDia } from "@/lib/queries/motoristas"
 import { fimDoDia, inicioDoDia } from "@/lib/utils/date-format"
-import { CODIGO_FOLGA } from "./codigo-jornada"
-import { codigoTrabalhandoNoDia, prepararJornadaDoMotorista, situacaoDoDia } from "./jornada.service"
+import { CODIGO_FOLGA, CODIGO_INTERNO, ehDiaDeTrabalho } from "./codigo-jornada"
+import { codigoTrabalhandoNoDia, prepararJornadaDoMotorista, situacaoDoDia, viagemEhTrabalhoNoDia } from "./jornada.service"
 import { registrarJornadaNoDia } from "./motorista.service"
 
 export function deveRetirarMotoristaDaFolga(diasTrabalhados: number, possuiViagemAtivaHoje: boolean) {
@@ -52,10 +52,47 @@ export async function reconciliarFolgaMotoristasNoDiaAtual(
   // Decide pelo código projetado pra hoje, não pelo cache diasTrabalhados:
   // ele só muda quando algo grava no dia de hoje, então podia estar parado num
   // 7 antigo e zerar o ciclo de quem estava no meio dele.
+  const motoristas = await carregarSituacaoDeHoje(tx, idsRelevantes, dataReferencia)
+
+  for (const { id, jornada, codigoHoje, temAtividadeHoje } of motoristas) {
+    if (deveRetirarMotoristaDaFolga(codigoHoje, temAtividadeHoje)) {
+      await registrarJornadaNoDia(tx, id, dataReferencia, codigoTrabalhandoNoDia(jornada, dataReferencia, dataReferencia))
+    }
+  }
+}
+
+/**
+ * Quem estava escalado hoje e ficou sem viagem não vira Folga: fica como
+ * Interno. Escalado não folga no dia — se a viagem caiu, ele segue à disposição
+ * da operação. Chamada ao cancelar, excluir ou editar a viagem, com o estado de
+ * ANTES dela. Fora disso de propósito: a troca durante a viagem (quem saiu já
+ * trabalhou na estrada, o dia dele não muda) e a finalização (é trabalho no
+ * dia). Só vale pro próprio dia: cancelar a viagem de amanhã não muda nada.
+ */
+export async function marcarInternoQuemSaiuDaEscala(
+  tx: Prisma.TransactionClient,
+  motoristaIds: Array<number | null | undefined>,
+  viagemAntes: Parameters<typeof viagemEhTrabalhoNoDia>[0],
+  dataReferencia = new Date(),
+) {
+  const idsRelevantes = [...new Set(motoristaIds.filter((id): id is number => id != null))]
+  if (idsRelevantes.length === 0 || !viagemEhTrabalhoNoDia(viagemAntes, dataReferencia)) {
+    return
+  }
+
+  for (const { id, codigoHoje, temAtividadeHoje } of await carregarSituacaoDeHoje(tx, idsRelevantes, dataReferencia)) {
+    if (!temAtividadeHoje && (ehDiaDeTrabalho(codigoHoje) || codigoHoje === CODIGO_FOLGA)) {
+      await registrarJornadaNoDia(tx, id, dataReferencia, CODIGO_INTERNO)
+    }
+  }
+}
+
+/** Código de hoje e se há trabalho hoje, de cada motorista — o que as duas regras acima precisam. */
+async function carregarSituacaoDeHoje(tx: Prisma.TransactionClient, ids: number[], dataReferencia: Date) {
   const atividadeHoje = filtroAtividadeNoDia(dataReferencia)
   const desde = inicioJanelaJornada(dataReferencia)
   const motoristasBrutos = await tx.motorista.findMany({
-    where: { id: { in: idsRelevantes }, deletadoEm: null },
+    where: { id: { in: ids }, deletadoEm: null },
     select: {
       id: true,
       diasTrabalhados: true,
@@ -72,13 +109,13 @@ export async function reconciliarFolgaMotoristasNoDiaAtual(
   })
   const motoristas = await completarHistoricoComAncora(motoristasBrutos, desde, tx)
 
-  for (const motorista of motoristas) {
+  return motoristas.map((motorista) => {
     const jornada = { diasTrabalhados: motorista.diasTrabalhados, ...prepararJornadaDoMotorista(motorista) }
-    const { codigo: codigoHoje } = situacaoDoDia(jornada, dataReferencia, dataReferencia)
-    const temAtividadeHoje = motorista.viagens.length > 0 || motorista.viagensComoAcompanhante.length > 0
-
-    if (deveRetirarMotoristaDaFolga(codigoHoje, temAtividadeHoje)) {
-      await registrarJornadaNoDia(tx, motorista.id, dataReferencia, codigoTrabalhandoNoDia(jornada, dataReferencia, dataReferencia))
+    return {
+      id: motorista.id,
+      jornada,
+      codigoHoje: situacaoDoDia(jornada, dataReferencia, dataReferencia).codigo,
+      temAtividadeHoje: motorista.viagens.length > 0 || motorista.viagensComoAcompanhante.length > 0,
     }
-  }
+  })
 }

@@ -5,7 +5,7 @@ import type { RegistroJornadaRelatorio } from "@/lib/parsers/jornada-relatorio-p
 import { MAX_DIAS_CONSECUTIVOS } from "./alocacao.service"
 import { registrarJornadaNoDia } from "./motorista.service"
 import { recalcularAvisosInterjornada } from "./interjornada.service"
-import { CODIGO_EXAMES, CODIGO_FERIAS, CODIGO_INTERNO } from "./codigo-jornada"
+import { CODIGO_EXAMES, CODIGO_FERIAS, CODIGO_INTERNO, CODIGO_MANUTENCAO } from "./codigo-jornada"
 import { calcularCodigoJornadaNoDia } from "./jornada.service"
 import { registrarAuditoria, type Ator } from "./auditoria.service"
 import type { AjusteJornada } from "@/lib/validation/ajuste-jornada"
@@ -38,8 +38,8 @@ export type CoberturaImportacaoJornada = {
   parcial?: boolean
 }
 
-/** Códigos de status especial (Férias/Exames/Interno) que o import não deve sobrescrever — só edição manual muda isso. */
-const CODIGOS_STATUS_ESPECIAL = new Set([CODIGO_FERIAS, CODIGO_EXAMES, CODIGO_INTERNO])
+/** Códigos de status especial (Férias/Exames/Interno/Manutenção) que o import não deve sobrescrever — só edição manual muda isso. */
+const CODIGOS_STATUS_ESPECIAL = new Set([CODIGO_FERIAS, CODIGO_EXAMES, CODIGO_INTERNO, CODIGO_MANUTENCAO])
 
 function ehStatusEspecial(codigo: number) {
   return CODIGOS_STATUS_ESPECIAL.has(codigo)
@@ -87,7 +87,7 @@ function jornadaMaisRecente(registros: RegistroJornadaRelatorio[]): RegistroJorn
  * motorista, um por dia trabalhado, não só o mais recente. Essa é a fonte
  * principal do controle de dias trabalhados; o preenchimento manual no
  * calendário fica só pra emergência. Dia marcado à mão como
- * Férias/Exames/Interno (código 8-10) não é sobrescrito nem apagado — evita
+ * Férias/Exames/Interno/Manutenção (código 8-11) não é sobrescrito nem apagado — evita
  * tirar alguém de licença sozinho. Vale por dia (antes valia pro motorista
  * inteiro e o mês todo dele deixava de atualizar).
  *
@@ -126,7 +126,7 @@ export async function atualizarJornadaRelatorioDosMotoristas(
   }
   const motoristasEncontrados = await prisma.motorista.findMany({
     where: { seva: { in: matriculas }, filialId, deletadoEm: null },
-    select: { id: true, seva: true },
+    select: { id: true, seva: true, jornadaRelatorioInicio: true },
   })
 
   const motoristasPorMatricula = new Map<number, typeof motoristasEncontrados>()
@@ -147,7 +147,7 @@ export async function atualizarJornadaRelatorioDosMotoristas(
   const duplicados: number[] = []
   const paraAtualizar: Array<{
     registrosDoMotorista: RegistroJornadaRelatorio[]
-    motorista: { id: number }
+    motorista: { id: number; jornadaRelatorioInicio: Date | null }
   }> = []
 
   for (const matricula of matriculas) {
@@ -199,13 +199,11 @@ export async function atualizarJornadaRelatorioDosMotoristas(
   for (const { registrosDoMotorista, motorista } of paraAtualizar) {
     await prisma.$transaction(async (tx) => {
       if (registrosDoMotorista.length > 0) {
-        const registroMaisRecente = jornadaMaisRecente(registrosDoMotorista)
-        await tx.motorista.update({
-          where: { id: motorista.id },
-          data: {
-            jornadaRelatorioInicio: new Date(registroMaisRecente.inicioJornada),
-          },
-        })
+        // Só avança: importar um relatório antigo depois não troca o horário habitual pelo de antes.
+        const inicioMaisRecente = new Date(jornadaMaisRecente(registrosDoMotorista).inicioJornada)
+        if (!motorista.jornadaRelatorioInicio || inicioMaisRecente > motorista.jornadaRelatorioInicio) {
+          await tx.motorista.update({ where: { id: motorista.id }, data: { jornadaRelatorioInicio: inicioMaisRecente } })
+        }
       }
 
       const existentes = await tx.registroJornada.findMany({

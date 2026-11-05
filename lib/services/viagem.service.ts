@@ -4,7 +4,7 @@ import { buscarMotoristasParaSelect } from "@/lib/queries/motoristas"
 import { buscarNumerosSapQueExigemIntegracao } from "@/lib/queries/clientes"
 import { calcularIntegracaoExigida, motoristaAutorizadoParaProduto, sugerirMotoristaAutomatico } from "./alocacao.service"
 import type { TipoProduto } from "@prisma/client"
-import { reconciliarFolgaMotoristasNoDiaAtual } from "./folga.service"
+import { marcarInternoQuemSaiuDaEscala, reconciliarFolgaMotoristasNoDiaAtual } from "./folga.service"
 import { registrarAuditoria, type Ator } from "./auditoria.service"
 import { camposTravadosAlterados } from "./trava-chegada"
 import {
@@ -408,6 +408,7 @@ export async function editarViagemService(filialId: number, idViagem: number, da
         { inicioPrevisto: viagemAtualizada.inicioPrevisto, fimPrevisto: viagemAtualizada.fimPrevisto },
       ],
     )
+    await marcarInternoQuemSaiuDaEscala(tx, [viagemAtual.motoristaId, viagemAtual.motoristaAcompanhanteId], viagemAtual)
     await recalcularAvisosInterjornada(tx, filialId, [
       viagemAtual.motoristaId,
       viagemAtualizada.motoristaId,
@@ -445,6 +446,7 @@ export async function deletarViagemService(filialId: number, id: number, ator: A
       [viagemDeletada.motoristaId, viagemDeletada.motoristaAcompanhanteId],
       [{ inicioPrevisto: viagemDeletada.inicioPrevisto, fimPrevisto: viagemDeletada.fimPrevisto }],
     )
+    await marcarInternoQuemSaiuDaEscala(tx, [viagemAntes.motoristaId, viagemAntes.motoristaAcompanhanteId], viagemAntes)
     await recalcularAvisosInterjornada(tx, filialId, [viagemDeletada.motoristaId, viagemDeletada.motoristaAcompanhanteId])
     await registrarAuditoria(tx, {
       entidade: "Viagem",

@@ -108,6 +108,17 @@ describe("atualizarJornadaRelatorioDosMotoristas", () => {
     expect(tx.registroJornada.upsert).toHaveBeenCalledTimes(1)
   })
 
+  it("relatório antigo importado depois não troca o horário habitual pelo de antes", async () => {
+    vi.mocked(prisma.motorista.findMany).mockResolvedValue([
+      { id: 42, seva: 815, jornadaRelatorioInicio: new Date("2026-08-01T10:00:00.000Z") },
+    ] as never)
+
+    await atualizarJornadaRelatorioDosMotoristas(FILIAL_ID, [criarRegistro({ dia: "2026-07-10T03:00:00.000Z" })])
+
+    expect(tx.motorista.update).not.toHaveBeenCalled()
+    expect(tx.registroJornada.upsert).toHaveBeenCalledTimes(1)
+  })
+
   it("capa em 6 quando Dias Sem Folga vem maior (7+) — evita colidir com o código 7 (Folga)", async () => {
     vi.mocked(prisma.motorista.findMany).mockResolvedValue([{ id: 42, seva: 815, diasTrabalhados: 6 }] as never)
 
@@ -254,6 +265,15 @@ describe("atualizarJornadaRelatorioDosMotoristas", () => {
     it("não grava por cima de quem está de Férias marcadas há dois dias", async () => {
       vi.mocked(prisma.motorista.findMany).mockResolvedValue([{ id: 42, seva: 815 }] as never)
       tx.registroJornada.findFirst.mockResolvedValue({ data: colunaHaDias(2), codigo: 8 })
+
+      await atualizarJornadaRelatorioDosMotoristas(FILIAL_ID, [registroDeHoje()])
+
+      expect(tx.registroJornada.upsert).not.toHaveBeenCalled()
+    })
+
+    it("não grava por cima de Manutenção, que só acaba à mão", async () => {
+      vi.mocked(prisma.motorista.findMany).mockResolvedValue([{ id: 42, seva: 815 }] as never)
+      tx.registroJornada.findFirst.mockResolvedValue({ data: colunaHaDias(20), codigo: 11 })
 
       await atualizarJornadaRelatorioDosMotoristas(FILIAL_ID, [registroDeHoje()])
 

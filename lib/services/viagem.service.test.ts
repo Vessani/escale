@@ -30,6 +30,7 @@ vi.mock("@/lib/services/interjornada.service", () => ({
 
 vi.mock("@/lib/services/folga.service", () => ({
   reconciliarFolgaMotoristasNoDiaAtual: vi.fn(),
+  marcarInternoQuemSaiuDaEscala: vi.fn(),
 }))
 
 vi.mock("@/lib/services/frota.service", () => ({
@@ -41,7 +42,7 @@ vi.mock("@/lib/services/frota.service", () => ({
 import { prisma } from "@/lib/prisma"
 import { buscarMotoristasParaSelect } from "@/lib/queries/motoristas"
 import { buscarNumerosSapQueExigemIntegracao } from "@/lib/queries/clientes"
-import { reconciliarFolgaMotoristasNoDiaAtual } from "@/lib/services/folga.service"
+import { marcarInternoQuemSaiuDaEscala, reconciliarFolgaMotoristasNoDiaAtual } from "@/lib/services/folga.service"
 import { recalcularAvisosInterjornada } from "@/lib/services/interjornada.service"
 import { calcularAvisoFrotaIndisponivel, calcularAvisoFrotaProduto, sincronizarDisponibilidadeFrota } from "@/lib/services/frota.service"
 import {
@@ -541,6 +542,7 @@ describe("viagem.service", () => {
       const dados = vi.mocked(tx.viagem.update).mock.calls[0][0].data
       expect(dados.motoristaAcompanhanteId).toBe(11)
       expect(reconciliarFolgaMotoristasNoDiaAtual).toHaveBeenCalledWith(tx, [5, 5, 8, 11], expect.anything())
+      expect(marcarInternoQuemSaiuDaEscala).toHaveBeenCalledWith(tx, [5, 8], expect.anything())
     })
 
     it("não promove o status automaticamente quando a viagem já está FINALIZADA", async () => {

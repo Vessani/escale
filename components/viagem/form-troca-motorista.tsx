@@ -33,7 +33,7 @@ export function FormTrocaMotorista({
 }: {
   viagemId: number
   numViagem: string
-  substitutos: Array<{ id: number; nome: string }>
+  substitutos: Array<{ id: number; nome: string; parado?: string | null }>
   kmInicial: number | null
   modo: "escalador" | "motorista"
   /** Relógio do servidor: o campo abre na hora atual de Brasília, não na do aparelho. */
@@ -87,6 +87,7 @@ export function FormTrocaMotorista({
           {substitutos.map((s) => (
             <option key={s.id} value={s.id}>
               {formatarNomeProprio(s.nome)}
+              {s.parado ? ` (${s.parado} hoje)` : ""}
             </option>
           ))}
         </select>

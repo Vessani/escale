@@ -33,7 +33,7 @@ export function TrocaMotoristaCard({
   agoraServidor: string
   emAndamento: boolean
   trocas: TrocaDaViagem[]
-  substitutos: Array<{ id: number; nome: string }>
+  substitutos: Array<{ id: number; nome: string; parado?: string | null }>
   kmInicial: number | null
 }) {
   const [aberto, setAberto] = useState(false)

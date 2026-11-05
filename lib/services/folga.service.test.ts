@@ -1,5 +1,9 @@
 import { describe, expect, it, vi } from "vitest"
-import { deveRetirarMotoristaDaFolga, reconciliarFolgaMotoristasNoDiaAtual } from "@/lib/services/folga.service"
+import {
+  deveRetirarMotoristaDaFolga,
+  marcarInternoQuemSaiuDaEscala,
+  reconciliarFolgaMotoristasNoDiaAtual,
+} from "@/lib/services/folga.service"
 
 function criarTx() {
   return {
@@ -236,6 +240,51 @@ describe("folga.service", () => {
 
       it("sem saber de ontem, recomeça no 1º dia", async () => {
         expect(codigoGravado(await trabalhandoCom([noDia("2026-10-06", 7)]))).toBe(1)
+      })
+    })
+
+    describe("marcarInternoQuemSaiuDaEscala", () => {
+      const hoje = bsb("2026-10-06T12:00:00")
+      const viagemDeHoje = viagemEm(bsb("2026-10-06T08:00:00"), bsb("2026-10-06T18:00:00"))
+      const noDiaDeHoje = (codigo: number) => [noDia("2026-10-06", codigo)]
+      async function marcar(motorista: MotoristaFake, viagemAntes: ViagemFake = viagemDeHoje) {
+        const tx = criarTx()
+        tx.motorista.findMany = criarFindManyFiel([motorista]) as never
+        await marcarInternoQuemSaiuDaEscala(tx as never, [motorista.id], viagemAntes, hoje)
+        return tx
+      }
+
+      it("quem estava no meio do ciclo e perdeu a viagem de hoje fica Interno", async () => {
+        expect(codigoGravado(await marcar({ id: 5, diasTrabalhados: 3 }))).toBe(10)
+      })
+
+      it("quem estava de Folga e foi escalado também fica Interno, sem voltar à folga", async () => {
+        expect(codigoGravado(await marcar({ id: 5, diasTrabalhados: 7, registrosJornada: noDiaDeHoje(7) }))).toBe(10)
+      })
+
+      it("se ainda tem outra viagem hoje, não muda nada", async () => {
+        const outra = viagemEm(bsb("2026-10-06T19:00:00"), bsb("2026-10-06T22:00:00"))
+
+        expect((await marcar({ id: 5, diasTrabalhados: 3, viagens: [outra] })).registroJornada.upsert).not.toHaveBeenCalled()
+      })
+
+      it("Férias, Exames e Manutenção não viram Interno", async () => {
+        for (const codigo of [8, 9, 11]) {
+          const tx = await marcar({ id: 5, diasTrabalhados: 3, registrosJornada: noDiaDeHoje(codigo) })
+
+          expect(tx.registroJornada.upsert).not.toHaveBeenCalled()
+        }
+      })
+
+      it("viagem que não era trabalho hoje não muda nada e nem consulta o banco", async () => {
+        const deAmanha = viagemEm(bsb("2026-10-07T08:00:00"), bsb("2026-10-07T18:00:00"))
+        const daMadrugada = viagemEm(bsb("2026-10-05T20:00:00"), bsb("2026-10-06T03:00:00"))
+
+        for (const viagem of [deAmanha, daMadrugada]) {
+          const tx = await marcar({ id: 5, diasTrabalhados: 3 }, viagem)
+
+          expect(tx.motorista.findMany).not.toHaveBeenCalled()
+        }
       })
     })
 
