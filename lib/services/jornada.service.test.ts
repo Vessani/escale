@@ -88,6 +88,44 @@ describe("jornada.service", () => {
       })
     })
 
+    describe("Interno é dia de trabalho: conta no ciclo e não zera", () => {
+      it("no 3º dia ontem, Interno hoje é o 4º: amanhã é o 5º", () => {
+        const comInterno = jornada(registro("04", 3), registro("05", 10))
+
+        expect(situacaoDoDia(comInterno, dia("06"), hoje).codigo).toBe(5)
+        expect(situacaoDoDia(comInterno, dia("07"), hoje).codigo).toBe(6)
+        expect(situacaoDoDia(comInterno, dia("08"), hoje).codigo).toBe(7)
+      })
+
+      it("Interno no 6º dia: o dia seguinte é Folga", () => {
+        expect(situacaoDoDia(jornada(registro("04", 5), registro("05", 10)), dia("06"), hoje).codigo).toBe(7)
+      })
+
+      it("dois Internos seguidos contam dois dias", () => {
+        expect(situacaoDoDia(jornada(registro("03", 2), registro("04", 10), registro("05", 10)), dia("06"), hoje).codigo).toBe(5)
+      })
+
+      it("Interno logo depois da Folga é o 1º dia", () => {
+        expect(situacaoDoDia(jornada(registro("04", 7), registro("05", 10)), dia("06"), hoje).codigo).toBe(2)
+      })
+
+      it("sem saber de antes, o Interno é o 1º dia", () => {
+        expect(situacaoDoDia(jornada(registro("05", 10)), dia("06"), hoje).codigo).toBe(2)
+      })
+
+      it("dois Internos sem nada antes não travam: viram 1º e 2º dia", () => {
+        expect(situacaoDoDia(jornada(registro("04", 10), registro("05", 10)), dia("06"), hoje).codigo).toBe(3)
+      })
+
+      it("o próprio dia continua aparecendo como Interno", () => {
+        expect(situacaoDoDia(jornada(registro("04", 3), registro("05", 10)), dia("05"), hoje).codigo).toBe(10)
+      })
+
+      it("quem sai da Folga depois de um Interno segue a contagem", () => {
+        expect(codigoTrabalhandoNoDia(jornada(registro("04", 3), registro("05", 10)), dia("06"), hoje)).toBe(5)
+      })
+    })
+
     describe("codigoTrabalhandoNoDia", () => {
       it("vindo do meio do ciclo, segue; vindo de folga ou sem saber de ontem, recomeça", () => {
         expect(codigoTrabalhandoNoDia(jornada(registro("04", 3)), dia("05"), hoje)).toBe(4)
@@ -434,7 +472,15 @@ describe("completarFolgasDoRelatorio (dia coberto pelo relatório sem registro =
     expect(projetarCodigoNoDia(completos, d("2026-10-05"), hoje, 1)).toBe(4)
   })
 
-  it("não mexe: sem cobertura, sem histórico, Férias/Exames/Interno/Manutenção, dias já registrados", () => {
+  it("depois de um Interno, dia sem registro coberto pelo relatório também é folga", () => {
+    const completos = completarFolgasDoRelatorio([{ data: d("2026-10-01"), codigo: 10 }], d("2026-10-04"))
+
+    expect(completos.filter((r) => r.codigo === 7).map((r) => r.data.getTime())).toEqual(
+      [d("2026-10-02"), d("2026-10-03")].map((x) => x.getTime()),
+    )
+  })
+
+  it("não mexe: sem cobertura, sem histórico, Férias/Exames/Manutenção, dias já registrados", () => {
     expect(completarFolgasDoRelatorio([trabalhou("2026-10-01", 2)], null)).toHaveLength(1)
     expect(completarFolgasDoRelatorio([], d("2026-10-05"))).toEqual([])
     expect(completarFolgasDoRelatorio([{ data: d("2026-10-01"), codigo: 8 }], d("2026-10-05"))).toHaveLength(1)

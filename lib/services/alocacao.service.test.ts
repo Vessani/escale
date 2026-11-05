@@ -226,6 +226,26 @@ describe("alocacao.service", () => {
     })
   })
 
+  describe("descanso depois de um dia de Interno vale pela posição no ciclo", () => {
+    const bsb = (iso: string) => new Date(`${iso}-03:00`)
+    const hoje = bsb("2026-10-05T12:00:00")
+    const noDia = (dia: string, codigo: number, fimJornada: Date | null = null) => ({ data: bsb(`${dia}T00:00:00`), codigo, fimJornada })
+    const fim = bsb("2026-10-05T17:00:00")
+    const proxima = bsb("2026-10-06T08:00:00")
+
+    it("Interno no meio do ciclo exige 11h, não 35h", () => {
+      const motorista = criarMotorista({ registrosJornada: [noDia("2026-10-04", 2), noDia("2026-10-05", 10, fim)] })
+
+      expect(calcularDescansoAntesDaViagem(motorista, proxima, hoje)?.minimoHoras).toBe(11)
+    })
+
+    it("Interno que fecha o 6º dia exige 35h", () => {
+      const motorista = criarMotorista({ registrosJornada: [noDia("2026-10-04", 5), noDia("2026-10-05", 10, fim)] })
+
+      expect(calcularDescansoAntesDaViagem(motorista, proxima, hoje)?.minimoHoras).toBe(35)
+    })
+  })
+
   describe("viagem antes do primeiro registro: não bloqueia por palpite", () => {
     const bsb = (iso: string) => new Date(`${iso}-03:00`)
     const contexto = (dia: string) => ({

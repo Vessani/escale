@@ -41,7 +41,9 @@ export function diferencaEmDias(dataA: Date, dataB: Date) {
  * desde o fim do prazo; sem isso, marcar alguém como Férias, Exame ou Interno
  * preenchia o calendário inteiro dali em diante com o mesmo código pra
  * sempre. Só Manutenção (11) continua sem prazo — precisa ser encerrada
- * manualmente.
+ * manualmente. Com histórico, o Interno não recomeça o ciclo: ele conta como
+ * dia de trabalho (ver projetarCodigo). O retorno ao código 1 aqui só vale pra
+ * quem não tem nenhum registro.
  */
 export function calcularCodigoJornadaNoDia(codigoAtual: number, dia: Date, hoje: Date) {
   const deslocamento = diferencaEmDias(dia, hoje)
@@ -113,8 +115,8 @@ const UM_DIA_MS = 86_400_000
  * fim da cobertura — o último dia do relatório pode estar incompleto (o
  * noturno que entra às 20h ainda não bateu o ponto quando o relatório é
  * exportado), então ali a ausência continua sendo "não sei" e vale a
- * projeção normal. Não mexe em quem está em Férias/Exames/Interno/Manutenção
- * (códigos 8-11) nem em quem não tem histórico.
+ * projeção normal. Não mexe em quem está em Férias/Exames/Manutenção nem em
+ * quem não tem histórico. Interno é dia de trabalho: depois dele vale a mesma regra.
  */
 export function completarFolgasDoRelatorio(registros: PontoRegistroJornada[], relatorioJornadaAte: Date | null): PontoRegistroJornada[] {
   if (!relatorioJornadaAte || registros.length === 0) return registros
@@ -126,7 +128,7 @@ export function completarFolgasDoRelatorio(registros: PontoRegistroJornada[], re
     const dia = inicioDoDia(registro.data).getTime()
     if (dia <= limite && (!ancora || dia > inicioDoDia(ancora.data).getTime())) ancora = registro
   }
-  if (!ancora || ancora.codigo > CODIGO_FOLGA) return registros
+  if (!ancora || (ancora.codigo > CODIGO_FOLGA && ancora.codigo !== CODIGO_INTERNO)) return registros
 
   const folgas: PontoRegistroJornada[] = []
   for (let dia = inicioDoDia(ancora.data).getTime() + UM_DIA_MS; dia <= limite; dia += UM_DIA_MS) {
@@ -193,7 +195,8 @@ export function encontrarJornadaAnterior(
  * (ex: marcar amanhã como Folga) sem afetar o código de hoje ou de outros
  * dias — cada um projeta a partir do registro conhecido mais relevante.
  */
-function projetarCodigo(registros: PontoRegistroJornada[], dia: Date, hoje: Date, codigoFallback: number): number {
+function projetarCodigo(jornada: JornadaDoMotorista, dia: Date, hoje: Date): number {
+  const { registrosJornada: registros, diasTrabalhados: codigoFallback } = jornada
   const ordenados = [...registros].sort((a, b) => a.data.getTime() - b.data.getTime())
   const diaAlvo = inicioDoDia(dia).getTime()
 
@@ -213,6 +216,11 @@ function projetarCodigo(registros: PontoRegistroJornada[], dia: Date, hoje: Date
 
   if (!ancora) {
     return calcularCodigoJornadaNoDia(codigoFallback, dia, hoje)
+  }
+
+  // Interno é dia de trabalho: o ciclo segue de onde estava, não recomeça.
+  if (ancora.codigo === CODIGO_INTERNO && inicioDoDia(ancora.data).getTime() < inicioDoDia(dia).getTime()) {
+    return calcularCodigoJornadaNoDia(codigoTrabalhandoNoDia(jornada, ancora.data, hoje), dia, ancora.data)
   }
 
   return calcularCodigoJornadaNoDia(ancora.codigo, dia, ancora.data)
@@ -250,8 +258,21 @@ function fonteDoRegistro(registro: PontoRegistroJornada): FonteDoDia {
  * como no import do relatório (ver calcularCodigoDoDiasSemFolga).
  */
 export function codigoTrabalhandoNoDia(jornada: JornadaDoMotorista, dia: Date, hoje: Date): number {
-  const ontem = situacaoDoDia(jornada, new Date(dia.getTime() - UM_DIA_MS), hoje)
-  return ontem.conhecido && ehDiaDeTrabalho(ontem.codigo) ? Math.min(ontem.codigo + 1, MAX_DIAS_SEM_FOLGA) : 1
+  const ontem = new Date(dia.getTime() - UM_DIA_MS)
+  // Para aqui no dia desconhecido: é o que encerra a volta por Internos seguidos.
+  if (!situacaoDoDia(jornada, ontem, hoje).conhecido) return 1
+
+  const posicaoOntem = posicaoNoCiclo(jornada, ontem, hoje)
+  return ehDiaDeTrabalho(posicaoOntem) ? Math.min(posicaoOntem + 1, MAX_DIAS_SEM_FOLGA) : 1
+}
+
+/**
+ * Em que dia do ciclo o motorista está. É o próprio código, menos no Interno:
+ * o calendário mostra "Interno", mas ele conta como dia de trabalho.
+ */
+export function posicaoNoCiclo(jornada: JornadaDoMotorista, dia: Date, hoje: Date): number {
+  const { codigo } = situacaoDoDia(jornada, dia, hoje)
+  return codigo === CODIGO_INTERNO ? codigoTrabalhandoNoDia(jornada, dia, hoje) : codigo
 }
 
 /**
@@ -274,7 +295,7 @@ export function situacaoDoDia(
   hoje: Date,
   { temViagem = false }: { temViagem?: boolean } = {},
 ): SituacaoDoDia {
-  const { registrosJornada: registros, diasTrabalhados } = jornada
+  const { registrosJornada: registros } = jornada
   const diaAlvo = inicioDoDia(dia).getTime()
 
   const doDia = registros.find((registro) => inicioDoDia(registro.data).getTime() === diaAlvo)
@@ -284,7 +305,7 @@ export function situacaoDoDia(
     registros.length === 0
       ? diaAlvo >= inicioDoDia(hoje).getTime()
       : registros.some((registro) => inicioDoDia(registro.data).getTime() <= diaAlvo)
-  const codigo = projetarCodigo(registros, dia, hoje, diasTrabalhados)
+  const codigo = projetarCodigo(jornada, dia, hoje)
 
   if (!temViagem) return { codigo, fonte: "PROJECAO", conhecido }
   return { codigo: codigo === CODIGO_FOLGA ? codigoTrabalhandoNoDia(jornada, dia, hoje) : codigo, fonte: "VIAGEM", conhecido }
