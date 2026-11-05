@@ -1,5 +1,6 @@
 import { formatarDiaMesHora, inicioDoDia } from "@/lib/utils/date-format"
 import { codigoConhecidoNoDia } from "../jornada.service"
+import { instanteDoUltimoDiaDeJornada } from "../turno"
 import { MAX_DIAS_CONSECUTIVOS } from "./compatibilidade"
 import { MINIMO_HORAS_ENTRE_FOLGAS, MINIMO_HORAS_ENTRE_JORNADAS } from "../descanso-minimo"
 import type { MotoristaComAgenda, MotoristaParaAlocacao, ViagemParaDisponibilidade } from "./tipos"
@@ -118,9 +119,11 @@ export function periodosConflitamComDescanso(
 }
 
 /**
- * Descanso mínimo (11h ou 35h) exigido depois de uma viagem já registrada do
- * motorista, a partir do código de jornada projetado pro dia em que ela
- * termina — mesma regra de calcularDescansoAntesDaViagem (descanso.ts), aplicada aqui
+ * Descanso mínimo (11h ou 35h) exigido depois de um trabalho do motorista, a
+ * partir do código de jornada do último dia de jornada dele: chegar de
+ * madrugada ainda é o dia anterior (ver instanteDoUltimoDiaDeJornada) — sem
+ * isso, quem saía no 5º dia e chegava às 02:00 pagava 35h como se fosse o
+ * 6º. Mesma regra de calcularDescansoAntesDaViagem (descanso.ts), aplicada aqui
  * contra a própria agenda do motorista no sistema (não só o relatório
  * importado). Sem isso, o reset da rotação (código 7 → 1 na virada pro dia
  * seguinte à Folga) somado ao mínimo de 11h deixaria passar uma viagem nova
@@ -132,12 +135,14 @@ export function periodosConflitamComDescanso(
  */
 export function descansoMinimoNecessarioApos(
   motorista: Pick<MotoristaParaAlocacao, "registrosJornada" | "diasTrabalhados">,
-  fimViagemExistente: Date,
+  inicioTrabalho: Date,
+  fimTrabalho: Date,
   hoje: Date,
 ) {
   // 35h só quando se SABE que o dia em que ele parou era o 6º (ou além) —
   // sem histórico até aquele dia, vale a interjornada de 11h (ver codigoConhecidoNoDia).
-  const codigoAoFim = codigoConhecidoNoDia(motorista.registrosJornada, fimViagemExistente, hoje, motorista.diasTrabalhados)
+  const ultimoDia = instanteDoUltimoDiaDeJornada(inicioTrabalho, fimTrabalho)
+  const codigoAoFim = codigoConhecidoNoDia(motorista.registrosJornada, ultimoDia, hoje, motorista.diasTrabalhados)
   return codigoAoFim !== null && codigoAoFim >= MAX_DIAS_CONSECUTIVOS ? MINIMO_HORAS_ENTRE_FOLGAS : MINIMO_HORAS_ENTRE_JORNADAS
 }
 
@@ -156,7 +161,7 @@ export function motivoIndisponivel(motorista: MotoristaComAgenda, inicioViagem: 
 
     const inicioExistente = new Date(viagem.inicioPrevisto)
     const fimExistente = fimEfetivoViagem(viagem)
-    const minimoHoras = descansoMinimoNecessarioApos(motorista, fimExistente, hoje)
+    const minimoHoras = descansoMinimoNecessarioApos(motorista, inicioExistente, fimExistente, hoje)
     if (!periodosConflitamComDescanso(inicioExistente, fimExistente, inicioViagem, fimViagem, minimoHoras)) continue
 
     const horas = minimoHoras === MINIMO_HORAS_ENTRE_FOLGAS ? ` (${MINIMO_HORAS_ENTRE_FOLGAS}h após o 6º dia)` : ""

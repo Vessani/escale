@@ -1,7 +1,13 @@
 import { describe, expect, it } from "vitest"
-import { diaCurto, diasEntre, rotuloDia, semEdicoesDe } from "./conferencia-formato"
+import { diaCurto, diasEntre, pareceArquivoParcial, rotuloDia, semEdicoesDe } from "./conferencia-formato"
 
 describe("conferencia-formato", () => {
+  it("sugere arquivo parcial com menos da metade dos motoristas cadastrados", () => {
+    expect(pareceArquivoParcial(4, 10)).toBe(true)
+    expect(pareceArquivoParcial(5, 10)).toBe(false)
+    expect(pareceArquivoParcial(0, 0)).toBe(false)
+  })
+
   it("dia da coluna em Brasília, com o dia da semana", () => {
     expect(rotuloDia("2026-09-01T03:00:00.000Z")).toBe("01/09 · terça-feira")
     expect(diaCurto("2026-09-01T03:00:00.000Z")).toEqual({ data: "01/09", semana: "ter" })

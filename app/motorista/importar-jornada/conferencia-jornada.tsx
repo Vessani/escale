@@ -21,7 +21,7 @@ import { MAX_DIAS_SEM_FOLGA, folgaEstourada } from "@/lib/services/dias-sem-folg
 import { formatarDataHoraPtBr, formatarHoraLocal, formatDateTimeForInput, parseDateTimeFromInput } from "@/lib/utils/date-format"
 import { cn } from "@/lib/utils"
 import { ESTILO_CATEGORIA, categoriaDaLinha, precisaAtencao } from "./categoria-linha"
-import { LEGENDA, ROTULO_LEGENDA, ROTULO_SITUACAO, rotuloDia, type Rascunho } from "./conferencia-formato"
+import { LEGENDA, ROTULO_LEGENDA, ROTULO_SITUACAO, pareceArquivoParcial, rotuloDia, type Rascunho } from "./conferencia-formato"
 import { LinhaConferencia } from "./linha-conferencia"
 
 /**
@@ -50,6 +50,10 @@ export function ConferenciaJornada({
   const [soCadastrados, setSoCadastrados] = useState(true)
 
   const cadastradas = useMemo(() => new Set(matriculasCadastradas), [matriculasCadastradas])
+  const [arquivoParcial, setArquivoParcial] = useState(() => {
+    const noArquivo = new Set(brutas.map((bruta) => bruta.matricula).filter((matricula) => cadastradas.has(matricula)))
+    return pareceArquivoParcial(noArquivo.size, cadastradas.size)
+  })
   /** Motoristas do arquivo sem cadastro no Escalador (a importação não teria onde gravar). */
   const naoCadastrados = useMemo(() => {
     const porMatricula = new Map<number, string>()
@@ -72,8 +76,9 @@ export function ConferenciaJornada({
       de: inicios[0] ?? new Date().toISOString(),
       ate: inicios[inicios.length - 1] ?? new Date().toISOString(),
       matriculas: [...new Set(consideradas.map((bruta) => bruta.matricula))],
+      parcial: arquivoParcial,
     }
-  }, [brutas, consideradas])
+  }, [brutas, consideradas, arquivoParcial])
   const ordenadas = useMemo(
     () =>
       linhas
@@ -207,6 +212,19 @@ export function ConferenciaJornada({
             (em vermelho).
           </Alert>
         )}
+
+        <label className="flex items-start gap-2 rounded-md border bg-muted/40 px-3 py-2 text-sm text-muted-foreground">
+          <input
+            type="checkbox"
+            className="mt-0.5"
+            checked={arquivoParcial}
+            onChange={(evento) => setArquivoParcial(evento.target.checked)}
+          />
+          <span>
+            Arquivo parcial: traz só parte da filial ({motoristas} de {cadastradas.size} motoristas). Marcado, quem não está no arquivo não
+            é tratado como folga nem tem viagem questionada.
+          </span>
+        </label>
 
         {naoCadastrados.length > 0 && (
           <div className="flex flex-col gap-1 rounded-md border bg-muted/40 px-3 py-2 text-sm text-muted-foreground md:flex-row md:items-center md:justify-between">

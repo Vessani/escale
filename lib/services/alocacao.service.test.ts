@@ -16,6 +16,7 @@ import {
   filtrarMotoristasDisponiveisNoPeriodo,
   motoristaEhCompativel,
   motivoForaDaRegra,
+  motivoIndisponivel,
   motoristaEstaDisponivelNoPeriodo,
   periodoConflita,
   periodosConflitamComDescanso,
@@ -55,7 +56,7 @@ function criarMotorista(parcial: Partial<MotoristaMock>): MotoristaMock {
 /**
  * Simula o histórico de jornada real de um motorista já carregado (mesmo
  * formato que buscarMotoristasParaSelect/buscarMotoristas trazem hoje) — usado
- * pra testar a ordenação/aviso a partir de `encontrarFimJornadaAnterior`, em
+ * pra testar a ordenação/aviso a partir de `encontrarJornadaAnterior`, em
  * vez do agregado jornadaRelatorioFim (que não reflete mais o comportamento
  * real do código, ver a correção de interjornada).
  */
@@ -226,6 +227,65 @@ describe("alocacao.service", () => {
         "Descanso semanal: motorista teve apenas 14.9h de descanso (mínimo 35h).",
       )
       expect(aviso([{ data: bsb("2026-10-04T00:00:00"), codigo: 1 }])).toBeNull()
+    })
+  })
+
+  describe("descanso depois de chegar de madrugada: vale o dia em que a jornada começou", () => {
+    const bsb = (iso: string) => new Date(`${iso}-03:00`)
+    const hoje = bsb("2026-10-05T12:00:00")
+    const noDia = (dia: string, codigo: number, fimJornada: Date | null = null) => ({ data: bsb(`${dia}T00:00:00`), codigo, fimJornada })
+    const daNoite = (fimPrevisto: Date) => ({
+      id: 70,
+      status: "ALOCADA" as const,
+      inicioPrevisto: bsb("2026-10-05T20:00:00"),
+      fimPrevisto,
+    })
+    const proximaInicio = bsb("2026-10-06T20:00:00")
+    const proximaFim = bsb("2026-10-07T02:00:00")
+
+    it("viagem do 5º dia que chega às 02:00 do dia seguinte exige 11h, não 35h", () => {
+      const motorista = {
+        ...criarMotorista({ registrosJornada: [noDia("2026-10-05", 5)] }),
+        viagens: [daNoite(bsb("2026-10-06T02:00:00"))],
+      }
+
+      expect(calcularDescansoAntesDaViagem(motorista, proximaInicio, hoje)?.minimoHoras).toBe(11)
+      expect(motivoIndisponivel(motorista, proximaInicio, proximaFim, hoje)).toBeNull()
+    })
+
+    it("jornada do relatório que termina de madrugada conta no dia dela", () => {
+      const motorista = criarMotorista({ registrosJornada: [noDia("2026-10-05", 5, bsb("2026-10-06T02:00:00"))] })
+
+      expect(calcularDescansoAntesDaViagem(motorista, proximaInicio, hoje)?.minimoHoras).toBe(11)
+    })
+
+    it("chegada de madrugada no fim do 6º dia continua exigindo 35h", () => {
+      const motorista = {
+        ...criarMotorista({ registrosJornada: [noDia("2026-10-05", 6)] }),
+        viagens: [daNoite(bsb("2026-10-06T02:00:00"))],
+      }
+
+      expect(calcularDescansoAntesDaViagem(motorista, proximaInicio, hoje)?.minimoHoras).toBe(35)
+    })
+
+    it("chegar às 04:00 ou depois já é trabalho no dia seguinte", () => {
+      const motorista = {
+        ...criarMotorista({ registrosJornada: [noDia("2026-10-05", 5)] }),
+        viagens: [daNoite(bsb("2026-10-06T04:00:00"))],
+      }
+
+      expect(calcularDescansoAntesDaViagem(motorista, proximaInicio, hoje)?.minimoHoras).toBe(35)
+    })
+
+    it("viagem que começa e termina na mesma madrugada fica no próprio dia", () => {
+      const motorista = {
+        ...criarMotorista({ registrosJornada: [noDia("2026-10-05", 5)] }),
+        viagens: [
+          { id: 71, status: "ALOCADA" as const, inicioPrevisto: bsb("2026-10-06T00:30:00"), fimPrevisto: bsb("2026-10-06T03:00:00") },
+        ],
+      }
+
+      expect(calcularDescansoAntesDaViagem(motorista, proximaInicio, hoje)?.minimoHoras).toBe(35)
     })
   })
 

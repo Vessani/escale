@@ -25,6 +25,7 @@ export const coberturaJornadaSchema = z.object({
   de: z.string().max(40),
   ate: z.string().max(40),
   matriculas: z.array(z.number().int().nonnegative()).max(2000),
+  parcial: z.boolean().optional(),
 })
 
 /** Data/hora em texto ISO vinda do parser (ex: "2026-10-05T03:00:00.000Z") — tem que ser uma data de verdade. */

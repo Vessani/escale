@@ -25,6 +25,15 @@ export const ROTULO_LEGENDA: Record<Exclude<CategoriaLinha, "OK">, string> = {
   FORA: "Não entra no calendário",
 }
 
+/**
+ * Sugestão inicial do "arquivo parcial": menos da metade dos motoristas
+ * cadastrados no arquivo. É só o valor inicial — quem importa confirma, porque
+ * num relatório de poucos dias é normal faltar quem estava de folga.
+ */
+export function pareceArquivoParcial(motoristasNoArquivo: number, motoristasCadastrados: number): boolean {
+  return motoristasNoArquivo * 2 < motoristasCadastrados
+}
+
 const formatoDia = new Intl.DateTimeFormat("pt-BR", { timeZone: "America/Sao_Paulo", day: "2-digit", month: "2-digit", weekday: "long" })
 
 /** "01/09 · terça-feira" */

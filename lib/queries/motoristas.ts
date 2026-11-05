@@ -2,6 +2,7 @@ import { prisma } from "@/lib/prisma"
 import { Prisma, Turno } from "@prisma/client"
 import { fimDoDia, inicioDoDia } from "@/lib/utils/date-format"
 import { motoristasSemProdutoAutorizado } from "@/lib/services/produto.service"
+import { HORA_INICIO_TURNO_DIA } from "@/lib/services/turno"
 import { completarHistoricoComAncora, filtroJanelaJornada, inicioJanelaJornada } from "./jornada-historico"
 
 /**
@@ -32,6 +33,30 @@ export function filtroViagemAtiva(agora: Date) {
     OR: [
       { status: { notIn: ["CANCELADA", "FINALIZADA"] } },
       { status: "FINALIZADA", fimPrevisto: { gte: limiteFinalizadaRelevante(agora) } },
+    ],
+  } satisfies Prisma.ViagemWhereInput
+}
+
+/**
+ * Viagem que é trabalho do motorista NO DIA: começa nele, ou vem de antes e
+ * passa das 04:00 — quem chega de madrugada ainda está na jornada do dia
+ * anterior (ver instanteDoUltimoDiaDeJornada). CANCELADA nunca conta.
+ * FINALIZADA conta: encerrar a viagem não apaga o dia trabalhado. Quem veio de
+ * antes só conta se o fim efetivo chegou até o dia (ver fimEfetivoViagem) —
+ * encerrar antes do previsto libera o motorista antes. Fonte única de
+ * "atividade no dia": reconciliarFolgaMotoristasNoDiaAtual e a tela de
+ * motoristas sem viagem.
+ */
+export function filtroAtividadeNoDia(dia: Date) {
+  const inicioDia = inicioDoDia(dia)
+  const inicioDaJornada = new Date(inicioDia.getTime() + HORA_INICIO_TURNO_DIA * 60 * 60 * 1000)
+  const comecouNoDia = { inicioPrevisto: { gte: inicioDia } }
+  return {
+    deletadoEm: null,
+    inicioPrevisto: { lte: fimDoDia(dia) },
+    OR: [
+      { status: { notIn: ["CANCELADA", "FINALIZADA"] }, OR: [comecouNoDia, { fimPrevisto: { gte: inicioDaJornada } }] },
+      { status: "FINALIZADA", OR: [comecouNoDia, { fimPrevisto: { gte: inicioDaJornada }, finalizadoEm: { gte: inicioDaJornada } }] },
     ],
   } satisfies Prisma.ViagemWhereInput
 }
@@ -134,7 +159,7 @@ export async function buscarMotoristasParaSelect(filialId: number, turnoDaViagem
       // Histórico de jornada: permite projetar o código do motorista na data
       // real de início de cada viagem, e achar o fim real da jornada anterior
       // pra referência de interjornada (ver alocacao.service.ts e
-      // encontrarFimJornadaAnterior em jornada.service.ts).
+      // encontrarJornadaAnterior em jornada.service.ts).
       registrosJornada: {
         where: filtroJanelaJornada(desde),
         select: { data: true, codigo: true, fimJornada: true },
@@ -152,29 +177,20 @@ export async function buscarMotoristasParaSelect(filialId: number, turnoDaViagem
 }
 
 /**
- * Motoristas ativos sem nenhuma viagem cobrindo o dia de referência (nem
- * como principal, nem como acompanhante) — mesma definição de "sem
- * atividade hoje" usada por reconciliarFolgaMotoristasNoDiaAtual
- * (folga.service.ts), só que aqui pra listar todo mundo de uma vez em vez
- * de reconciliar reativamente um motorista específico.
+ * Motoristas ativos sem trabalho no dia de referência (nem como principal,
+ * nem como acompanhante) — ver filtroAtividadeNoDia. Aqui é pra listar todo
+ * mundo de uma vez, em vez de reconciliar um motorista específico.
  */
 export async function buscarMotoristasSemViagemNoDia(filialId: number, dataReferencia = new Date()) {
-  const inicioDia = inicioDoDia(dataReferencia)
-  const fimDia = fimDoDia(dataReferencia)
-  const filtroAtividadeNoDia = {
-    deletadoEm: null,
-    status: { notIn: ["CANCELADA", "FINALIZADA"] },
-    inicioPrevisto: { lte: fimDia },
-    fimPrevisto: { gte: inicioDia },
-  } satisfies Prisma.ViagemWhereInput
+  const atividadeNoDia = filtroAtividadeNoDia(dataReferencia)
 
   const desde = inicioJanelaJornada(dataReferencia)
   const motoristas = await prisma.motorista.findMany({
     where: {
       deletadoEm: null,
       filialId,
-      viagens: { none: filtroAtividadeNoDia },
-      viagensComoAcompanhante: { none: filtroAtividadeNoDia },
+      viagens: { none: atividadeNoDia },
+      viagensComoAcompanhante: { none: atividadeNoDia },
     },
     select: {
       id: true,
