@@ -1,8 +1,11 @@
+import { CODIGO_EXAMES, CODIGO_FERIAS, CODIGO_FOLGA, CODIGO_INTERNO, CODIGO_MANUTENCAO } from "@/lib/services/codigo-jornada"
+import { MAX_DIAS_SEM_FOLGA } from "@/lib/services/dias-sem-folga"
+
 /**
  * Mesmo estilo "sutil" (fundo bem claro + texto colorido) das variantes
  * semânticas do Badge (ver components/ui/badge.tsx) — aqui como classes
  * centralizadas porque o calendário de jornada tem mais gradações de cor
- * (a severidade de 1 a 6, depois os status especiais 7-10) do que as 3
+ * (a severidade de 1 a 6, depois os status de 7 a 11) do que as 3
  * variantes semânticas cobrem.
  */
 export const CLASSE_JORNADA_1_3 = "bg-success/10 text-success border border-success/30"
@@ -15,38 +18,26 @@ export const CLASSE_JORNADA_INTERNO = "bg-muted text-muted-foreground border bor
 export const CLASSE_JORNADA_MANUTENCAO = "bg-orange-500/10 text-orange-600 border border-orange-500/30"
 const CLASSE_JORNADA_PADRAO = "bg-muted text-muted-foreground border border-border"
 
-export function classeBadgeJornada(diasTrabalhados: number): string {
-  if (diasTrabalhados >= 1 && diasTrabalhados <= 3) {
+const CLASSE_DO_STATUS: Record<number, string> = {
+  [CODIGO_FOLGA]: CLASSE_JORNADA_FOLGA,
+  [CODIGO_FERIAS]: CLASSE_JORNADA_FERIAS,
+  [CODIGO_EXAMES]: CLASSE_JORNADA_EXAMES,
+  [CODIGO_INTERNO]: CLASSE_JORNADA_INTERNO,
+  [CODIGO_MANUTENCAO]: CLASSE_JORNADA_MANUTENCAO,
+}
+
+export function classeBadgeJornada(codigo: number): string {
+  if (codigo >= 1 && codigo <= 3) {
     return CLASSE_JORNADA_1_3
   }
 
-  if (diasTrabalhados >= 4 && diasTrabalhados <= 5) {
+  if (codigo >= 4 && codigo <= 5) {
     return CLASSE_JORNADA_4_5
   }
 
-  if (diasTrabalhados === 6) {
+  if (codigo === MAX_DIAS_SEM_FOLGA) {
     return CLASSE_JORNADA_6
   }
 
-  if (diasTrabalhados === 7) {
-    return CLASSE_JORNADA_FOLGA
-  }
-
-  if (diasTrabalhados === 8) {
-    return CLASSE_JORNADA_FERIAS
-  }
-
-  if (diasTrabalhados === 9) {
-    return CLASSE_JORNADA_EXAMES
-  }
-
-  if (diasTrabalhados === 10) {
-    return CLASSE_JORNADA_INTERNO
-  }
-
-  if (diasTrabalhados === 11) {
-    return CLASSE_JORNADA_MANUTENCAO
-  }
-
-  return CLASSE_JORNADA_PADRAO
+  return CLASSE_DO_STATUS[codigo] ?? CLASSE_JORNADA_PADRAO
 }

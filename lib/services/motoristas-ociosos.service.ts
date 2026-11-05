@@ -1,4 +1,5 @@
 import type { TipoMotorista } from "@prisma/client"
+import { CODIGO_EXAMES, CODIGO_FERIAS, CODIGO_FOLGA, CODIGO_INTERNO, CODIGO_MANUTENCAO, ehDiaDeTrabalho } from "./codigo-jornada"
 
 export type TipoAcaoSugerida = "DAR_FOLGA" | "REVISAR_INTERNO" | "REVISAR_MANUTENCAO" | "NENHUMA"
 
@@ -27,27 +28,27 @@ export function determinarAcaoSugerida(codigoNoDia: number, tipoMotorista: TipoM
     return { tipo: "NENHUMA", texto: "Interno — apoio da operação." }
   }
 
-  if (codigoNoDia >= 1 && codigoNoDia <= 6) {
+  if (ehDiaDeTrabalho(codigoNoDia)) {
     return { tipo: "DAR_FOLGA", texto: `Sem viagem ${rotuloDia} — considere dar folga.` }
   }
 
-  if (codigoNoDia === 7) {
+  if (codigoNoDia === CODIGO_FOLGA) {
     return { tipo: "NENHUMA", texto: "Já está de folga." }
   }
 
-  if (codigoNoDia === 8) {
+  if (codigoNoDia === CODIGO_FERIAS) {
     return { tipo: "NENHUMA", texto: "Em férias." }
   }
 
-  if (codigoNoDia === 9) {
+  if (codigoNoDia === CODIGO_EXAMES) {
     return { tipo: "NENHUMA", texto: "Em exames." }
   }
 
-  if (codigoNoDia === 10) {
+  if (codigoNoDia === CODIGO_INTERNO) {
     return { tipo: "REVISAR_INTERNO", texto: "Marcado como Interno — confira se ainda faz sentido." }
   }
 
-  if (codigoNoDia === 11) {
+  if (codigoNoDia === CODIGO_MANUTENCAO) {
     return { tipo: "REVISAR_MANUTENCAO", texto: "Marcado como Manutenção — confira se ainda faz sentido." }
   }
 

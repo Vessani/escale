@@ -307,7 +307,6 @@ describe("opcoesMotoristaDaEdicao — lista de motoristas acompanhando a ediçã
     tipo: "MOTORISTA",
     produtosAutorizados: ["CO2"],
     jornadaRelatorioInicio: null,
-    jornadaRelatorioFim: null,
     integracao: [],
     registrosJornada: [],
     // Ocupado no horário salvo (30/09), livre no novo (02/10).

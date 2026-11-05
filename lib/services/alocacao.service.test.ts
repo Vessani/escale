@@ -33,7 +33,6 @@ type MotoristaMock = {
   integracao: Array<{ cliente: string; status: StatusIntegracao; dataValidade: Date }>
   registrosJornada: Array<{ data: Date; codigo: number; fimJornada?: Date | string | null }>
   jornadaRelatorioInicio: Date | string | null
-  jornadaRelatorioFim: Date | string | null
   produtosAutorizados: TipoProduto[]
 }
 
@@ -47,7 +46,6 @@ function criarMotorista(parcial: Partial<MotoristaMock>): MotoristaMock {
     integracao: [],
     registrosJornada: [],
     jornadaRelatorioInicio: null,
-    jornadaRelatorioFim: null,
     produtosAutorizados: [],
     ...parcial,
   }
@@ -56,9 +54,7 @@ function criarMotorista(parcial: Partial<MotoristaMock>): MotoristaMock {
 /**
  * Simula o histórico de jornada real de um motorista já carregado (mesmo
  * formato que buscarMotoristasParaSelect/buscarMotoristas trazem hoje) — usado
- * pra testar a ordenação/aviso a partir de `encontrarJornadaAnterior`, em
- * vez do agregado jornadaRelatorioFim (que não reflete mais o comportamento
- * real do código, ver a correção de interjornada).
+ * pra testar a ordenação/aviso a partir de `encontrarJornadaAnterior`.
  */
 function comFimJornadaAnterior(fim: Date): MotoristaMock["registrosJornada"] {
   return [{ data: fim, codigo: 1, fimJornada: fim }]

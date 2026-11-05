@@ -15,7 +15,6 @@ function motorista(parcial: Partial<MotoristaComAgenda> = {}): MotoristaComAgend
     integracao: [],
     registrosJornada: [],
     jornadaRelatorioInicio: h("2026-10-05T06:30:00"),
-    jornadaRelatorioFim: null,
     produtosAutorizados: ["OXIGENIO"],
     viagens: [],
     ...parcial,

@@ -2,11 +2,12 @@ import type { Prisma } from "@prisma/client"
 import { filtroJanelaJornada, completarHistoricoComAncora, inicioJanelaJornada } from "@/lib/queries/jornada-historico"
 import { filtroAtividadeNoDia } from "@/lib/queries/motoristas"
 import { fimDoDia, inicioDoDia } from "@/lib/utils/date-format"
+import { CODIGO_FOLGA } from "./codigo-jornada"
 import { codigoTrabalhandoNoDia, prepararJornadaDoMotorista, situacaoDoDia } from "./jornada.service"
 import { registrarJornadaNoDia } from "./motorista.service"
 
 export function deveRetirarMotoristaDaFolga(diasTrabalhados: number, possuiViagemAtivaHoje: boolean) {
-  return diasTrabalhados === 7 && possuiViagemAtivaHoje
+  return diasTrabalhados === CODIGO_FOLGA && possuiViagemAtivaHoje
 }
 
 /**

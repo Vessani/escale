@@ -144,7 +144,6 @@ export async function buscarMotoristasParaSelect(filialId: number, turnoDaViagem
       tipo: true,
       produtosAutorizados: true,
       jornadaRelatorioInicio: true,
-      jornadaRelatorioFim: true,
       // Até que dia o Relatório de Jornada cobre — ver viagemDesmentidaPeloRelatorio.
       filial: { select: { relatorioJornadaAte: true } },
       integracao: {

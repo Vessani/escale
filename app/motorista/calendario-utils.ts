@@ -1,3 +1,12 @@
+import {
+  CODIGO_EXAMES,
+  CODIGO_FERIAS,
+  CODIGO_FOLGA,
+  CODIGO_INTERNO,
+  CODIGO_MANUTENCAO,
+  ROTULO_CODIGO_PARADO,
+} from "@/lib/services/codigo-jornada"
+import { MAX_DIAS_SEM_FOLGA } from "@/lib/services/dias-sem-folga"
 import { parseDataLocal } from "@/lib/utils/date-format"
 import {
   CLASSE_JORNADA_1_3,
@@ -25,11 +34,10 @@ export const OPCOES_CODIGO_JORNADA: OpcaoCodigoJornada[] = [
   { valor: 4, label: "4º dia" },
   { valor: 5, label: "5º dia" },
   { valor: 6, label: "6º dia" },
-  { valor: 7, label: "Folga" },
-  { valor: 8, label: "Férias" },
-  { valor: 9, label: "Exames" },
-  { valor: 10, label: "Interno" },
-  { valor: 11, label: "Manutenção" },
+  ...[CODIGO_FOLGA, CODIGO_FERIAS, CODIGO_EXAMES, CODIGO_INTERNO, CODIGO_MANUTENCAO].map((valor) => ({
+    valor,
+    label: ROTULO_CODIGO_PARADO[valor],
+  })),
 ]
 
 export const OPCOES_FILTRO_STATUS: Array<{ valor: FiltroStatusJornada; label: string; classe: string }> = [
@@ -44,6 +52,15 @@ export const OPCOES_FILTRO_STATUS: Array<{ valor: FiltroStatusJornada; label: st
   { valor: "MANUTENCAO", label: "11 Manutenção", classe: CLASSE_JORNADA_MANUTENCAO },
 ]
 
+const CODIGO_DO_FILTRO: Partial<Record<FiltroStatusJornada, number>> = {
+  JORNADA_6: MAX_DIAS_SEM_FOLGA,
+  FOLGA: CODIGO_FOLGA,
+  FERIAS: CODIGO_FERIAS,
+  EXAMES: CODIGO_EXAMES,
+  INTERNO: CODIGO_INTERNO,
+  MANUTENCAO: CODIGO_MANUTENCAO,
+}
+
 export function statusJornadaCorrespondeAoFiltro(diasTrabalhados: number, filtro: FiltroStatusJornada) {
   if (filtro === "TODOS") {
     return true
@@ -57,27 +74,7 @@ export function statusJornadaCorrespondeAoFiltro(diasTrabalhados: number, filtro
     return diasTrabalhados >= 4 && diasTrabalhados <= 5
   }
 
-  if (filtro === "JORNADA_6") {
-    return diasTrabalhados === 6
-  }
-
-  if (filtro === "FOLGA") {
-    return diasTrabalhados === 7
-  }
-
-  if (filtro === "FERIAS") {
-    return diasTrabalhados === 8
-  }
-
-  if (filtro === "EXAMES") {
-    return diasTrabalhados === 9
-  }
-
-  if (filtro === "INTERNO") {
-    return diasTrabalhados === 10
-  }
-
-  return diasTrabalhados === 11
+  return diasTrabalhados === CODIGO_DO_FILTRO[filtro]
 }
 
 /** Quantidade de dias exibidos de cada vez no calendário (uma "página" de navegação): 3 antes, hoje e 3 depois. */

@@ -47,7 +47,6 @@ function nunes(parcial: Record<string, unknown> = {}) {
     tipo: "MOTORISTA" as const,
     integracao: [],
     jornadaRelatorioInicio: null,
-    jornadaRelatorioFim: null,
     produtosAutorizados: [],
     registrosJornada: registrosAte27(),
     relatorioJornadaAte: dia("2026-09-29"),

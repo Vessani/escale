@@ -1,5 +1,6 @@
 import { TipoProduto } from "@prisma/client"
 import { colunaDateParaLocal, fimDoDia, formatarDiaMes, inicioDoDia } from "@/lib/utils/date-format"
+import { ROTULO_CODIGO_PARADO } from "../codigo-jornada"
 import { situacaoDoDia } from "../jornada.service"
 import type { ContextoCompatibilidade, MotoristaParaAlocacao } from "./tipos"
 import { podeSerPrincipal } from "../tipo-motorista"
@@ -105,8 +106,6 @@ function contarDiasDeJornada(contexto: ContextoCompatibilidade): number {
   const ultimoDia = instanteDoUltimoDiaDeJornada(contexto.dataInicioViagem, contexto.fimViagem)
   return Math.max(1, Math.round((inicioDoDia(ultimoDia).getTime() - inicioDoDia(contexto.dataInicioViagem).getTime()) / UM_DIA_MS) + 1)
 }
-
-const ROTULO_CODIGO_PARADO: Record<number, string> = { 7: "Folga", 8: "Férias", 9: "Exames", 10: "Interno", 11: "Manutenção" }
 
 /** Por que a viagem não cabe no ciclo de trabalho do motorista (null = cabe). */
 function motivoForaDoCiclo(motorista: MotoristaParaAlocacao, contexto: ContextoCompatibilidade): string | null {

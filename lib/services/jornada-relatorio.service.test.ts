@@ -35,7 +35,12 @@ function criarRegistro(parcial: Partial<RegistroJornadaRelatorio> = {}): Registr
 function criarTx() {
   return {
     motorista: { update: vi.fn() },
-    registroJornada: { upsert: vi.fn(), findMany: vi.fn().mockResolvedValue([]), deleteMany: vi.fn() },
+    registroJornada: {
+      upsert: vi.fn(),
+      findMany: vi.fn().mockResolvedValue([]),
+      findFirst: vi.fn().mockResolvedValue(null),
+      deleteMany: vi.fn(),
+    },
   }
 }
 
@@ -64,8 +69,6 @@ describe("atualizarJornadaRelatorioDosMotoristas", () => {
       where: { id: 42 },
       data: {
         jornadaRelatorioInicio: new Date("2026-07-10T04:10:08.000Z"),
-        jornadaRelatorioFim: new Date("2026-07-10T08:52:45.000Z"),
-        jornadaRelatorioDia: new Date("2026-07-10T00:00:00.000Z"),
       },
     })
     const upsertArgs = vi.mocked(tx.registroJornada.upsert).mock.calls[0][0] as {
@@ -225,8 +228,6 @@ describe("atualizarJornadaRelatorioDosMotoristas", () => {
       where: { id: 42 },
       data: {
         jornadaRelatorioInicio: new Date("2026-07-10T08:00:00.000Z"),
-        jornadaRelatorioFim: new Date("2026-07-10T18:00:00.000Z"),
-        jornadaRelatorioDia: new Date("2026-07-10T00:00:00.000Z"),
       },
     })
   })
@@ -242,8 +243,45 @@ describe("atualizarJornadaRelatorioDosMotoristas", () => {
     expect(resultado).toEqual({ atualizados: 0, naoEncontrados: [999], duplicados: [], diasRemovidos: 0 })
   })
 
+  const agora = new Date()
+  const colunaHaDias = (dias: number) =>
+    new Date(`${new Date(agora.getTime() - 3 * 3_600_000 - dias * 86_400_000).toISOString().slice(0, 10)}T00:00:00.000Z`)
+
+  describe("dia de hoje no relatório", () => {
+    const registroDeHoje = () =>
+      criarRegistro({ dia: agora.toISOString(), inicioJornada: agora.toISOString(), fimJornada: agora.toISOString() })
+
+    it("não grava por cima de quem está de Férias marcadas há dois dias", async () => {
+      vi.mocked(prisma.motorista.findMany).mockResolvedValue([{ id: 42, seva: 815 }] as never)
+      tx.registroJornada.findFirst.mockResolvedValue({ data: colunaHaDias(2), codigo: 8 })
+
+      await atualizarJornadaRelatorioDosMotoristas(FILIAL_ID, [registroDeHoje()])
+
+      expect(tx.registroJornada.upsert).not.toHaveBeenCalled()
+    })
+
+    it("grava normalmente quem vem de dia de trabalho", async () => {
+      vi.mocked(prisma.motorista.findMany).mockResolvedValue([{ id: 42, seva: 815 }] as never)
+      tx.registroJornada.findFirst.mockResolvedValue({ data: colunaHaDias(1), codigo: 3 })
+
+      await atualizarJornadaRelatorioDosMotoristas(FILIAL_ID, [registroDeHoje()])
+
+      expect(tx.registroJornada.upsert).toHaveBeenCalledTimes(1)
+    })
+
+    it("Exame de dois dias atrás já acabou: grava", async () => {
+      vi.mocked(prisma.motorista.findMany).mockResolvedValue([{ id: 42, seva: 815 }] as never)
+      tx.registroJornada.findFirst.mockResolvedValue({ data: colunaHaDias(2), codigo: 9 })
+
+      await atualizarJornadaRelatorioDosMotoristas(FILIAL_ID, [registroDeHoje()])
+
+      expect(tx.registroJornada.upsert).toHaveBeenCalledTimes(1)
+    })
+  })
+
   it("motorista em Férias/Exames/Interno hoje ainda tem os dias passados do relatório atualizados (antes o mês todo dele era pulado)", async () => {
-    vi.mocked(prisma.motorista.findMany).mockResolvedValue([{ id: 42, seva: 815, diasTrabalhados: 8 }] as never)
+    vi.mocked(prisma.motorista.findMany).mockResolvedValue([{ id: 42, seva: 815 }] as never)
+    tx.registroJornada.findFirst.mockResolvedValue({ data: colunaHaDias(1), codigo: 8 })
 
     await atualizarJornadaRelatorioDosMotoristas(FILIAL_ID, [
       criarRegistro({ dia: "2026-07-08T03:00:00.000Z" }),

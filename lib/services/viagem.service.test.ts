@@ -124,7 +124,6 @@ function criarMotoristaParaSelect(parcial: Record<string, unknown> = {}) {
     viagens: [],
     registrosJornada: [],
     jornadaRelatorioInicio: null,
-    jornadaRelatorioFim: null,
     ...parcial,
   }
 }

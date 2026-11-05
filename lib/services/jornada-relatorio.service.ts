@@ -1,9 +1,12 @@
 import { prisma } from "@/lib/prisma"
-import { dataParaColunaDate, inicioDoDia } from "@/lib/utils/date-format"
+import type { Prisma } from "@prisma/client"
+import { colunaDateParaLocal, dataParaColunaDate, inicioDoDia } from "@/lib/utils/date-format"
 import type { RegistroJornadaRelatorio } from "@/lib/parsers/jornada-relatorio-parser"
 import { MAX_DIAS_CONSECUTIVOS } from "./alocacao.service"
 import { registrarJornadaNoDia } from "./motorista.service"
 import { recalcularAvisosInterjornada } from "./interjornada.service"
+import { CODIGO_EXAMES, CODIGO_FERIAS, CODIGO_INTERNO } from "./codigo-jornada"
+import { calcularCodigoJornadaNoDia } from "./jornada.service"
 import { registrarAuditoria, type Ator } from "./auditoria.service"
 import type { AjusteJornada } from "@/lib/validation/ajuste-jornada"
 import { CAMPO_CONTEXTO_AUDITORIA } from "@/lib/utils/diff-auditoria"
@@ -36,11 +39,21 @@ export type CoberturaImportacaoJornada = {
 }
 
 /** Códigos de status especial (Férias/Exames/Interno) que o import não deve sobrescrever — só edição manual muda isso. */
-const CODIGO_STATUS_ESPECIAL_MIN = 8
-const CODIGO_STATUS_ESPECIAL_MAX = 10
+const CODIGOS_STATUS_ESPECIAL = new Set([CODIGO_FERIAS, CODIGO_EXAMES, CODIGO_INTERNO])
 
 function ehStatusEspecial(codigo: number) {
-  return codigo >= CODIGO_STATUS_ESPECIAL_MIN && codigo <= CODIGO_STATUS_ESPECIAL_MAX
+  return CODIGOS_STATUS_ESPECIAL.has(codigo)
+}
+
+/** Status de hoje a partir do último registro: Férias marcadas há dias ainda valem hoje, mesmo sem linha no dia. */
+async function estaEmStatusEspecialHoje(tx: Prisma.TransactionClient, motoristaId: number) {
+  const agora = new Date()
+  const ultimo = await tx.registroJornada.findFirst({
+    where: { motoristaId, data: { lte: diaColuna(agora) } },
+    orderBy: { data: "desc" },
+    select: { data: true, codigo: true },
+  })
+  return ultimo !== null && ehStatusEspecial(calcularCodigoJornadaNoDia(ultimo.codigo, agora, colunaDateParaLocal(ultimo.data)))
 }
 
 /** Dia do relatório no formato da coluna `RegistroJornada.data` — mesma conversão de registrarJornadaNoDia. */
@@ -68,7 +81,7 @@ function jornadaMaisRecente(registros: RegistroJornadaRelatorio[]): RegistroJorn
 
 /**
  * Grava, pra cada motorista do relatório (busca por `seva` = matrícula), o
- * turno mais recente do lote nos campos `jornadaRelatorioInicio/Fim/Dia`, e
+ * início do turno mais recente do lote em `jornadaRelatorioInicio`, e
  * usa "Dias Sem Folga" de CADA dia listado pra alimentar o histórico do
  * calendário (`RegistroJornada`) — o relatório traz vários turnos por
  * motorista, um por dia trabalhado, não só o mais recente. Essa é a fonte
@@ -113,7 +126,7 @@ export async function atualizarJornadaRelatorioDosMotoristas(
   }
   const motoristasEncontrados = await prisma.motorista.findMany({
     where: { seva: { in: matriculas }, filialId, deletadoEm: null },
-    select: { id: true, seva: true, diasTrabalhados: true },
+    select: { id: true, seva: true },
   })
 
   const motoristasPorMatricula = new Map<number, typeof motoristasEncontrados>()
@@ -134,7 +147,7 @@ export async function atualizarJornadaRelatorioDosMotoristas(
   const duplicados: number[] = []
   const paraAtualizar: Array<{
     registrosDoMotorista: RegistroJornadaRelatorio[]
-    motorista: { id: number; diasTrabalhados: number }
+    motorista: { id: number }
   }> = []
 
   for (const matricula of matriculas) {
@@ -191,8 +204,6 @@ export async function atualizarJornadaRelatorioDosMotoristas(
           where: { id: motorista.id },
           data: {
             jornadaRelatorioInicio: new Date(registroMaisRecente.inicioJornada),
-            jornadaRelatorioFim: new Date(registroMaisRecente.fimJornada),
-            jornadaRelatorioDia: new Date(registroMaisRecente.dia),
           },
         })
       }
@@ -220,11 +231,14 @@ export async function atualizarJornadaRelatorioDosMotoristas(
         diasRemovidos += remover.length
       }
 
+      // Hoje sem registro, mas o motorista está em status especial: também não mexe.
+      const loteTemHoje = registrosDoMotorista.some((registro) => diaColuna(registro.dia).getTime() === hoje)
+      const especialHoje = loteTemHoje && (await estaEmStatusEspecialHoje(tx, motorista.id))
+
       for (const registro of registrosDoMotorista) {
         const dia = diaColuna(registro.dia).getTime()
         if (diasEspeciais.has(dia)) continue
-        // Hoje sem registro, mas o motorista está em status especial no cadastro: também não mexe.
-        if (dia === hoje && ehStatusEspecial(motorista.diasTrabalhados)) continue
+        if (dia === hoje && especialHoje) continue
         const codigo = calcularCodigoDoDiasSemFolga(registro.diasSemFolga)
         await registrarJornadaNoDia(tx, motorista.id, new Date(registro.dia), codigo, {
           inicioJornada: new Date(registro.inicioJornada),

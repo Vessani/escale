@@ -1,3 +1,4 @@
+import { CODIGO_MANUTENCAO } from "@/lib/services/codigo-jornada"
 import { z } from "./zod"
 import { TIPO_MOTORISTA_VALORES } from "@/lib/services/tipo-motorista"
 import { somenteDigitosCpf, validarCpf } from "@/lib/utils/cpf"
@@ -17,7 +18,11 @@ const motoristaBaseSchema = z.object({
   nome: z.string().min(2, "O nome deve ter pelo menos 2 caracteres"),
   cpf: cpfSchema,
   seva: z.coerce.number().int().min(1, "O número SEVA deve ser maior que 0"),
-  diasTrabalhados: z.coerce.number().int().min(1, "Informe um código de 1 a 11").max(11, "Informe um código de 1 a 11"),
+  diasTrabalhados: z.coerce
+    .number()
+    .int()
+    .min(1, `Informe um código de 1 a ${CODIGO_MANUTENCAO}`)
+    .max(CODIGO_MANUTENCAO, `Informe um código de 1 a ${CODIGO_MANUTENCAO}`),
   turno: turnoSchema,
   tipo: z.enum(TIPO_MOTORISTA_VALORES),
   produtosAutorizados: z.array(produtoSchema).default([]),

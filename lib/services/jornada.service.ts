@@ -1,4 +1,13 @@
 import { colunaDateParaLocal, fimDoDia, inicioDoDia } from "@/lib/utils/date-format"
+import {
+  CODIGO_EXAMES,
+  CODIGO_FERIAS,
+  CODIGO_FOLGA,
+  CODIGO_INTERNO,
+  CODIGO_MANUTENCAO,
+  ROTULO_CODIGO_PARADO,
+  ehDiaDeTrabalho,
+} from "./codigo-jornada"
 import { MAX_DIAS_SEM_FOLGA } from "./dias-sem-folga"
 import { HORA_INICIO_TURNO_DIA } from "./turno"
 
@@ -8,6 +17,11 @@ const DIAS_NO_CICLO_JORNADA = 7
 const DIAS_EXAMES = 1
 const DIAS_INTERNO = 1
 const DIAS_FERIAS = 30
+const DURACAO_DO_CODIGO: Record<number, number> = {
+  [CODIGO_FERIAS]: DIAS_FERIAS,
+  [CODIGO_EXAMES]: DIAS_EXAMES,
+  [CODIGO_INTERNO]: DIAS_INTERNO,
+}
 
 type StatusJornada = {
   texto: string
@@ -32,7 +46,7 @@ export function diferencaEmDias(dataA: Date, dataB: Date) {
 export function calcularCodigoJornadaNoDia(codigoAtual: number, dia: Date, hoje: Date) {
   const deslocamento = diferencaEmDias(dia, hoje)
 
-  const duracao = codigoAtual === 9 ? DIAS_EXAMES : codigoAtual === 10 ? DIAS_INTERNO : codigoAtual === 8 ? DIAS_FERIAS : null
+  const duracao = DURACAO_DO_CODIGO[codigoAtual] ?? null
   if (duracao !== null) {
     if (deslocamento < duracao) {
       return codigoAtual
@@ -43,7 +57,7 @@ export function calcularCodigoJornadaNoDia(codigoAtual: number, dia: Date, hoje:
     return rotacao + 1
   }
 
-  if (codigoAtual === 11) {
+  if (codigoAtual === CODIGO_MANUTENCAO) {
     return codigoAtual
   }
 
@@ -86,7 +100,6 @@ export function mapearRegistrosJornada(registros: RegistroJornadaBruto[]): Ponto
   }))
 }
 
-const CODIGO_FOLGA = 7
 const UM_DIA_MS = 86_400_000
 
 /**
@@ -147,13 +160,7 @@ export function prepararJornadaDoMotorista(motorista: {
  * terminou antes do instante informado: o dia dela e o fim. O dia vem junto
  * porque a jornada pode terminar de madrugada, já na data seguinte — ver
  * descansoMinimoNecessarioApos. Trabalha a partir de um histórico já
- * carregado em memória. Substitui o uso do agregado
- * `Motorista.jornadaRelatorioFim` como referência de descanso: esse campo só
- * guarda "o turno mais recente do último lote importado", sem nenhuma relação
- * com a viagem sendo avaliada — podia até ser POSTERIOR ao início da nova
- * viagem, gerando descanso negativo tratado como violação (ver
- * `calcularAvisoInterjornada`/`calcularDescansoAntesDaViagem` em
- * alocacao.service.ts). Ignora registros sem `fimJornada` (edição manual do
+ * carregado em memória. Ignora registros sem `fimJornada` (edição manual do
  * calendário, criação de motorista e reconciliação de folga não têm horário
  * real). Cálculo sobre instantes (timestamps), não datas — imune a fuso.
  *
@@ -244,7 +251,7 @@ function fonteDoRegistro(registro: PontoRegistroJornada): FonteDoDia {
  */
 export function codigoTrabalhandoNoDia(jornada: JornadaDoMotorista, dia: Date, hoje: Date): number {
   const ontem = situacaoDoDia(jornada, new Date(dia.getTime() - UM_DIA_MS), hoje)
-  return ontem.conhecido && ontem.codigo >= 1 && ontem.codigo <= MAX_DIAS_SEM_FOLGA ? Math.min(ontem.codigo + 1, MAX_DIAS_SEM_FOLGA) : 1
+  return ontem.conhecido && ehDiaDeTrabalho(ontem.codigo) ? Math.min(ontem.codigo + 1, MAX_DIAS_SEM_FOLGA) : 1
 }
 
 /**
@@ -310,38 +317,7 @@ export function viagemEhTrabalhoNoDia(viagem: ViagemNoDia, dia: Date): boolean {
   return Boolean(viagem.finalizadoEm) && new Date(viagem.finalizadoEm as Date | string).getTime() >= inicioDaJornada
 }
 
-export function obterStatusJornada(diasTrabalhados: number): StatusJornada {
-  if (diasTrabalhados >= 1 && diasTrabalhados <= 3) {
-    return { texto: `${diasTrabalhados}º dia` }
-  }
-
-  if (diasTrabalhados >= 4 && diasTrabalhados <= 5) {
-    return { texto: `${diasTrabalhados}º dia` }
-  }
-
-  if (diasTrabalhados === 6) {
-    return { texto: "6º dia" }
-  }
-
-  if (diasTrabalhados === 7) {
-    return { texto: "Folga" }
-  }
-
-  if (diasTrabalhados === 8) {
-    return { texto: "Férias" }
-  }
-
-  if (diasTrabalhados === 9) {
-    return { texto: "Exames" }
-  }
-
-  if (diasTrabalhados === 10) {
-    return { texto: "Interno" }
-  }
-
-  if (diasTrabalhados === 11) {
-    return { texto: "Manutenção" }
-  }
-
-  return { texto: String(diasTrabalhados) }
+export function obterStatusJornada(codigo: number): StatusJornada {
+  if (ehDiaDeTrabalho(codigo)) return { texto: `${codigo}º dia` }
+  return { texto: ROTULO_CODIGO_PARADO[codigo] ?? String(codigo) }
 }
