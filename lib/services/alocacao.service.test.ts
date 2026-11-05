@@ -33,7 +33,6 @@ type MotoristaMock = {
   integracao: Array<{ cliente: string; status: StatusIntegracao; dataValidade: Date }>
   registrosJornada: Array<{ data: Date; codigo: number; fimJornada?: Date | string | null }>
   jornadaRelatorioInicio: Date | string | null
-  jornadaRelatorioFim: Date | string | null
   produtosAutorizados: TipoProduto[]
 }
 
@@ -47,7 +46,6 @@ function criarMotorista(parcial: Partial<MotoristaMock>): MotoristaMock {
     integracao: [],
     registrosJornada: [],
     jornadaRelatorioInicio: null,
-    jornadaRelatorioFim: null,
     produtosAutorizados: [],
     ...parcial,
   }
@@ -56,9 +54,7 @@ function criarMotorista(parcial: Partial<MotoristaMock>): MotoristaMock {
 /**
  * Simula o histórico de jornada real de um motorista já carregado (mesmo
  * formato que buscarMotoristasParaSelect/buscarMotoristas trazem hoje) — usado
- * pra testar a ordenação/aviso a partir de `encontrarJornadaAnterior`, em
- * vez do agregado jornadaRelatorioFim (que não reflete mais o comportamento
- * real do código, ver a correção de interjornada).
+ * pra testar a ordenação/aviso a partir de `encontrarJornadaAnterior`.
  */
 function comFimJornadaAnterior(fim: Date): MotoristaMock["registrosJornada"] {
   return [{ data: fim, codigo: 1, fimJornada: fim }]
@@ -227,6 +223,47 @@ describe("alocacao.service", () => {
         "Descanso semanal: motorista teve apenas 13.9h de descanso (mínimo 35h).",
       )
       expect(aviso([{ data: bsb("2026-10-04T00:00:00"), codigo: 1 }])).toBeNull()
+    })
+  })
+
+  describe("descanso depois de um dia de Interno vale pela posição no ciclo", () => {
+    const bsb = (iso: string) => new Date(`${iso}-03:00`)
+    const hoje = bsb("2026-10-05T12:00:00")
+    const noDia = (dia: string, codigo: number, fimJornada: Date | null = null) => ({ data: bsb(`${dia}T00:00:00`), codigo, fimJornada })
+    const fim = bsb("2026-10-05T17:00:00")
+    const proxima = bsb("2026-10-06T08:00:00")
+
+    it("Interno no meio do ciclo exige 11h, não 35h", () => {
+      const motorista = criarMotorista({ registrosJornada: [noDia("2026-10-04", 2), noDia("2026-10-05", 10, fim)] })
+
+      expect(calcularDescansoAntesDaViagem(motorista, proxima, hoje)?.minimoHoras).toBe(11)
+    })
+
+    it("Interno que fecha o 6º dia exige 35h", () => {
+      const motorista = criarMotorista({ registrosJornada: [noDia("2026-10-04", 5), noDia("2026-10-05", 10, fim)] })
+
+      expect(calcularDescansoAntesDaViagem(motorista, proxima, hoje)?.minimoHoras).toBe(35)
+    })
+  })
+
+  describe("viagem antes do primeiro registro: não bloqueia por palpite", () => {
+    const bsb = (iso: string) => new Date(`${iso}-03:00`)
+    const contexto = (dia: string) => ({
+      turnoViagem: "MANHA" as Turno,
+      diasViagem: 1,
+      dataInicioViagem: bsb(`${dia}T08:00:00`),
+      fimViagem: bsb(`${dia}T17:00:00`),
+      integracaoExigida: null,
+      hoje: bsb("2026-10-06T12:00:00"),
+    })
+    const conhecidoSo06 = criarMotorista({ registrosJornada: [{ data: bsb("2026-10-06T00:00:00"), codigo: 1, fimJornada: null }] })
+
+    it("sabendo só que 06/10 é o 1º dia, não conclui 'Folga em 05/10'", () => {
+      expect(motivoForaDaRegra(conhecidoSo06, contexto("2026-10-05"))).toBeNull()
+    })
+
+    it("de 06/10 em diante continua valendo o ciclo conhecido", () => {
+      expect(motivoForaDaRegra(conhecidoSo06, contexto("2026-10-12"))).toBe("Folga em 12/10")
     })
   })
 

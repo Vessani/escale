@@ -7,7 +7,13 @@ import { Badge } from "@/components/ui/badge"
 import { ConfirmDialog } from "@/components/ui/confirm-dialog"
 import { atualizarJornadaMotoristaNoCalendario, deletarMotorista } from "@/lib/actions/motoristas"
 import { calcularDiasDisponiveis } from "@/lib/services/alocacao.service"
-import { completarFolgasDoRelatorio, mapearRegistrosJornada, obterStatusJornada, projetarCodigoNoDia } from "@/lib/services/jornada.service"
+import {
+  obterStatusJornada,
+  prepararJornadaDoMotorista,
+  situacaoDoDia,
+  viagemEhTrabalhoNoDia,
+  type JornadaDoMotorista,
+} from "@/lib/services/jornada.service"
 import { colunaDateParaLocal, fimDoDia, formatarHoraLocal, inicioDoDia } from "@/lib/utils/date-format"
 import { classeBadgeTurno } from "../viagens/badge-styles"
 import {
@@ -30,6 +36,14 @@ type Viagem = {
   numViagem: string
   inicioPrevisto: string
   fimPrevisto: string
+  status: string
+  finalizadoEm: string | null
+}
+
+/** Código do motorista no dia, contando as viagens dele — quem viaja num dia projetado como Folga não está de folga. */
+function codigoNoCalendario(jornada: JornadaDoMotorista, viagens: Viagem[], dia: Date, hoje: Date) {
+  const temViagem = viagens.some((viagem) => viagemEhTrabalhoNoDia(viagem, dia))
+  return situacaoDoDia(jornada, dia, hoje, { temViagem }).codigo
 }
 
 type RegistroJornada = {
@@ -107,15 +121,14 @@ export default function CalendarioMotoristas({ inicioParam, hojeIso, relatorioJo
   const motoristasComHoje = useMemo(
     () =>
       motoristas.map((motorista) => {
-        // registrosProjetados alimenta só a projeção/rotação (projetarCodigoNoDia);
+        // jornada alimenta só o código do dia (situacaoDoDia);
         // motorista.registrosJornada (bruto, preservado pelo spread) é usado à parte
         // pra achar o horário real de um dia exato — ver buscarJornadaRealNoDia.
-        const registrosProjetados = completarFolgasDoRelatorio(
-          mapearRegistrosJornada(motorista.registrosJornada),
-          relatorioJornadaAteIso ? new Date(relatorioJornadaAteIso) : null,
-        )
-        const codigoHoje = projetarCodigoNoDia(registrosProjetados, hoje, hoje, motorista.diasTrabalhados)
-        return { ...motorista, registrosProjetados, codigoHoje }
+        const jornada = {
+          diasTrabalhados: motorista.diasTrabalhados,
+          ...prepararJornadaDoMotorista({ ...motorista, filial: { relatorioJornadaAte: relatorioJornadaAteIso } }),
+        }
+        return { ...motorista, jornada, codigoHoje: codigoNoCalendario(jornada, motorista.viagens, hoje, hoje) }
       }),
     [motoristas, hoje, relatorioJornadaAteIso],
   )
@@ -230,7 +243,7 @@ export default function CalendarioMotoristas({ inicioParam, hojeIso, relatorioJo
                 const diasDisponiveis = calcularDiasDisponiveis(motorista.codigoHoje)
                 const statusJornada = obterStatusJornada(motorista.codigoHoje)
                 const fundoColunaFixa = indiceMotorista % 2 === 0 ? "bg-card" : "bg-muted"
-                const registrosProjetados = motorista.registrosProjetados
+                const jornadaDoMotorista = motorista.jornada
                 const registrosJornadaBrutos = motorista.registrosJornada
                 const classeTurnoBadge = classeBadgeTurno(motorista.turno)
 
@@ -295,7 +308,7 @@ export default function CalendarioMotoristas({ inicioParam, hojeIso, relatorioJo
                       const chaveCelula = `${motorista.id}-${diaIso}`
                       const dia = new Date(`${diaIso}T00:00:00`)
                       const ehHoje = inicioDoDia(dia).getTime() === inicioDoDia(hoje).getTime()
-                      const codigoNoDia = projetarCodigoNoDia(registrosProjetados, dia, hoje, motorista.diasTrabalhados)
+                      const codigoNoDia = codigoNoCalendario(jornadaDoMotorista, motorista.viagens, dia, hoje)
                       const statusNoDia = obterStatusJornada(codigoNoDia)
                       const jornadaReal = buscarJornadaRealNoDia(registrosJornadaBrutos, dia)
                       const celulaAberta = celulaEmEdicao === chaveCelula

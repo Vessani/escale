@@ -59,6 +59,8 @@ export default async function MotoristasPage({ searchParams }: { searchParams?: 
         numViagem: viagem.numViagem,
         inicioPrevisto: viagem.inicioPrevisto,
         fimPrevisto: viagem.fimPrevisto,
+        status: viagem.status,
+        finalizadoEm: viagem.finalizadoEm,
       })),
       registrosJornada: motorista.registrosJornada.map((registro) => ({
         data: registro.data,

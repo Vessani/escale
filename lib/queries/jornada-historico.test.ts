@@ -3,7 +3,7 @@ import { describe, expect, it, vi } from "vitest"
 vi.mock("@/lib/prisma", () => ({ prisma: { $queryRaw: vi.fn() } }))
 
 import { completarHistoricoComAncora, inicioJanelaJornada } from "./jornada-historico"
-import { projetarCodigoNoDia } from "@/lib/services/jornada.service"
+import { situacaoDoDia } from "@/lib/services/jornada.service"
 
 describe("histórico de jornada em janela + âncora", () => {
   it("a janela começa N dias antes do início do dia de referência", () => {
@@ -32,7 +32,7 @@ describe("histórico de jornada em janela + âncora", () => {
     // Histórico completo: só um registro, bem antigo (fora da janela).
     const antigo = { data: new Date("2026-06-01T03:00:00Z"), codigo: 3 }
     const dia = new Date("2026-09-30T12:00:00-03:00")
-    const esperado = projetarCodigoNoDia([antigo], dia, dia, 1)
+    const esperado = situacaoDoDia({ registrosJornada: [antigo], diasTrabalhados: 1 }, dia, dia).codigo
 
     const db = { $queryRaw: vi.fn().mockResolvedValue([{ motoristaId: 1, ...antigo, fimJornada: null }]) }
     const [motorista] = await completarHistoricoComAncora(
@@ -41,6 +41,6 @@ describe("histórico de jornada em janela + âncora", () => {
       db as never,
     )
 
-    expect(projetarCodigoNoDia(motorista.registrosJornada, dia, dia, 1)).toBe(esperado)
+    expect(situacaoDoDia({ registrosJornada: motorista.registrosJornada, diasTrabalhados: 1 }, dia, dia).codigo).toBe(esperado)
   })
 })

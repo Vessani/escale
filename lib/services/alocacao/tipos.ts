@@ -23,7 +23,6 @@ export type MotoristaParaAlocacao = {
   registrosJornada: PontoRegistroJornada[]
   /** Último registro do Relatório Sintético de Jornada importado (ver jornada-relatorio.service.ts). */
   jornadaRelatorioInicio: Date | string | null
-  jornadaRelatorioFim: Date | string | null
   /**
    * Último dia coberto pelo Relatório de Jornada da filial (meia-noite
    * local). Até esse dia o relatório prevalece sobre as viagens do Escale —

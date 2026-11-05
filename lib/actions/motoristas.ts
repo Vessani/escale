@@ -1,4 +1,5 @@
 "use server"
+import { ehCodigoJornadaValido } from "@/lib/services/codigo-jornada"
 import { revalidatePath } from "next/cache"
 import { NovoMotoristaInput, EditarMotoristaInput, type RespostaAcao } from "@/lib/types/types"
 import { errorToMessage } from "@/lib/action-error"
@@ -87,7 +88,7 @@ export async function atualizarJornadaMotoristaNoCalendario(
   try {
     const { session, filialId } = await requireSessionComFilial()
 
-    if (!Number.isInteger(codigoNoDia) || codigoNoDia < 1 || codigoNoDia > 11) {
+    if (!ehCodigoJornadaValido(codigoNoDia)) {
       return { sucesso: false, erro: "Código de jornada inválido." }
     }
 

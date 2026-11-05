@@ -12,7 +12,6 @@ function motorista(parcial: Record<string, unknown> = {}) {
     tipo: "MOTORISTA" as const,
     produtosAutorizados: ["CO2" as const],
     jornadaRelatorioInicio: null,
-    jornadaRelatorioFim: null,
     integracao: [],
     registrosJornada: [],
     viagens: [],

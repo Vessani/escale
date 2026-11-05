@@ -1,8 +1,25 @@
 import { Prisma } from "@prisma/client"
 import { prisma } from "@/lib/prisma"
 import { NovoMotoristaInput, EditarMotoristaInput } from "@/lib/types/types"
+import { ErroDeDominio } from "@/lib/errors"
+import { filtroAtividadeNoDia } from "@/lib/queries/motoristas"
 import { dataParaColunaDate, inicioDoDia } from "@/lib/utils/date-format"
 import { registrarAuditoria, type Ator } from "./auditoria.service"
+import { CODIGO_FOLGA } from "./codigo-jornada"
+import { prepararJornadaDoMotorista, situacaoDoDia } from "./jornada.service"
+
+/** Escalado não folga no dia: quem escala precisa tirar da viagem primeiro. */
+async function garantirQuePodeFolgar(tx: Prisma.TransactionClient, idMotorista: number, dia: Date) {
+  const viagensNoDia = await tx.viagem.count({
+    where: { AND: [filtroAtividadeNoDia(dia), { OR: [{ motoristaId: idMotorista }, { motoristaAcompanhanteId: idMotorista }] }] },
+  })
+  if (viagensNoDia > 0) {
+    throw new ErroDeDominio(
+      "FOLGA_COM_VIAGEM",
+      "Motorista escalado nesse dia não pode ficar de folga. Marque Interno ou tire ele da viagem.",
+    )
+  }
+}
 
 export async function criarMotoristaService(filialId: number, dados: NovoMotoristaInput, ator: Ator | null) {
   const hoje = inicioDoDia(new Date())
@@ -53,8 +70,20 @@ export async function editarMotoristaService(filialId: number, idMotorista: numb
   const manterIntegracao = integracaoExistentes.map((i) => i.id as number)
 
   const motoristaAntes = await prisma.motorista.findUniqueOrThrow({ where: { id: idMotorista, filialId } })
+  const { registrosJornada, filial } = await prisma.motorista.findUniqueOrThrow({
+    where: { id: idMotorista, filialId },
+    select: {
+      registrosJornada: { select: { data: true, codigo: true, fimJornada: true } },
+      filial: { select: { relatorioJornadaAte: true } },
+    },
+  })
+  const hoje = inicioDoDia(new Date())
+  const jornada = { diasTrabalhados: motoristaAntes.diasTrabalhados, ...prepararJornadaDoMotorista({ registrosJornada, filial }) }
+  const codigoMudou = dados.diasTrabalhados !== situacaoDoDia(jornada, hoje, hoje).codigo
 
   return await prisma.$transaction(async (tx) => {
+    if (codigoMudou && dados.diasTrabalhados === CODIGO_FOLGA) await garantirQuePodeFolgar(tx, idMotorista, hoje)
+
     const motoristaAtualizado = await tx.motorista.update({
       where: { id: idMotorista, filialId },
       data: {
@@ -86,11 +115,12 @@ export async function editarMotoristaService(filialId: number, idMotorista: numb
       },
     })
 
-    // O campo "Dias Trabalhados" no formulário representa a jornada de hoje —
-    // mantém isso registrado no histórico também. Inline (não
+    // O campo "Dias Trabalhados" no formulário representa a jornada de hoje.
+    // Só grava se alguém mudou: salvar o nome não pode transformar a projeção
+    // de hoje num registro, que vira âncora dos dias seguintes. Inline (não
     // registrarJornadaNoDiaService, que abriria uma segunda transação) pra
     // ficar atômico com o update acima.
-    await registrarJornadaNoDia(tx, idMotorista, inicioDoDia(new Date()), dados.diasTrabalhados)
+    if (codigoMudou) await registrarJornadaNoDia(tx, idMotorista, hoje, dados.diasTrabalhados)
 
     await registrarAuditoria(tx, {
       entidade: "Motorista",
@@ -133,7 +163,7 @@ export async function deletarMotoristaService(filialId: number, id: number, ator
 
 /**
  * Registra o código de jornada de um motorista num dia específico (histórico
- * usado pelo calendário — ver `jornada.service.ts#projetarCodigoNoDia`).
+ * usado pelo calendário — ver `jornada.service.ts#situacaoDoDia`).
  * Só atualiza o cache `Motorista.diasTrabalhados` quando o dia registrado é
  * hoje; editar um dia passado ou futuro nunca afeta o que "hoje" mostra.
  *
@@ -195,6 +225,7 @@ export async function registrarJornadaNoDia(
 export async function registrarJornadaNoDiaService(filialId: number, idMotorista: number, data: Date, codigo: number, ator: Ator | null) {
   return await prisma.$transaction(async (tx) => {
     await tx.motorista.findUniqueOrThrow({ where: { id: idMotorista, filialId }, select: { id: true } })
+    if (codigo === CODIGO_FOLGA) await garantirQuePodeFolgar(tx, idMotorista, data)
     const registro = await registrarJornadaNoDia(tx, idMotorista, data, codigo)
 
     await registrarAuditoria(tx, {

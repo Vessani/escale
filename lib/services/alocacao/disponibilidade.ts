@@ -1,5 +1,5 @@
 import { formatarDiaMesHora, inicioDoDia } from "@/lib/utils/date-format"
-import { codigoConhecidoNoDia } from "../jornada.service"
+import { posicaoNoCiclo, situacaoDoDia } from "../jornada.service"
 import { instanteDoUltimoDiaDeJornada } from "../turno"
 import { MAX_DIAS_CONSECUTIVOS } from "./compatibilidade"
 import {
@@ -150,10 +150,12 @@ export function descansoMinimoNecessarioApos(
   hoje: Date,
 ) {
   // 35h só quando se SABE que o dia em que ele parou era o 6º (ou além) —
-  // sem histórico até aquele dia, vale a interjornada de 11h (ver codigoConhecidoNoDia).
+  // sem histórico até aquele dia, vale a interjornada de 11h (ver SituacaoDoDia.conhecido).
   const ultimoDia = instanteDoUltimoDiaDeJornada(inicioTrabalho, fimTrabalho)
-  const codigoAoFim = codigoConhecidoNoDia(motorista.registrosJornada, ultimoDia, hoje, motorista.diasTrabalhados)
-  return codigoAoFim !== null && codigoAoFim >= MAX_DIAS_CONSECUTIVOS ? MINIMO_HORAS_ENTRE_FOLGAS : MINIMO_HORAS_ENTRE_JORNADAS
+  const { conhecido } = situacaoDoDia(motorista, ultimoDia, hoje)
+  return conhecido && posicaoNoCiclo(motorista, ultimoDia, hoje) >= MAX_DIAS_CONSECUTIVOS
+    ? MINIMO_HORAS_ENTRE_FOLGAS
+    : MINIMO_HORAS_ENTRE_JORNADAS
 }
 
 const HORA_MS = 60 * 60 * 1000

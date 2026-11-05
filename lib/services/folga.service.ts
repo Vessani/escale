@@ -2,25 +2,12 @@ import type { Prisma } from "@prisma/client"
 import { filtroJanelaJornada, completarHistoricoComAncora, inicioJanelaJornada } from "@/lib/queries/jornada-historico"
 import { filtroAtividadeNoDia } from "@/lib/queries/motoristas"
 import { fimDoDia, inicioDoDia } from "@/lib/utils/date-format"
-import { codigoConhecidoNoDia, prepararJornadaDoMotorista, projetarCodigoNoDia, type PontoRegistroJornada } from "./jornada.service"
+import { CODIGO_FOLGA, CODIGO_INTERNO, ehDiaDeTrabalho } from "./codigo-jornada"
+import { codigoTrabalhandoNoDia, prepararJornadaDoMotorista, situacaoDoDia, viagemEhTrabalhoNoDia } from "./jornada.service"
 import { registrarJornadaNoDia } from "./motorista.service"
 
-const UM_DIA_MS = 24 * 60 * 60 * 1000
-const ULTIMO_DIA_DO_CICLO = 6
-
-/**
- * Código de quem trabalha num dia marcado como Folga. Só descansou de verdade
- * quem vinha de uma folga: aí recomeça no 1º dia. Vindo de um dia de trabalho
- * o ciclo continua — zerar esconderia o 7º dia seguido, por isso o teto de 6,
- * como no import do relatório (ver calcularCodigoDoDiasSemFolga).
- */
-function codigoAoSairDaFolga(registros: PontoRegistroJornada[], dia: Date, hoje: Date, codigoAtual: number) {
-  const ontem = codigoConhecidoNoDia(registros, new Date(dia.getTime() - UM_DIA_MS), hoje, codigoAtual)
-  return ontem !== null && ontem >= 1 && ontem <= ULTIMO_DIA_DO_CICLO ? Math.min(ontem + 1, ULTIMO_DIA_DO_CICLO) : 1
-}
-
 export function deveRetirarMotoristaDaFolga(diasTrabalhados: number, possuiViagemAtivaHoje: boolean) {
-  return diasTrabalhados === 7 && possuiViagemAtivaHoje
+  return diasTrabalhados === CODIGO_FOLGA && possuiViagemAtivaHoje
 }
 
 /**
@@ -65,10 +52,47 @@ export async function reconciliarFolgaMotoristasNoDiaAtual(
   // Decide pelo código projetado pra hoje, não pelo cache diasTrabalhados:
   // ele só muda quando algo grava no dia de hoje, então podia estar parado num
   // 7 antigo e zerar o ciclo de quem estava no meio dele.
+  const motoristas = await carregarSituacaoDeHoje(tx, idsRelevantes, dataReferencia)
+
+  for (const { id, jornada, codigoHoje, temAtividadeHoje } of motoristas) {
+    if (deveRetirarMotoristaDaFolga(codigoHoje, temAtividadeHoje)) {
+      await registrarJornadaNoDia(tx, id, dataReferencia, codigoTrabalhandoNoDia(jornada, dataReferencia, dataReferencia))
+    }
+  }
+}
+
+/**
+ * Quem estava escalado hoje e ficou sem viagem não vira Folga: fica como
+ * Interno. Escalado não folga no dia — se a viagem caiu, ele segue à disposição
+ * da operação. Chamada ao cancelar, excluir ou editar a viagem, com o estado de
+ * ANTES dela. Fora disso de propósito: a troca durante a viagem (quem saiu já
+ * trabalhou na estrada, o dia dele não muda) e a finalização (é trabalho no
+ * dia). Só vale pro próprio dia: cancelar a viagem de amanhã não muda nada.
+ */
+export async function marcarInternoQuemSaiuDaEscala(
+  tx: Prisma.TransactionClient,
+  motoristaIds: Array<number | null | undefined>,
+  viagemAntes: Parameters<typeof viagemEhTrabalhoNoDia>[0],
+  dataReferencia = new Date(),
+) {
+  const idsRelevantes = [...new Set(motoristaIds.filter((id): id is number => id != null))]
+  if (idsRelevantes.length === 0 || !viagemEhTrabalhoNoDia(viagemAntes, dataReferencia)) {
+    return
+  }
+
+  for (const { id, codigoHoje, temAtividadeHoje } of await carregarSituacaoDeHoje(tx, idsRelevantes, dataReferencia)) {
+    if (!temAtividadeHoje && (ehDiaDeTrabalho(codigoHoje) || codigoHoje === CODIGO_FOLGA)) {
+      await registrarJornadaNoDia(tx, id, dataReferencia, CODIGO_INTERNO)
+    }
+  }
+}
+
+/** Código de hoje e se há trabalho hoje, de cada motorista — o que as duas regras acima precisam. */
+async function carregarSituacaoDeHoje(tx: Prisma.TransactionClient, ids: number[], dataReferencia: Date) {
   const atividadeHoje = filtroAtividadeNoDia(dataReferencia)
   const desde = inicioJanelaJornada(dataReferencia)
   const motoristasBrutos = await tx.motorista.findMany({
-    where: { id: { in: idsRelevantes }, deletadoEm: null },
+    where: { id: { in: ids }, deletadoEm: null },
     select: {
       id: true,
       diasTrabalhados: true,
@@ -85,14 +109,13 @@ export async function reconciliarFolgaMotoristasNoDiaAtual(
   })
   const motoristas = await completarHistoricoComAncora(motoristasBrutos, desde, tx)
 
-  for (const motorista of motoristas) {
-    const { registrosJornada } = prepararJornadaDoMotorista(motorista)
-    const codigoHoje = projetarCodigoNoDia(registrosJornada, dataReferencia, dataReferencia, motorista.diasTrabalhados)
-    const temAtividadeHoje = motorista.viagens.length > 0 || motorista.viagensComoAcompanhante.length > 0
-
-    if (deveRetirarMotoristaDaFolga(codigoHoje, temAtividadeHoje)) {
-      const codigo = codigoAoSairDaFolga(registrosJornada, dataReferencia, dataReferencia, motorista.diasTrabalhados)
-      await registrarJornadaNoDia(tx, motorista.id, dataReferencia, codigo)
+  return motoristas.map((motorista) => {
+    const jornada = { diasTrabalhados: motorista.diasTrabalhados, ...prepararJornadaDoMotorista(motorista) }
+    return {
+      id: motorista.id,
+      jornada,
+      codigoHoje: situacaoDoDia(jornada, dataReferencia, dataReferencia).codigo,
+      temAtividadeHoje: motorista.viagens.length > 0 || motorista.viagensComoAcompanhante.length > 0,
     }
-  }
+  })
 }

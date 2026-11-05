@@ -5,7 +5,7 @@ import { EmptyState } from "@/components/ui/empty-state"
 import { requireSessaoPaginaComFilial } from "@/lib/auth-guard"
 import { PAPEIS_LEITURA } from "@/lib/papeis"
 import { buscarMotoristasSemViagemNoDia, contarMotoristasAtivos } from "@/lib/queries/motoristas"
-import { completarFolgasDoRelatorio, mapearRegistrosJornada, projetarCodigoNoDia } from "@/lib/services/jornada.service"
+import { prepararJornadaDoMotorista, situacaoDoDia } from "@/lib/services/jornada.service"
 import { buscarCoberturaRelatorioJornada } from "@/lib/queries/filiais"
 import { determinarAcaoSugerida } from "@/lib/services/motoristas-ociosos.service"
 import { diaParaTexto } from "@/lib/relatorios/periodo"
@@ -42,8 +42,11 @@ export default async function MotoristasSemViagemPage({ searchParams }: { search
   ])
 
   const motoristasComAcao = motoristas.map((motorista) => {
-    const registrosProjetados = completarFolgasDoRelatorio(mapearRegistrosJornada(motorista.registrosJornada), coberturaRelatorio)
-    const codigoNoDia = projetarCodigoNoDia(registrosProjetados, dataDoDia, agora, motorista.diasTrabalhados)
+    const jornada = {
+      diasTrabalhados: motorista.diasTrabalhados,
+      ...prepararJornadaDoMotorista({ ...motorista, filial: { relatorioJornadaAte: coberturaRelatorio } }),
+    }
+    const { codigo: codigoNoDia } = situacaoDoDia(jornada, dataDoDia, agora)
     return {
       id: motorista.id,
       nome: motorista.nome,

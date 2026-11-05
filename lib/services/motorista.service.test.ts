@@ -28,6 +28,7 @@ function criarTx() {
     motorista: { create: vi.fn(), update: vi.fn(), findUniqueOrThrow: vi.fn() },
     registroJornada: { upsert: vi.fn() },
     registroAuditoria: { create: vi.fn() },
+    viagem: { count: vi.fn().mockResolvedValue(0) },
   }
 }
 
@@ -110,7 +111,13 @@ describe("motorista.service", () => {
 
   describe("editarMotoristaService", () => {
     it("separa integrações existentes (update) de novas (create) e mantém só as informadas", async () => {
-      vi.mocked(prisma.motorista.findUniqueOrThrow).mockResolvedValue({ id: 5, tipo: "TREINAMENTO" as const } as never)
+      vi.mocked(prisma.motorista.findUniqueOrThrow).mockResolvedValue({
+        id: 5,
+        tipo: "TREINAMENTO" as const,
+        diasTrabalhados: 1,
+        registrosJornada: [],
+        filial: null,
+      } as never)
 
       const tx = criarTx()
       vi.mocked(tx.motorista.update).mockResolvedValue({ id: 5, tipo: "MOTORISTA" as const })
@@ -147,6 +154,58 @@ describe("motorista.service", () => {
       expect(prisma.$transaction).toHaveBeenCalledTimes(1)
       expect(tx.registroJornada.upsert).toHaveBeenCalledTimes(1)
       expect(tx.registroAuditoria.create).toHaveBeenCalledTimes(1)
+    })
+  })
+
+  describe("editarMotoristaService: código de hoje", () => {
+    const hoje = new Date()
+    const colunaDeHoje = new Date(`${new Date(hoje.getTime() - 3 * 3_600_000).toISOString().slice(0, 10)}T00:00:00.000Z`)
+    const dados = (diasTrabalhados: number): EditarMotoristaInput => ({
+      nome: "Ana",
+      cpf: "11144477735",
+      seva: 1,
+      diasTrabalhados,
+      turno: "NOITE",
+      tipo: "MOTORISTA",
+      produtosAutorizados: [],
+      integracao: [],
+    })
+    function comHistorico(codigo: number) {
+      vi.mocked(prisma.motorista.findUniqueOrThrow).mockResolvedValue({
+        id: 5,
+        diasTrabalhados: codigo,
+        registrosJornada: [{ data: colunaDeHoje, codigo, fimJornada: null }],
+        filial: null,
+      } as never)
+      const tx = criarTx()
+      vi.mocked(tx.motorista.update).mockResolvedValue({ id: 5 })
+      vi.mocked(tx.registroJornada.upsert).mockResolvedValue({})
+      usarTransacaoCom(tx)
+      return tx
+    }
+
+    it("salvar sem mudar o código não grava registro de jornada", async () => {
+      const tx = comHistorico(3)
+
+      await editarMotoristaService(FILIAL_ID, 5, dados(3), ATOR)
+
+      expect(tx.registroJornada.upsert).not.toHaveBeenCalled()
+    })
+
+    it("mudar o código grava no dia de hoje", async () => {
+      const tx = comHistorico(3)
+
+      await editarMotoristaService(FILIAL_ID, 5, dados(4), ATOR)
+
+      expect(tx.registroJornada.upsert).toHaveBeenCalledTimes(1)
+    })
+
+    it("não deixa dar folga pelo cadastro a quem está escalado hoje", async () => {
+      const tx = comHistorico(3)
+      vi.mocked(tx.viagem.count).mockResolvedValue(1)
+
+      await expect(editarMotoristaService(FILIAL_ID, 5, dados(7), ATOR)).rejects.toThrow("não pode ficar de folga")
+      expect(tx.motorista.update).not.toHaveBeenCalled()
     })
   })
 
@@ -234,6 +293,32 @@ describe("motorista.service", () => {
       })
       expect(prisma.$transaction).toHaveBeenCalledTimes(1)
       expect(tx.registroJornada.upsert).toHaveBeenCalledTimes(1)
+    })
+
+    it("não deixa marcar Folga em dia com viagem, como principal ou acompanhante", async () => {
+      const tx = criarTx()
+      vi.mocked(tx.motorista.findUniqueOrThrow).mockResolvedValue({ id: 3 })
+      vi.mocked(tx.viagem.count).mockResolvedValue(1)
+      usarTransacaoCom(tx)
+
+      await expect(registrarJornadaNoDiaService(FILIAL_ID, 3, new Date(), 7, ATOR)).rejects.toThrow("não pode ficar de folga")
+
+      expect(tx.registroJornada.upsert).not.toHaveBeenCalled()
+      const filtro = vi.mocked(tx.viagem.count).mock.calls[0][0] as { where: { AND: Array<{ OR: unknown[] }> } }
+      expect(filtro.where.AND[1].OR).toEqual([{ motoristaId: 3 }, { motoristaAcompanhanteId: 3 }])
+    })
+
+    it("marca Folga em dia sem viagem, e Interno mesmo com viagem", async () => {
+      const tx = criarTx()
+      vi.mocked(tx.motorista.findUniqueOrThrow).mockResolvedValue({ id: 3 })
+      vi.mocked(tx.registroJornada.upsert).mockResolvedValue({ codigo: 7 })
+      usarTransacaoCom(tx)
+
+      await registrarJornadaNoDiaService(FILIAL_ID, 3, new Date(), 7, ATOR)
+      vi.mocked(tx.viagem.count).mockResolvedValue(1)
+      await registrarJornadaNoDiaService(FILIAL_ID, 3, new Date(), 10, ATOR)
+
+      expect(tx.registroJornada.upsert).toHaveBeenCalledTimes(2)
     })
 
     it("propaga o erro (registro não encontrado) sem chamar registrarJornadaNoDia quando o motorista não é da filial", async () => {

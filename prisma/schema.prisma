@@ -368,6 +368,8 @@
     // do lote de import (o relatório traz vários turnos por motorista; cada
     // um também vira uma linha em RegistroJornada — ver abaixo).
     jornadaRelatorioInicio DateTime? @db.Timestamp(6)
+    // Sem uso: a próxima entrega remove estas duas colunas. Saem depois do
+    // deploy que para de ler e gravar, senão o código antigo quebra no ar.
     jornadaRelatorioFim    DateTime? @db.Timestamp(6)
     jornadaRelatorioDia    DateTime? @db.Date
 

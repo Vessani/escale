@@ -33,7 +33,6 @@ type MotoristaComAgendaBruta = {
   tipo: TipoMotorista
   produtosAutorizados: TipoProduto[]
   jornadaRelatorioInicio: Date | string | null
-  jornadaRelatorioFim: Date | string | null
   integracao: IntegracaoBase[]
   registrosJornada: Array<{ data: Date | string; codigo: number; fimJornada?: Date | string | null }>
   /** Cobertura do Relatório de Jornada da filial — ver prepararJornadaDoMotorista. */

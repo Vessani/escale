@@ -15,7 +15,7 @@ export function TrocaMotoristaMotorista({
 }: {
   viagemId: number
   numViagem: string
-  substitutos: Array<{ id: number; nome: string }>
+  substitutos: Array<{ id: number; nome: string; parado?: string | null }>
   kmInicial: number | null
   agoraServidor: string
 }) {

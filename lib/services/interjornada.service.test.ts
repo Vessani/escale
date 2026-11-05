@@ -44,7 +44,6 @@ function criarMotorista(
     integracao: [],
     registrosJornada: [],
     jornadaRelatorioInicio: null,
-    jornadaRelatorioFim: null,
     produtosAutorizados: [],
     viagens: [],
     ...parcial,

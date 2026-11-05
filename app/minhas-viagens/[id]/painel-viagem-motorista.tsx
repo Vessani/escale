@@ -85,7 +85,7 @@ export function PainelViagemMotorista({
   motoristaId,
 }: {
   viagem: ViagemDoPainel
-  substitutos: Array<{ id: number; nome: string }>
+  substitutos: Array<{ id: number; nome: string; parado?: string | null }>
   souPrincipal: boolean
   agoraServidor: string
   /** O motorista logado — o rascunho das chegadas no celular é dele (ver rascunho-chegada.ts). */
