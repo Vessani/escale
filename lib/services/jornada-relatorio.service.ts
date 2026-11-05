@@ -229,15 +229,32 @@ export async function atualizarJornadaRelatorioDosMotoristas(
         diasRemovidos += remover.length
       }
 
+      // Interno é dia de trabalho: fica Interno no calendário, mas com os
+      // horários do relatório — sem eles o descanso seguinte não seria medido.
+      // Se a linha saiu do arquivo, os horários saem junto.
+      const diasInterno = new Set(
+        existentes.filter((registro) => registro.codigo === CODIGO_INTERNO).map((registro) => registro.data.getTime()),
+      )
+      const internosForaDoArquivo = existentes.filter(
+        (registro) =>
+          registro.codigo === CODIGO_INTERNO && registro.inicioJornada !== null && !diasDoMotorista.has(registro.data.getTime()),
+      )
+      if (internosForaDoArquivo.length > 0) {
+        await tx.registroJornada.updateMany({
+          where: { id: { in: internosForaDoArquivo.map((registro) => registro.id) } },
+          data: { inicioJornada: null, fimJornada: null, diasSemFolga: null },
+        })
+      }
+
       // Hoje sem registro, mas o motorista está em status especial: também não mexe.
       const loteTemHoje = registrosDoMotorista.some((registro) => diaColuna(registro.dia).getTime() === hoje)
       const especialHoje = loteTemHoje && (await estaEmStatusEspecialHoje(tx, motorista.id))
 
       for (const registro of registrosDoMotorista) {
         const dia = diaColuna(registro.dia).getTime()
-        if (diasEspeciais.has(dia)) continue
-        if (dia === hoje && especialHoje) continue
-        const codigo = calcularCodigoDoDiasSemFolga(registro.diasSemFolga)
+        const interno = diasInterno.has(dia)
+        if (!interno && (diasEspeciais.has(dia) || (dia === hoje && especialHoje))) continue
+        const codigo = interno ? CODIGO_INTERNO : calcularCodigoDoDiasSemFolga(registro.diasSemFolga)
         await registrarJornadaNoDia(tx, motorista.id, new Date(registro.dia), codigo, {
           inicioJornada: new Date(registro.inicioJornada),
           fimJornada: new Date(registro.fimJornada),

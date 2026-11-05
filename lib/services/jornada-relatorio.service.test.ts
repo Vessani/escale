@@ -40,6 +40,7 @@ function criarTx() {
       findMany: vi.fn().mockResolvedValue([]),
       findFirst: vi.fn().mockResolvedValue(null),
       deleteMany: vi.fn(),
+      updateMany: vi.fn(),
     },
   }
 }
@@ -106,6 +107,36 @@ describe("atualizarJornadaRelatorioDosMotoristas", () => {
 
     expect(prisma.filial.updateMany).not.toHaveBeenCalled()
     expect(tx.registroJornada.upsert).toHaveBeenCalledTimes(1)
+  })
+
+  it("dia marcado como Interno continua Interno, mas ganha os horários do relatório", async () => {
+    vi.mocked(prisma.motorista.findMany).mockResolvedValue([{ id: 42, seva: 815 }] as never)
+    tx.registroJornada.findMany.mockResolvedValue([{ id: 7, data: new Date("2026-07-10T00:00:00.000Z"), codigo: 10, inicioJornada: null }])
+
+    await atualizarJornadaRelatorioDosMotoristas(FILIAL_ID, [criarRegistro({ dia: "2026-07-10T03:00:00.000Z" })])
+
+    const upsert = vi.mocked(tx.registroJornada.upsert).mock.calls[0][0] as { update: { codigo: number; fimJornada: Date } }
+    expect(upsert.update.codigo).toBe(10)
+    expect(upsert.update.fimJornada).toBeInstanceOf(Date)
+  })
+
+  it("Interno que saiu do arquivo perde os horários, não o dia", async () => {
+    vi.mocked(prisma.motorista.findMany).mockResolvedValue([{ id: 42, seva: 815 }] as never)
+    tx.registroJornada.findMany.mockResolvedValue([
+      { id: 7, data: new Date("2026-07-09T00:00:00.000Z"), codigo: 10, inicioJornada: new Date() },
+    ])
+
+    await atualizarJornadaRelatorioDosMotoristas(FILIAL_ID, [criarRegistro({ dia: "2026-07-10T03:00:00.000Z" })], {
+      de: "2026-07-08T03:00:00.000Z",
+      ate: "2026-07-10T03:00:00.000Z",
+      matriculas: [815],
+    })
+
+    expect(tx.registroJornada.updateMany).toHaveBeenCalledWith({
+      where: { id: { in: [7] } },
+      data: { inicioJornada: null, fimJornada: null, diasSemFolga: null },
+    })
+    expect(tx.registroJornada.deleteMany).not.toHaveBeenCalled()
   })
 
   it("relatório antigo importado depois não troca o horário habitual pelo de antes", async () => {
