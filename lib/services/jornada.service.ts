@@ -333,9 +333,10 @@ export function viagemEhTrabalhoNoDia(viagem: ViagemNoDia, dia: Date): boolean {
   if (inicio >= inicioDia) return true
 
   const inicioDaJornada = inicioDia.getTime() + HORA_INICIO_TURNO_DIA * 60 * 60 * 1000
-  if (new Date(viagem.fimPrevisto).getTime() < inicioDaJornada) return false
-  if (viagem.status !== "FINALIZADA") return true
-  return Boolean(viagem.finalizadoEm) && new Date(viagem.finalizadoEm as Date | string).getTime() >= inicioDaJornada
+  if (viagem.status === "FINALIZADA") {
+    return Boolean(viagem.finalizadoEm) && new Date(viagem.finalizadoEm as Date | string).getTime() >= inicioDaJornada
+  }
+  return new Date(viagem.fimPrevisto).getTime() >= inicioDaJornada
 }
 
 export function obterStatusJornada(codigo: number): StatusJornada {

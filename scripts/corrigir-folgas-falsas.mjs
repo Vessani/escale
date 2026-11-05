@@ -66,7 +66,7 @@ const CANDIDATOS = `
           AND v."inicioPrevisto" < r.data + interval '27 hours'
           AND (
             v."inicioPrevisto" >= r.data + interval '3 hours'
-            OR (v."fimPrevisto" >= r.data + interval '7 hours' AND v."finalizadoEm" >= r.data + interval '7 hours')
+            OR v."finalizadoEm" >= r.data + interval '7 hours'
           )
       )
     )

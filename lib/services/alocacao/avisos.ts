@@ -2,13 +2,16 @@ import { calcularDescansoAntesDaViagem, type MotoristaParaDescanso } from "./des
 import { MINIMO_HORAS_ENTRE_FOLGAS, MINIMO_HORAS_ENTRE_JORNADAS } from "./disponibilidade"
 import { calcularHorarioIdealChegada } from "../descanso-minimo"
 
+const SEIS_MINUTOS_MS = 6 * 60 * 1000
+
 /**
  * Aviso de descanso insuficiente entre o fim do trabalho anterior e o início
  * da nova jornada (`inicioNovaViagem` — quem chama passa o horário de
  * APRESENTAÇÃO, ver calcularAvisoDescanso): menos que `minimoHoras` — 11h de interjornada, ou 35h de
  * descanso semanal depois do 6º dia (ver descansoMinimoNecessarioApos).
- * É só aviso — não desqualifica o motorista da sugestão, sinaliza depois de
- * escolhido, pra o time negociar nível de serviço com o cliente se precisar.
+ * Quem não descansou já fica fora da sugestão automática (ver
+ * motivoIndisponivel). O aviso é pra quando o escalador escolhe ele à mão: fica
+ * gravado, pra o time negociar nível de serviço com o cliente se precisar.
  */
 export function calcularAvisoInterjornada(
   fimJornadaAnterior: Date | string | null,
@@ -26,7 +29,8 @@ export function calcularAvisoInterjornada(
     return null
   }
 
-  const horasDescansoTexto = Math.max(0, horasDescanso).toFixed(1)
+  // Pra baixo: 10,98h não pode aparecer como "11.0h (mínimo 11h)".
+  const horasDescansoTexto = (Math.floor(Math.max(0, inicioNovaViagem.getTime() - fim.getTime()) / SEIS_MINUTOS_MS) / 10).toFixed(1)
   const tipoDescanso = minimoHoras >= MINIMO_HORAS_ENTRE_FOLGAS ? "Descanso semanal" : "Interjornada"
   return `${tipoDescanso}: motorista teve apenas ${horasDescansoTexto}h de descanso (mínimo ${minimoHoras}h).`
 }

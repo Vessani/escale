@@ -160,6 +160,12 @@ describe("jornada.service", () => {
         expect(viagemEhTrabalhoNoDia(viagem("2026-10-05T20:00:00", "2026-10-06T04:00:00"), dia06)).toBe(true)
       })
 
+      it("prevista pra ontem, finalizada hoje: o trabalho foi até hoje", () => {
+        expect(
+          viagemEhTrabalhoNoDia(viagem("2026-10-05T08:00:00", "2026-10-05T18:00:00", "FINALIZADA", bsb("2026-10-06T09:00:00")), dia06),
+        ).toBe(true)
+      })
+
       it("finalizada vale pelo fim efetivo", () => {
         const prevista = ["2026-10-04T08:00:00", "2026-10-06T18:00:00", "FINALIZADA"] as const
 
