@@ -8,6 +8,9 @@
 #   scripts/db-local.sh --reset        # APAGA o banco local (volume) e recria do zero
 #   scripts/db-local.sh --sem-docker   # usa um Postgres já rodando (DATABASE_URL do .env)
 #
+# Não adicione uma migration inicial pra resolver isso: `migrate deploy` a
+# aplicaria também em produção, onde as tabelas já existem, e o deploy travaria.
+#
 # Por que não é só `prisma migrate deploy`: o histórico de migrations do repo
 # não tem a migration inicial (o banco original nasceu de um `db push`), então
 # num banco VAZIO a primeira migration falha (P3018). Num banco vazio, este

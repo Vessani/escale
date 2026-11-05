@@ -1,4 +1,5 @@
 .next
+.claude
 node_modules
 prisma/migrations
 package-lock.json

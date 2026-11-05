@@ -31,3 +31,5 @@ jobs:
         run: npm test
       - name: Testes (horário de Brasília)
         run: npm run test:br
+      - name: Build
+        run: npx next build
